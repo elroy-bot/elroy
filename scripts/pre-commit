@@ -81,11 +81,9 @@ def main():
         # Check if requirements.txt is edited
         if 'requirements.txt' not in changed_files or 'cli/requirements.txt' not in changed_files or '/tests/requirements.txt' not in changed_files:
             print("requirements.txt not updated, running `poetry export`...")
-            run_command('poetry export -f requirements.txt --without-hashes --extras "cloud" -o requirements.txt')
-            run_command('git add requirements.txt')
-            run_command('poetry export -f requirements.txt --without-hashes --extras "cli" -o cli/requirements.txt')
+            run_command('poetry export -f requirements.txt --without-hashes -o cli/requirements.txt')
             run_command('git add cli/requirements.txt')
-            run_command('poetry export -f requirements.txt --without-hashes --extras "cli" --extras "cloud" --output tests/requirements.txt')
+            run_command('poetry export -f requirements.txt --without-hashes --output tests/requirements.txt')
             run_command('git add tests/requirements.txt')
 
     # Continue with the commit

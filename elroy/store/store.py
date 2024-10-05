@@ -1,44 +1,10 @@
 from datetime import datetime, timedelta
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional
 
-from pytz import UTC
-from sqlalchemy import func
 from sqlmodel import Session, select
 
 from elroy.store.data_models import (ArchivalMemory, CalendarEvent,
-                                     CalendarEventDB, MemoryEntity, Signup,
-                                     User)
-from elroy.store.message import Message
-
-
-def create_signup(session: Session, name: str, phone: str, email: Optional[str]) -> None:
-    session.add(Signup(name=name, phone=phone, email=email))
-    session.commit()
-
-
-def generate_daily_report(session: Session) -> str:
-    """
-    Generate a report for the trailing 24-hour period, including new users and message volume for each user.
-    """
-    report_lines = []
-    now = datetime.now(UTC)
-    yesterday = now - timedelta(days=1)
-
-    # Fetch new users
-    new_users = session.exec(select(User).where(User.created_at >= yesterday)).all()
-    report_lines.append(f"New Users in the last 24 hours: {len(new_users)}")
-    for user in new_users:
-        report_lines.append(f"- (ID: {user.id})")
-
-    # Fetch message volume for each user
-    user_message_counts: List[Tuple[int, int]] = (
-        session.query(Message.user_id, func.count(Message.id)).filter(Message.created_at >= yesterday, Message.role == "user").group_by(Message.user_id).all()  # type: ignore
-    )
-    report_lines.append("\nMessage Volume per User in the last 24 hours:")
-    for user_id, message_count in user_message_counts:
-        report_lines.append(f"- (ID: {user_id}): {message_count} messages")
-
-    return "\n".join(report_lines)
+                                     CalendarEventDB, MemoryEntity)
 
 
 def get_archival_messages(session: Session, user_id: int) -> Iterable[ArchivalMemory]:

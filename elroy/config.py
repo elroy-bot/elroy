@@ -14,7 +14,6 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class ElroyEnv(Enum):
-    PRODUCTION = "production"
     TESTING = "testing"
     LOCAL = "local"
     DOCKER_LOCAL = "docker_local"
@@ -23,9 +22,7 @@ class ElroyEnv(Enum):
 @dataclass
 class ElroyConfig:
     database_url: str
-    redis_url: str
     openai_api_key: str
-    ignore_rate_limiter: bool
     local_storage_path: Optional[str]
     engine: Engine
     declarative_base: Any
@@ -33,7 +30,6 @@ class ElroyConfig:
     context_refresh_token_trigger_limit: int  # how many tokens we reach before triggering refresh
     context_refresh_token_target: int  # how many tokens we aim to have after refresh
     session_maker: sessionmaker[Session]
-    admin_token: Optional[str] = None
 
 
 def str_to_bool(input: Optional[str]) -> bool:
@@ -44,9 +40,7 @@ def get_config() -> ElroyConfig:
 
     env = _get_elroy_env()
 
-    if env == ElroyEnv.PRODUCTION:
-        params = _load_production_config()
-    elif env == ElroyEnv.TESTING:
+    if env == ElroyEnv.TESTING:
         params = _load_testing_config()
     elif env == ElroyEnv.LOCAL:
         params = _load_local_config()
@@ -60,13 +54,10 @@ def get_config() -> ElroyConfig:
         lambda x: x is not None,
         {
             "database_url": os.environ.get("ELROY_DATABASE_URL"),
-            "redis_url": os.environ.get("ELROY_REDIS_URL"),
             "context_window_token_limit": (
                 int(os.environ["ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"]) if os.environ.get("ELROY_CONTEXT_WINDOW_TOKEN_LIMIT") else None
             ),
             "openai_api_key": os.environ.get("OPENAI_API_KEY"),
-            "ignore_rate_limiter": str_to_bool(os.environ.get("ELROY_IGNORE_RATE_LIMITER")),
-            "admin_token": os.environ.get("ELROY_ADMIN_TOKEN"),
             "local_storage_path": os.environ.get("ELROY_LOCAL_STORAGE_PATH"),
         },
     )
@@ -87,18 +78,9 @@ def get_config() -> ElroyConfig:
     return config
 
 
-def _load_production_config() -> Dict:
-    return {
-        "ignore_rate_limiter": False,
-        "local_storage_path": None,
-        "context_window_token_limit": 16384,
-    }
-
-
 def _load_testing_config() -> Dict:
     load_dotenv(dotenv_path=os.path.join(ROOT_DIR, "tests", ".env"), override=True)
     return {
-        "admin_token": "test_admin_token",
         "local_storage_path": os.path.join(os.getcwd(), ".cache", "test"),
         "context_window_token_limit": 1000,
     }
@@ -107,7 +89,6 @@ def _load_testing_config() -> Dict:
 def _load_local_config() -> Dict:
     load_dotenv(dotenv_path=os.path.join(ROOT_DIR, ".env"), override=True)
     return {
-        "ignore_rate_limiter": False,
         "local_storage_path": os.getenv("LOCAL_STORAGE_PATH", ".cache"),
         "context_window_token_limit": 16384,
     }
@@ -138,9 +119,7 @@ def session_manager() -> Generator[Session, None, None]:
 
 
 def _get_elroy_env() -> ElroyEnv:
-    if os.environ.get("IS_CLOUD_DEPLOYMENT"):
-        return ElroyEnv.PRODUCTION
-    elif os.environ.get("PYTEST_VERSION"):
+    if os.environ.get("PYTEST_VERSION"):
         return ElroyEnv.TESTING
     elif os.environ.get("DOCKER_LOCAL"):
         return ElroyEnv.DOCKER_LOCAL
@@ -148,6 +127,4 @@ def _get_elroy_env() -> ElroyEnv:
         return ElroyEnv.LOCAL
 
 
-# Helper functions
-is_production_env = lambda: _get_elroy_env() == ElroyEnv.PRODUCTION
 is_test_env = lambda: _get_elroy_env() == ElroyEnv.TESTING

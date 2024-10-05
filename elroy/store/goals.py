@@ -113,7 +113,18 @@ def create_onboarding_goal(session: Session, user_id: int) -> None:
         strategy="Work in questions about the user into the conversation. Use the user's name when addressing them. Ask about their time zone, and other relevant details. Do not be pushy, if the user does not wish to share the information, do not press for it.",
         end_condition=f"The following fields about the user are collected: " + ", ".join(assistant_writable_user_preference_fields),
         priority=1,
-        time_to_completion="7 DAYS",
+        time_to_completion="1 HOUR",
+    )
+
+    create_goal(
+        session=session,
+        user_id=user_id,
+        goal_name="Tell user about my ability to track goals",
+        description="Tell the user about my capability to track goals. Note that the goals can be automatically created and automatically brought into the converation when relevant.",
+        strategy="After exchanging some pleasantries, tell the user about my ability to form long term memories, including goals",
+        end_condition=f"The user has been informed about my ability to track goals",
+        priority=1,
+        time_to_completion="1 HOUR",
     )
 
 
