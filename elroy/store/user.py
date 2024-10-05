@@ -1,6 +1,5 @@
 from datetime import datetime
-from functools import partial
-from typing import Any, List, Optional
+from typing import Optional
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Session, SQLModel, select
@@ -11,46 +10,13 @@ from elroy.store.data_models import User
 from elroy.system.clock import get_utc_now
 
 
-def get_user_by_field(field_name: str, session: Session, value: Any) -> User:
-    user = session.exec(select(User).where(getattr(User, field_name) == value)).first()
-    if not user:
-        raise KeyError(f"User with {field_name} {value} not found")
-    return user
-
-
-def get_user_id_by_field(field_name: str, session: Session, value: Any) -> int:
-    id = get_user_by_field(field_name, session, value).id
-    assert id
-    return id
-
-
-def get_admins(session: Session) -> List[User]:
-    return session.exec(select(User).where(User.is_admin == True)).all()  # type: ignore
-
-
-def get_all_user_ids(session: Session) -> List[int]:
-    return [user.id for user in session.exec(select(User)).all() if user.id is not None]
-
-
-get_user_id_by_email = partial(get_user_id_by_field, "email")
-get_user_id_by_phone = partial(get_user_id_by_field, "phone")
-
-
-def get_user_phone_by_id(session: Session, user_id: int) -> str:
-    return get_user_by_field("id", session, user_id).phone
-
-
 def is_user_exists(session: Session, user_id: int) -> bool:
     return bool(session.exec(select(User).where(User.id == user_id)).first())
 
 
-def is_user_premium(session: Session, user_id: int) -> bool:
-    return get_user_by_field("id", session, user_id).is_premium
-
-
-def create_user(session: Session, phone: str) -> int:
+def create_user(session: Session) -> int:
     return pipe(
-        User(phone=phone),
+        User(),
         do(session.add),
         do(lambda _: session.commit()),
         do(session.refresh),
