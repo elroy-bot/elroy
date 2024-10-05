@@ -1,10 +1,7 @@
 import os
-import random
-import string
 
 import pytest
 from testcontainers.postgres import PostgresContainer
-from testcontainers.redis import RedisContainer
 
 from alembic.command import upgrade
 from alembic.config import Config
@@ -21,18 +18,7 @@ def postgres_container():
 
 
 @pytest.fixture(scope="session")
-def redis_container():
-    with RedisContainer("redis:6-alpine") as redis:
-        yield redis
-
-
-@pytest.fixture(scope="session")
-def config(postgres_container, redis_container) -> ElroyConfig:
-    # Get the Redis host and port
-    redis_host = redis_container.get_container_host_ip()
-    redis_port = redis_container.get_exposed_port(6379)
-    os.environ["ELROY_REDIS_URL"] = f"redis://{redis_host}:{redis_port}"
-
+def config(postgres_container) -> ElroyConfig:
     # Get the PostgreSQL host and port
     postgres_host = postgres_container.get_container_host_ip()
     postgres_port = postgres_container.get_exposed_port(5432)
@@ -50,7 +36,7 @@ def apply_migrations(config, postgres_container):
 
 from sqlmodel import delete
 
-from elroy.store.data_models import CalendarEventDB, Goal, Signup, User
+from elroy.store.data_models import CalendarEventDB, Goal, User
 from elroy.store.message import (ContextMessage, Message, get_context_messages,
                                  replace_context_messages)
 from elroy.store.store import ArchivalMemory, MemoryEntity
@@ -69,7 +55,6 @@ def session(postgres_container, apply_migrations, config):
         session.exec(delete(CalendarEventDB))  # type: ignore
         session.exec(delete(ArchivalMemory))  # type: ignore
         session.exec(delete(MemoryEntity))  # type: ignore
-        session.exec(delete(Signup))  # type: ignore
         session.exec(delete(User))  # type: ignore
         session.commit()
 
@@ -77,15 +62,14 @@ def session(postgres_container, apply_migrations, config):
 
 
 @pytest.fixture(scope="function")
-def user_id(session, phone_number) -> int:
-    return create_test_user(session, phone_number)
+def user_id(session) -> int:
+    return create_test_user(session)
 
 
 @pytest.fixture(scope="function")
-def onboarded_user_id(session, phone_number) -> int:
+def onboarded_user_id(session) -> int:
     return create_test_user(
         session,
-        phone_number,
         initial_messages=["Hello! My name is George. I work as a air traffic controller."],
     )
 
@@ -158,13 +142,6 @@ def george_user_id(session, user_id) -> int:
     )
 
     return user_id
-
-
-@pytest.fixture(scope="function")
-def phone_number():
-    country_code = random.randint(1, 999)
-    subscriber_number = "".join(random.choices(string.digits, k=random.randint(6, 12)))
-    return f"+{country_code}{subscriber_number}"
 
 
 @pytest.fixture(scope="function")

@@ -1,5 +1,4 @@
 import enum
-import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
@@ -7,7 +6,6 @@ from typing import List, Optional
 
 import pytz
 from pgvector.sqlalchemy import Vector
-from pydantic import field_validator
 from sqlalchemy import ARRAY, Column, String, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
 
@@ -36,31 +34,11 @@ class EmbeddableSqlModel(ABC, SQLModel):
         pass
 
 
-class Signup(SQLModel, table=True):
-    __table_args__ = {"extend_existing": True}
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    name: str = Field(..., description="The name of the user")
-    phone: Optional[str] = Field(None, description="The phone number for the user")
-    email: Optional[str] = Field(None, description="The email for the user")
-
-
 class User(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    phone: str = Field(str, description="The phone number for the user")
-    email: Optional[str] = Field(default=None, description="The email for the user")
-    is_premium: bool = Field(default=False, description="Whether the user is a premium user")
-    is_admin: bool = Field(default=False, description="Whether the user is an admin")
-
-    @field_validator("phone")
-    def phone_is_e164(cls, phone: str) -> str:
-        if not bool(re.match(r"^\+\d{1,15}$", phone)):
-            raise ValueError("Invalid phone number format")
-        return phone
 
 
 class MemoryEntity(EmbeddableSqlModel, table=True):

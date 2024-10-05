@@ -10,20 +10,16 @@ python = ">=3.11,<3.12"
 pgvector = "^0.2.4"
 psycopg2-binary = "^2.9.9"
 sqlalchemy = "^2.0.29"
-flask = {version = "^3.0.2", optional = true}
-twilio = {version = "^9.0.3", optional = true}
-gunicorn = {version = "^21.2.0", optional = true}
 pyyaml = "^6.0.1"
-questionary = {git= "https://github.com/tmbo/questionary.git", rev="669cda296f3913267ca430fa5b769fadfb0b2953", optional = true}
+questionary = {git= "https://github.com/tmbo/questionary.git", rev="669cda296f3913267ca430fa5b769fadfb0b2953"}
 requests = "^2.32.2"
 tiktoken = "^0.7.0"
 cryptography = "^42.0.7"
-prompt-toolkit = {version="^3.0.47", optional=true}
+prompt-toolkit = "^3.0.47"
 
-# technically only needed for CLI, but adding as prod dep for now.
-python-dotenv = {version ="^1.0.1", optional = true}
-colorama = {version = "^0.4.6", optional = true}
-rich = {version = "^13.7.1", optional = true}
+python-dotenv = "^1.0.1"
+colorama = "^0.4.6"
+rich = "^13.7.1"
 toolz = "^0.12.1"
 alembic = "^1.13.2"
 pytz = "^2024.1"
@@ -31,13 +27,9 @@ pydantic = "^2.8.2"
 sqlmodel = "^0.0.21"
 docstring-parser = "^0.16"
 openai = "^1.37.0"
-aider-chat = {extras = ["web", "browser", "help"], version = "^0.56.0", optional=true}
+aider-chat = {extras = ["web", "browser", "help"], version = "^0.56.0"}
 celery = "^5.3.6"
-redis = "^5.0.3"
-
-[tool.poetry.extras]
-cloud = ["gunicorn", "flask", "twilio"]
-cli = ["questionary", "python-dotenv", "colorama", "rich", "aider-chat", "prompt-toolkit"]
+pygments = "^2.18.0"
 
 [tool.pyright]
 include = [

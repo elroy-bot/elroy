@@ -137,7 +137,4 @@ class LocalBlobStorage(BlobStorage):
         )
 
 
-if os.getenv("DEPLOYMENT_ENV") == "production":
-    get_blob_client = lambda: LocalBlobStorage()  # todo: replace with cloud blob storage
-else:
-    get_blob_client = lambda: LocalBlobStorage()
+get_blob_client = lambda: LocalBlobStorage()

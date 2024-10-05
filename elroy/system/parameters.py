@@ -1,6 +1,8 @@
 import os
 from datetime import timedelta
 
+CLI_USER_ID = 1
+
 ### Model parameters ###
 
 CHAT_MODEL = os.getenv("ELROY_CHAT_MODEL", "gpt-4o")
@@ -30,17 +32,8 @@ WATERMARK_INVALIDATION_SECONDS = timedelta(minutes=30).total_seconds()
 MAX_IN_CONTEXT_MESSAGE_AGE_SECONDS = timedelta(hours=2).total_seconds()
 
 ### Feature rollouts ###
-CHECKIN_USER_IDS = [1]  # user ids who should received agent-initiated checkins
-
-ACTIVE_GOALS_BEFORE_WARNING = 5  # number of active goals before warning agent to resolve some
-
-GOALS_TO_DISPLAY_IN_CONTEXT = 3
 
 GOAL_CHECKIN_COUNT = 4
-
-### Checkin parameters ###
-
-LAST_USER_MESSAGE_CHECKIN_BUFFER = timedelta(hours=2)  # if last user message is within this time, skip the checkin
 
 # String constants
 

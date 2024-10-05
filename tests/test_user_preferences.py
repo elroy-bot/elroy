@@ -40,8 +40,3 @@ def test_internal_monologue(session, onboarded_user_id):
 @pytest.mark.skip(reason="TODO")
 def test_update_user_time_zone():
     pass
-
-
-@pytest.mark.skip(reason="TODO")
-def test_update_user_preferred_checkin_cadence():
-    pass

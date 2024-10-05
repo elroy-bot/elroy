@@ -20,10 +20,9 @@ from elroy.onboard_user import onboard_user
 from elroy.store.data_models import ArchivalMemory
 from elroy.store.message import get_context_messages
 from elroy.store.user import is_user_exists
+from elroy.system.parameters import CLI_USER_ID
 from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
-
-CLI_USER_ID = 1
 
 
 def get_relevant_memories(session: Session, user_id: int) -> List[str]:
@@ -103,7 +102,7 @@ def main():
         )
 
         if not is_user_exists(db_session, CLI_USER_ID):
-            user_id = onboard_user(db_session, "+15555555555")
+            user_id = onboard_user(db_session)
             assert isinstance(user_id, int)
 
             name = session.prompt(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)

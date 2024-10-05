@@ -1,10 +1,4 @@
-get_primary_user_info  # unused function (elroy/cloud/google_client.py:15) # pyright: ignore
-create_signup  # unused function (elroy/store/store.py:13) # pyright: ignore
-create_sms_webhook_log  # unused function (elroy/store/store.py:19) # pyright: ignore
-get_user_by_email  # unused variable (elroy/store/user.py:30) # pyright: ignore
 _.advance  # unused method (elroy/clock.py:23) # pyright: ignore
 _.freeze_time  # unused method (elroy/clock.py:30) # pyright: ignore
 _.stop  # unused method (elroy/clock.py:43) # pyright: ignore
 clock_starting_at  # unused function (elroy/clock.py:65) # pyright: ignore
-_.secret_key  # unused attribute (elroy/cloud/api.py:33) # pyright: ignore
-_.redirect_uri  # unused attribute (elroy/cloud/api.py:219) # pyright: ignore
