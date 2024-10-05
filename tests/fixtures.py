@@ -14,14 +14,12 @@ from tests.utils import logging_delivery_fun
 BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketball shots"
 
 
-def create_test_user(session: Session, phone_number: str, initial_messages=[]) -> int:
+def create_test_user(session: Session, initial_messages=[]) -> int:
     """
-    Create a test user by onboarding with a random E.164 phone number.
-
     Returns:
         int: The ID of the created user.
     """
-    user_id = onboard_user(session, phone_number)
+    user_id = onboard_user(session)
 
     for message in initial_messages:
         process_message(
@@ -52,7 +50,7 @@ ALEX = TestPersona(
 
 
 class SimulatedUser:
-    def __init__(self, persona: TestPersona, user_id: int, phone_number: str):
+    def __init__(self, persona: TestPersona, user_id: int):
         self.client = OpenAI()
         self.name = persona.preferred_name
         self.system_instruction_message = {
@@ -64,7 +62,6 @@ class SimulatedUser:
         }
         self.messages: List[Dict[str, str]] = [self.system_instruction_message]
         self.user_id = user_id
-        self.phone_number = phone_number
 
     def send_message(self, message: str) -> str:
         self.messages.append({"role": "user", "content": message})
