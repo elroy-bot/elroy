@@ -1,0 +1,33 @@
+{
+    "name": "Python Test Container",
+    "dockerComposeFile": "../docker-compose.test.yml",
+    "service": "test",
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"python.testing.pytestEnabled": true,
+				"python.testing.pytestPath": "pytest",
+				"terminal.integrated.shell.linux": "/bin/sh",
+				"python.defaultInterpreterPath": "/usr/local/bin/python"
+			},
+			"extensions": [
+				"ms-azuretools.vscode-docker",
+				"ms-python.python",
+				"github.copilot",
+				"github.copilot-chat",
+				"kevinrose.vsc-python-indent",
+				"mechatroner.rainbow-csv",
+				"ms-python.autopep8",
+				"ms-python.black-formatter",
+				"ms-python.debugpy",
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"njpwerner.autodocstring",
+				"vscodevim.vim"
+
+			]
+		}
+	},
+    "postCreateCommand": "pip install -r requirements.txt && pip install pytest",
+    "workspaceFolder": "/app"
+}
