@@ -1,0 +1,102 @@
+services:
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    container_name: elroy_postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=elroy
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=elroy
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elroy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: 
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=vector"
+
+  redis:
+    image: redis:latest
+    container_name: elroy_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # alembic:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: alembic
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     - DATABASE_URL=postgresql://elroy:password@postgres:5432/elroy
+  #     - POSTGRES_USER=elroy
+  #     - DOCKER_LOCAL=1
+  #   volumes:
+  #     - .:/app
+  #   command: ["alembic", "upgrade", "head"]
+
+  elroy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: elroy
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      worker:
+        condition: service_started
+      # alembic:
+        # condition: service_completed_successfully
+    environment:
+      - ELROY_DATABASE_URL=postgresql://elroy:password@postgres:5432/elroy
+      - ELROY_REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY
+      - POSTGRES_USER=elroy
+      - DOCKER_LOCAL=1
+    volumes:
+      - .:/app
+    stdin_open: true
+    tty: true
+    command: ["python", "elroy/env/cli/run_cli.py"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # # alembic:
+      #   condition: service_completed_successfully
+    environment:
+      - ELROY_DATABASE_URL=postgresql://elroy:password@postgres:5432/elroy
+      - ELROY_REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY
+      - POSTGRES_USER=elroy
+      - DOCKER_LOCAL=1      
+    volumes:
+      - .:/app
+    command: ["celery", "-A", "elroy.workers.worker", "worker", "--beat", "--loglevel=info", "--concurrency=1"]
+
+volumes:
+  postgres-data: {}
+  redis-data: {}
