@@ -8,6 +8,8 @@ from toolz.curried import filter, map
 
 from elroy.store.data_models import Fact, Goal, convert_to_utc
 from elroy.store.embeddings import upsert_embedding
+from elroy.store.message import (ContextMessage, get_context_messages,
+                                 replace_context_messages)
 from elroy.system.clock import get_utc_now, string_to_timedelta
 from elroy.system.parameters import GOAL_CHECKIN_COUNT
 
@@ -98,6 +100,20 @@ def create_goal(
         session.add(goal)
         session.commit()
         session.refresh(goal)
+
+        context_messages = get_context_messages(session, user_id)
+        replace_context_messages(
+            session,
+            user_id,
+            context_messages
+            + [
+                ContextMessage(
+                    role="system",
+                    content=f"Goal '{goal_name}' has been created. {description}. {strategy}. {end_condition}.",
+                    memory_metadata=[goal.to_memory_metadata()],
+                )
+            ],
+        )
 
         upsert_embedding(session, goal)
 
