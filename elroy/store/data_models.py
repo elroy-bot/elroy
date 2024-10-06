@@ -21,6 +21,13 @@ class Fact:
     timestamp: datetime
 
 
+@dataclass
+class MemoryMetadata:
+    memory_type: str
+    id: int
+    name: str
+
+
 class EmbeddableSqlModel(ABC, SQLModel):
     id: Optional[int]
     created_at: datetime
@@ -30,8 +37,15 @@ class EmbeddableSqlModel(ABC, SQLModel):
     embedding_text_md5: Optional[str] = Field(..., description="Hash of the text used to generate the embedding")
 
     @abstractmethod
+    def get_name(self) -> str:
+        pass
+
+    @abstractmethod
     def to_fact(self) -> Fact:
         pass
+
+    def to_memory_metadata(self) -> MemoryMetadata:
+        return MemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
 
 
 class User(SQLModel, table=True):
@@ -53,8 +67,7 @@ class MemoryEntity(EmbeddableSqlModel, table=True):
     embedding: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(EMBEDDING_SIZE)))
     embedding_text_md5: Optional[str] = Field(default=None, description="Hash of the text used to generate the embedding")
 
-    @property
-    def name(self) -> str:
+    def get_name(self) -> str:
         return f"{self.entity_label}: {self.entity_name}"
 
     def to_fact(self) -> Fact:
@@ -199,6 +212,9 @@ class ArchivalMemory(EmbeddableSqlModel, table=True):
     embedding: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(EMBEDDING_SIZE)))
     embedding_text_md5: Optional[str] = Field(default=None, description="Hash of the text used to generate the embedding")
 
+    def get_name(self) -> str:
+        return self.name
+
     def to_fact(self) -> Fact:
         return Fact(
             name="Archival Memory",
@@ -228,6 +244,9 @@ class Goal(EmbeddableSqlModel, table=True):
     target_completion_time: Optional[datetime] = Field(default=None, description="The datetime of the targeted completion for the goal.")
     embedding: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(EMBEDDING_SIZE)))
     embedding_text_md5: Optional[str] = Field(default=None, description="Hash of the text used to generate the embedding")
+
+    def get_name(self) -> str:
+        return self.name
 
     def __str__(self) -> str:
         """Return a nicely formatted string representation of the Goal."""
