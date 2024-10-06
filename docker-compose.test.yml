@@ -20,21 +20,5 @@ services:
       - "-c"
       - "shared_preload_libraries=vector"
 
-  # alembic:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: alembic
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   environment:
-  #     - DATABASE_URL=postgresql://elroy:password@postgres:5432/elroy
-  #     - POSTGRES_USER=elroy
-  #     - DOCKER_LOCAL=1
-  #   volumes:
-  #     - .:/app
-  #   command: ["alembic", "upgrade", "head"]
-
 volumes:
   postgres-data: {}
