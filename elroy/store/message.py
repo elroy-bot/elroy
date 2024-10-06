@@ -7,7 +7,7 @@ from sqlmodel import Field, Session, SQLModel, desc, select
 from toolz import first, pipe
 from toolz.curried import map, pipe
 
-from elroy.store.data_models import Goal, convert_to_utc
+from elroy.store.data_models import Goal, MemoryMetadata, convert_to_utc
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
 from elroy.system.utils import first_or_none, last_or_none
@@ -58,13 +58,6 @@ class ToolCall:
     id: str
     function: Dict[str, Any]
     type: str = "function"
-
-
-@dataclass
-class MemoryMetadata:
-    memory_type: str
-    id: int
-    name: str
 
 
 @dataclass
