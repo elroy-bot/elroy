@@ -50,7 +50,6 @@ services:
       - ELROY_DATABASE_URL=postgresql://elroy:password@postgres:5432/elroy
       - OPENAI_API_KEY
       - POSTGRES_USER=elroy
-      - DOCKER_LOCAL=1
     volumes:
       - .:/app
     stdin_open: true
