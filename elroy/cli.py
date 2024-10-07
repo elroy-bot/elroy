@@ -9,6 +9,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
+from prompt_toolkit.completion import WordCompleter
 from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
@@ -37,6 +38,11 @@ def print_goal(db_session: Session, goal_id: int) -> str:
         return f"Goal: {goal.name}\n\nDescription: {goal.description}"
     else:
         return f"Goal with ID {goal_id} not found."
+
+def get_user_goals(db_session: Session, user_id: int) -> List[str]:
+    """Fetch all active goals for the user"""
+    goals = db_session.exec(select(Goal).where(Goal.user_id == user_id, Goal.is_active == True)).all()
+    return [f"/print_goal {goal.id}" for goal in goals]
 
 
 def get_relevant_memories(session: Session, user_id: int) -> List[str]:
@@ -106,17 +112,23 @@ async def main_chat():
             "pygments.literal.string": f"bold italic {DEFAULT_INPUT_COLOR}",
         }
     )
-    session = PromptSession(
-        history=history,
-        style=style,
-        lexer=PygmentsLexer(TextLexer),
-    )
 
     config = get_config()
 
     with session_manager() as db_session:
+        # Fetch user goals for autocomplete
+        user_goals = get_user_goals(db_session, CLI_USER_ID)
+        goal_completer = WordCompleter(user_goals, ignore_case=True)
+
+        session = PromptSession(
+            history=history,
+            style=style,
+            lexer=PygmentsLexer(TextLexer),
+            completer=goal_completer,
+        )
 
         def process_and_deliver_msg(user_input):
+            nonlocal goal_completer
             if user_input.startswith("/print_goal"):
                 try:
                     _, goal_id = user_input.split()
@@ -126,6 +138,11 @@ async def main_chat():
             else:
                 response = process_message(db_session, CLI_USER_ID, user_input)
             print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
+            
+            # Refresh goal completer
+            user_goals = get_user_goals(db_session, CLI_USER_ID)
+            goal_completer = WordCompleter(user_goals, ignore_case=True)
+            session.completer = goal_completer
 
         if not is_user_exists(db_session, CLI_USER_ID):
             name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
