@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -26,7 +27,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_elroy_config().database_url)
+# Use the ELROY_DATABASE_URL environment variable
+database_url = os.environ.get("ELROY_DATABASE_URL")
+if database_url is None:
+    raise ValueError("ELROY_DATABASE_URL environment variable is not set")
+
+config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = SQLModel.metadata
 

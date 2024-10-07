@@ -160,10 +160,6 @@ class EntityLabel(enum.Enum):
         "Summarize the musical group, including the members, genre, and notable songs. Discuss how the primary user feels about the group."
     )
     EVENT = "Summarize the event, including the date, location, and a brief description of the event." + GENERAL_GUIDANCE  # type: ignore
-    # Software project elements
-    SOFTWARE_PROJECT_FILE = "Summarize the contents of this file, including its purpose and contents." + GENERAL_GUIDANCE  # type: ignore
-    SOFTWARE_PROJECT_FUNCTION = "Summarize the purpose and functionality of this function." + GENERAL_GUIDANCE  # type: ignore
-    # skippable
     CARDINAL = None
     DATE = "Summarize information about this date, including any signficant events relating to the primary user. Do not include information exclusively about chats between the AI and the user. Instead, focus on the contents of the chats. " + GENERAL_GUIDANCE  # type: ignore
     TIME = None

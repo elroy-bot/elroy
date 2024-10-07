@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
-import configargparse
 from sqlalchemy import Engine, NullPool, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlmodel import Session
@@ -39,29 +38,25 @@ def str_to_bool(input: Optional[str]) -> bool:
 
 
 def get_config() -> ElroyConfig:
-    parser = configargparse.ArgParser(default_config_files=["/etc/elroy/config.ini", "~/.elroy.ini"])
-    parser.add_argument("--config", is_config_file=True, help="config file path")
-    parser.add_argument("--database_url", env_var="ELROY_DATABASE_URL", required=True, help="Database URL")
-    parser.add_argument("--openai_api_key", env_var="OPENAI_API_KEY", required=True, help="OpenAI API Key")
-    parser.add_argument("--local_storage_path", env_var="ELROY_LOCAL_STORAGE_PATH", default=".cache", help="Local storage path")
-    parser.add_argument(
-        "--context_window_token_limit",
-        env_var="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT",
-        type=int,
-        default=16384,
-        help="Context window token limit",
-    )
-    parser.add_argument(
-        "--log_file_path",
-        env_var="ELROY_LOG_FILE_PATH",
-        default=os.path.join(ROOT_DIR, "logs", "elroy.log"),
-        help="Log file path",
-    )
+    database_url = os.environ.get("ELROY_DATABASE_URL")
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    local_storage_path = os.environ.get("ELROY_LOCAL_STORAGE_PATH", ".cache")
+    context_window_token_limit = int(os.environ.get("ELROY_CONTEXT_WINDOW_TOKEN_LIMIT", "16384"))
+    log_file_path = os.environ.get("ELROY_LOG_FILE_PATH", os.path.join(ROOT_DIR, "logs", "elroy.log"))
 
-    args = parser.parse_args()
+    if not database_url:
+        raise ValueError("ELROY_DATABASE_URL environment variable is not set")
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
 
     config = pipe(
-        vars(args),
+        {
+            "database_url": database_url,
+            "openai_api_key": openai_api_key,
+            "local_storage_path": local_storage_path,
+            "context_window_token_limit": context_window_token_limit,
+            "log_file_path": log_file_path,
+        },
         valfilter(lambda x: x is not None),
         lambda x: assoc(x, "engine", create_engine(x["database_url"], poolclass=NullPool)),
         lambda x: assoc(x, "declarative_base", declarative_base()),
