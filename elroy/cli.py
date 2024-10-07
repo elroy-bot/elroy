@@ -13,7 +13,7 @@ from prompt_toolkit.completion import WordCompleter
 from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
-from sqlmodel import Session
+from sqlmodel import Session, select
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map, remove
 
