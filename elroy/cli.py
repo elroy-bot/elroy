@@ -2,6 +2,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
+import typer
 from colorama import Fore, init
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
@@ -15,6 +16,8 @@ from sqlmodel import Session
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map, remove
 
+from alembic import command
+from alembic.config import Config
 from elroy.config import get_config, session_manager
 from elroy.memory.system_context import context_refresh_if_needed
 from elroy.onboard_user import onboard_user
@@ -24,6 +27,8 @@ from elroy.store.user import is_user_exists
 from elroy.system.parameters import CLI_USER_ID
 from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
+
+app = typer.Typer()
 
 
 def get_relevant_memories(session: Session, user_id: int) -> List[str]:
@@ -73,7 +78,13 @@ async def async_context_refresh_if_needed(session, trigger_limit, target, user_i
         await loop.run_in_executor(pool, context_refresh_if_needed, session, trigger_limit, target, user_id)
 
 
-async def main():
+@app.command()
+def chat():
+    """Start the Elroy chat interface"""
+    asyncio.run(main_chat())
+
+
+async def main_chat():
     init(autoreset=True)
 
     console = Console()
@@ -99,13 +110,13 @@ async def main():
 
         def process_and_deliver_msg(user_input):
             response = process_message(db_session, CLI_USER_ID, user_input)
-            print(f"{DEFAULT_OUTPUT_COLOR}🤖 {response}{RESET_COLOR}")
+            print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
 
         if not is_user_exists(db_session, CLI_USER_ID):
-            user_id = onboard_user(db_session)
+            name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
+            user_id = onboard_user(db_session, name)
             assert isinstance(user_id, int)
 
-            name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
             set_user_preferred_name(db_session, user_id, name)
             msg = f"[This is a hidden system message. Elroy user {name} has been onboarded. Say hello and introduce yourself.]"
             process_and_deliver_msg(msg)
@@ -137,5 +148,19 @@ async def main():
                 exit_cli()
 
 
+@app.command()
+def upgrade():
+    """Run Alembic database migrations"""
+    config = get_config()
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", config.database_url)
+    command.upgrade(alembic_cfg, "head")
+    typer.echo("Database upgrade completed.")
+
+
+def main():
+    app()
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

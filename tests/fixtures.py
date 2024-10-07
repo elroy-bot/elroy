@@ -19,7 +19,7 @@ def create_test_user(session: Session, initial_messages=[]) -> int:
     Returns:
         int: The ID of the created user.
     """
-    user_id = onboard_user(session)
+    user_id = onboard_user(session, "Test User")
 
     for message in initial_messages:
         process_message(

@@ -36,25 +36,25 @@ services:
   #     - .:/app
   #   command: ["alembic", "upgrade", "head"]
 
-  elroy:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: elroy
-    depends_on:
-      postgres:
-        condition: service_healthy
-      # alembic:
-        # condition: service_completed_successfully
-    environment:
-      - ELROY_DATABASE_URL=postgresql://elroy:password@postgres:5432/elroy
-      - OPENAI_API_KEY
-      - POSTGRES_USER=elroy
-    volumes:
-      - .:/app
-    stdin_open: true
-    tty: true
-    command: ["python", "elroy/env/cli/run_cli.py"]
+  # elroy:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: elroy
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     # alembic:
+  #       # condition: service_completed_successfully
+  #   environment:
+  #     - ELROY_DATABASE_URL=postgresql://elroy:password@postgres:5432/elroy
+  #     - OPENAI_API_KEY
+  #     - POSTGRES_USER=elroy
+  #   volumes:
+  #     - .:/app
+  #   stdin_open: true
+  #   tty: true
+  #   command: ["python", "elroy/env/cli/run_cli.py"]
 
 volumes:
   postgres-data: {}

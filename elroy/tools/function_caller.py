@@ -9,6 +9,8 @@ from sqlmodel import Session
 from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
+from elroy.ui.loading_message import cli_loading
+
 PY_TO_JSON_TYPE = {
     int: "integer",
     str: "string",
@@ -49,6 +51,7 @@ class FunctionCall:
 ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
+@cli_loading("Executing function call")
 def exec_function_call(session: Session, user_id: int, function_call: FunctionCall) -> str:
     try:
         function_to_call = get_functions()[function_call.function_name]
