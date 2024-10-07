@@ -1,4 +1,5 @@
-from functools import partial
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 from colorama import Fore, init
@@ -11,7 +12,7 @@ from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
 from sqlmodel import Session
-from toolz import compose, concat, pipe, unique
+from toolz import concat, pipe, unique
 from toolz.curried import filter, map, remove
 
 from elroy.config import get_config, session_manager
@@ -26,7 +27,6 @@ from elroy.tools.messenger import process_message
 
 
 def get_relevant_memories(session: Session, user_id: int) -> List[str]:
-
     return pipe(
         get_context_messages(session, user_id),
         map(lambda m: m.memory_metadata),
@@ -67,7 +67,13 @@ def display_memory_titles(titles):
         console.print(panel)
 
 
-def main():
+async def async_context_refresh_if_needed(session, trigger_limit, target, user_id):
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        await loop.run_in_executor(pool, context_refresh_if_needed, session, trigger_limit, target, user_id)
+
+
+async def main():
     init(autoreset=True)
 
     console = Console()
@@ -90,22 +96,16 @@ def main():
     config = get_config()
 
     with session_manager() as db_session:
-        process_and_deliver_msg = compose(
-            lambda _: context_refresh_if_needed(
-                db_session,
-                config.context_refresh_token_trigger_limit,
-                config.context_refresh_token_target,
-                CLI_USER_ID,
-            ),
-            lambda response: print(f"{DEFAULT_OUTPUT_COLOR}🤖 {response}{RESET_COLOR}"),
-            partial(process_message, db_session, CLI_USER_ID),
-        )
+
+        def process_and_deliver_msg(user_input):
+            response = process_message(db_session, CLI_USER_ID, user_input)
+            print(f"{DEFAULT_OUTPUT_COLOR}🤖 {response}{RESET_COLOR}")
 
         if not is_user_exists(db_session, CLI_USER_ID):
             user_id = onboard_user(db_session)
             assert isinstance(user_id, int)
 
-            name = session.prompt(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
+            name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
             set_user_preferred_name(db_session, user_id, name)
             msg = f"[This is a hidden system message. Elroy user {name} has been onboarded. Say hello and introduce yourself.]"
             process_and_deliver_msg(msg)
@@ -119,11 +119,17 @@ def main():
                 if relevant_memories:
                     display_memory_titles(relevant_memories)
 
-                user_input = session.prompt(HTML("<b>> </b>"), style=style)
+                user_input = await session.prompt_async(HTML("<b>> </b>"), style=style)
                 if user_input.lower().startswith("/exit") or user_input == "exit":
                     exit_cli()
                 elif user_input:
                     process_and_deliver_msg(user_input)
+                    # Start context refresh asynchronously
+                    asyncio.create_task(
+                        async_context_refresh_if_needed(
+                            db_session, config.context_refresh_token_trigger_limit, config.context_refresh_token_target, CLI_USER_ID
+                        )
+                    )
             except KeyboardInterrupt:
                 console.clear()
                 continue
@@ -132,4 +138,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
