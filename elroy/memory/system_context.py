@@ -25,7 +25,7 @@ from elroy.system.clock import get_utc_now
 from elroy.system.parameters import (CHAT_MODEL,
                                      MAX_IN_CONTEXT_MESSAGE_AGE_SECONDS,
                                      WATERMARK_INVALIDATION_SECONDS)
-from elroy.system.utils import utc_epoch_to_string
+from elroy.system.utils import logged_exec_time, utc_epoch_to_string
 from elroy.system.watermark import (get_context_watermark_seconds,
                                     set_context_watermark_seconds)
 from elroy.tools.functions.user_preferences import get_user_preferred_name
@@ -119,6 +119,7 @@ def is_context_refresh_needed(session: Session, context_refresh_token_trigger_li
     return False
 
 
+@logged_exec_time
 def context_refresh_if_needed(session: Session, context_refresh_token_trigger_limit: int, context_refresh_token_target: int, user_id: int):
     if is_context_refresh_needed(session, context_refresh_token_trigger_limit, user_id):
         logging.info(f"Refreshing context for user id {user_id}")
