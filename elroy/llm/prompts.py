@@ -104,15 +104,17 @@ def ensure_xml_formatting(msg: str) -> str:
 
 USER_HIDDEN_MSG_PREFIX = "[Automated system message, hidden from user]: "
 
-ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT = f"""
-This is the first exchange between you and your user. 
+ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT = (
+    lambda preferred_name: f"""
+This is the first exchange between you and your primary user, {preferred_name}.
 
-Greet the user warmly and introduce yourself.
+Greet {preferred_name} warmly and introduce yourself.
 
-In these early messages, prioritize learning some basic information about your user, especially their preferred name (Use your tools to persist these preferences). 
+In these early messages, prioritize learning some basic information about {preferred_name}.
 
-However, avoid asking too many questions at once. Be sure to engage in a natural conversation. The user is likely unsure of what to expect from you, so be patient and understanding.
+However, avoid asking too many questions at once. Be sure to engage in a natural conversation. {preferred_name} is likely unsure of what to expect from you, so be patient and understanding.
 """
+)
 
 summarize_conversation = partial(
     query_llm_short_limit,

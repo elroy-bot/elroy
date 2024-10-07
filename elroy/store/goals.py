@@ -118,27 +118,15 @@ def create_goal(
         upsert_embedding(session, goal)
 
 
-def create_onboarding_goal(session: Session, user_id: int) -> None:
-    from elroy.store.user import assistant_writable_user_preference_fields
+def create_onboarding_goal(session: Session, user_id: int, preferred_name: str) -> None:
 
     create_goal(
         session=session,
         user_id=user_id,
-        goal_name="Learn basic details about user",
-        description="Learn basic details about the user. This critically includes the name they wish to be called by, but should also include their relative time zone, basic biographical information, occupational details. User functions to update the information.",
-        strategy="Work in questions about the user into the conversation. Use the user's name when addressing them. Ask about their time zone, and other relevant details. Do not be pushy, if the user does not wish to share the information, do not press for it.",
-        end_condition=f"The following fields about the user are collected: " + ", ".join(assistant_writable_user_preference_fields),
-        priority=1,
-        time_to_completion="1 HOUR",
-    )
-
-    create_goal(
-        session=session,
-        user_id=user_id,
-        goal_name="Tell user about my ability to track goals",
-        description="Tell the user about my capability to track goals. Note that the goals can be automatically created and automatically brought into the converation when relevant.",
-        strategy="After exchanging some pleasantries, tell the user about my ability to form long term memories, including goals",
-        end_condition=f"The user has been informed about my ability to track goals",
+        goal_name=f"Introduce myself to {preferred_name}",
+        description="Introduce myself - a few things that make me unique are my ability to form long term memories, and the ability to set and track goals.",
+        strategy=f"After exchanging some pleasantries, tell {preferred_name} about my ability to form long term memories, including goals. Use function {update_goal_status.__name__} with any progress or learnings.",
+        end_condition=f"{preferred_name} has been informed about my ability to track goals",
         priority=1,
         time_to_completion="1 HOUR",
     )
