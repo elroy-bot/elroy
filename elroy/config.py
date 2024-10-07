@@ -10,6 +10,8 @@ from sqlmodel import Session
 from toolz import assoc, pipe
 from toolz.curried import valfilter
 
+from elroy.logging_config import setup_logging
+
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -29,6 +31,7 @@ class ElroyConfig:
     context_refresh_token_trigger_limit: int  # how many tokens we reach before triggering refresh
     context_refresh_token_target: int  # how many tokens we aim to have after refresh
     session_maker: sessionmaker[Session]
+    log_file_path: str
 
 
 def str_to_bool(input: Optional[str]) -> bool:
@@ -48,6 +51,12 @@ def get_config() -> ElroyConfig:
         default=16384,
         help="Context window token limit",
     )
+    parser.add_argument(
+        "--log_file_path",
+        env_var="ELROY_LOG_FILE_PATH",
+        default=os.path.join(ROOT_DIR, "logs", "elroy.log"),
+        help="Log file path",
+    )
 
     args = parser.parse_args()
 
@@ -62,6 +71,9 @@ def get_config() -> ElroyConfig:
         lambda x: ElroyConfig(**x),
     )
     assert isinstance(config, ElroyConfig)
+
+    # Set up logging
+    setup_logging(config.log_file_path)
 
     return config
 
