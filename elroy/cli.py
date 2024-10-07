@@ -31,18 +31,18 @@ from elroy.tools.messenger import process_message
 
 app = typer.Typer()
 
-def print_goal(db_session: Session, goal_id: int) -> str:
+def print_goal(db_session: Session, user_id: int, goal_name: str) -> str:
     """Print the text of a goal"""
-    goal = db_session.get(Goal, goal_id)
+    goal = db_session.exec(select(Goal).where(Goal.user_id == user_id, Goal.name == goal_name, Goal.is_active == True)).first()
     if goal:
         return f"Goal: {goal.name}\n\nDescription: {goal.description}"
     else:
-        return f"Goal with ID {goal_id} not found."
+        return f"Goal '{goal_name}' not found for the current user."
 
 def get_user_goals(db_session: Session, user_id: int) -> List[str]:
     """Fetch all active goals for the user"""
     goals = db_session.exec(select(Goal).where(Goal.user_id == user_id, Goal.is_active == True)).all()
-    return [f"/print_goal {goal.id}" for goal in goals]
+    return [f"/print_goal {goal.name}" for goal in goals]
 
 
 def get_relevant_memories(session: Session, user_id: int) -> List[str]:
@@ -131,10 +131,10 @@ async def main_chat():
             nonlocal goal_completer
             if user_input.startswith("/print_goal"):
                 try:
-                    _, goal_id = user_input.split()
-                    response = print_goal(db_session, int(goal_id))
+                    _, goal_name = user_input.split(maxsplit=1)
+                    response = print_goal(db_session, CLI_USER_ID, goal_name)
                 except ValueError:
-                    response = "Invalid goal ID. Usage: /print_goal <goal_id>"
+                    response = "Invalid goal name. Usage: /print_goal <goal_name>"
             else:
                 response = process_message(db_session, CLI_USER_ID, user_input)
             print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
