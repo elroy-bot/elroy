@@ -21,7 +21,7 @@ from alembic.config import Config
 from elroy.config import get_config, session_manager
 from elroy.memory.system_context import context_refresh_if_needed
 from elroy.onboard_user import onboard_user
-from elroy.store.data_models import ArchivalMemory
+from elroy.store.data_models import ArchivalMemory, Goal
 from elroy.store.message import get_context_messages
 from elroy.store.user import is_user_exists
 from elroy.system.parameters import CLI_USER_ID
@@ -29,6 +29,18 @@ from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
 
 app = typer.Typer()
+
+@app.command()
+def print_goal(goal_id: int):
+    """Print the text of a goal"""
+    with session_manager() as db_session:
+        goal = db_session.get(Goal, goal_id)
+        if goal:
+            console = Console()
+            console.print(f"[bold]{goal.name}[/bold]")
+            console.print(goal.description)
+        else:
+            typer.echo(f"Goal with ID {goal_id} not found.")
 
 
 def get_relevant_memories(session: Session, user_id: int) -> List[str]:
@@ -164,3 +176,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Add this line at the end of the file
+app.command()(print_goal)
