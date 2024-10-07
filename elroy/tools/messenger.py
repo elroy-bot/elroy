@@ -22,13 +22,15 @@ from elroy.store.message import (ContextMessage, MemoryMetadata,
                                  replace_context_messages)
 from elroy.system.parameters import (MEMORY_PROCESSING_MODEL,
                                      MESSAGE_LENGTH_WORDS_GUIDANCE)
-from elroy.system.utils import last_or_none, parse_user_visible_text
+from elroy.system.utils import (last_or_none, logged_exec_time,
+                                parse_user_visible_text)
 from elroy.tools.function_caller import (ERROR_PREFIX, FunctionCall,
                                          exec_function_call)
 from elroy.tools.functions.user_preferences import \
     get_display_internal_monologue
 from elroy.tools.system_commands import (invoke_system_command,
                                          is_system_command)
+from elroy.ui.loading_message import cli_loading
 
 
 def process_message(session: Session, user_id: int, msg: str) -> str:
@@ -94,6 +96,8 @@ def is_memory_in_context(context_messages: List[ContextMessage], memory: Embedda
     )
 
 
+@cli_loading("Searching for relevant memories...")
+@logged_exec_time
 def append_relevant_memories(session: Session, user_id: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     last_user_message_content = pipe(
         context_messages,
@@ -116,7 +120,7 @@ def append_relevant_memories(session: Session, user_id: int, context_messages: L
         map(
             lambda x: ContextMessage(
                 role="system",
-                memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.name)],
+                memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
                 content=get_internal_though_monologue(last_user_message_content, x),
             )
         ),
