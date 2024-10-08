@@ -8,7 +8,7 @@ from typing import Iterable, Optional, Type, TypeVar
 from toolz import first, last, pipe
 from toolz.curried import do
 
-from elroy.system.parameters import INNER_THOUGHT_TAG, USER_VISIBLE_TAG
+from elroy.system.parameters import INNER_THOUGHT_TAG
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -78,5 +78,4 @@ def parse_tag(tag: str, xml_string: str):
     )
 
 
-parse_user_visible_text = partial(parse_tag, USER_VISIBLE_TAG)
 parse_internal_monologue = partial(parse_tag, INNER_THOUGHT_TAG)
