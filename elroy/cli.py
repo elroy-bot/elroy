@@ -135,11 +135,13 @@ async def main_chat():
                 try:
                     _, goal_name = user_input.split(maxsplit=1)
                     response = print_goal(db_session, CLI_USER_ID, goal_name)
+                    print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
                 except ValueError:
-                    response = "Invalid goal name. Usage: /print_goal <goal_name>"
+                    print("Invalid goal name. Usage: /print_goal <goal_name>")
             else:
-                response = process_message(db_session, CLI_USER_ID, user_input)
-            print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
+                for partial_response in process_message(db_session, CLI_USER_ID, user_input):
+                    print(f"{DEFAULT_OUTPUT_COLOR}{partial_response}{RESET_COLOR}", end="", flush=True)
+                print()  # New line after complete response
 
             # Refresh goal completer
             user_goals = get_user_goals(db_session, CLI_USER_ID)
