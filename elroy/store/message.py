@@ -7,7 +7,8 @@ from sqlmodel import Field, Session, SQLModel, desc, select
 from toolz import first, pipe
 from toolz.curried import map, pipe
 
-from elroy.store.data_models import Goal, MemoryMetadata, convert_to_utc
+from elroy.store.data_models import (Goal, MemoryMetadata, ToolCall,
+                                     convert_to_utc)
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
 from elroy.system.utils import first_or_none, last_or_none, logged_exec_time
@@ -51,13 +52,6 @@ class ContextMessageSet(SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: List[int] = Field(sa_column=Column(JSON), description="The messages in the context window")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
-
-
-@dataclass
-class ToolCall:
-    id: str
-    function: Dict[str, Any]
-    type: str = "function"
 
 
 @dataclass

@@ -1,13 +1,12 @@
-
 import pytest
 
 from elroy.tools.functions.user_preferences import get_user_preferred_name
-from elroy.tools.messenger import process_message
+from tests.utils import process_message_full
 
 
 def test_update_user_preferred_name(session, onboarded_user_id):
 
-    process_message(
+    process_message_full(
         session,
         onboarded_user_id,
         "Please call me TestUser500 from now on.",
