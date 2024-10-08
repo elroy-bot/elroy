@@ -11,8 +11,8 @@ from toolz import concat, concatv, juxt, pipe
 from toolz.curried import do, map, remove
 
 from elroy.llm.client import get_embedding, query_llm
-from elroy.llm.prompts import (FORMAT_INSTRUCTION, calculate_ent_facts,
-                               persona, summarize_conversation,
+from elroy.llm.prompts import (calculate_ent_facts, persona,
+                               summarize_conversation,
                                summarize_for_archival_memory)
 from elroy.store.data_models import (EmbeddableSqlModel, EntityFact,
                                      MemoryEntity)
@@ -52,7 +52,6 @@ def get_refreshed_system_message(user_preferred_name: str, context_messages: Lis
         [
             f"<persona>{persona(user_preferred_name)}</persona>",
             conversation_summary,
-            f"<format_instruction>{FORMAT_INSTRUCTION}</format_instruction>",
             "From now on, converse as your persona.",
         ],  # type: ignore
         remove(lambda _: _ is None),

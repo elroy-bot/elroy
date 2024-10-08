@@ -11,7 +11,6 @@ from toolz.curried import do, filter, map, remove
 from elroy.llm.client import (MissingToolCallIdError,
                               generate_chat_completion_message, get_embedding,
                               query_llm)
-from elroy.llm.prompts import ensure_xml_formatting
 from elroy.memory.system_context import get_internal_though_monologue
 from elroy.store.data_models import EmbeddableSqlModel
 from elroy.store.embeddings import (get_most_relevant_archival_memory,
@@ -22,12 +21,9 @@ from elroy.store.message import (ContextMessage, MemoryMetadata,
                                  replace_context_messages)
 from elroy.system.parameters import (MEMORY_PROCESSING_MODEL,
                                      MESSAGE_LENGTH_WORDS_GUIDANCE)
-from elroy.system.utils import (last_or_none, logged_exec_time,
-                                parse_user_visible_text)
+from elroy.system.utils import last_or_none, logged_exec_time
 from elroy.tools.function_caller import (ERROR_PREFIX, FunctionCall,
                                          exec_function_call)
-from elroy.tools.functions.user_preferences import \
-    get_display_internal_monologue
 from elroy.tools.system_commands import (invoke_system_command,
                                          is_system_command)
 from elroy.ui.loading_message import cli_loading
@@ -61,10 +57,7 @@ def process_message(session: Session, user_id: int, msg: str) -> str:
         content = context_messages[-1].content
         assert content is not None
 
-        return pipe(
-            content,
-            lambda x: x if get_display_internal_monologue(session, user_id) else parse_user_visible_text(x),
-        )
+        return content
 
 
 def edit_message_for_length(character_length_limit: int, response: str) -> str:
@@ -159,20 +152,9 @@ def _generate_assistant_reply(
 
         assert llm_response.content or llm_response.tool_calls
 
-        if llm_response.content:
-
-            processed_response = pipe(
-                llm_response.content,
-                ensure_xml_formatting,
-                str,
-            )
-
-        else:
-            processed_response = None
-
         assistant_reply = ContextMessage(
             role="assistant",
-            content=processed_response,
+            content=llm_response.content,
             tool_calls=(
                 None
                 if not llm_response.tool_calls
