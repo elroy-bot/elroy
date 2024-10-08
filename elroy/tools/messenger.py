@@ -106,6 +106,8 @@ def is_memory_in_context(context_messages: List[ContextMessage], memory: Embedda
 @cli_loading("Searching for relevant memories...")
 @logged_exec_time
 def append_relevant_memories(session: Session, user_id: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    from rich.console import Console
+
     last_user_message_content = pipe(
         context_messages,
         filter(lambda _: _.role == "user"),
@@ -118,22 +120,25 @@ def append_relevant_memories(session: Session, user_id: int, context_messages: L
 
     assert isinstance(last_user_message_content, str)
 
-    return pipe(
+    new_memories = pipe(
         last_user_message_content,
         get_embedding,
         lambda x: juxt(get_most_relevant_goal, get_most_relevant_archival_memory, get_most_relevant_entity)(session, user_id, x),
         filter(lambda x: x is not None),
         remove(partial(is_memory_in_context, context_messages)),
-        map(
-            lambda x: ContextMessage(
-                role="system",
-                memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
-                content=get_internal_though_monologue(last_user_message_content, x),
-            )
-        ),
         list,
-        lambda x: context_messages + x,
     )
+
+    if not new_memories:
+        return context_messages
+    else:
+        new_message = ContextMessage(
+            role="system",
+            memory_metadata=[MemoryMetadata(memory_type=m.__class__.__name__, id=m.id, name=m.get_name()) for m in new_memories],  # type: ignore
+            content=get_internal_though_monologue(last_user_message_content, new_memories),  # type: ignore
+        )
+        Console().print(new_message.content)
+        return context_messages + [new_message]
 
 
 from typing import Iterator

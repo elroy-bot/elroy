@@ -11,7 +11,7 @@ from elroy.store.data_models import (Goal, MemoryMetadata, ToolCall,
                                      convert_to_utc)
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
-from elroy.system.utils import first_or_none, last_or_none, logged_exec_time
+from elroy.system.utils import first_or_none, last_or_none
 
 
 class Message(SQLModel, table=True):
@@ -145,7 +145,6 @@ def get_last_context_message(session: Session, user_id: int) -> Optional[Context
         return None
 
 
-@logged_exec_time
 def get_context_messages(session: Session, user_id: int) -> List[ContextMessage]:
     return list(_get_context_messages_iter(session, user_id))
 
