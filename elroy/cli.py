@@ -15,14 +15,14 @@ from rich.console import Console
 from rich.panel import Panel
 from sqlmodel import Session, select
 from toolz import concat, pipe, unique
-from toolz.curried import filter, map, remove
+from toolz.curried import filter, map
 
 from alembic import command
 from alembic.config import Config
 from elroy.config import get_config, session_manager
 from elroy.memory.system_context import context_refresh_if_needed
 from elroy.onboard_user import onboard_user
-from elroy.store.data_models import ArchivalMemory, Goal
+from elroy.store.data_models import Goal
 from elroy.store.message import get_context_messages
 from elroy.store.user import is_user_exists
 from elroy.system.parameters import CLI_USER_ID
@@ -53,7 +53,6 @@ def get_relevant_memories(session: Session, user_id: int) -> List[str]:
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
-        remove(lambda m: m.memory_type == ArchivalMemory.__name__),
         map(lambda m: f"{m.memory_type}: {m.name}"),
         unique,
         list,
