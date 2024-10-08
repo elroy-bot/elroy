@@ -189,6 +189,7 @@ def incoproate_new_entity_memory():
     pass
 
 
+@logged_exec_time
 def context_refresh(session: Session, context_refresh_token_target: int, user_id: int) -> None:
 
     from elroy.memory.system_context import consolidate_context
@@ -261,16 +262,14 @@ def upsert_entity_memory(session: Session, user_id: int, entity_fact: EntityFact
 
 
 # TODO: Add function reminders
-def get_internal_though_monologue(last_user_message: str, embeddable_model: EmbeddableSqlModel) -> str:
+def get_internal_though_monologue(last_user_message: str, embeddable_models: List[EmbeddableSqlModel]) -> str:
     from elroy.llm.prompts import CHAT_MODEL, query_llm_short_limit
 
+    memory_text = "\n".join([model.to_fact().text for model in embeddable_models])
+
     return query_llm_short_limit(
-        prompt="LAST USER MESSAGE"
-        + last_user_message
-        + "\n"
-        + f"{embeddable_model.__class__.__name__}: "
-        + embeddable_model.to_fact().text,
+        prompt="LAST USER MESSAGE" + last_user_message + "\n" + memory_text,
         model=CHAT_MODEL,
-        system=f"You are the internal monologue of an AI assistant. You will be given a user message, and a {embeddable_model.__class__.__class__} that has been recalled from memory."
+        system=f"You are the internal monologue of an AI assistant. You will be given a user message, and one or more items recalled from memory."
         "Formulate a short internal monologue thought process that the AI might have when deciding how to respond to the user message in the context of the memory.",
     )
