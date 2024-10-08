@@ -5,11 +5,11 @@ from typing import List
 import typer
 from colorama import Fore, init
 from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
-from prompt_toolkit.completion import WordCompleter
 from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
@@ -31,6 +31,7 @@ from elroy.tools.messenger import process_message
 
 app = typer.Typer()
 
+
 def print_goal(db_session: Session, user_id: int, goal_name: str) -> str:
     """Print the text of a goal"""
     goal = db_session.exec(select(Goal).where(Goal.user_id == user_id, Goal.name == goal_name, Goal.is_active == True)).first()
@@ -38,6 +39,7 @@ def print_goal(db_session: Session, user_id: int, goal_name: str) -> str:
         return f"Goal: {goal.name}\n\nDescription: {goal.description}"
     else:
         return f"Goal '{goal_name}' not found for the current user."
+
 
 def get_user_goals(db_session: Session, user_id: int) -> List[str]:
     """Fetch all active goals for the user"""
@@ -138,7 +140,7 @@ async def main_chat():
             else:
                 response = process_message(db_session, CLI_USER_ID, user_input)
             print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
-            
+
             # Refresh goal completer
             user_goals = get_user_goals(db_session, CLI_USER_ID)
             goal_completer = WordCompleter(user_goals, ignore_case=True)
@@ -196,4 +198,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

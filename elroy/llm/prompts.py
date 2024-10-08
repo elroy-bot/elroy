@@ -11,10 +11,8 @@ from elroy.store.data_models import (VALID_LABELS_FOR_CATEGORIZATION,
                                      VALID_LABELS_FOR_PERSISTENCE, EntityFact,
                                      EntityLabel)
 from elroy.system.parameters import INNER_THOUGHT_TAG  # keep!
-from elroy.system.parameters import (CHAT_MODEL, IT_CLOSE, IT_OPEN,
-                                     LOW_TEMPERATURE, MEMORY_PROCESSING_MODEL,
-                                     MESSAGE_LENGTH_WORDS_GUIDANCE, UNKNOWN,
-                                     USER_VISIBLE_TAG, UV_CLOSE, UV_OPEN)
+from elroy.system.parameters import (CHAT_MODEL, LOW_TEMPERATURE,
+                                     MEMORY_PROCESSING_MODEL, UNKNOWN)
 from elroy.system.utils import logged_exec_time
 
 query_llm_short_limit = partial(query_llm_with_word_limit, word_limit=300)
@@ -35,71 +33,6 @@ Only output the internal monologue, do NOT include anything else in your output.
     ),
     "create_internal_monologue",
 )
-
-
-def ensure_xml_formatting(msg: str) -> str:
-    required_tags = {UV_OPEN, UV_CLOSE, IT_OPEN, IT_CLOSE}
-
-    missing_tags = {t for t in required_tags if t not in msg}
-
-    if not missing_tags:
-        return msg
-
-    elif missing_tags == required_tags:
-        logging.info("All tags are missing, adding internal thought monologue.")
-        return "\n".join(
-            [
-                IT_OPEN,
-                _create_internal_monologue(msg),
-                IT_CLOSE,
-                UV_OPEN,
-                msg,
-                UV_CLOSE,
-            ]
-        )
-    elif missing_tags == {IT_OPEN, IT_CLOSE, UV_CLOSE}:
-        logging.info("Missing internal thought monologue tag, adding it.")
-        return "\n".join(
-            [
-                IT_OPEN,
-                _create_internal_monologue(msg),
-                IT_CLOSE,
-                msg,
-                UV_CLOSE,
-            ]
-        )
-    elif missing_tags == {IT_CLOSE, IT_OPEN}:
-        logging.info("Missing internal thought monologue tag, adding it.")
-        return "\n".join(
-            [
-                IT_OPEN,
-                _create_internal_monologue(msg),
-                IT_CLOSE,
-                msg,
-            ]
-        )
-    elif missing_tags == {IT_OPEN}:
-        return "\n".join(
-            [
-                IT_OPEN,
-                msg,
-            ]
-        )
-    elif missing_tags == {UV_CLOSE}:
-        return msg + f"\n</{USER_VISIBLE_TAG}>"
-    elif missing_tags == {UV_OPEN, UV_CLOSE}:
-        index_of_closing_inner_thought_tag = msg.index(IT_CLOSE)
-        return "\n".join(
-            [
-                msg[: index_of_closing_inner_thought_tag + len(IT_CLOSE)],
-                UV_OPEN,
-                msg[index_of_closing_inner_thought_tag + len(IT_CLOSE) :],
-                UV_CLOSE,
-            ]
-        )
-    else:
-        logging.error(f"unhandled missing tags: {missing_tags}")
-        return msg
 
 
 USER_HIDDEN_MSG_PREFIX = "[Automated system message, hidden from user]: "
@@ -171,21 +104,6 @@ Return your response in JSON format, with the following structure:
     )
 
     return (response["TITLE"], response[INNER_THOUGHT_TAG])  # type: ignore
-
-
-FORMAT_INSTRUCTION = f"""
-Return responses in an XML string, with the format below.
-This input may or may not be displayed to the user, downstream application logic will determine this.
-Your responses should ALWAYS follow this format and include both sections:
-{IT_OPEN}
-inner thought monologue goes here, reflect on the conversation, including which memories might be relevant. Keep to at most roughly 100 words.
-{IT_CLOSE}
-{UV_OPEN}
-user visible response goes here
-{UV_CLOSE}
-
-The user visible section of your responses should not exceed {MESSAGE_LENGTH_WORDS_GUIDANCE} words
-"""
 
 
 def persona(user_name: str) -> str:
