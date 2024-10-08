@@ -40,9 +40,3 @@ GOAL_CHECKIN_COUNT = 4
 UNKNOWN = "Unknown"
 
 INNER_THOUGHT_TAG = "inner_thought_monologue"
-USER_VISIBLE_TAG = "user_visible_response"
-
-UV_OPEN = f"<{USER_VISIBLE_TAG}>"
-UV_CLOSE = f"</{USER_VISIBLE_TAG}>"
-IT_OPEN = f"<{INNER_THOUGHT_TAG}>"
-IT_CLOSE = f"</{INNER_THOUGHT_TAG}>"
