@@ -1,16 +1,14 @@
-import json
 import logging
 from dataclasses import asdict
 from functools import partial
-from typing import List
+from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
+from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from sqlmodel import Session
-from toolz import assoc, concat, juxt, pipe
+from toolz import concat, juxt, pipe
 from toolz.curried import do, filter, map, remove
 
-from elroy.llm.client import (MissingToolCallIdError,
-                              generate_chat_completion_message, get_embedding,
-                              query_llm)
+from elroy.llm.client import generate_chat_completion_message, get_embedding
 from elroy.memory.system_context import get_internal_though_monologue
 from elroy.store.data_models import EmbeddableSqlModel
 from elroy.store.embeddings import (get_most_relevant_archival_memory,
@@ -19,62 +17,78 @@ from elroy.store.embeddings import (get_most_relevant_archival_memory,
 from elroy.store.message import (ContextMessage, MemoryMetadata,
                                  get_context_messages,
                                  replace_context_messages)
-from elroy.system.parameters import (MEMORY_PROCESSING_MODEL,
-                                     MESSAGE_LENGTH_WORDS_GUIDANCE)
 from elroy.system.utils import last_or_none, logged_exec_time
-from elroy.tools.function_caller import (ERROR_PREFIX, FunctionCall,
+from elroy.tools.function_caller import (FunctionCall, PartialToolCall,
                                          exec_function_call)
 from elroy.tools.system_commands import (invoke_system_command,
                                          is_system_command)
 from elroy.ui.loading_message import cli_loading
 
 
-def process_message(session: Session, user_id: int, msg: str) -> str:
-    """Process a message from a user. Includes persistence, and any system edits
+class ToolCallAccumulator:
+    def __init__(self):
+        self.tool_calls: Dict[int, PartialToolCall] = {}
+        self.last_updated_index: Optional[int] = None
 
-    Args:
-        user_id (int): _description_
-        msg (str): Message from user
-        delivery_fun (Callable): Function which will delivery the message to the user
-        message_preprocessing_fn (Callable, optional): Any alteration that should happen to the message before persistence / processing. Defaults to identity.
+    def update(self, delta_tool_calls: Optional[List[ChoiceDeltaToolCall]]) -> Iterator[FunctionCall]:
+        for delta in delta_tool_calls or []:
+            if delta.index not in self.tool_calls:
+                if self.last_updated_index is not None and self.last_updated_index != delta.index:
+                    raise ValueError("New tool call started, but old one is not yet complete")
+                assert delta.id
+                self.tool_calls[delta.index] = PartialToolCall(id=delta.id)
 
-    Returns:
-        str: The response to the message
-    """
+            completed_tool_call = self.tool_calls[delta.index].update(delta)
+            if completed_tool_call:
+                self.tool_calls.pop(delta.index)
+                yield completed_tool_call
+            else:
+                self.last_updated_index = delta.index
 
+
+def process_message(session: Session, user_id: int, msg: str) -> Iterator[str]:
     if is_system_command(msg):
-        return invoke_system_command(session, user_id, msg)
+        yield invoke_system_command(session, user_id, msg)
     else:
         context_messages = pipe(
             get_context_messages(session, user_id) + [ContextMessage(role="user", content=msg)],
             partial(append_relevant_memories, session, user_id),
-            partial(_generate_assistant_reply, session, user_id),
-            do(partial(replace_context_messages, session, user_id)),
         )
 
-        assert context_messages[-1].role == "assistant"
+        full_content = ""
 
-        content = context_messages[-1].content
-        assert content is not None
+        while True:
+            function_calls: List[FunctionCall] = []
+            tool_context_messages: List[ContextMessage] = []
 
-        return content
+            for stream_chunk in _generate_assistant_reply(context_messages):
+                if isinstance(stream_chunk, ContentItem):
+                    full_content += stream_chunk.content
+                    yield stream_chunk.content
+                elif isinstance(stream_chunk, FunctionCall):
+                    pipe(
+                        stream_chunk,
+                        do(function_calls.append),
+                        lambda x: ContextMessage(
+                            role="tool",
+                            tool_call_id=x.id,
+                            content=exec_function_call(session, user_id, x),
+                        ),
+                        tool_context_messages.append,
+                    )
+            context_messages.append(
+                ContextMessage(
+                    role="assistant",
+                    content=full_content,
+                    tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
+                )
+            )
 
-
-def edit_message_for_length(character_length_limit: int, response: str) -> str:
-    new_response = query_llm(
-        model=MEMORY_PROCESSING_MODEL,
-        system="Your job is to edit a response from the assistant to a user. The response is too long and needs to be shortened."
-        f"The length of the response should not exceed {MESSAGE_LENGTH_WORDS_GUIDANCE - 25} words."
-        "Only output the edited response, do NOT include anything else in your output."
-        "If xml tags are present, preserve formatting",
-        prompt=response,
-    )
-
-    if len(new_response) < character_length_limit:
-        return new_response
-    else:
-        logging.error(f"Response is too long, truncating")
-        return new_response[:character_length_limit]
+            if not tool_context_messages:
+                replace_context_messages(session, user_id, context_messages)
+                break
+            else:
+                context_messages += tool_context_messages
 
 
 def is_memory_in_context(context_messages: List[ContextMessage], memory: EmbeddableSqlModel) -> bool:
@@ -122,126 +136,59 @@ def append_relevant_memories(session: Session, user_id: int, context_messages: L
     )
 
 
+from typing import Iterator
+
+
+class ContentItem(NamedTuple):
+    content: str
+
+
+StreamItem = Union[ContentItem, FunctionCall]
+
+
 def _generate_assistant_reply(
-    session: Session,
-    user_id: int,
     context_messages: List[ContextMessage],
     recursion_count: int = 0,
-) -> List[ContextMessage]:
-    """
-    Fetch current in context messages, generate a chat completion
-
-    If the last message in context is from a user, we need to generate an assistant message
-
-    If the last message in the context is from a tool, we need to generate a user message to
-    prompt the assistant to message the user. This should not prompt further tool calls.
-
-    If the last message in the context is from the assistant, we are finished and can return.
-    """
-
+) -> Iterator[StreamItem]:
     if recursion_count >= 10:
         raise ValueError("Exceeded maximum number of chat completion attempts")
     elif recursion_count > 0:
         logging.info(f"Recursion count: {recursion_count}")
 
     if context_messages[-1].role == "assistant":
-        return context_messages
+        raise ValueError("Assistant message already the most recent message")
 
-    try:
-        llm_response = generate_chat_completion_message([asdict(x) for x in context_messages])
+    tool_call_accumulator = ToolCallAccumulator()
+    for chunk in generate_chat_completion_message([asdict(x) for x in context_messages]):
+        if chunk.choices[0].delta.content:
+            yield ContentItem(content=chunk.choices[0].delta.content)
+        if chunk.choices[0].delta.tool_calls:
+            yield from tool_call_accumulator.update(chunk.choices[0].delta.tool_calls)
 
-        assert llm_response.content or llm_response.tool_calls
+    # except MissingToolCallIdError:
+    #     logging.error("Attempting to repair missing tool call ID")
+    #     new_context_messages = []
+    #     for msg in reversed(context_messages):
+    #         if msg.role != "assistant" or not msg.tool_calls:
+    #             new_context_messages = [msg] + new_context_messages
+    #         else:
+    #             for tool_call in msg.tool_calls:
+    #                 if any(m.tool_call_id == tool_call.id for m in new_context_messages):
+    #                     new_context_messages = [msg] + new_context_messages
+    #                 else:
+    #                     logging.error(f"Dropping assistant message without corresponding tool call message. ID: {msg.id}")
+    #                     continue
+    #     if len(context_messages) == len(new_context_messages):
+    #         raise ValueError("Could not repair missing tool call ID")
+    #     logging.error(f"Dropping {len(context_messages) - len(new_context_messages)} context messages for user {user_id}")
+    #     context_messages = new_context_messages
 
-        assistant_reply = ContextMessage(
-            role="assistant",
-            content=llm_response.content,
-            tool_calls=(
-                None
-                if not llm_response.tool_calls
-                else pipe(
-                    llm_response.tool_calls,
-                    map(dict),
-                    map(lambda _: assoc(_, "function", dict(_["function"]))),
-                    list,
-                )
-            ),  # type: ignore
-        )
-
-        context_messages += [assistant_reply]
-
-        if llm_response.tool_calls:
-            context_messages += pipe(
-                llm_response.tool_calls,
-                map(
-                    lambda x: FunctionCall(
-                        id=x.id,
-                        user_id=user_id,
-                        function_name=x.function.name,
-                        arguments=json.loads(x.function.arguments),
-                    )
-                ),  # type: ignore
-                map(
-                    lambda x: ContextMessage(
-                        role="tool",
-                        tool_call_id=x.id,
-                        content=exec_function_call(session, user_id, x),
-                    )
-                ),
-                list,
-            )
-
-            if context_messages[-1].content and context_messages[-1].content.startswith(ERROR_PREFIX):
-                return _generate_assistant_reply(
-                    session,
-                    user_id,
-                    context_messages
-                    + [
-                        ContextMessage(
-                            role="system", content="There was an error in the tool call. Please report on the error to the user."
-                        )
-                    ],
-                    recursion_count + 1,
-                )
-            else:
-                # TODO: Do we actually need to add a message?
-                return _generate_assistant_reply(
-                    session,
-                    user_id,
-                    context_messages
-                    + [ContextMessage(role="system", content="The results of your function call are ready. Please respond to the user.")],
-                    recursion_count + 1,
-                )
-
-    except MissingToolCallIdError:
-        # Any assistant messages with a tool call id must be followed by a tool call message with the corresponding id
-        # Sometimes this gets fumbled, e.g. if execution is interupted
-        # To fix, we drop any assistant messages with tools calls where corresponding subsequent tool message(s) is/are missing.
-        logging.error("Attempting to repair missing tool call ID")
-
-        # Scan messages from most recent to oldest.
-
-        new_context_messages = []
-        for msg in reversed(context_messages):
-            if msg != "assistant" or not msg.tool_calls:
-                new_context_messages = [msg] + new_context_messages
-            else:
-                for tool_call in msg.tool_calls:
-                    if any(m.tool_call_id == tool_call.id for m in new_context_messages):
-                        new_context_messages = [msg] + new_context_messages
-                    else:
-                        logging.error(f"Dropping assistant message without corresponding tool call message. ID: {msg.id}")
-                        continue
-        if len(context_messages) == len(new_context_messages):
-            raise ValueError("Could not repair missing tool call ID")
-        logging.error(f"Dropping {len(context_messages) - len(new_context_messages)} context messages for user {user_id}")
-        context_messages = new_context_messages
-
-    if context_messages[-1].role == "assistant":
-        return context_messages
-    else:
-        return _generate_assistant_reply(
-            session,
-            user_id,
-            context_messages,
-            recursion_count + 1,
-        )
+    # if context_messages[-1].role == "assistant":
+    #     return iter([]), context_messages[-1]
+    # else:
+    #     return _generate_assistant_reply(
+    #         session,
+    #         user_id,
+    #         context_messages,
+    #         recursion_count + 1,
+    #     )

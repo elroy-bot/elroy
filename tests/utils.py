@@ -56,7 +56,7 @@ def ask_assistant_bool(session: Session, user_id: int, question: str) -> Tuple[b
 
     question += " Your response to this question is being evaluated as part of an automated test. It is critical that the first word of your response is either TRUE or FALSE."
 
-    response = process_message(session, user_id, question)
+    response = "".join(process_message(session, user_id, question))
 
     # evict question and answer from context
     context_messages = get_context_messages(session, user_id)
@@ -78,3 +78,12 @@ def ask_assistant_bool(session: Session, user_id: int, question: str) -> Tuple[b
     )
 
     return (get_boolean(response), response)
+
+
+def process_message_full(session: Session, user_id: int, message: str) -> Optional[str]:
+    response = list(process_message(session, user_id, message))
+
+    if not response:
+        return None
+    else:
+        return "".join(response)

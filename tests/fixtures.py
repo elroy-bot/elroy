@@ -90,7 +90,7 @@ class SimulatedUser:
         next_message = "Hello, how are you?"
         for _i in range(num_turns):
             next_message = pipe(
-                process_message(session, self.user_id, next_message),
+                process_message(session, self.user_id, next_message),  # type: ignore
                 do(logging_delivery_fun),
                 lambda _: self.reply_to_message(_),
             )
