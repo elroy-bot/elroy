@@ -1,8 +1,9 @@
 import enum
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import pytz
 from pgvector.sqlalchemy import Vector
@@ -11,6 +12,25 @@ from sqlmodel import Column, Field, SQLModel
 
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import EMBEDDING_SIZE
+
+
+@dataclass
+class ToolCall:
+    # formatted for openai
+    id: str
+    function: Dict[str, Any]
+    type: str = "function"
+
+
+@dataclass
+class FunctionCall:
+    # Formatted for ease of execution
+    id: str
+    function_name: str
+    arguments: Dict
+
+    def to_tool_call(self) -> ToolCall:
+        return ToolCall(id=self.id, function={"name": self.function_name, "arguments": json.dumps(self.arguments)})
 
 
 @dataclass

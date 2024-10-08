@@ -1,14 +1,17 @@
 import inspect
+import json
 import logging
 from dataclasses import dataclass
 from types import FunctionType, ModuleType
 from typing import Dict, List, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse
+from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from sqlmodel import Session
 from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
+from elroy.store.data_models import FunctionCall
 from elroy.ui.loading_message import cli_loading
 
 PY_TO_JSON_TYPE = {
@@ -36,16 +39,41 @@ def get_json_type(py_type: Type) -> str:
 
 
 def get_modules():
-
     return []
 
 
 @dataclass
-class FunctionCall:
+class PartialToolCall:
     id: str
-    function_name: str
-    user_id: int
-    arguments: Dict
+    function_name: str = ""
+    arguments: str = ""
+    type: str = "function"
+    is_complete: bool = False
+
+    def update(self, delta: ChoiceDeltaToolCall) -> Optional[FunctionCall]:
+        if self.is_complete:
+            raise ValueError("PartialToolCall is already complete")
+
+        assert delta.function
+        if self.is_complete:
+            raise ValueError("PartialToolCall is already complete")
+        if delta.function.name:
+            self.function_name += delta.function.name
+        if delta.function.arguments:
+            self.arguments += delta.function.arguments
+
+        # Check if we have a complete JSON object for arguments
+        try:
+            function_call = FunctionCall(
+                id=self.id,
+                function_name=self.function_name,
+                arguments=json.loads(self.arguments),
+            )
+
+            self.is_complete = True
+            return function_call
+        except json.JSONDecodeError:
+            return None
 
 
 ERROR_PREFIX = "**Tool call resulted in error: **"

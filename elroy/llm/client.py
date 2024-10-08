@@ -2,7 +2,6 @@ import json
 from typing import Dict, List, Union
 
 from openai import BadRequestError, OpenAI
-from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from toolz import pipe
 from toolz.dicttoolz import assoc, merge
 
@@ -16,21 +15,18 @@ class MissingToolCallIdError(Exception):
     pass
 
 
+from typing import Iterator
+
+from openai.types.chat import ChatCompletionChunk
+
+
 @logged_exec_time
-def generate_chat_completion_message(context_messages: List[Dict]) -> ChatCompletionMessage:
+def generate_chat_completion_message(context_messages: List[Dict]) -> Iterator[ChatCompletionChunk]:
     from elroy.tools.function_caller import get_function_schemas
 
     try:
-        return (
-            OpenAI()
-            .chat.completions.create(
-                messages=context_messages,  # type: ignore
-                model=CHAT_MODEL,
-                tool_choice="auto",
-                tools=get_function_schemas(),  # type: ignore
-            )
-            .choices[0]
-            .message
+        return OpenAI().chat.completions.create(
+            messages=context_messages, model=CHAT_MODEL, tool_choice="auto", tools=get_function_schemas(), stream=True  # type: ignore
         )
     except BadRequestError as e:
         if "An assistant message with 'tool_calls' must be followed by tool messages" in e.body["message"]:  # type: ignore
