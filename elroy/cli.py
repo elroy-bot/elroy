@@ -150,6 +150,10 @@ async def main_chat():
                     _, goal_name = user_input.split(maxsplit=1)
                     response = print_goal(db_session, CLI_USER_ID, goal_name)
                     print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
+                elif user_input == "/print_context_messages":
+                    context_messages = get_context_messages(db_session, CLI_USER_ID)
+                    for msg in context_messages:
+                        print(msg)
                 else:
                     print(f"Unknown command: {user_input}")
             else:
