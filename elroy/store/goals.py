@@ -6,10 +6,8 @@ from sqlmodel import Session, select
 from toolz import first, pipe
 from toolz.curried import filter, map
 
-from elroy.store.data_models import Fact, Goal, convert_to_utc
+from elroy.store.data_models import ContextMessage, Fact, Goal, convert_to_utc
 from elroy.store.embeddings import upsert_embedding
-from elroy.store.message import (ContextMessage, get_context_messages,
-                                 replace_context_messages)
 from elroy.system.clock import get_utc_now, string_to_timedelta
 from elroy.system.parameters import GOAL_CHECKIN_COUNT
 
@@ -101,6 +99,9 @@ def create_goal(
         session.commit()
         session.refresh(goal)
 
+        from elroy.store.message import (get_context_messages,
+                                         replace_context_messages)
+
         context_messages = get_context_messages(session, user_id)
         replace_context_messages(
             session,
@@ -179,7 +180,17 @@ def _update_goal_status(session: Session, user_id: int, goal_name: str, status: 
     session.commit()
     session.refresh(goal)
 
+    assert goal.id
+
     upsert_embedding(session, goal)
+
+    from elroy.store.message import (get_context_messages,
+                                     replace_context_messages)
+    from elroy.tools.messenger import remove_memory_from_context
+
+    if not goal.is_active:
+        context_messages = get_context_messages(session, user_id)
+        replace_context_messages(session, user_id, remove_memory_from_context(context_messages, Goal.__name__, goal.id))
 
 
 def get_active_goals_summary(session: Session, user_id: int) -> str:

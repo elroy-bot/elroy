@@ -14,12 +14,11 @@ from elroy.llm.client import get_embedding, query_llm
 from elroy.llm.prompts import (calculate_ent_facts, persona,
                                summarize_conversation,
                                summarize_for_archival_memory)
-from elroy.store.data_models import (EmbeddableSqlModel, EntityFact,
-                                     MemoryEntity)
+from elroy.store.data_models import (ContextMessage, EmbeddableSqlModel,
+                                     EntityFact, MemoryEntity)
 from elroy.store.embeddings import (get_relevant_archival_memories,
                                     get_relevant_goals, upsert_embedding)
-from elroy.store.message import (ContextMessage, get_context_messages,
-                                 replace_context_messages)
+from elroy.store.message import get_context_messages, replace_context_messages
 from elroy.store.store import persist_archival_memory
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import (CHAT_MODEL,
@@ -28,7 +27,6 @@ from elroy.system.parameters import (CHAT_MODEL,
 from elroy.system.utils import logged_exec_time, utc_epoch_to_string
 from elroy.system.watermark import (get_context_watermark_seconds,
                                     set_context_watermark_seconds)
-from elroy.tools.functions.user_preferences import get_user_preferred_name
 
 
 def get_refreshed_system_message(user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
@@ -191,8 +189,8 @@ def incoproate_new_entity_memory():
 
 @logged_exec_time
 def context_refresh(session: Session, context_refresh_token_target: int, user_id: int) -> None:
-
     from elroy.memory.system_context import consolidate_context
+    from elroy.tools.functions.user_preferences import get_user_preferred_name
 
     context_messages = get_context_messages(session, user_id)
     user_preferred_name = get_user_preferred_name(session, user_id)
