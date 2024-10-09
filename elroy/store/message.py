@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -7,7 +7,7 @@ from sqlmodel import Field, Session, SQLModel, desc, select
 from toolz import first, pipe
 from toolz.curried import map, pipe
 
-from elroy.store.data_models import (Goal, MemoryMetadata, ToolCall,
+from elroy.store.data_models import (ContextMessage, Goal, MemoryMetadata,
                                      convert_to_utc)
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
@@ -52,31 +52,6 @@ class ContextMessageSet(SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: List[int] = Field(sa_column=Column(JSON), description="The messages in the context window")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
-
-
-@dataclass
-class ContextMessage:
-    content: Optional[str]
-    role: str
-    id: Optional[int] = None
-    created_at_utc_epoch_secs: Optional[float] = None
-    tool_calls: Optional[List[ToolCall]] = None
-    tool_call_id: Optional[str] = None
-    memory_metadata: List[MemoryMetadata] = field(default_factory=list)
-
-    def __post_init__(self):
-
-        if self.tool_calls is not None:
-            self.tool_calls = [ToolCall(**tc) if isinstance(tc, dict) else tc for tc in self.tool_calls]
-        # as per openai requirements, empty arrays are disallowed
-        if self.tool_calls == []:
-            self.tool_calls = None
-        if self.role != "assistant" and self.tool_calls is not None:
-            raise ValueError(f"Only assistant messages can have tool calls, found {self.role} message with tool calls. ID = {self.id}")
-        elif self.role != "tool" and self.tool_call_id is not None:
-            raise ValueError(f"Only tool messages can have tool call ids, found {self.role} message with tool call id. ID = {self.id}")
-        elif self.role == "tool" and self.tool_call_id is None:
-            raise ValueError(f"Tool messages must have tool call ids, found tool message without tool call id. ID = {self.id}")
 
 
 def context_message_to_db_message(user_id: int, context_message: ContextMessage):

@@ -1,7 +1,7 @@
 import enum
 import json
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -39,6 +39,9 @@ class Fact:
     user_id: int
     text: str
     timestamp: datetime
+
+    def __str__(self) -> str:
+        return f"{self.name}\n\n{self.text}"
 
 
 @dataclass
@@ -277,9 +280,36 @@ class Goal(EmbeddableSqlModel, table=True):
 
     def to_fact(self) -> Fact:
         """Convert the goal to a Fact object."""
+
         return Fact(
             name=f"Goal: {self.name}",
             user_id=self.user_id,
             timestamp=self.updated_at,
-            text=str(self),
+            text=str(self)
+            + f"\nInformation about this goal should be kept up to date via AI assistant functions: update_goal_status, and mark_goal_completed",
         )
+
+
+@dataclass
+class ContextMessage:
+    content: Optional[str]
+    role: str
+    id: Optional[int] = None
+    created_at_utc_epoch_secs: Optional[float] = None
+    tool_calls: Optional[List[ToolCall]] = None
+    tool_call_id: Optional[str] = None
+    memory_metadata: List[MemoryMetadata] = field(default_factory=list)
+
+    def __post_init__(self):
+
+        if self.tool_calls is not None:
+            self.tool_calls = [ToolCall(**tc) if isinstance(tc, dict) else tc for tc in self.tool_calls]
+        # as per openai requirements, empty arrays are disallowed
+        if self.tool_calls == []:
+            self.tool_calls = None
+        if self.role != "assistant" and self.tool_calls is not None:
+            raise ValueError(f"Only assistant messages can have tool calls, found {self.role} message with tool calls. ID = {self.id}")
+        elif self.role != "tool" and self.tool_call_id is not None:
+            raise ValueError(f"Only tool messages can have tool call ids, found {self.role} message with tool call id. ID = {self.id}")
+        elif self.role == "tool" and self.tool_call_id is None:
+            raise ValueError(f"Tool messages must have tool call ids, found tool message without tool call id. ID = {self.id}")
