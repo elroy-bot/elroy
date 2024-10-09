@@ -5,7 +5,7 @@ from typing import List
 import typer
 from colorama import Fore, init
 from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.lexers import PygmentsLexer
@@ -36,7 +36,8 @@ def print_goal(db_session: Session, user_id: int, goal_name: str) -> str:
     """Print the text of a goal"""
     goal = db_session.exec(select(Goal).where(Goal.user_id == user_id, Goal.name == goal_name, Goal.is_active == True)).first()
     if goal:
-        return f"Goal: {goal.name}\n\nDescription: {goal.description}"
+        status_string = ("Status:" + "\n".join(goal.status_updates)) if goal.status_updates else ""
+        return f"Goal: {goal.name}\n\nDescription: {goal.description}\n{status_string}"
     else:
         return f"Goal '{goal_name}' not found for the current user."
 
@@ -44,7 +45,20 @@ def print_goal(db_session: Session, user_id: int, goal_name: str) -> str:
 def get_user_goals(db_session: Session, user_id: int) -> List[str]:
     """Fetch all active goals for the user"""
     goals = db_session.exec(select(Goal).where(Goal.user_id == user_id, Goal.is_active == True)).all()
-    return [f"/print_goal {goal.name}" for goal in goals]
+    return [goal.name for goal in goals]
+
+
+class SlashCompleter(Completer):
+    def __init__(self, goals):
+        self.goals = goals
+
+    def get_completions(self, document, complete_event):
+        text = document.text_before_cursor
+        if text.startswith("/"):
+            word = text.split("/")[-1].strip()
+            for goal in self.goals:
+                if goal.lower().startswith(word.lower()) or word in "print_goal":
+                    yield Completion("print_goal " + goal, start_position=-len(word))
 
 
 def get_relevant_memories(session: Session, user_id: int) -> List[str]:
@@ -53,6 +67,7 @@ def get_relevant_memories(session: Session, user_id: int) -> List[str]:
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
+        filter(lambda m: m.memory_type == Goal.__name__),
         map(lambda m: f"{m.memory_type}: {m.name}"),
         unique,
         list,
@@ -119,33 +134,33 @@ async def main_chat():
     with session_manager() as db_session:
         # Fetch user goals for autocomplete
         user_goals = get_user_goals(db_session, CLI_USER_ID)
-        goal_completer = WordCompleter(user_goals, ignore_case=True)
+        slash_completer = SlashCompleter(user_goals)
 
         session = PromptSession(
             history=history,
             style=style,
             lexer=PygmentsLexer(TextLexer),
-            completer=goal_completer,
+            completer=slash_completer,
         )
 
         def process_and_deliver_msg(user_input):
-            nonlocal goal_completer
-            if user_input.startswith("/print_goal"):
-                try:
+            nonlocal slash_completer, session
+            if user_input.startswith("/"):
+                if user_input.startswith("/print_goal "):
                     _, goal_name = user_input.split(maxsplit=1)
                     response = print_goal(db_session, CLI_USER_ID, goal_name)
                     print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
-                except ValueError:
-                    print("Invalid goal name. Usage: /print_goal <goal_name>")
+                else:
+                    print(f"Unknown command: {user_input}")
             else:
                 for partial_response in process_message(db_session, CLI_USER_ID, user_input):
                     print(f"{DEFAULT_OUTPUT_COLOR}{partial_response}{RESET_COLOR}", end="", flush=True)
                 print()  # New line after complete response
 
-            # Refresh goal completer
+            # Refresh slash completer
             user_goals = get_user_goals(db_session, CLI_USER_ID)
-            goal_completer = WordCompleter(user_goals, ignore_case=True)
-            session.completer = goal_completer
+            slash_completer.goals = user_goals
+            session.completer = slash_completer
 
         if not is_user_exists(db_session, CLI_USER_ID):
             name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
