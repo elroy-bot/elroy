@@ -6,10 +6,9 @@ from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from sqlmodel import Session
 from toolz import concat, juxt, pipe
-from toolz.curried import do, filter, map, remove
+from toolz.curried import do, filter, map, remove, tail
 
 from elroy.llm.client import generate_chat_completion_message, get_embedding
-from elroy.memory.system_context import get_internal_though_monologue
 from elroy.store.data_models import EmbeddableSqlModel
 from elroy.store.embeddings import (get_most_relevant_archival_memory,
                                     get_most_relevant_entity,
@@ -17,9 +16,10 @@ from elroy.store.embeddings import (get_most_relevant_archival_memory,
 from elroy.store.message import (ContextMessage, MemoryMetadata,
                                  get_context_messages,
                                  replace_context_messages)
-from elroy.system.utils import last_or_none, logged_exec_time
+from elroy.system.utils import logged_exec_time
 from elroy.tools.function_caller import (FunctionCall, PartialToolCall,
                                          exec_function_call)
+from elroy.tools.functions.user_preferences import get_user_preferred_name
 from elroy.tools.system_commands import (invoke_system_command,
                                          is_system_command)
 from elroy.ui.loading_message import cli_loading
@@ -50,9 +50,15 @@ def process_message(session: Session, user_id: int, msg: str) -> Iterator[str]:
     if is_system_command(msg):
         yield invoke_system_command(session, user_id, msg)
     else:
+        from elroy.memory.system_context import get_refreshed_system_message
+
         context_messages = pipe(
-            get_context_messages(session, user_id) + [ContextMessage(role="user", content=msg)],
-            partial(append_relevant_memories, session, user_id),
+            get_context_messages(session, user_id),
+            lambda x: (
+                [get_refreshed_system_message(get_user_preferred_name(session, user_id), [])] + x if not x else x
+            ),  # append new system message if it is missing
+            lambda x: x + [ContextMessage(role="user", content=msg)],
+            lambda x: x + get_relevant_memories(session, user_id, x),
         )
 
         full_content = ""
@@ -103,42 +109,52 @@ def is_memory_in_context(context_messages: List[ContextMessage], memory: Embedda
     )
 
 
-@cli_loading("Searching for relevant memories...")
-@logged_exec_time
-def append_relevant_memories(session: Session, user_id: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
-    from rich.console import Console
-
-    last_user_message_content = pipe(
+def remove_memory_from_context(context_messages: List[ContextMessage], memory_type: str, memory_id: int) -> List[ContextMessage]:
+    return pipe(
         context_messages,
-        filter(lambda _: _.role == "user"),
-        last_or_none,
-        lambda m: m.content if m else None,
+        filter(
+            lambda x: not (x.memory_metadata and x.memory_metadata[0].memory_type == memory_type and x.memory_metadata[0].id == memory_id)
+        ),
+        list,
     )
 
-    if not last_user_message_content:
-        return context_messages
 
-    assert isinstance(last_user_message_content, str)
+@cli_loading("Searching for relevant memories...")
+@logged_exec_time
+def get_relevant_memories(session: Session, user_id: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
 
-    new_memories = pipe(
-        last_user_message_content,
+    message_content = pipe(
+        context_messages,
+        remove(lambda x: x.role == "system"),
+        tail(4),
+        map(lambda x: f"{x.role}: {x.content}" if x.content else None),
+        remove(lambda x: x is None),
+        list,
+        "\n".join,
+    )
+
+    if not message_content:
+        return []
+
+    assert isinstance(message_content, str)
+
+    new_memory_messages = pipe(
+        message_content,
         get_embedding,
         lambda x: juxt(get_most_relevant_goal, get_most_relevant_archival_memory, get_most_relevant_entity)(session, user_id, x),
         filter(lambda x: x is not None),
         remove(partial(is_memory_in_context, context_messages)),
+        map(
+            lambda x: ContextMessage(
+                role="system",
+                memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
+                content=str(x.to_fact()),
+            )
+        ),
         list,
     )
 
-    if not new_memories:
-        return context_messages
-    else:
-        new_message = ContextMessage(
-            role="system",
-            memory_metadata=[MemoryMetadata(memory_type=m.__class__.__name__, id=m.id, name=m.get_name()) for m in new_memories],  # type: ignore
-            content=get_internal_though_monologue(last_user_message_content, new_memories),  # type: ignore
-        )
-        Console().print(new_message.content)
-        return context_messages + [new_message]
+    return new_memory_messages
 
 
 from typing import Iterator
