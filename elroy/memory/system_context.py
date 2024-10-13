@@ -5,19 +5,14 @@ from functools import partial, reduce
 from operator import add
 from typing import List, Optional, Tuple
 
-from sqlmodel import Session, select
+from sqlmodel import Session
 from tiktoken import encoding_for_model
-from toolz import concat, concatv, juxt, pipe
-from toolz.curried import do, map, remove
+from toolz import pipe
+from toolz.curried import map, remove
 
-from elroy.llm.client import get_embedding, query_llm
-from elroy.llm.prompts import (calculate_ent_facts, persona,
-                               summarize_conversation,
+from elroy.llm.prompts import (persona, summarize_conversation,
                                summarize_for_archival_memory)
-from elroy.store.data_models import (ContextMessage, EmbeddableSqlModel,
-                                     EntityFact, MemoryEntity)
-from elroy.store.embeddings import (get_relevant_archival_memories,
-                                    get_relevant_goals, upsert_embedding)
+from elroy.store.data_models import ContextMessage, EmbeddableSqlModel
 from elroy.store.message import get_context_messages, replace_context_messages
 from elroy.store.store import persist_archival_memory
 from elroy.system.clock import get_utc_now
@@ -198,11 +193,7 @@ def context_refresh(session: Session, context_refresh_token_target: int, user_id
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
     pipe(
         formulate_archival_memory(user_preferred_name, context_messages),
-        do(lambda response: persist_archival_memory(session, user_id, response[0], response[1])),
-        lambda response: response[1],
-        partial(calculate_ent_facts, user_preferred_name),
-        map(partial(upsert_entity_memory, session, user_id)),
-        list,
+        lambda response: persist_archival_memory(session, user_id, response[0], response[1]),
     )
 
     pipe(
@@ -213,50 +204,6 @@ def context_refresh(session: Session, context_refresh_token_target: int, user_id
     )
 
     set_context_watermark_seconds(user_id, int(time.time()))
-
-
-def upsert_entity_memory(session: Session, user_id: int, entity_fact: EntityFact):
-    input_info = pipe(
-        get_embedding(str(entity_fact)),
-        lambda entity_embedding: juxt(get_relevant_goals, get_relevant_archival_memories)(session, user_id, entity_embedding),
-        concat,
-        map(lambda x: x.result),
-        lambda matches: concatv([entity_fact], matches),
-        map(str),
-        list,
-        "\n".join,
-    )
-
-    llm_output = query_llm(
-        prompt=input_info,
-        system="You are an AI assistant internal memory proces. You will be given an entity name and label,"
-        " along with a set of possibly related information. Return a short summary of what is known about the entity,"
-        " given the information provided."
-        f"The entity name is {entity_fact.name} and the label is {entity_fact.label.name}."
-        "" + (entity_fact.label.summary_prompt if entity_fact.label.summary_prompt else ""),
-    )
-
-    db_entity = session.exec(
-        select(MemoryEntity).where(
-            MemoryEntity.entity_name == entity_fact.name,
-            MemoryEntity.entity_label == entity_fact.label.name,
-            MemoryEntity.user_id == user_id,
-        )
-    ).one_or_none()
-    if db_entity:
-        db_entity.text = llm_output
-        db_entity.updated_at = get_utc_now()
-    else:
-        db_entity = MemoryEntity(
-            entity_name=entity_fact.name,
-            entity_label=entity_fact.label.name,
-            text=llm_output,
-            user_id=user_id,
-        )
-    session.add(db_entity)
-    session.commit()
-    session.refresh(db_entity)
-    upsert_embedding(session, db_entity)
 
 
 # TODO: Add function reminders
