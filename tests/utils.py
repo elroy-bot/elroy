@@ -13,8 +13,12 @@ from elroy.store.message import get_context_messages, replace_context_messages
 from elroy.tools.messenger import process_message
 
 
-def logging_delivery_fun(x):
-    logging.info("ELROY RESPONSE: " + x)
+def process_test_message(*args, **kwargs) -> str:
+    return pipe(
+        process_message(*args, **kwargs),
+        list,
+        "".join,
+    )  # type: ignore
 
 
 def vector_search_by_text(
@@ -56,7 +60,7 @@ def ask_assistant_bool(session: Session, user_id: int, question: str) -> Tuple[b
 
     question += " Your response to this question is being evaluated as part of an automated test. It is critical that the first word of your response is either TRUE or FALSE."
 
-    response = "".join(process_message(session, user_id, question))
+    response = "".join(process_test_message(session, user_id, question))
 
     # evict question and answer from context
     context_messages = get_context_messages(session, user_id)
@@ -78,12 +82,3 @@ def ask_assistant_bool(session: Session, user_id: int, question: str) -> Tuple[b
     )
 
     return (get_boolean(response), response)
-
-
-def process_message_full(session: Session, user_id: int, message: str) -> Optional[str]:
-    response = list(process_message(session, user_id, message))
-
-    if not response:
-        return None
-    else:
-        return "".join(response)

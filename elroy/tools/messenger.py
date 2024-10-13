@@ -11,7 +11,6 @@ from toolz.curried import do, filter, map, remove, tail
 from elroy.llm.client import generate_chat_completion_message, get_embedding
 from elroy.store.data_models import EmbeddableSqlModel
 from elroy.store.embeddings import (get_most_relevant_archival_memory,
-                                    get_most_relevant_entity,
                                     get_most_relevant_goal)
 from elroy.store.message import (ContextMessage, MemoryMetadata,
                                  get_context_messages,
@@ -33,7 +32,11 @@ class ToolCallAccumulator:
     def update(self, delta_tool_calls: Optional[List[ChoiceDeltaToolCall]]) -> Iterator[FunctionCall]:
         for delta in delta_tool_calls or []:
             if delta.index not in self.tool_calls:
-                if self.last_updated_index is not None and self.last_updated_index != delta.index:
+                if (
+                    self.last_updated_index is not None
+                    and self.last_updated_index in self.tool_calls
+                    and self.last_updated_index != delta.index
+                ):
                     raise ValueError("New tool call started, but old one is not yet complete")
                 assert delta.id
                 self.tool_calls[delta.index] = PartialToolCall(id=delta.id)
@@ -141,7 +144,7 @@ def get_relevant_memories(session: Session, user_id: int, context_messages: List
     new_memory_messages = pipe(
         message_content,
         get_embedding,
-        lambda x: juxt(get_most_relevant_goal, get_most_relevant_archival_memory, get_most_relevant_entity)(session, user_id, x),
+        lambda x: juxt(get_most_relevant_goal, get_most_relevant_archival_memory)(session, user_id, x),
         filter(lambda x: x is not None),
         remove(partial(is_memory_in_context, context_messages)),
         map(
