@@ -1,15 +1,8 @@
-import logging
 from functools import partial
-from typing import Iterator, Tuple
-
-from toolz import pipe
-from toolz.curried import filter, map
+from typing import Tuple
 
 from elroy.llm.client import (query_llm, query_llm_json,
                               query_llm_with_word_limit)
-from elroy.store.data_models import (VALID_LABELS_FOR_CATEGORIZATION,
-                                     VALID_LABELS_FOR_PERSISTENCE, EntityFact,
-                                     EntityLabel)
 from elroy.system.parameters import INNER_THOUGHT_TAG  # keep!
 from elroy.system.parameters import (CHAT_MODEL, LOW_TEMPERATURE,
                                      MEMORY_PROCESSING_MODEL, UNKNOWN)
@@ -139,47 +132,3 @@ I do not, under any circumstances, deceive {user_noun}. As such:
 - I do not pretend to be human.
 - I do not pretend to have emotions or feelings.
 """
-
-
-def calculate_ent_facts(user_preferred_name: str, internal_thought_monologue: str) -> Iterator[EntityFact]:
-    ENTITIES = "ENTITIES"
-    labels_str = ", ".join(VALID_LABELS_FOR_CATEGORIZATION)
-    return pipe(
-        query_llm_json(
-            prompt=internal_thought_monologue,
-            system=f"""
-    You are an entity resolution assistant. You will be given an internal thought monologue of an AI assistant conversing with a user named {user_preferred_name}
-    Return a list of entities, each with a name, label, fact, and your reasoning.
-    
-    Your response should be a JSON formatted list, with the following format:
-    ENTITY_NAME: The name of the entity
-    ENTITY_LABEL: The label you choose for the entity. Must be from list of choices: {labels_str}
-    FACT: A fact about the entity, sourced strictly from the internal thought monologue.
-    REASONING: A short explanation of why you chose this label
-    
-    The list should be nested under a key called {ENTITIES}.
-    
-    For non-date entities, focus on specific entities. Ignore general entities like "a project" or "place". 
-    Also ignore generic placeholder entities like "foobar" or "my_project".
-    
-    The facts should be information that is directly state in the internal monologue, and not generally available knowledge.
-    
-    For dates and times, use ISO 8601 format, rather than relative references.
-    
-    Note that if the entity is the AI assistant's user {user_preferred_name}, you should label with {EntityLabel.PRIMARY_USER.name}
-    
-    If the date is recurring, specify the cadence.
-    """,
-            temperature=LOW_TEMPERATURE,
-        ),
-        lambda x: x[ENTITIES],
-        filter(
-            lambda x: x["ENTITY_LABEL"] in VALID_LABELS_FOR_CATEGORIZATION
-            or logging.info(f"Invalid entity label: {x['ENTITY_NAME']}:{x['ENTITY_LABEL']}")
-        ),
-        filter(
-            lambda x: x["ENTITY_LABEL"] in VALID_LABELS_FOR_PERSISTENCE
-            or logging.info(f"Valid entity label but not persisting: {x['ENTITY_NAME']}:{x['ENTITY_LABEL']}")
-        ),
-        map(lambda x: EntityFact.create(x["ENTITY_NAME"], x["ENTITY_LABEL"], x["FACT"])),
-    )  # type: ignore

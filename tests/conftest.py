@@ -36,10 +36,10 @@ def apply_migrations(config, postgres_container):
 
 from sqlmodel import delete
 
-from elroy.store.data_models import CalendarEventDB, Goal, User
+from elroy.store.data_models import Goal, User
 from elroy.store.message import (ContextMessage, Message, get_context_messages,
                                  replace_context_messages)
-from elroy.store.store import ArchivalMemory, MemoryEntity
+from elroy.store.store import ArchivalMemory
 from elroy.store.user import UserPreference
 
 
@@ -52,9 +52,7 @@ def session(postgres_container, apply_migrations, config):
         session.exec(delete(Message))  # type: ignore
         session.exec(delete(Goal))  # type: ignore
         session.exec(delete(UserPreference))  # type: ignore
-        session.exec(delete(CalendarEventDB))  # type: ignore
         session.exec(delete(ArchivalMemory))  # type: ignore
-        session.exec(delete(MemoryEntity))  # type: ignore
         session.exec(delete(User))  # type: ignore
         session.commit()
 
