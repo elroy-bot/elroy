@@ -6,14 +6,18 @@ from toolz import pipe
 from toolz.curried import map
 
 from elroy.config import ElroyContext
-from elroy.store.data_models import Goal
-from elroy.store.message import (get_current_system_message,
+from elroy.memory.system_context import format_context_messages
+from elroy.store.data_models import ContextMessage, Goal
+from elroy.store.goals import (create_goal, mark_goal_completed,
+                               update_goal_status)
+from elroy.store.message import (get_context_messages,
+                                 get_current_system_message,
                                  replace_context_messages)
-from elroy.tools.functions.user_preferences import (
-    get_display_internal_monologue, get_user_full_name,
-    get_user_preferred_name, get_user_time_zone,
-    set_display_internal_monologue, set_user_full_name,
-    set_user_preferred_name, set_user_time_zone)
+from elroy.system.parameters import CHAT_MODEL
+from elroy.tools.functions.user_preferences import (get_user_full_name,
+                                                    get_user_preferred_name,
+                                                    set_user_full_name,
+                                                    set_user_preferred_name)
 
 
 def invoke_system_command(context: ElroyContext, msg: str) -> str:
@@ -132,7 +136,11 @@ def print_context_messages(context: ElroyContext) -> str:
     from elroy.store.message import get_context_messages
 
     return pipe(
-        get_context_messages(context), map(lambda x: f"{x.role} ({x.memory_metadata}): {x.content}"), list, "-----\n".join, str
+        get_context_messages(context),
+        map(lambda x: f"{x.role} ({x.memory_metadata}): {x.content}"),
+        list,
+        "-----\n".join,
+        str,
     )  # type: ignore
 
 
@@ -160,22 +168,55 @@ def print_goal(context: ElroyContext, goal_name: str) -> str:
         return f"Goal '{goal_name}' not found for the current user."
 
 
-SYSTEM_COMMANDS = {
-    f.__name__: f
-    for f in [
-        print_system_instruction,
-        set_display_internal_monologue,
-        get_display_internal_monologue,
-        refresh_system_instructions,
-        print_available_commands,
-        set_user_time_zone,
-        get_user_time_zone,
-        set_user_preferred_name,
-        get_user_preferred_name,
-        set_user_full_name,
-        get_user_full_name,
-        reset_system_context,
-        print_context_messages,
-        print_goal,
-    ]
-}
+def contemplate(context: ElroyContext) -> str:
+    """Contemplate the current context and return a response
+
+    Args:
+        context (ElroyContext): context obj
+
+    Returns:
+        str: The response to the contemplation
+    """
+    from elroy.llm.client import query_llm
+    from elroy.llm.prompts import contemplate_prompt
+
+    user_preferred_name = get_user_preferred_name(context)
+    context_messages = get_context_messages(context)
+
+    msgs_input = format_context_messages(user_preferred_name, context_messages)
+
+    response = query_llm(
+        prompt=msgs_input,
+        system=contemplate_prompt(user_preferred_name),
+        model=CHAT_MODEL,
+    )
+
+    context_messages.append(ContextMessage(role="assistant", content=response))
+    replace_context_messages(context, context_messages)
+
+    context.console.print(response)
+    return response
+
+
+ASSISTANT_VISIBLE_COMMANDS = [
+    contemplate,
+    get_user_full_name,
+    set_user_full_name,
+    get_user_preferred_name,
+    set_user_preferred_name,
+    create_goal,
+    update_goal_status,
+    mark_goal_completed,
+]
+
+USER_ONLY_COMMANDS = [
+    reset_system_context,
+    print_context_messages,
+    print_goal,
+    print_system_instruction,
+    refresh_system_instructions,
+    print_available_commands,
+]
+
+
+SYSTEM_COMMANDS = {f.__name__: f for f in ASSISTANT_VISIBLE_COMMANDS + USER_ONLY_COMMANDS}
