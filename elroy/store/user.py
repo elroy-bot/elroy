@@ -6,12 +6,13 @@ from sqlmodel import Field, Session, SQLModel, select
 from toolz import pipe
 from toolz.curried import do
 
+from elroy.config import ElroyContext
 from elroy.store.data_models import User
 from elroy.system.clock import get_utc_now
 
 
-def is_user_exists(session: Session, user_id: int) -> bool:
-    return bool(session.exec(select(User).where(User.id == user_id)).first())
+def is_user_exists(context: ElroyContext) -> bool:
+    return bool(context.session.exec(select(User).where(User.id == context.user_id)).first())
 
 
 def create_user(session: Session) -> int:

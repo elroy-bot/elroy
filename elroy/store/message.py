@@ -3,10 +3,11 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional
 
 from sqlalchemy import JSON, Column, UniqueConstraint
-from sqlmodel import Field, Session, SQLModel, desc, select
+from sqlmodel import Field, SQLModel, desc, select
 from toolz import first, pipe
 from toolz.curried import map, pipe
 
+from elroy.config import ElroyContext
 from elroy.store.data_models import (ContextMessage, Goal, MemoryMetadata,
                                      convert_to_utc)
 from elroy.system.clock import get_utc_now
@@ -29,13 +30,20 @@ class Message(SQLModel, table=True):
     )
 
 
-def _get_last_user_message(session: Session, user_id: int) -> Optional[Message]:
-    statement = select(Message).where(Message.user_id == user_id, Message.role == "user").order_by(desc(Message.created_at))
-    return session.exec(statement).first()
+def _get_last_user_message(context: ElroyContext) -> Optional[Message]:
+    statement = (
+        select(Message)
+        .where(
+            Message.user_id == context.user_id,
+            Message.role == "user",
+        )
+        .order_by(desc(Message.created_at))
+    )
+    return context.session.exec(statement).first()
 
 
-def get_time_since_last_user_message(session: Session, user_id: int) -> Optional[timedelta]:
-    last_user_message = _get_last_user_message(session, user_id)
+def get_time_since_last_user_message(context: ElroyContext) -> Optional[timedelta]:
+    last_user_message = _get_last_user_message(context)
 
     if not last_user_message:
         return None
@@ -87,15 +95,18 @@ def get_message_goal_id(context_message: ContextMessage) -> Optional[int]:
     )  # type: ignore
 
 
-def _get_context_messages_iter(session: Session, user_id: int) -> Iterable[ContextMessage]:
+def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage]:
     # TODO: Cache this
     def get_message_dict(id: int) -> Dict:
-        msg = session.exec(select(Message).where(Message.id == id)).first()
+        msg = context.session.exec(select(Message).where(Message.id == id)).first()
         assert msg
         return db_message_to_context_message_dict(msg)
 
-    agent_context = session.exec(
-        select(ContextMessageSet).where(ContextMessageSet.user_id == user_id, ContextMessageSet.is_active == True)
+    agent_context = context.session.exec(
+        select(ContextMessageSet).where(
+            ContextMessageSet.user_id == context.user_id,
+            ContextMessageSet.is_active == True,
+        )
     ).first()
 
     return pipe(
@@ -106,49 +117,52 @@ def _get_context_messages_iter(session: Session, user_id: int) -> Iterable[Conte
     )  # type: ignore
 
 
-def get_current_system_message(session: Session, user_id: int) -> Optional[ContextMessage]:
+def get_current_system_message(context: ElroyContext) -> Optional[ContextMessage]:
     try:
-        return first(_get_context_messages_iter(session, user_id))
+        return first(_get_context_messages_iter(context))
     except StopIteration:
         return None
 
 
-def get_last_context_message(session: Session, user_id: int) -> Optional[ContextMessage]:
+def get_last_context_message(context: ElroyContext) -> Optional[ContextMessage]:
     try:
-        return last_or_none(_get_context_messages_iter(session, user_id))
+        return last_or_none(_get_context_messages_iter(context))
     except StopIteration:
         return None
 
 
-def get_context_messages(session: Session, user_id: int) -> List[ContextMessage]:
-    return list(_get_context_messages_iter(session, user_id))
+def get_context_messages(context: ElroyContext) -> List[ContextMessage]:
+    return list(_get_context_messages_iter(context))
 
 
-def replace_context_messages(session: Session, user_id: int, messages: List[ContextMessage]) -> None:
+def replace_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
     msg_ids = []
     for msg in messages:
         if msg.id:
             msg_ids.append(msg.id)
         else:
-            db_message = context_message_to_db_message(user_id, msg)
-            session.add(db_message)
-            session.commit()
-            session.refresh(db_message)
+            db_message = context_message_to_db_message(context.user_id, msg)
+            context.session.add(db_message)
+            context.session.commit()
+            context.session.refresh(db_message)
             msg_ids.append(db_message.id)
-    existing_context = session.exec(
-        select(ContextMessageSet).where(ContextMessageSet.user_id == user_id, ContextMessageSet.is_active == True)
+    existing_context = context.session.exec(
+        select(ContextMessageSet).where(
+            ContextMessageSet.user_id == context.user_id,
+            ContextMessageSet.is_active == True,
+        )
     ).first()
 
     if existing_context:
         existing_context.is_active = None
-        session.add(existing_context)
+        context.session.add(existing_context)
     new_context = ContextMessageSet(
-        user_id=user_id,
+        user_id=context.user_id,
         message_ids=msg_ids,
         is_active=True,
     )
-    session.add(new_context)
-    session.commit()
+    context.session.add(new_context)
+    context.session.commit()
 
 
 class InvalidContextMessageError(ValueError):

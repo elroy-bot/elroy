@@ -7,12 +7,11 @@ from typing import Dict, List, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
-from sqlmodel import Session
 from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
+from elroy.config import ElroyContext
 from elroy.store.data_models import FunctionCall
-from elroy.ui.loading_message import cli_loading
 
 PY_TO_JSON_TYPE = {
     int: "integer",
@@ -79,14 +78,12 @@ class PartialToolCall:
 ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
-@cli_loading("Executing function call")
-def exec_function_call(session: Session, user_id: int, function_call: FunctionCall) -> str:
+def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> str:
     try:
         function_to_call = get_functions()[function_call.function_name]
 
         return pipe(
-            {"user_id": user_id} if "user_id" in function_to_call.__code__.co_varnames else {},
-            lambda d: merge(d, {"session": session}) if "session" in function_to_call.__code__.co_varnames else d,
+            {"context": context} if "context" in function_to_call.__code__.co_varnames else {},
             lambda d: merge(function_call.arguments, d),
             lambda args: function_to_call.__call__(**args),
             lambda result: str(result) if result is not None else "Success",
@@ -136,8 +133,7 @@ def get_function_schema(function: FunctionType) -> Dict:
     return pipe(
         signature.parameters.items(),
         list,
-        remove(lambda _: _[0] == "user_id"),
-        remove(lambda _: _[0] == "session"),
+        remove(lambda _: _[0] == "context"),
         map(
             lambda _: Parameter(
                 name=_[0],
