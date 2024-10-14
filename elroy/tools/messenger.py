@@ -9,12 +9,12 @@ from toolz.curried import do, filter, map, remove, tail
 
 from elroy.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, get_embedding
-from elroy.store.data_models import EmbeddableSqlModel
+from elroy.store.data_models import EmbeddableSqlModel, Goal
 from elroy.store.embeddings import (get_most_relevant_archival_memory,
                                     get_most_relevant_goal)
 from elroy.store.message import (ContextMessage, MemoryMetadata,
-                                 get_context_messages,
-                                 replace_context_messages)
+                                 add_context_messages, get_context_messages,
+                                 remove_context_messages)
 from elroy.system.utils import logged_exec_time
 from elroy.tools.function_caller import (FunctionCall, PartialToolCall,
                                          exec_function_call)
@@ -60,11 +60,13 @@ def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
 
     full_content = ""
 
+    new_messages = []
+
     while True:
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        for stream_chunk in _generate_assistant_reply(context_messages):
+        for stream_chunk in _generate_assistant_reply(context_messages + new_messages):
             if isinstance(stream_chunk, ContentItem):
                 full_content += stream_chunk.content
                 yield stream_chunk.content
@@ -79,7 +81,7 @@ def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
                     ),
                     tool_context_messages.append,
                 )
-        context_messages.append(
+        new_messages.append(
             ContextMessage(
                 role="assistant",
                 content=full_content,
@@ -88,10 +90,10 @@ def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
         )
 
         if not tool_context_messages:
-            replace_context_messages(context, context_messages)
+            add_context_messages(context, new_messages)
             break
         else:
-            context_messages += tool_context_messages
+            new_messages += tool_context_messages
 
 
 def is_memory_in_context(context_messages: List[ContextMessage], memory: EmbeddableSqlModel) -> bool:
@@ -106,14 +108,22 @@ def is_memory_in_context(context_messages: List[ContextMessage], memory: Embedda
     )
 
 
-def remove_memory_from_context(context_messages: List[ContextMessage], memory_type: str, memory_id: int) -> List[ContextMessage]:
-    return pipe(
-        context_messages,
-        filter(
-            lambda x: not (x.memory_metadata and x.memory_metadata[0].memory_type == memory_type and x.memory_metadata[0].id == memory_id)
-        ),
+def remove_memory_from_context(memory_type: str, context: ElroyContext, memory_id: int) -> None:
+    def is_memory_in_context_message(msg: ContextMessage) -> bool:
+        if not msg.memory_metadata:
+            return False
+
+        return any(x.memory_type == memory_type and x.id == memory_id for x in msg.memory_metadata)
+
+    pipe(
+        get_context_messages(context),
+        filter(is_memory_in_context_message),
         list,
+        partial(remove_context_messages, context),
     )
+
+
+remove_goal_from_context = partial(remove_memory_from_context, Goal.__name__)
 
 
 @logged_exec_time
