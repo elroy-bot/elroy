@@ -174,14 +174,7 @@ def get_function_schemas():
 
 
 def get_functions() -> Dict[str, FunctionType]:
-    from elroy.store.goals import (create_goal, get_active_goals_summary,
-                                   mark_goal_completed, update_goal_status)
-    from elroy.tools.functions.user_preferences import (
-        get_display_internal_monologue, get_user_preferred_name,
-        get_user_time_zone, set_display_internal_monologue,
-        set_user_preferred_name, set_user_time_zone)
-    from elroy.tools.system_commands import (print_system_instruction,
-                                             refresh_system_instructions)
+    from elroy.tools.system_commands import SYSTEM_COMMANDS
 
     return pipe(
         get_modules(),
@@ -190,23 +183,7 @@ def get_functions() -> Dict[str, FunctionType]:
         list,
         lambda _: concatv(
             _,
-            [
-                # system commands
-                refresh_system_instructions,
-                print_system_instruction,
-                # goal operations
-                get_active_goals_summary,
-                update_goal_status,
-                create_goal,
-                mark_goal_completed,
-                # user preferences
-                get_user_preferred_name,
-                set_user_preferred_name,
-                get_user_time_zone,
-                set_user_time_zone,
-                get_display_internal_monologue,
-                set_display_internal_monologue,
-            ],
+            list(SYSTEM_COMMANDS.values()),
         ),
         map(lambda _: [_.__name__, _]),
         dict,
