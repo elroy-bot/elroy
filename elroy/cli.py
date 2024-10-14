@@ -53,13 +53,15 @@ class SlashCompleter(Completer):
 
         text = document.text_before_cursor
         if text.startswith("/"):
-            word = text.split("/")[-1].strip()
+            first_word = text.split("/")[-1].strip()
             for goal in self.goals:
-                if goal.lower().startswith(word.lower()) or word in "print_goal":
-                    yield Completion("print_goal " + goal, start_position=-len(word))
+                if goal.lower().startswith(first_word.lower()) or first_word in "print_goal":
+                    yield Completion("print_goal " + goal, start_position=-len(first_word))
+                elif goal.lower().startswith(first_word.lower()) or first_word in "drop_goal":
+                    yield Completion("drop_goal " + goal, start_position=-len(first_word))
             for cmd in SYSTEM_COMMANDS:
-                if cmd.lower().startswith(word.lower()):
-                    yield Completion(cmd, start_position=-len(word))
+                if cmd.lower().startswith(first_word.lower()):
+                    yield Completion(cmd, start_position=-len(first_word))
 
 
 def get_relevant_memories(context: ElroyContext) -> List[str]:
@@ -68,10 +70,11 @@ def get_relevant_memories(context: ElroyContext) -> List[str]:
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
-        filter(lambda m: m.memory_type == Goal.__name__),
+        filter(lambda m: m.memory_type == Goal.__name__),  # TODO: Consolidate memories if they are redundant
         map(lambda m: f"{m.memory_type}: {m.name}"),
         unique,
         list,
+        sorted,
     )  # type: ignore
 
 

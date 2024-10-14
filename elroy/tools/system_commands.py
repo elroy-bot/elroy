@@ -10,7 +10,7 @@ from elroy.memory.system_context import format_context_messages
 from elroy.store.data_models import ContextMessage, Goal
 from elroy.store.goals import (create_goal, mark_goal_completed,
                                update_goal_status)
-from elroy.store.message import (get_context_messages,
+from elroy.store.message import (add_context_messages, get_context_messages,
                                  get_current_system_message,
                                  replace_context_messages)
 from elroy.system.parameters import CHAT_MODEL
@@ -191,11 +191,37 @@ def contemplate(context: ElroyContext) -> str:
         model=CHAT_MODEL,
     )
 
-    context_messages.append(ContextMessage(role="assistant", content=response))
-    replace_context_messages(context, context_messages)
+    add_context_messages(context, [ContextMessage(role="assistant", content=response)])
 
     context.console.print(response)
     return response
+
+
+def drop_goal(context: ElroyContext, goal_name: str) -> str:
+    """Drops the goal with the given name
+
+    Args:
+        context (ElroyContext): context obj
+        goal_name (str): Name of the goal
+
+    Returns:
+        str: Information for the goal with the given name
+    """
+    from elroy.tools.messenger import remove_goal_from_context
+
+    goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == goal_name,
+        )
+    ).first()
+    if goal:
+        assert goal.id
+        remove_goal_from_context(context, goal.id)
+        return f"Goal '{goal_name}' dropped."
+
+    else:
+        return f"Goal '{goal_name}' not found for the current user."
 
 
 ASSISTANT_VISIBLE_COMMANDS = [
@@ -205,6 +231,7 @@ ASSISTANT_VISIBLE_COMMANDS = [
     get_user_preferred_name,
     set_user_preferred_name,
     create_goal,
+    drop_goal,
     update_goal_status,
     mark_goal_completed,
 ]

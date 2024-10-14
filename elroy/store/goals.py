@@ -110,14 +110,11 @@ def create_goal(
         context.session.commit()
         context.session.refresh(goal)
 
-        from elroy.store.message import (get_context_messages,
-                                         replace_context_messages)
+        from elroy.store.message import add_context_messages
 
-        context_messages = get_context_messages(context)
-        replace_context_messages(
+        add_context_messages(
             context,
-            context_messages
-            + [
+            [
                 ContextMessage(
                     role="system",
                     content=f"Goal '{goal_name}' has been created. {description}. {strategy}. {end_condition}.",
@@ -219,13 +216,10 @@ def _update_goal_status(context: ElroyContext, goal_name: str, status: str, is_t
 
     upsert_embedding(context.session, goal)
 
-    from elroy.store.message import (get_context_messages,
-                                     replace_context_messages)
-    from elroy.tools.messenger import remove_memory_from_context
-
     if not goal.is_active:
-        context_messages = get_context_messages(context)
-        replace_context_messages(context, remove_memory_from_context(context_messages, Goal.__name__, goal.id))
+        from elroy.tools.messenger import remove_goal_from_context
+
+        remove_goal_from_context(context, goal.id)
 
 
 def get_active_goals_summary(context: ElroyContext) -> str:
