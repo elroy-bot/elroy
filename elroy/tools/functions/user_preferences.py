@@ -1,61 +1,5 @@
-import pytz
-
 from elroy.config import ElroyContext
 from elroy.system.parameters import UNKNOWN
-
-
-def set_display_internal_monologue(context: ElroyContext, should_display: bool) -> str:
-    """Sets whether the assistant should display its internal monologue.
-
-    Args:
-        user_id (int): user id
-        should_display (bool): Whether the assistant should display its internal monologue.
-
-    Returns:
-        str: Confirmation message.
-    """
-
-    user_preference = _get_user_preference(context)
-
-    old_preference = user_preference.display_internal_monologue or False
-
-    user_preference.display_internal_monologue = should_display
-    context.session.commit()
-
-    return f"Display internal monologue set to {should_display}. Previous value was {old_preference}."
-
-
-def get_display_internal_monologue(context: ElroyContext) -> bool:
-    """Gets whether the assistant should display its internal monologue.
-
-    Args:
-        user_id (int): user id
-
-    Returns:
-        bool: Whether the assistant should display its internal monologue.
-    """
-    user_preference = _get_user_preference(context)
-
-    return user_preference.display_internal_monologue or False
-
-
-def set_user_time_zone(context: ElroyContext, time_zone: str) -> None:
-    """
-    Set the user's time zone.
-
-    Args:
-        user_id: The user's ID.
-        time_zone: The user's time zone. Should be a string included in pytz.all_timezones.
-    """
-
-    user_preference = _get_user_preference(context)
-
-    # check if valid time zone
-    if time_zone not in pytz.all_timezones:
-        raise ValueError(f"Invalid time zone: {time_zone}. Valid list should be in pytz.all_timezones")
-
-    user_preference.user_time_zone = time_zone
-    context.session.commit()
 
 
 def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> None:
@@ -71,21 +15,6 @@ def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> None:
 
     user_preference.preferred_name = preferred_name
     context.session.commit()
-
-
-def get_user_time_zone(context: ElroyContext) -> str:
-    """Returns the user's time zone.
-
-    Args:
-        user_id (int): the user ID
-
-    Returns:
-        str: String representing the user's time zone.
-    """
-
-    user_preference = _get_user_preference(context)
-
-    return user_preference.user_time_zone or UNKNOWN
 
 
 def get_user_preferred_name(context: ElroyContext) -> str:

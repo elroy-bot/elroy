@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from sqlmodel import select
+from sqlmodel import select, update
 from toolz import first, pipe
 from toolz.curried import filter, map
 
@@ -183,16 +183,37 @@ def _update_goal_status(context: ElroyContext, goal_name: str, status: str, is_t
     if not goal:
         raise Exception(f"Active goal {goal_name} not found for user {context.user_id}")
 
+    logging.info(f"Updating goal {goal_name} for user {context.user_id}")
+    logging.info(f"Current status updates: {goal.status_updates}")
+
     # Append the new status update to the list
+    if goal.status_updates is None:
+        goal.status_updates = []
     goal.status_updates.append(status)
+
+    logging.info(f"Updated status updates: {goal.status_updates}")
 
     # Update the goal's active status if it's terminal
     if is_terminal:
         goal.is_active = False
 
     goal.updated_at = get_utc_now()
+
+    # Explicitly update the status_updates column, the recommended style has a bug
+    context.session.execute(
+        update(Goal)
+        .where(Goal.id == goal.id)  # type: ignore
+        .values(status_updates=goal.status_updates, is_active=goal.is_active, updated_at=goal.updated_at)
+    )
+
     context.session.commit()
+
+    assert status in goal.status_updates, "Status update not found in goal status updates"
+
+    # Refresh the goal object after commit
     context.session.refresh(goal)
+
+    logging.info(f"Status updates after commit and refresh: {goal.status_updates}")
 
     assert goal.id
 

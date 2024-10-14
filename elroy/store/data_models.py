@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import pytz
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ARRAY, Column, String, UniqueConstraint
+from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
 
 from elroy.system.clock import get_utc_now
@@ -121,7 +121,7 @@ class Goal(EmbeddableSqlModel, table=True):
     name: str = Field(..., description="The name of the goal")
     description: str = Field(..., description="The description of the goal")
     status_updates: List[str] = Field(
-        sa_column=Column(ARRAY(String), nullable=False, server_default="{}"),
+        sa_column=Column(JSON, nullable=False, server_default="[]"),
         default_factory=list,
         description="Status update reports from the goal",
     )
