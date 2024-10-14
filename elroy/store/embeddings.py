@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from toolz import pipe
 from toolz.curried import filter, map
 
+from elroy.config import ElroyContext
 from elroy.store.data_models import ArchivalMemory, EmbeddableSqlModel, Goal
 from elroy.system.parameters import (L2_PERCENT_CLOSER_THAN_RANDOM_THRESHOLD,
                                      L2_RANDOM_WORD_DISTANCE,
@@ -30,7 +31,10 @@ class VectorResultMatch(Generic[T]):
 
 
 def query_vector(
-    session: Session, user_id: int, query: List[float], table: Type[EmbeddableSqlModel], filter_clause: Any = lambda: True
+    context: ElroyContext,
+    query: List[float],
+    table: Type[EmbeddableSqlModel],
+    filter_clause: Any = lambda: True,
 ) -> Iterable[VectorResultMatch]:
     """
     Perform a vector search on the specified table using the given query.
@@ -44,10 +48,10 @@ def query_vector(
     """
 
     return pipe(
-        session.exec(
+        context.session.exec(
             select(table, table.embedding.l2_distance(query).label("distance"))  # type: ignore
             .where(
-                table.user_id == user_id,
+                table.user_id == context.user_id,
                 filter_clause,
                 table.embedding != None,
             )
@@ -65,19 +69,19 @@ def query_vector(
 
 
 def get_vector_matches_over_threshold(
-    session: Session, user_id: int, query: List[float], table: Type[EmbeddableSqlModel], filter_clause: Any = lambda: True
+    context: ElroyContext, query: List[float], table: Type[EmbeddableSqlModel], filter_clause: Any = lambda: True
 ) -> Iterable[VectorResultMatch]:
     return pipe(
-        query_vector(session, user_id, query, table, filter_clause),
+        query_vector(context, query, table, filter_clause),
         filter(lambda row: row.percent_closer_than_random > L2_PERCENT_CLOSER_THAN_RANDOM_THRESHOLD),
     )
 
 
 def get_closest_vector_match(
-    session: Session, user_id: int, query: List[float], table: Type[EmbeddableSqlModel], filter_clause: Any = lambda: True
+    context: ElroyContext, query: List[float], table: Type[EmbeddableSqlModel], filter_clause: Any = lambda: True
 ) -> Optional[EmbeddableSqlModel]:
     return pipe(
-        get_vector_matches_over_threshold(session, user_id, query, table, filter_clause),
+        get_vector_matches_over_threshold(context, query, table, filter_clause),
         lambda x: next(x, None),
         lambda x: x.result if x else None,
     )  # type: ignore

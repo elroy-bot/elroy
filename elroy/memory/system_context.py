@@ -5,11 +5,11 @@ from functools import partial, reduce
 from operator import add
 from typing import List, Optional, Tuple
 
-from sqlmodel import Session
 from tiktoken import encoding_for_model
 from toolz import pipe
 from toolz.curried import map, remove
 
+from elroy.config import ElroyContext
 from elroy.llm.prompts import (persona, summarize_conversation,
                                summarize_for_archival_memory)
 from elroy.store.data_models import ContextMessage, EmbeddableSqlModel
@@ -77,8 +77,8 @@ def count_tokens(s: Optional[str]) -> int:
         return len(encoding.encode(s))
 
 
-def is_context_refresh_needed(session: Session, context_refresh_token_trigger_limit: int, user_id: int) -> bool:
-    context_messages = get_context_messages(session, user_id)
+def is_context_refresh_needed(context: ElroyContext, context_refresh_token_trigger_limit: int) -> bool:
+    context_messages = get_context_messages(context)
 
     if sum(1 for m in context_messages if m.role == "user") == 0:
         logging.info("No user messages in context, skipping context refresh")
@@ -99,7 +99,7 @@ def is_context_refresh_needed(session: Session, context_refresh_token_trigger_li
     else:
         logging.info(f"Token count {token_count} does not exceed threshold {context_refresh_token_trigger_limit}")
 
-    context_watermark_seconds = get_context_watermark_seconds(user_id)
+    context_watermark_seconds = get_context_watermark_seconds(context.user_id)
 
     elapsed_time = int(time.time()) - context_watermark_seconds
     if elapsed_time > WATERMARK_INVALIDATION_SECONDS:
@@ -112,10 +112,10 @@ def is_context_refresh_needed(session: Session, context_refresh_token_trigger_li
 
 
 @logged_exec_time
-def context_refresh_if_needed(session: Session, context_refresh_token_trigger_limit: int, context_refresh_token_target: int, user_id: int):
-    if is_context_refresh_needed(session, context_refresh_token_trigger_limit, user_id):
-        logging.info(f"Refreshing context for user id {user_id}")
-        context_refresh(session, context_refresh_token_target, user_id)
+def context_refresh_if_needed(context: ElroyContext, context_refresh_token_trigger_limit: int, context_refresh_token_target: int):
+    if is_context_refresh_needed(context, context_refresh_token_trigger_limit):
+        logging.info(f"Refreshing context for user id {context.user_id}")
+        context_refresh(context, context_refresh_token_target)
 
 
 def consolidate_context(context_refresh_token_target: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
@@ -183,27 +183,27 @@ def incoproate_new_entity_memory():
 
 
 @logged_exec_time
-def context_refresh(session: Session, context_refresh_token_target: int, user_id: int) -> None:
+def context_refresh(context: ElroyContext, context_refresh_token_target: int) -> None:
     from elroy.memory.system_context import consolidate_context
     from elroy.tools.functions.user_preferences import get_user_preferred_name
 
-    context_messages = get_context_messages(session, user_id)
-    user_preferred_name = get_user_preferred_name(session, user_id)
+    context_messages = get_context_messages(context)
+    user_preferred_name = get_user_preferred_name(context)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
     pipe(
         formulate_archival_memory(user_preferred_name, context_messages),
-        lambda response: persist_archival_memory(session, user_id, response[0], response[1]),
+        lambda response: persist_archival_memory(context, response[0], response[1]),
     )
 
     pipe(
         get_refreshed_system_message(user_preferred_name, context_messages),
         partial(replace_system_message, context_messages),
         partial(consolidate_context, context_refresh_token_target),
-        partial(replace_context_messages, session, user_id),
+        partial(replace_context_messages, context),
     )
 
-    set_context_watermark_seconds(user_id, int(time.time()))
+    set_context_watermark_seconds(context.user_id, int(time.time()))
 
 
 # TODO: Add function reminders

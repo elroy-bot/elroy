@@ -2,10 +2,10 @@ import logging
 import re
 from typing import Any, Optional, Tuple, Type
 
-from sqlmodel import Session
 from toolz import pipe
 from toolz.curried import map
 
+from elroy.config import ElroyContext
 from elroy.llm.client import query_llm
 from elroy.store.data_models import EmbeddableSqlModel
 from elroy.store.embeddings import get_closest_vector_match
@@ -22,14 +22,14 @@ def process_test_message(*args, **kwargs) -> str:
 
 
 def vector_search_by_text(
-    session: Session, user_id: int, query: str, table: Type[EmbeddableSqlModel], filter_clause: Any = lambda: True
+    context: ElroyContext, query: str, table: Type[EmbeddableSqlModel], filter_clause: Any = lambda: True
 ) -> Optional[EmbeddableSqlModel]:
     from elroy.llm.client import get_embedding
 
-    return get_closest_vector_match(session, user_id, get_embedding(query), table, filter_clause)
+    return get_closest_vector_match(context, get_embedding(query), table, filter_clause)
 
 
-def ask_assistant_bool(session: Session, user_id: int, question: str) -> Tuple[bool, str]:
+def ask_assistant_bool(context: ElroyContext, question: str) -> Tuple[bool, str]:
     def get_boolean(response: str, attempt: int = 1) -> bool:
         if attempt > 3:
             raise ValueError("Too many attempts")
@@ -60,10 +60,10 @@ def ask_assistant_bool(session: Session, user_id: int, question: str) -> Tuple[b
 
     question += " Your response to this question is being evaluated as part of an automated test. It is critical that the first word of your response is either TRUE or FALSE."
 
-    response = "".join(process_test_message(session, user_id, question))
+    response = "".join(process_test_message(context, question))
 
     # evict question and answer from context
-    context_messages = get_context_messages(session, user_id)
+    context_messages = get_context_messages(context)
     assert isinstance(context_messages, list)
     endpoint_index = -1
     for idx, message in enumerate(context_messages[::-1]):
@@ -78,7 +78,7 @@ def ask_assistant_bool(session: Session, user_id: int, question: str) -> Tuple[b
         map(lambda _: _),
         list,
         lambda _: _[: -(endpoint_index + 1)],
-        lambda _: replace_context_messages(session, user_id, _),
+        lambda _: replace_context_messages(context, _),
     )
 
     return (get_boolean(response), response)
