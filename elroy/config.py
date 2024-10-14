@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
+from rich.console import Console
 from sqlalchemy import Engine, NullPool, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlmodel import Session
@@ -98,3 +99,10 @@ def _get_elroy_env() -> ElroyEnv:
 
 
 is_test_env = lambda: _get_elroy_env() == ElroyEnv.TESTING
+
+
+@dataclass
+class ElroyContext:
+    user_id: int
+    session: Session
+    console: Console

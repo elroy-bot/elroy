@@ -13,13 +13,13 @@ from prompt_toolkit.styles import Style
 from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
-from sqlmodel import Session, select
+from sqlmodel import select
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
 from alembic import command
 from alembic.config import Config
-from elroy.config import get_config, session_manager
+from elroy.config import ElroyContext, get_config, session_manager
 from elroy.memory.system_context import context_refresh_if_needed
 from elroy.onboard_user import onboard_user
 from elroy.store.data_models import Goal
@@ -32,9 +32,15 @@ from elroy.tools.messenger import process_message
 app = typer.Typer()
 
 
-def print_goal(db_session: Session, user_id: int, goal_name: str) -> str:
+def print_goal(context: ElroyContext, goal_name: str) -> str:
     """Print the text of a goal"""
-    goal = db_session.exec(select(Goal).where(Goal.user_id == user_id, Goal.name == goal_name, Goal.is_active == True)).first()
+    goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == goal_name,
+            Goal.is_active == True,
+        )
+    ).first()
     if goal:
         status_string = ("Status:" + "\n".join(goal.status_updates)) if goal.status_updates else ""
         return f"Goal: {goal.name}\n\nDescription: {goal.description}\n{status_string}"
@@ -42,9 +48,14 @@ def print_goal(db_session: Session, user_id: int, goal_name: str) -> str:
         return f"Goal '{goal_name}' not found for the current user."
 
 
-def get_user_goals(db_session: Session, user_id: int) -> List[str]:
+def get_user_goals(context: ElroyContext) -> List[str]:
     """Fetch all active goals for the user"""
-    goals = db_session.exec(select(Goal).where(Goal.user_id == user_id, Goal.is_active == True)).all()
+    goals = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.is_active == True,
+        )
+    ).all()
     return [goal.name for goal in goals]
 
 
@@ -61,9 +72,9 @@ class SlashCompleter(Completer):
                     yield Completion("print_goal " + goal, start_position=-len(word))
 
 
-def get_relevant_memories(session: Session, user_id: int) -> List[str]:
+def get_relevant_memories(context: ElroyContext) -> List[str]:
     return pipe(
-        get_context_messages(session, user_id),
+        get_context_messages(context),
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
@@ -102,10 +113,10 @@ def display_memory_titles(titles):
         console.print(panel)
 
 
-async def async_context_refresh_if_needed(session, trigger_limit, target, user_id):
+async def async_context_refresh_if_needed(context, trigger_limit, target):
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
-        await loop.run_in_executor(pool, context_refresh_if_needed, session, trigger_limit, target, user_id)
+        await loop.run_in_executor(pool, context_refresh_if_needed, context, trigger_limit, target)
 
 
 @app.command()
@@ -133,7 +144,13 @@ async def main_chat():
 
     with session_manager() as db_session:
         # Fetch user goals for autocomplete
-        user_goals = get_user_goals(db_session, CLI_USER_ID)
+        context = ElroyContext(
+            user_id=CLI_USER_ID,
+            session=db_session,
+            console=console,
+        )
+
+        user_goals = get_user_goals(context)
         slash_completer = SlashCompleter(user_goals)
 
         session = PromptSession(
@@ -148,30 +165,30 @@ async def main_chat():
             if user_input.startswith("/"):
                 if user_input.startswith("/print_goal "):
                     _, goal_name = user_input.split(maxsplit=1)
-                    response = print_goal(db_session, CLI_USER_ID, goal_name)
+                    response = print_goal(context, goal_name)
                     print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
                 elif user_input == "/print_context_messages":
-                    context_messages = get_context_messages(db_session, CLI_USER_ID)
+                    context_messages = get_context_messages(context)
                     for msg in context_messages:
                         print(msg)
                 else:
                     print(f"Unknown command: {user_input}")
             else:
-                for partial_response in process_message(db_session, CLI_USER_ID, user_input):
+                for partial_response in process_message(context, user_input):
                     print(f"{DEFAULT_OUTPUT_COLOR}{partial_response}{RESET_COLOR}", end="", flush=True)
                 print()  # New line after complete response
 
             # Refresh slash completer
-            user_goals = get_user_goals(db_session, CLI_USER_ID)
+            user_goals = get_user_goals(context)
             slash_completer.goals = user_goals
             session.completer = slash_completer
 
-        if not is_user_exists(db_session, CLI_USER_ID):
+        if not is_user_exists(context):
             name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
             user_id = onboard_user(db_session, name)
             assert isinstance(user_id, int)
 
-            set_user_preferred_name(db_session, user_id, name)
+            set_user_preferred_name(context, name)
             msg = f"[This is a hidden system message. Elroy user {name} has been onboarded. Say hello and introduce yourself.]"
             process_and_deliver_msg(msg)
 
@@ -180,7 +197,7 @@ async def main_chat():
                 rule()
 
                 # Fetch and display relevant memories
-                relevant_memories = get_relevant_memories(db_session, CLI_USER_ID)
+                relevant_memories = get_relevant_memories(context)
                 if relevant_memories:
                     display_memory_titles(relevant_memories)
 
@@ -192,7 +209,9 @@ async def main_chat():
                     # Start context refresh asynchronously
                     asyncio.create_task(
                         async_context_refresh_if_needed(
-                            db_session, config.context_refresh_token_trigger_limit, config.context_refresh_token_target, CLI_USER_ID
+                            context,
+                            config.context_refresh_token_trigger_limit,
+                            config.context_refresh_token_target,
                         )
                     )
             except KeyboardInterrupt:

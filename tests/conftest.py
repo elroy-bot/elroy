@@ -1,11 +1,12 @@
 import os
 
 import pytest
+from rich.console import Console
 from testcontainers.postgres import PostgresContainer
 
 from alembic.command import upgrade
 from alembic.config import Config
-from elroy.config import ElroyConfig, get_config, session_manager
+from elroy.config import ElroyConfig, ElroyContext, get_config, session_manager
 from elroy.store.goals import create_goal
 from tests.fixtures import (BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
                             create_test_user)
@@ -60,20 +61,44 @@ def session(postgres_container, apply_migrations, config):
 
 
 @pytest.fixture(scope="function")
-def user_id(session) -> int:
-    return create_test_user(session)
+def user_id(session, console) -> int:
+    return create_test_user(session, console)
+
+
+@pytest.fixture(scope="session")
+def console():
+    return Console()
 
 
 @pytest.fixture(scope="function")
-def onboarded_user_id(session) -> int:
+def elroy_context(session, user_id, console) -> ElroyContext:
+    return ElroyContext(
+        session=session,
+        user_id=user_id,
+        console=console,
+    )
+
+
+@pytest.fixture(scope="function")
+def onboarded_user_id(session, console) -> int:
     return create_test_user(
         session,
+        console,
         initial_messages=["Hello! My name is George. I work as a air traffic controller."],
     )
 
 
 @pytest.fixture(scope="function")
-def george_user_id(session, user_id) -> int:
+def onboarded_context(session, onboarded_user_id, console) -> ElroyContext:
+    return ElroyContext(
+        session=session,
+        user_id=onboarded_user_id,
+        console=console,
+    )
+
+
+@pytest.fixture(scope="function")
+def george_user_id(elroy_context) -> int:
     messages = [
         ContextMessage(
             role="user", content="Hello! My name is George. I'm curious about the history of Minnesota. Can you tell me about it?"
@@ -115,11 +140,10 @@ def george_user_id(session, user_id) -> int:
         ),
     ]
 
-    replace_context_messages(session, user_id, get_context_messages(session, user_id) + messages)
+    replace_context_messages(elroy_context, get_context_messages(elroy_context) + messages)
 
     create_goal(
-        session,
-        user_id,
+        elroy_context,
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
         "George is working to improve his basketball game, in particular his shooting form.",
@@ -129,8 +153,7 @@ def george_user_id(session, user_id) -> int:
     )
 
     create_goal(
-        session,
-        user_id,
+        elroy_context,
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",
         "George has a loan that he needs to pay off by the end of the year.",
@@ -139,7 +162,16 @@ def george_user_id(session, user_id) -> int:
         0,
     )
 
-    return user_id
+    return elroy_context.user_id
+
+
+@pytest.fixture(scope="function")
+def george_context(session, george_user_id) -> ElroyContext:
+    return ElroyContext(
+        session=session,
+        user_id=george_user_id,
+        console=Console(),
+    )
 
 
 @pytest.fixture(scope="function")

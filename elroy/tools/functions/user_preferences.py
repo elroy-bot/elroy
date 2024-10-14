@@ -1,12 +1,12 @@
 import pytz
-from sqlmodel import Session
 from toolz import pipe
 from toolz.curried import map
 
+from elroy.config import ElroyContext
 from elroy.system.parameters import UNKNOWN
 
 
-def set_display_internal_monologue(session: Session, user_id: int, should_display: bool) -> str:
+def set_display_internal_monologue(context: ElroyContext, should_display: bool) -> str:
     """Sets whether the assistant should display its internal monologue.
 
     Args:
@@ -17,17 +17,17 @@ def set_display_internal_monologue(session: Session, user_id: int, should_displa
         str: Confirmation message.
     """
 
-    user_preference = _get_user_preference(session, user_id)
+    user_preference = _get_user_preference(context)
 
     old_preference = user_preference.display_internal_monologue or False
 
     user_preference.display_internal_monologue = should_display
-    session.commit()
+    context.session.commit()
 
     return f"Display internal monologue set to {should_display}. Previous value was {old_preference}."
 
 
-def get_display_internal_monologue(session: Session, user_id: int) -> bool:
+def get_display_internal_monologue(context: ElroyContext) -> bool:
     """Gets whether the assistant should display its internal monologue.
 
     Args:
@@ -36,12 +36,12 @@ def get_display_internal_monologue(session: Session, user_id: int) -> bool:
     Returns:
         bool: Whether the assistant should display its internal monologue.
     """
-    user_preference = _get_user_preference(session, user_id)
+    user_preference = _get_user_preference(context)
 
     return user_preference.display_internal_monologue or False
 
 
-def set_user_time_zone(session: Session, user_id: int, time_zone: str) -> None:
+def set_user_time_zone(context: ElroyContext, time_zone: str) -> None:
     """
     Set the user's time zone.
 
@@ -50,17 +50,17 @@ def set_user_time_zone(session: Session, user_id: int, time_zone: str) -> None:
         time_zone: The user's time zone. Should be a string included in pytz.all_timezones.
     """
 
-    user_preference = _get_user_preference(session, user_id)
+    user_preference = _get_user_preference(context)
 
     # check if valid time zone
     if time_zone not in pytz.all_timezones:
         raise ValueError(f"Invalid time zone: {time_zone}. Valid list should be in pytz.all_timezones")
 
     user_preference.user_time_zone = time_zone
-    session.commit()
+    context.session.commit()
 
 
-def print_context_messages(session: Session, user_id: int) -> str:
+def print_context_messages(context: ElroyContext) -> str:
     """Logs all of the current context messages to stdout
 
     Args:
@@ -71,11 +71,11 @@ def print_context_messages(session: Session, user_id: int) -> str:
     from elroy.store.message import get_context_messages
 
     return pipe(
-        get_context_messages(session, user_id), map(lambda x: f"{x.role} ({x.memory_metadata}): {x.content}"), list, "-----\n".join, str
+        get_context_messages(context), map(lambda x: f"{x.role} ({x.memory_metadata}): {x.content}"), list, "-----\n".join, str
     )  # type: ignore
 
 
-def set_user_preferred_name(session: Session, user_id: int, preferred_name: str) -> None:
+def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> None:
     """
     Set the user's preferred name.
 
@@ -84,13 +84,13 @@ def set_user_preferred_name(session: Session, user_id: int, preferred_name: str)
         preferred_name: The user's preferred name.
     """
 
-    user_preference = _get_user_preference(session, user_id)
+    user_preference = _get_user_preference(context)
 
     user_preference.preferred_name = preferred_name
-    session.commit()
+    context.session.commit()
 
 
-def get_user_time_zone(session: Session, user_id: int) -> str:
+def get_user_time_zone(context: ElroyContext) -> str:
     """Returns the user's time zone.
 
     Args:
@@ -100,12 +100,12 @@ def get_user_time_zone(session: Session, user_id: int) -> str:
         str: String representing the user's time zone.
     """
 
-    user_preference = _get_user_preference(session, user_id)
+    user_preference = _get_user_preference(context)
 
     return user_preference.user_time_zone or UNKNOWN
 
 
-def get_user_preferred_name(session: Session, user_id: int) -> str:
+def get_user_preferred_name(context: ElroyContext) -> str:
     """Returns the user's preferred name.
 
     Args:
@@ -115,12 +115,12 @@ def get_user_preferred_name(session: Session, user_id: int) -> str:
         str: String representing the user's preferred name.
     """
 
-    user_preference = _get_user_preference(session, user_id)
+    user_preference = _get_user_preference(context)
 
     return user_preference.preferred_name or UNKNOWN
 
 
-def set_user_full_name(session: Session, user_id: int, full_name: str) -> str:
+def set_user_full_name(context: ElroyContext, full_name: str) -> str:
     """Sets the user's full name.
 
     Args:
@@ -131,16 +131,16 @@ def set_user_full_name(session: Session, user_id: int, full_name: str) -> str:
         str: result of the attempt to set the user's full name
     """
 
-    user_preference = _get_user_preference(session, user_id)
+    user_preference = _get_user_preference(context)
 
     old_full_name = user_preference.full_name or UNKNOWN
     user_preference.full_name = full_name
-    session.commit()
+    context.session.commit()
 
     return f"Full name set to {full_name}. Previous value was {old_full_name}."
 
 
-def get_user_full_name(session: Session, user_id: int) -> str:
+def get_user_full_name(context: ElroyContext) -> str:
     """Returns the user's full name.
 
     Args:
@@ -150,21 +150,26 @@ def get_user_full_name(session: Session, user_id: int) -> str:
         str: String representing the user's full name.
     """
 
-    user_preference = _get_user_preference(session, user_id)
+    user_preference = _get_user_preference(context)
 
     return user_preference.full_name or "Unknown name"
 
 
-def _get_user_preference(session: Session, user_id: int):
+def _get_user_preference(context: ElroyContext):
     from sqlmodel import select
 
     from elroy.store.user import UserPreference
 
-    user_preference = session.exec(select(UserPreference).where(UserPreference.user_id == user_id, UserPreference.is_active == True)).first()  # type: ignore
+    user_preference = context.session.exec(
+        select(UserPreference).where(
+            UserPreference.user_id == context.user_id,
+            UserPreference.is_active == True,
+        )
+    ).first()
 
     if user_preference is None:
-        user_preference = UserPreference(user_id=user_id, is_active=True)
-        session.add(user_preference)
-        session.commit()
-        session.refresh(user_preference)
+        user_preference = UserPreference(user_id=context.user_id, is_active=True)
+        context.session.add(user_preference)
+        context.session.commit()
+        context.session.refresh(user_preference)
     return user_preference

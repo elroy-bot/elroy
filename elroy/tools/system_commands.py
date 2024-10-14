@@ -1,8 +1,8 @@
 from typing import Optional
 
-from sqlmodel import Session
 from toolz import pipe
 
+from elroy.config import ElroyContext
 from elroy.memory.system_context import get_refreshed_system_message
 from elroy.store.message import (get_current_system_message,
                                  replace_context_messages)
@@ -17,15 +17,15 @@ def is_system_command(msg: str) -> bool:
     return msg.split(" ")[0] in SYSTEM_COMMANDS.keys()
 
 
-def invoke_system_command(session: Session, user_id: int, msg: str) -> str:
+def invoke_system_command(context: ElroyContext, msg: str) -> str:
     command, *args = msg.split(" ")
     try:
-        return SYSTEM_COMMANDS[command](session, user_id, *args)
+        return SYSTEM_COMMANDS[command](context, *args)
     except Exception as e:
         return f"Error invoking system command: {e}"
 
 
-def refresh_system_instructions(session: Session, user_id) -> str:
+def refresh_system_instructions(context: ElroyContext) -> str:
     """Refreshes the system instructions
 
     Args:
@@ -37,13 +37,13 @@ def refresh_system_instructions(session: Session, user_id) -> str:
 
     from elroy.store.message import get_context_messages
 
-    context_messages = get_context_messages(session, user_id)
-    context_messages[0] = get_refreshed_system_message(get_user_preferred_name(session, user_id), context_messages[1:])
-    replace_context_messages(session, user_id, context_messages)
+    context_messages = get_context_messages(context)
+    context_messages[0] = get_refreshed_system_message(get_user_preferred_name(context), context_messages[1:])
+    replace_context_messages(context, context_messages)
     return "System instruction refresh complete"
 
 
-def print_system_instruction(session: Session, user_id: int) -> Optional[str]:
+def print_system_instruction(context: ElroyContext) -> Optional[str]:
     """Prints the current system instruction for the assistant
 
     Args:
@@ -54,7 +54,7 @@ def print_system_instruction(session: Session, user_id: int) -> Optional[str]:
     """
 
     return pipe(
-        get_current_system_message(session, user_id),
+        get_current_system_message(context),
         lambda _: _.content if _ else None,
     )  # type: ignore
 
@@ -69,7 +69,7 @@ def print_available_commands() -> str:
     return "Available commands: " + "\n".join(SYSTEM_COMMANDS.keys())
 
 
-def reset_system_context(session: Session, user_id: int) -> str:
+def reset_system_context(context: ElroyContext) -> str:
     """Resets the context for the user, removing all messages from the context except the system message.
     This should be used sparingly, only at the direct request of the user.
 
@@ -80,7 +80,7 @@ def reset_system_context(session: Session, user_id: int) -> str:
         str: The result of the context reset
     """
 
-    current_sys_message = get_current_system_message(session, user_id)
+    current_sys_message = get_current_system_message(context)
 
     if not current_sys_message:
         raise ValueError("No system message found")
@@ -88,8 +88,7 @@ def reset_system_context(session: Session, user_id: int) -> str:
         current_sys_message_id = current_sys_message.id
         assert current_sys_message_id
         replace_context_messages(
-            session,
-            user_id,
+            context,
             [current_sys_message],
         )
 
