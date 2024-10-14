@@ -1,5 +1,7 @@
+from rich.console import Console
 from sqlmodel import Session
 
+from elroy.config import ElroyContext
 from elroy.llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from elroy.memory.system_context import get_refreshed_system_message
 from elroy.store.data_models import ContextMessage
@@ -13,11 +15,16 @@ def onboard_user(session: Session, preferred_name: str) -> int:
 
     assert isinstance(user_id, int)
 
-    create_onboarding_goal(session, user_id, preferred_name)
+    context = ElroyContext(
+        session=session,
+        user_id=user_id,
+        console=Console(),
+    )
+
+    create_onboarding_goal(context, preferred_name)
 
     replace_context_messages(
-        session,
-        user_id,
+        context,
         [
             get_refreshed_system_message(preferred_name, []),
             ContextMessage(role="system", content=ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name)),

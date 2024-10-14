@@ -4,10 +4,10 @@ from functools import partial
 from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
-from sqlmodel import Session
 from toolz import concat, juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
+from elroy.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, get_embedding
 from elroy.store.data_models import EmbeddableSqlModel
 from elroy.store.embeddings import (get_most_relevant_archival_memory,
@@ -21,7 +21,6 @@ from elroy.tools.function_caller import (FunctionCall, PartialToolCall,
 from elroy.tools.functions.user_preferences import get_user_preferred_name
 from elroy.tools.system_commands import (invoke_system_command,
                                          is_system_command)
-from elroy.ui.loading_message import cli_loading
 
 
 class ToolCallAccumulator:
@@ -49,19 +48,19 @@ class ToolCallAccumulator:
                 self.last_updated_index = delta.index
 
 
-def process_message(session: Session, user_id: int, msg: str) -> Iterator[str]:
+def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
     if is_system_command(msg):
-        yield invoke_system_command(session, user_id, msg)
+        yield invoke_system_command(context, msg)
     else:
         from elroy.memory.system_context import get_refreshed_system_message
 
         context_messages = pipe(
-            get_context_messages(session, user_id),
+            get_context_messages(context),
             lambda x: (
-                [get_refreshed_system_message(get_user_preferred_name(session, user_id), [])] + x if not x else x
+                [get_refreshed_system_message(get_user_preferred_name(context), [])] + x if not x else x
             ),  # append new system message if it is missing
             lambda x: x + [ContextMessage(role="user", content=msg)],
-            lambda x: x + get_relevant_memories(session, user_id, x),
+            lambda x: x + get_relevant_memories(context, x),
         )
 
         full_content = ""
@@ -81,7 +80,7 @@ def process_message(session: Session, user_id: int, msg: str) -> Iterator[str]:
                         lambda x: ContextMessage(
                             role="tool",
                             tool_call_id=x.id,
-                            content=exec_function_call(session, user_id, x),
+                            content=exec_function_call(context, x),
                         ),
                         tool_context_messages.append,
                     )
@@ -94,7 +93,7 @@ def process_message(session: Session, user_id: int, msg: str) -> Iterator[str]:
             )
 
             if not tool_context_messages:
-                replace_context_messages(session, user_id, context_messages)
+                replace_context_messages(context, context_messages)
                 break
             else:
                 context_messages += tool_context_messages
@@ -122,9 +121,8 @@ def remove_memory_from_context(context_messages: List[ContextMessage], memory_ty
     )
 
 
-@cli_loading("Searching for relevant memories...")
 @logged_exec_time
-def get_relevant_memories(session: Session, user_id: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def get_relevant_memories(context: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
 
     message_content = pipe(
         context_messages,
@@ -144,7 +142,7 @@ def get_relevant_memories(session: Session, user_id: int, context_messages: List
     new_memory_messages = pipe(
         message_content,
         get_embedding,
-        lambda x: juxt(get_most_relevant_goal, get_most_relevant_archival_memory)(session, user_id, x),
+        lambda x: juxt(get_most_relevant_goal, get_most_relevant_archival_memory)(context, x),
         filter(lambda x: x is not None),
         remove(partial(is_memory_in_context, context_messages)),
         map(
