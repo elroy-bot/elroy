@@ -79,6 +79,9 @@ ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
 def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> str:
+    context.console.print(f"Executing function call: {function_call.function_name} with arguments: {function_call.arguments}")
+    context.console.print()
+
     try:
         function_to_call = get_functions()[function_call.function_name]
 
@@ -92,6 +95,7 @@ def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> st
 
     except Exception as e:
         logging.error("Function call resulted in error: %s", e)
+        context.console.print(f"Error invoking function: {e}")
         return f"{ERROR_PREFIX}{e}"
 
 
@@ -174,7 +178,7 @@ def get_function_schemas():
 
 
 def get_functions() -> Dict[str, FunctionType]:
-    from elroy.tools.system_commands import SYSTEM_COMMANDS
+    from elroy.tools.system_commands import ASSISTANT_VISIBLE_COMMANDS
 
     return pipe(
         get_modules(),
@@ -183,7 +187,7 @@ def get_functions() -> Dict[str, FunctionType]:
         list,
         lambda _: concatv(
             _,
-            list(SYSTEM_COMMANDS.values()),
+            ASSISTANT_VISIBLE_COMMANDS,
         ),
         map(lambda _: [_.__name__, _]),
         dict,
