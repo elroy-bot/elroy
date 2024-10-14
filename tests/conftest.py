@@ -38,8 +38,7 @@ def apply_migrations(config, postgres_container):
 from sqlmodel import delete
 
 from elroy.store.data_models import Goal, User
-from elroy.store.message import (ContextMessage, Message, get_context_messages,
-                                 replace_context_messages)
+from elroy.store.message import ContextMessage, Message, add_context_messages
 from elroy.store.store import ArchivalMemory
 from elroy.store.user import UserPreference
 
@@ -140,7 +139,7 @@ def george_user_id(elroy_context) -> int:
         ),
     ]
 
-    replace_context_messages(elroy_context, get_context_messages(elroy_context) + messages)
+    add_context_messages(elroy_context, messages)
 
     create_goal(
         elroy_context,

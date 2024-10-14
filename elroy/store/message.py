@@ -135,7 +135,7 @@ def get_context_messages(context: ElroyContext) -> List[ContextMessage]:
     return list(_get_context_messages_iter(context))
 
 
-def replace_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
+def persist_messages(context: ElroyContext, messages: List[ContextMessage]) -> List[int]:
     msg_ids = []
     for msg in messages:
         if msg.id:
@@ -146,6 +146,27 @@ def replace_context_messages(context: ElroyContext, messages: List[ContextMessag
             context.session.commit()
             context.session.refresh(db_message)
             msg_ids.append(db_message.id)
+    return msg_ids
+
+
+def remove_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
+    assert all(m.id is not None for m in messages), "All messages must have an id to be removed"
+
+    msg_ids = [m.id for m in messages]
+
+    replace_context_messages(context, [m for m in get_context_messages(context) if m.id not in msg_ids])
+
+
+def add_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
+    replace_context_messages(
+        context,
+        get_context_messages(context) + messages,
+    )
+
+
+def replace_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
+    msg_ids = persist_messages(context, messages)
+
     existing_context = context.session.exec(
         select(ContextMessageSet).where(
             ContextMessageSet.user_id == context.user_id,
