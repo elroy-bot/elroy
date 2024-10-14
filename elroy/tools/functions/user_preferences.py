@@ -1,6 +1,4 @@
 import pytz
-from toolz import pipe
-from toolz.curried import map
 
 from elroy.config import ElroyContext
 from elroy.system.parameters import UNKNOWN
@@ -58,21 +56,6 @@ def set_user_time_zone(context: ElroyContext, time_zone: str) -> None:
 
     user_preference.user_time_zone = time_zone
     context.session.commit()
-
-
-def print_context_messages(context: ElroyContext) -> str:
-    """Logs all of the current context messages to stdout
-
-    Args:
-        session (Session): _description_
-        user_id (int): _description_
-    """
-
-    from elroy.store.message import get_context_messages
-
-    return pipe(
-        get_context_messages(context), map(lambda x: f"{x.role} ({x.memory_metadata}): {x.content}"), list, "-----\n".join, str
-    )  # type: ignore
 
 
 def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> None:

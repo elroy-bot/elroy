@@ -19,8 +19,6 @@ from elroy.system.utils import logged_exec_time
 from elroy.tools.function_caller import (FunctionCall, PartialToolCall,
                                          exec_function_call)
 from elroy.tools.functions.user_preferences import get_user_preferred_name
-from elroy.tools.system_commands import (invoke_system_command,
-                                         is_system_command)
 
 
 class ToolCallAccumulator:
@@ -49,54 +47,51 @@ class ToolCallAccumulator:
 
 
 def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
-    if is_system_command(msg):
-        yield invoke_system_command(context, msg)
-    else:
-        from elroy.memory.system_context import get_refreshed_system_message
+    from elroy.memory.system_context import get_refreshed_system_message
 
-        context_messages = pipe(
-            get_context_messages(context),
-            lambda x: (
-                [get_refreshed_system_message(get_user_preferred_name(context), [])] + x if not x else x
-            ),  # append new system message if it is missing
-            lambda x: x + [ContextMessage(role="user", content=msg)],
-            lambda x: x + get_relevant_memories(context, x),
+    context_messages = pipe(
+        get_context_messages(context),
+        lambda x: (
+            [get_refreshed_system_message(get_user_preferred_name(context), [])] + x if not x else x
+        ),  # append new system message if it is missing
+        lambda x: x + [ContextMessage(role="user", content=msg)],
+        lambda x: x + get_relevant_memories(context, x),
+    )
+
+    full_content = ""
+
+    while True:
+        function_calls: List[FunctionCall] = []
+        tool_context_messages: List[ContextMessage] = []
+
+        for stream_chunk in _generate_assistant_reply(context_messages):
+            if isinstance(stream_chunk, ContentItem):
+                full_content += stream_chunk.content
+                yield stream_chunk.content
+            elif isinstance(stream_chunk, FunctionCall):
+                pipe(
+                    stream_chunk,
+                    do(function_calls.append),
+                    lambda x: ContextMessage(
+                        role="tool",
+                        tool_call_id=x.id,
+                        content=exec_function_call(context, x),
+                    ),
+                    tool_context_messages.append,
+                )
+        context_messages.append(
+            ContextMessage(
+                role="assistant",
+                content=full_content,
+                tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
+            )
         )
 
-        full_content = ""
-
-        while True:
-            function_calls: List[FunctionCall] = []
-            tool_context_messages: List[ContextMessage] = []
-
-            for stream_chunk in _generate_assistant_reply(context_messages):
-                if isinstance(stream_chunk, ContentItem):
-                    full_content += stream_chunk.content
-                    yield stream_chunk.content
-                elif isinstance(stream_chunk, FunctionCall):
-                    pipe(
-                        stream_chunk,
-                        do(function_calls.append),
-                        lambda x: ContextMessage(
-                            role="tool",
-                            tool_call_id=x.id,
-                            content=exec_function_call(context, x),
-                        ),
-                        tool_context_messages.append,
-                    )
-            context_messages.append(
-                ContextMessage(
-                    role="assistant",
-                    content=full_content,
-                    tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
-                )
-            )
-
-            if not tool_context_messages:
-                replace_context_messages(context, context_messages)
-                break
-            else:
-                context_messages += tool_context_messages
+        if not tool_context_messages:
+            replace_context_messages(context, context_messages)
+            break
+        else:
+            context_messages += tool_context_messages
 
 
 def is_memory_in_context(context_messages: List[ContextMessage], memory: EmbeddableSqlModel) -> bool:
