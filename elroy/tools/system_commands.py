@@ -1,26 +1,51 @@
+from inspect import signature
 from typing import Optional
 
+from sqlmodel import select
 from toolz import pipe
+from toolz.curried import map
 
 from elroy.config import ElroyContext
-from elroy.memory.system_context import get_refreshed_system_message
+from elroy.store.data_models import Goal
 from elroy.store.message import (get_current_system_message,
                                  replace_context_messages)
 from elroy.tools.functions.user_preferences import (
     get_display_internal_monologue, get_user_full_name,
-    get_user_preferred_name, get_user_time_zone, print_context_messages,
+    get_user_preferred_name, get_user_time_zone,
     set_display_internal_monologue, set_user_full_name,
     set_user_preferred_name, set_user_time_zone)
 
 
-def is_system_command(msg: str) -> bool:
-    return msg.split(" ")[0] in SYSTEM_COMMANDS.keys()
-
-
 def invoke_system_command(context: ElroyContext, msg: str) -> str:
+    if msg.startswith("/"):
+        msg = msg[1:]
+
     command, *args = msg.split(" ")
+
+    func = SYSTEM_COMMANDS.get(command)
+
+    if not func:
+        return f"Unknown command: {command}"
+
+    sig = signature(func)
+    params = list(sig.parameters.values())
+
     try:
-        return SYSTEM_COMMANDS[command](context, *args)
+        func_args = []
+        for i, param in enumerate(params):
+            if param.annotation == ElroyContext:
+                func_args.append(context)
+            elif param.annotation == str and i == len(params) - 1:
+                # If it's a string parameter and the last one, join remaining args
+                func_args.append(" ".join(args[i - 1 :]))
+                break
+            elif i - 1 < len(args):  # Check if there are still args left
+                func_args.append(args[i - 1])
+            else:
+                # Not enough arguments provided
+                return f"Error: Not enough arguments for command {command}"
+
+        return func(*func_args)
     except Exception as e:
         return f"Error invoking system command: {e}"
 
@@ -35,6 +60,7 @@ def refresh_system_instructions(context: ElroyContext) -> str:
         str: The result of the system instruction refresh
     """
 
+    from elroy.memory.system_context import get_refreshed_system_message
     from elroy.store.message import get_context_messages
 
     context_messages = get_context_messages(context)
@@ -59,7 +85,7 @@ def print_system_instruction(context: ElroyContext) -> Optional[str]:
     )  # type: ignore
 
 
-def print_available_commands() -> str:
+def print_available_commands(context: ElroyContext) -> str:
     """Prints the available system commands
 
     Returns:
@@ -95,8 +121,47 @@ def reset_system_context(context: ElroyContext) -> str:
     return "Context reset complete"
 
 
+def print_context_messages(context: ElroyContext) -> str:
+    """Logs all of the current context messages to stdout
+
+    Args:
+        session (Session): _description_
+        user_id (int): _description_
+    """
+
+    from elroy.store.message import get_context_messages
+
+    return pipe(
+        get_context_messages(context), map(lambda x: f"{x.role} ({x.memory_metadata}): {x.content}"), list, "-----\n".join, str
+    )  # type: ignore
+
+
+def print_goal(context: ElroyContext, goal_name: str) -> str:
+    """Prints the goal with the given name
+
+    Args:
+        context (ElroyContext): context obj
+        goal_name (str): Name of the goal
+
+    Returns:
+        str: Information for the goal with the given name
+    """
+    goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == goal_name,
+            Goal.is_active == True,
+        )
+    ).first()
+    if goal:
+        status_string = ("Status:" + "\n".join(goal.status_updates)) if goal.status_updates else ""
+        return f"Goal: {goal.name}\n\nDescription: {goal.description}\n{status_string}"
+    else:
+        return f"Goal '{goal_name}' not found for the current user."
+
+
 SYSTEM_COMMANDS = {
-    f.__name__.upper(): f
+    f.__name__: f
     for f in [
         print_system_instruction,
         set_display_internal_monologue,
@@ -111,5 +176,6 @@ SYSTEM_COMMANDS = {
         get_user_full_name,
         reset_system_context,
         print_context_messages,
+        print_goal,
     ]
 }

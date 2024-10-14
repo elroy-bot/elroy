@@ -28,24 +28,9 @@ from elroy.store.user import is_user_exists
 from elroy.system.parameters import CLI_USER_ID
 from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
+from elroy.tools.system_commands import SYSTEM_COMMANDS, invoke_system_command
 
 app = typer.Typer()
-
-
-def print_goal(context: ElroyContext, goal_name: str) -> str:
-    """Print the text of a goal"""
-    goal = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.name == goal_name,
-            Goal.is_active == True,
-        )
-    ).first()
-    if goal:
-        status_string = ("Status:" + "\n".join(goal.status_updates)) if goal.status_updates else ""
-        return f"Goal: {goal.name}\n\nDescription: {goal.description}\n{status_string}"
-    else:
-        return f"Goal '{goal_name}' not found for the current user."
 
 
 def get_user_goals(context: ElroyContext) -> List[str]:
@@ -64,12 +49,17 @@ class SlashCompleter(Completer):
         self.goals = goals
 
     def get_completions(self, document, complete_event):
+        from elroy.tools.system_commands import SYSTEM_COMMANDS
+
         text = document.text_before_cursor
         if text.startswith("/"):
             word = text.split("/")[-1].strip()
             for goal in self.goals:
                 if goal.lower().startswith(word.lower()) or word in "print_goal":
                     yield Completion("print_goal " + goal, start_position=-len(word))
+            for cmd in SYSTEM_COMMANDS:
+                if cmd.lower().startswith(word.lower()):
+                    yield Completion(cmd, start_position=-len(word))
 
 
 def get_relevant_memories(context: ElroyContext) -> List[str]:
@@ -163,16 +153,16 @@ async def main_chat():
         def process_and_deliver_msg(user_input):
             nonlocal slash_completer, session
             if user_input.startswith("/"):
-                if user_input.startswith("/print_goal "):
-                    _, goal_name = user_input.split(maxsplit=1)
-                    response = print_goal(context, goal_name)
-                    print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
-                elif user_input == "/print_context_messages":
-                    context_messages = get_context_messages(context)
-                    for msg in context_messages:
-                        print(msg)
+                cmd = user_input[1:].split()[0]
+
+                if cmd.lower() not in SYSTEM_COMMANDS:
+                    console.print(f"Unknown command: {cmd}")
                 else:
-                    print(f"Unknown command: {user_input}")
+                    try:
+                        response = invoke_system_command(context, user_input)
+                        print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
+                    except Exception as e:
+                        print(f"Error invoking system command: {e}")
             else:
                 for partial_response in process_message(context, user_input):
                     print(f"{DEFAULT_OUTPUT_COLOR}{partial_response}{RESET_COLOR}", end="", flush=True)
