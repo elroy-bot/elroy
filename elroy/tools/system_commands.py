@@ -8,8 +8,8 @@ from toolz.curried import map
 from elroy.config import ElroyContext
 from elroy.memory.system_context import format_context_messages
 from elroy.store.data_models import ContextMessage, Goal
-from elroy.store.goals import (create_goal, mark_goal_completed,
-                               update_goal_status)
+from elroy.store.goals import (add_goal_status_update, create_goal,
+                               mark_goal_completed)
 from elroy.store.message import (add_context_messages, get_context_messages,
                                  get_current_system_message,
                                  replace_context_messages)
@@ -232,7 +232,7 @@ ASSISTANT_VISIBLE_COMMANDS = [
     set_user_preferred_name,
     create_goal,
     drop_goal,
-    update_goal_status,
+    add_goal_status_update,
     mark_goal_completed,
 ]
 
