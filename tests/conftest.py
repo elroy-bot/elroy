@@ -19,18 +19,20 @@ def postgres_container():
 
 
 @pytest.fixture(scope="session")
-def config(postgres_container) -> ElroyConfig:
+def elroy_config(postgres_container) -> ElroyConfig:
     # Get the PostgreSQL host and port
     postgres_host = postgres_container.get_container_host_ip()
     postgres_port = postgres_container.get_exposed_port(5432)
-    os.environ["ELROY_DATABASE_URL"] = f"postgresql://test:test@{postgres_host}:{postgres_port}/test"
-    return get_config()
+    return get_config(
+        database_url=f"postgresql://test:test@{postgres_host}:{postgres_port}/test",
+        openai_api_key=os.environ["OPENAI_API_KEY"],
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
-def apply_migrations(config, postgres_container):
+def apply_migrations(elroy_config, postgres_container):
     alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", config.database_url)
+    alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.database_url)
     postgres_container.exec(["psql", "-U", "test", "-d", "test", "-c", "CREATE EXTENSION IF NOT EXISTS vector;"])
     upgrade(alembic_cfg, "head")
 
@@ -44,10 +46,10 @@ from elroy.store.user import UserPreference
 
 
 @pytest.fixture(scope="session")
-def session(postgres_container, apply_migrations, config):
+def session(postgres_container, apply_migrations, elroy_config):
     # Reset both engine and session_maker to ensure we're using the test database
 
-    with session_manager() as session:
+    with session_manager(elroy_config.database_url) as session:
         # Delete all rows from the tables
         session.exec(delete(Message))  # type: ignore
         session.exec(delete(Goal))  # type: ignore
@@ -67,11 +69,6 @@ def user_id(session, console, elroy_config) -> int:
 @pytest.fixture(scope="session")
 def console():
     return Console()
-
-
-@pytest.fixture(scope="function")
-def elroy_config() -> ElroyConfig:
-    return get_config()
 
 
 @pytest.fixture(scope="function")

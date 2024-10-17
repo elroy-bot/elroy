@@ -1,6 +1,6 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
+from typing import List, Optional
 
 import typer
 from colorama import Fore, init
@@ -19,7 +19,7 @@ from toolz.curried import filter, map
 
 from alembic import command
 from alembic.config import Config
-from elroy.config import ElroyContext, get_config, session_manager
+from elroy.config import ElroyConfig, ElroyContext, get_config, session_manager
 from elroy.memory.system_context import context_refresh_if_needed
 from elroy.onboard_user import onboard_user
 from elroy.store.data_models import Goal
@@ -113,12 +113,32 @@ async def async_context_refresh_if_needed(context):
 
 
 @app.command()
-def chat():
+def chat(
+    database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
+    openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY"),
+    local_storage_path: Optional[str] = typer.Option(None, envvar="ELROY_LOCAL_STORAGE_PATH"),
+    context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
+    log_file_path: Optional[str] = typer.Option(None, envvar="ELROY_LOG_FILE_PATH"),
+):
     """Start the Elroy chat interface"""
-    asyncio.run(main_chat())
+
+    assert database_url, "Database URL is required"
+    assert openai_api_key, "OpenAI API key is required"
+
+    pipe(
+        get_config(
+            database_url=database_url,
+            openai_api_key=openai_api_key,
+            local_storage_path=local_storage_path,
+            context_window_token_limit=context_window_token_limit,
+            log_file_path=log_file_path,
+        ),
+        main_chat,
+        asyncio.run,
+    )
 
 
-async def main_chat():
+async def main_chat(config: ElroyConfig):
     init(autoreset=True)
 
     console = Console()
@@ -133,15 +153,13 @@ async def main_chat():
         }
     )
 
-    config = get_config()
-
-    with session_manager() as db_session:
+    with session_manager(config.database_url) as db_session:
         # Fetch user goals for autocomplete
         context = ElroyContext(
             user_id=CLI_USER_ID,
             session=db_session,
             console=console,
-            config=get_config(),
+            config=config,
         )
 
         user_goals = get_user_goals(context)
@@ -210,11 +228,13 @@ async def main_chat():
 
 
 @app.command()
-def upgrade():
+def upgrade(
+    database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
+):
     """Run Alembic database migrations"""
-    config = get_config()
+    assert database_url
     alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", config.database_url)
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
     command.upgrade(alembic_cfg, "head")
     typer.echo("Database upgrade completed.")
 
