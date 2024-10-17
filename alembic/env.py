@@ -1,20 +1,14 @@
-import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 ### Imports necessary to correctly load SQLModel subclasses and set env variables ###
-import elroy.store.goals
-import elroy.store.message
-import elroy.store.user
+import elroy.store.data_models
 from alembic import context
-from elroy.config import get_config as get_elroy_config
 
-g = elroy.store.goals
-u = elroy.store.user
-m = elroy.store.message
-b = get_elroy_config().declarative_base
+models = elroy.store.data_models
+
 ### End ####
 
 
@@ -26,13 +20,6 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# Use the ELROY_DATABASE_URL environment variable
-database_url = os.environ.get("ELROY_DATABASE_URL")
-if database_url is None:
-    raise ValueError("ELROY_DATABASE_URL environment variable is not set")
-
-config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = SQLModel.metadata
 
