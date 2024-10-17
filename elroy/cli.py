@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
@@ -19,7 +21,9 @@ from toolz.curried import filter, map
 
 from alembic import command
 from alembic.config import Config
-from elroy.config import ElroyConfig, ElroyContext, get_config, session_manager
+from elroy.config import (ROOT_DIR, ElroyConfig, ElroyContext, get_config,
+                          session_manager)
+from elroy.logging_config import setup_logging
 from elroy.memory.system_context import context_refresh_if_needed
 from elroy.onboard_user import onboard_user
 from elroy.store.data_models import Goal
@@ -118,9 +122,20 @@ def chat(
     openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY"),
     local_storage_path: Optional[str] = typer.Option(None, envvar="ELROY_LOCAL_STORAGE_PATH"),
     context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
-    log_file_path: Optional[str] = typer.Option(None, envvar="ELROY_LOG_FILE_PATH"),
+    log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH"),
+    use_docker_postgres: Optional[bool] = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
 ):
     """Start the Elroy chat interface"""
+
+    setup_logging(log_file_path)
+
+    if use_docker_postgres:
+        if database_url is not None:
+            logging.info("use_docker_postgres is set to True, ignoring database_url")
+
+        from docker_postgres import start_db
+
+        database_url = start_db()
 
     assert database_url, "Database URL is required"
     assert openai_api_key, "OpenAI API key is required"
@@ -131,11 +146,18 @@ def chat(
             openai_api_key=openai_api_key,
             local_storage_path=local_storage_path,
             context_window_token_limit=context_window_token_limit,
-            log_file_path=log_file_path,
         ),
         main_chat,
         asyncio.run,
     )
+
+    print("Exiting...")
+    if use_docker_postgres:
+        from docker_postgres import stop_db
+
+        logging.info("Stopping Docker Postgres container...")
+        stop_db()
+    exit()
 
 
 async def main_chat(config: ElroyConfig):
@@ -215,7 +237,7 @@ async def main_chat(config: ElroyConfig):
 
                 user_input = await session.prompt_async(HTML("<b>> </b>"), style=style)
                 if user_input.lower().startswith("/exit") or user_input == "exit":
-                    exit_cli()
+                    break
                 elif user_input:
                     process_and_deliver_msg(user_input)
                     # Start context refresh asynchronously
@@ -224,7 +246,7 @@ async def main_chat(config: ElroyConfig):
                 console.clear()
                 continue
             except EOFError:
-                exit_cli()
+                break
 
 
 @app.command()
