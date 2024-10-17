@@ -6,27 +6,8 @@ from elroy.llm.client import (query_llm, query_llm_json,
 from elroy.system.parameters import INNER_THOUGHT_TAG  # keep!
 from elroy.system.parameters import (CHAT_MODEL, LOW_TEMPERATURE,
                                      MEMORY_PROCESSING_MODEL, UNKNOWN)
-from elroy.system.utils import logged_exec_time
 
 query_llm_short_limit = partial(query_llm_with_word_limit, word_limit=300)
-
-_create_internal_monologue = logged_exec_time(
-    partial(
-        query_llm,
-        model=MEMORY_PROCESSING_MODEL,
-        system=f"""
-You are a processor for LLM assistant messages.
-
-You will be given a message, your job is to compose an internal monologue, that might have been the thinking behind the message.
-
-For example, if the message is "Hello user!", you might output "I should greet the user to establish a friendly tone."
-
-Only output the internal monologue, do NOT include anything else in your output.
-""",
-    ),
-    "create_internal_monologue",
-)
-
 
 USER_HIDDEN_MSG_PREFIX = "[Automated system message, hidden from user]: "
 
@@ -100,8 +81,8 @@ Return your response in JSON format, with the following structure:
 
 
 def persona(user_name: str) -> str:
-    from elroy.store.goals import (create_goal, mark_goal_completed,
-                                   update_goal_status)
+    from elroy.store.goals import (add_goal_status_update, create_goal,
+                                   mark_goal_completed)
 
     user_noun = user_name if user_name != UNKNOWN else "my user"
 
@@ -119,7 +100,10 @@ My memories are captured and consolidated without my awareness.
 
 I have access to a collection of tools which I can use to assist {user_noun} and enrich our conversations:
 - User preference tools: These persist attributes and preferences about the user, which in turn inform my memory
-- Goal management tools: These allow me to create and track goals, both for myself and for {user_noun}. I must proactively manage these goals via functions available to me: {create_goal.__name__}, {update_goal_status.__name__}, and {mark_goal_completed.__name__}
+- Goal management tools: These allow me to create and track goals, both for myself and for {user_noun}. I must proactively manage these goals via functions available to me: 
+    - {create_goal.__name__} 
+    - {add_goal_status_update.__name__}: This function should be used to capture anything from major milestones to minor updates or notes.
+    - {mark_goal_completed.__name__}
 
 My communication style is as follows:
 - I am insightful and engaging. I engage with the needs of {user_noun}, but am not obsequious.
