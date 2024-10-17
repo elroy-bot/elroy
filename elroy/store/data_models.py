@@ -185,3 +185,41 @@ class ContextMessage:
             raise ValueError(f"Only tool messages can have tool call ids, found {self.role} message with tool call id. ID = {self.id}")
         elif self.role == "tool" and self.tool_call_id is None:
             raise ValueError(f"Tool messages must have tool call ids, found tool message without tool call id. ID = {self.id}")
+
+
+class Message(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    user_id: int = Field(..., description="Elroy user for context")
+    role: str = Field(..., description="The role of the message")
+    content: Optional[str] = Field(..., description="The text of the message")
+    model: Optional[str] = Field(None, description="The model used to generate the message")
+    tool_calls: Optional[List[Dict[str, Any]]] = Field(sa_column=Column(JSON))
+    tool_call_id: Optional[str] = Field(None, description="The id of the tool call")
+    memory_metadata: Optional[List[Dict[str, Any]]] = Field(
+        sa_column=Column(JSON), description="Metadata for which memory entities are associated with this message"
+    )
+
+
+class UserPreference(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    user_id: int = Field(..., description="User for context")
+    preferred_name: Optional[str] = Field(default=None, description="The preferred name for the user")
+    full_name: Optional[str] = Field(default=None, description="The full name for the user")
+    user_time_zone: Optional[str] = Field(default=None, description="The time zone for the user")
+    display_internal_monologue: Optional[bool] = Field(default=False, description="Whether the internal monologue should be displayed")
+    is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
+
+
+class ContextMessageSet(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    user_id: int = Field(..., description="Elroy user for context")
+    message_ids: List[int] = Field(sa_column=Column(JSON), description="The messages in the context window")
+    is_active: Optional[bool] = Field(True, description="Whether the context is active")

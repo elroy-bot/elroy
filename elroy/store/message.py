@@ -1,33 +1,17 @@
 from dataclasses import asdict
-from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, Optional
+from datetime import timedelta
+from typing import Dict, Iterable, List, Optional
 
-from sqlalchemy import JSON, Column, UniqueConstraint
-from sqlmodel import Field, SQLModel, desc, select
+from sqlmodel import desc, select
 from toolz import first, pipe
 from toolz.curried import map, pipe
 
 from elroy.config import ElroyContext
-from elroy.store.data_models import (ContextMessage, Goal, MemoryMetadata,
-                                     convert_to_utc)
+from elroy.store.data_models import (ContextMessage, ContextMessageSet, Goal,
+                                     MemoryMetadata, Message, convert_to_utc)
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
 from elroy.system.utils import first_or_none, last_or_none
-
-
-class Message(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    user_id: int = Field(..., description="Elroy user for context")
-    role: str = Field(..., description="The role of the message")
-    content: Optional[str] = Field(..., description="The text of the message")
-    model: Optional[str] = Field(None, description="The model used to generate the message")
-    tool_calls: Optional[List[Dict[str, Any]]] = Field(sa_column=Column(JSON))
-    tool_call_id: Optional[str] = Field(None, description="The id of the tool call")
-    memory_metadata: Optional[List[Dict[str, Any]]] = Field(
-        sa_column=Column(JSON), description="Metadata for which memory entities are associated with this message"
-    )
 
 
 def _get_last_user_message(context: ElroyContext) -> Optional[Message]:
@@ -50,16 +34,6 @@ def get_time_since_last_user_message(context: ElroyContext) -> Optional[timedelt
 
     else:
         return get_utc_now() - convert_to_utc(last_user_message.created_at)
-
-
-class ContextMessageSet(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    user_id: int = Field(..., description="Elroy user for context")
-    message_ids: List[int] = Field(sa_column=Column(JSON), description="The messages in the context window")
-    is_active: Optional[bool] = Field(True, description="Whether the context is active")
 
 
 def context_message_to_db_message(user_id: int, context_message: ContextMessage):
