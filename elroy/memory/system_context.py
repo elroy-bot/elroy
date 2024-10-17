@@ -77,7 +77,7 @@ def count_tokens(s: Optional[str]) -> int:
         return len(encoding.encode(s))
 
 
-def is_context_refresh_needed(context: ElroyContext, context_refresh_token_trigger_limit: int) -> bool:
+def is_context_refresh_needed(context: ElroyContext) -> bool:
     context_messages = get_context_messages(context)
 
     if sum(1 for m in context_messages if m.role == "user") == 0:
@@ -93,11 +93,11 @@ def is_context_refresh_needed(context: ElroyContext, context_refresh_token_trigg
     )
     assert isinstance(token_count, int)
 
-    if token_count > context_refresh_token_trigger_limit:
-        logging.info(f"Token count {token_count} exceeds threshold {context_refresh_token_trigger_limit}")
+    if token_count > context.config.context_refresh_token_trigger_limit:
+        logging.info(f"Token count {token_count} exceeds threshold {context.config.context_refresh_token_trigger_limit}")
         return True
     else:
-        logging.info(f"Token count {token_count} does not exceed threshold {context_refresh_token_trigger_limit}")
+        logging.info(f"Token count {token_count} does not exceed threshold {context.config.context_refresh_token_trigger_limit}")
 
     context_watermark_seconds = get_context_watermark_seconds(context.user_id)
 
@@ -112,13 +112,13 @@ def is_context_refresh_needed(context: ElroyContext, context_refresh_token_trigg
 
 
 @logged_exec_time
-def context_refresh_if_needed(context: ElroyContext, context_refresh_token_trigger_limit: int, context_refresh_token_target: int):
-    if is_context_refresh_needed(context, context_refresh_token_trigger_limit):
+def context_refresh_if_needed(context: ElroyContext):
+    if is_context_refresh_needed(context):
         logging.info(f"Refreshing context for user id {context.user_id}")
-        context_refresh(context, context_refresh_token_target)
+        context_refresh(context)
 
 
-def consolidate_context(context_refresh_token_target: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def compress_context_messages(context_refresh_token_target: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     """Refreshes context, saving to archival memory and compressing the context window."""
 
     system_message, prev_messages = context_messages[0], context_messages[1:]
@@ -183,8 +183,8 @@ def incoproate_new_entity_memory():
 
 
 @logged_exec_time
-def context_refresh(context: ElroyContext, context_refresh_token_target: int) -> None:
-    from elroy.memory.system_context import consolidate_context
+def context_refresh(context: ElroyContext) -> None:
+    from elroy.memory.system_context import compress_context_messages
     from elroy.tools.functions.user_preferences import get_user_preferred_name
 
     context_messages = get_context_messages(context)
@@ -199,7 +199,7 @@ def context_refresh(context: ElroyContext, context_refresh_token_target: int) ->
     pipe(
         get_refreshed_system_message(user_preferred_name, context_messages),
         partial(replace_system_message, context_messages),
-        partial(consolidate_context, context_refresh_token_target),
+        partial(compress_context_messages, context.config.context_refresh_token_target),
         partial(replace_context_messages, context),
     )
 

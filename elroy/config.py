@@ -103,6 +103,7 @@ is_test_env = lambda: _get_elroy_env() == ElroyEnv.TESTING
 
 @dataclass
 class ElroyContext:
-    user_id: int
     session: Session
     console: Console
+    config: ElroyConfig
+    user_id: int
