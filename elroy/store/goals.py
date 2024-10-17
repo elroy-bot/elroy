@@ -132,24 +132,24 @@ def create_onboarding_goal(context: ElroyContext, preferred_name: str) -> None:
         context=context,
         goal_name=f"Introduce myself to {preferred_name}",
         description="Introduce myself - a few things that make me unique are my ability to form long term memories, and the ability to set and track goals.",
-        strategy=f"After exchanging some pleasantries, tell {preferred_name} about my ability to form long term memories, including goals. Use function {update_goal_status.__name__} with any progress or learnings.",
+        strategy=f"After exchanging some pleasantries, tell {preferred_name} about my ability to form long term memories, including goals. Use function {add_goal_status_update.__name__} with any progress or learnings.",
         end_condition=f"{preferred_name} has been informed about my ability to track goals",
         priority=1,
         time_to_completion="1 HOUR",
     )
 
 
-def update_goal_status(context: ElroyContext, goal_name: str, status: str) -> None:
-    """Updates a goal with the given status. If the goal is terminal, it will be marked completed and/or inactive.
+def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_or_note: str) -> None:
+    """Captures either a progress update or note relevant to the goal.
 
     Args:
         session (Session): The database session.
         user_id (int): The user id
         goal_name (str): Name of the goal
-        status (str): A brief description of what has happened with the goal so far. Limit to 100 words.
+        status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
     """
     logging.info(f"Updating goal {goal_name} for user {context.user_id}")
-    _update_goal_status(context, goal_name, status, False)
+    _update_goal_status(context, goal_name, status_update_or_note, False)
 
 
 def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments: str) -> None:
@@ -291,5 +291,5 @@ def get_goal_internal_monologue(last_user_message: str, goal: str) -> str:
             system="You are the internal monologue of an AI assistant. You will be given a user message, and a goal that has been recalled from memory."
             "Formulate a short internal monologue thought process that the AI might have when deciding how to respond to the user message in the context of the goal.",
         )
-        + f" I may be able to use my tools {mark_goal_completed.__name__} or {update_goal_status.__name__} to help track this goal."
+        + f" I may be able to use my tools {mark_goal_completed.__name__} or {add_goal_status_update.__name__} to help track this goal."
     )

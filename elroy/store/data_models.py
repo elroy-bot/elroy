@@ -148,6 +148,9 @@ class Goal(EmbeddableSqlModel, table=True):
         )
 
     def to_fact(self) -> Fact:
+        from elroy.store.goals import (add_goal_status_update,
+                                       mark_goal_completed)
+
         """Convert the goal to a Fact object."""
 
         return Fact(
@@ -155,7 +158,7 @@ class Goal(EmbeddableSqlModel, table=True):
             user_id=self.user_id,
             timestamp=self.updated_at,
             text=str(self)
-            + f"\nInformation about this goal should be kept up to date via AI assistant functions: update_goal_status, and mark_goal_completed",
+            + f"\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
         )
 
 
