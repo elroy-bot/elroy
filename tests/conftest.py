@@ -60,8 +60,8 @@ def session(postgres_container, apply_migrations, config):
 
 
 @pytest.fixture(scope="function")
-def user_id(session, console) -> int:
-    return create_test_user(session, console)
+def user_id(session, console, elroy_config) -> int:
+    return create_test_user(session, console, elroy_config)
 
 
 @pytest.fixture(scope="session")
@@ -70,29 +70,37 @@ def console():
 
 
 @pytest.fixture(scope="function")
-def elroy_context(session, user_id, console) -> ElroyContext:
+def elroy_config() -> ElroyConfig:
+    return get_config()
+
+
+@pytest.fixture(scope="function")
+def elroy_context(session, user_id, console, elroy_config) -> ElroyContext:
     return ElroyContext(
         session=session,
         user_id=user_id,
         console=console,
+        config=elroy_config,
     )
 
 
 @pytest.fixture(scope="function")
-def onboarded_user_id(session, console) -> int:
+def onboarded_user_id(session, console, elroy_config) -> int:
     return create_test_user(
         session,
         console,
+        elroy_config,
         initial_messages=["Hello! My name is George. I work as a air traffic controller."],
     )
 
 
 @pytest.fixture(scope="function")
-def onboarded_context(session, onboarded_user_id, console) -> ElroyContext:
+def onboarded_context(session, onboarded_user_id, console, elroy_config) -> ElroyContext:
     return ElroyContext(
         session=session,
         user_id=onboarded_user_id,
         console=console,
+        config=elroy_config,
     )
 
 
@@ -165,14 +173,10 @@ def george_user_id(elroy_context) -> int:
 
 
 @pytest.fixture(scope="function")
-def george_context(session, george_user_id) -> ElroyContext:
+def george_context(session, george_user_id, elroy_config) -> ElroyContext:
     return ElroyContext(
         session=session,
         user_id=george_user_id,
         console=Console(),
+        config=elroy_config,
     )
-
-
-@pytest.fixture(scope="function")
-def context_refresh_token_target(config):
-    return config.context_refresh_token_target

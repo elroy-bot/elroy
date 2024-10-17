@@ -49,6 +49,15 @@ class ToolCallAccumulator:
 def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
     from elroy.memory.system_context import get_refreshed_system_message
 
+    context_messages = get_context_messages(context)
+
+    # if context messages is empty, add system message to init. else add new message and any relevant memories
+    new_messages = (
+        [get_refreshed_system_message(get_user_preferred_name(context), [])]
+        if not context_messages
+        else [] + [ContextMessage(role="user", content=msg)] + get_relevant_memories(context, context_messages)
+    )
+
     context_messages = pipe(
         get_context_messages(context),
         lambda x: (
@@ -59,8 +68,6 @@ def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
     )
 
     full_content = ""
-
-    new_messages = []
 
     while True:
         function_calls: List[FunctionCall] = []
