@@ -3,7 +3,7 @@ import re
 from typing import Any, Optional, Tuple, Type
 
 from toolz import pipe
-from toolz.curried import map
+from toolz.curried import do, map
 
 from elroy.config import ElroyContext
 from elroy.llm.client import query_llm
@@ -13,11 +13,14 @@ from elroy.store.message import get_context_messages, replace_context_messages
 from elroy.tools.messenger import process_message
 
 
-def process_test_message(*args, **kwargs) -> str:
+def process_test_message(context: ElroyContext, msg: str) -> str:
+    logging.info(f"USER MESSAGE: {msg}")
+
     return pipe(
-        process_message(*args, **kwargs),
+        process_message(context, msg),
         list,
         "".join,
+        do(lambda x: logging.info(f"ASSISTANT MESSAGE: {x}")),
     )  # type: ignore
 
 

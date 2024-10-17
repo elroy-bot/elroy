@@ -70,7 +70,7 @@ def get_relevant_memories(context: ElroyContext) -> List[str]:
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
-        filter(lambda m: m.memory_type == Goal.__name__),  # TODO: Consolidate memories if they are redundant
+        # filter(lambda m: m.memory_type == Goal.__name__),  # TODO: Consolidate memories if they are redundant
         map(lambda m: f"{m.memory_type}: {m.name}"),
         unique,
         list,
@@ -102,14 +102,14 @@ def rule():
 def display_memory_titles(titles):
     console = Console()
     if titles:
-        panel = Panel("\n".join(titles), title="Relevant Memories", expand=False, border_style=DEFAULT_INPUT_COLOR)
+        panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=DEFAULT_INPUT_COLOR)
         console.print(panel)
 
 
-async def async_context_refresh_if_needed(context, trigger_limit, target):
+async def async_context_refresh_if_needed(context):
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
-        await loop.run_in_executor(pool, context_refresh_if_needed, context, trigger_limit, target)
+        await loop.run_in_executor(pool, context_refresh_if_needed, context)
 
 
 @app.command()
@@ -141,6 +141,7 @@ async def main_chat():
             user_id=CLI_USER_ID,
             session=db_session,
             console=console,
+            config=get_config(),
         )
 
         user_goals = get_user_goals(context)
@@ -178,7 +179,7 @@ async def main_chat():
 
         if not is_user_exists(context):
             name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
-            user_id = onboard_user(db_session, name)
+            user_id = onboard_user(db_session, context.console, context.config, name)
             assert isinstance(user_id, int)
 
             set_user_preferred_name(context, name)
@@ -200,13 +201,7 @@ async def main_chat():
                 elif user_input:
                     process_and_deliver_msg(user_input)
                     # Start context refresh asynchronously
-                    asyncio.create_task(
-                        async_context_refresh_if_needed(
-                            context,
-                            config.context_refresh_token_trigger_limit,
-                            config.context_refresh_token_target,
-                        )
-                    )
+                    asyncio.create_task(async_context_refresh_if_needed(context))
             except KeyboardInterrupt:
                 console.clear()
                 continue
