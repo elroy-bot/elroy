@@ -2,6 +2,8 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
+import litellm
+
 
 def setup_logging(log_file_path: str):
     # Create the directory for the log file if it doesn't exist
@@ -19,8 +21,16 @@ def setup_logging(log_file_path: str):
     )
 
     # Silence some noisy loggers
-    logging.getLogger("openai").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    for name in ["openai", "httpx", "litellm"]:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+    # Disable liteLLM's default logging
+    litellm.set_verbose = False  # type: ignore
+
+    # Silence liteLLM's verbose logger
+    litellm.verbose_logger.setLevel(logging.INFO)  # type: ignore
+    for handler in litellm.verbose_logger.handlers[:]:  # type: ignore
+        litellm.verbose_logger.removeHandler(handler)  # type: ignore
 
     # Disable propagation to the root logger for all loggers
     for name in logging.root.manager.loggerDict:
