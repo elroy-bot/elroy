@@ -74,7 +74,7 @@ def get_relevant_memories(context: ElroyContext) -> List[str]:
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
-        # filter(lambda m: m.memory_type == Goal.__name__),  # TODO: Consolidate memories if they are redundant
+        filter(lambda m: m.memory_type == Goal.__name__),  # TODO: Consolidate memories if they are redundant
         map(lambda m: f"{m.memory_type}: {m.name}"),
         unique,
         list,
