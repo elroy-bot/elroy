@@ -41,7 +41,7 @@ def ping():
 
 def create_volume_if_not_exists():
     """Creates a Docker volume if it doesn't exist."""
-    if subprocess.run(["docker", "volume", "inspect", VOLUME_NAME], capture_output=True, text=True) != 0:
+    if subprocess.run(["docker", "volume", "inspect", VOLUME_NAME], capture_output=True, text=True).returncode != 0:
         subprocess.run(["docker", "volume", "create", VOLUME_NAME], check=True, capture_output=True)
         logging.info(f"Created volume: {VOLUME_NAME}")
     else:
