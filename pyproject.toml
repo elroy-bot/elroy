@@ -29,6 +29,7 @@ docstring-parser = "^0.16"
 openai = "^1.37.0"
 celery = "^5.3.6"
 pygments = "^2.18.0"
+litellm = "^1.49.6"
 
 [tool.pyright]
 include = [
