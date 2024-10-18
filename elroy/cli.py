@@ -133,7 +133,11 @@ def chat(
         if database_url is not None:
             logging.info("use_docker_postgres is set to True, ignoring database_url")
 
-        from docker_postgres import start_db
+        from docker_postgres import is_docker_running, start_db
+
+        if not is_docker_running():
+            print("is_docker_running is set to True, but Docker is not running. Please start Docker and try again.")
+            exit(1)
 
         database_url = start_db()
 

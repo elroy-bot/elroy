@@ -14,6 +14,15 @@ CONTAINER_NAME = "elroy_postgres"
 VOLUME_NAME = "elroy_postgres-data"
 
 
+def is_docker_running():
+    """Checks if the Docker daemon is running."""
+    try:
+        subprocess.run(["docker", "info"], check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
 def ping():
     """Checks if the dockerized postgres is up and running."""
     try:
@@ -30,7 +39,7 @@ def ping():
         return False
 
 
-def create_volume():
+def create_volume_if_not_exists():
     """Creates a Docker volume if it doesn't exist."""
     if subprocess.run(["docker", "volume", "inspect", VOLUME_NAME], capture_output=True, text=True) != 0:
         subprocess.run(["docker", "volume", "create", VOLUME_NAME], check=True, capture_output=True)
@@ -39,12 +48,27 @@ def create_volume():
         logging.info(f"Volume {VOLUME_NAME} already exists.")
 
 
+def rm_orphan_container_if_exists():
+    if (
+        CONTAINER_NAME
+        in subprocess.run(
+            ["docker", "ps", "-a", "--filter", f"name={CONTAINER_NAME}", "--filter", "status=exited", "--format", "{{.Names}}"],
+            capture_output=True,
+            text=True,
+        ).stdout
+    ):
+        subprocess.run(["docker", "rm", CONTAINER_NAME], check=True, capture_output=True)
+        logging.info(f"Removed existing stopped container: {CONTAINER_NAME}")
+
+
 def start_db() -> str:
     """Starts a dockerized postgres, if it is not already running."""
     if ping():
         logging.info("Database is already running.")
     else:
-        create_volume()
+        # Check if container exists but is not running
+        rm_orphan_container_if_exists()
+        create_volume_if_not_exists()
         subprocess.run(
             [
                 "docker",
