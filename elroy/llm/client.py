@@ -1,9 +1,8 @@
 import json
-from typing import Dict, List, Union
+from typing import Dict, Iterator, List, Union
 
-from openai import BadRequestError, OpenAI
-from toolz import pipe
-from toolz.dicttoolz import assoc, merge
+from litellm import completion, embedding
+from litellm.exceptions import BadRequestError
 
 from elroy.system.parameters import CHAT_MODEL, EMBEDDING_MODEL
 from elroy.system.utils import logged_exec_time
@@ -15,21 +14,20 @@ class MissingToolCallIdError(Exception):
     pass
 
 
-from typing import Iterator
-
-from openai.types.chat import ChatCompletionChunk
-
-
 @logged_exec_time
-def generate_chat_completion_message(context_messages: List[Dict]) -> Iterator[ChatCompletionChunk]:
+def generate_chat_completion_message(context_messages: List[Dict]) -> Iterator[Dict]:
     from elroy.tools.function_caller import get_function_schemas
 
     try:
-        return OpenAI().chat.completions.create(
-            messages=context_messages, model=CHAT_MODEL, tool_choice="auto", tools=get_function_schemas(), stream=True  # type: ignore
+        return completion(
+            messages=context_messages,
+            model=CHAT_MODEL,
+            tool_choice="auto",
+            tools=get_function_schemas(),
+            stream=True,
         )
     except BadRequestError as e:
-        if "An assistant message with 'tool_calls' must be followed by tool messages" in e.body["message"]:  # type: ignore
+        if "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
             raise MissingToolCallIdError
         else:
             raise e
@@ -37,14 +35,13 @@ def generate_chat_completion_message(context_messages: List[Dict]) -> Iterator[C
 
 # TODO: Cache this
 def _query_llm(prompt: str, system: str, model: str, temperature: float, json_mode: bool) -> str:
-    return pipe(
-        [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        lambda msgs: {"model": model, "messages": msgs, "temperature": temperature},
-        lambda req: assoc(req, "response_format", {"type": "json_object"}) if json_mode else req,
-        lambda req: merge(req, {"model": model, "temperature": temperature}),
-        lambda req: OpenAI().chat.completions.create(**req),
-        lambda response: response.choices[0].message.content,
-    )  # type: ignore
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
+    request = {"model": model, "messages": messages, "temperature": temperature}
+    if json_mode:
+        request["response_format"] = {"type": "json_object"}
+
+    response = completion(**request)
+    return response.choices[0].message.content
 
 
 def query_llm(prompt: str, system: str, model=CHAT_MODEL, temperature: float = ZERO_TEMPERATURE) -> str:
@@ -81,15 +78,12 @@ def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> List[float]:
 
     Args:
         text (str): The input text to generate an embedding for.
-        model (str): The name of the embedding model to use. Defaults to "text-embedding-ada-002".
+        model (str): The name of the embedding model to use. Defaults to EMBEDDING_MODEL.
 
     Returns:
         List[float]: The generated embedding as a list of floats.
     """
     if not text:
         raise ValueError("Text cannot be empty")
-    return pipe(
-        text,
-        lambda t: OpenAI().embeddings.create(input=[t], model=model),
-        lambda response: response.data[0].embedding,
-    )  # type: ignore
+    response = embedding(model=model, input=[text], caching=True)
+    return response.data[0]["embedding"]
