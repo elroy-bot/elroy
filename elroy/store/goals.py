@@ -1,67 +1,14 @@
 import logging
-from datetime import datetime, timedelta
 from typing import List, Optional
 
 from sqlmodel import select, update
-from toolz import first, pipe
-from toolz.curried import filter, map
+from toolz import pipe
+from toolz.curried import map
 
 from elroy.config import ElroyContext
-from elroy.store.data_models import ContextMessage, Fact, Goal, convert_to_utc
+from elroy.store.data_models import ContextMessage, Fact, Goal
 from elroy.store.embeddings import upsert_embedding
 from elroy.system.clock import get_utc_now, string_to_timedelta
-from elroy.system.parameters import GOAL_CHECKIN_COUNT
-
-
-def get_goals_with_due_status(context: ElroyContext) -> List[Goal]:
-    """
-    Retrieve goals with due status for a given user.
-
-    Args:
-        session (Session): The database session.
-        user_id (int): The ID of the user.
-
-    Returns:
-        List[Goal]: A list of goals with due status.
-    """
-    goals = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.is_active == True,
-        )
-    ).all()
-
-    return pipe(
-        goals,
-        filter(
-            lambda goal: _current_checkin_due_datetime(goal) < convert_to_utc(goal.updated_at),
-        ),
-        list,
-    )  # type: ignore
-
-
-def _current_checkin_due_datetime(goal: Goal) -> datetime:
-    """
-    Returns the most recent due datetime for the goal check-in.
-
-    Args:
-        goal (Goal): The goal object.
-
-    Returns:
-        datetime: The due datetime for the next check-in, in UTC.
-    """
-    # returns the due datetime for the next checkin, in UTC
-    if not goal.target_completion_time:
-        logging.warning(f"Goal {goal.name} has no target completion time, specifying arbitrary future checkin time")
-        return get_utc_now() + timedelta(weeks=100)
-
-    return pipe(
-        goal.target_completion_time - goal.created_at,
-        lambda _: [i * (_ / GOAL_CHECKIN_COUNT) for i in range(GOAL_CHECKIN_COUNT + 1)],
-        map(lambda _: convert_to_utc(goal.created_at + _)),
-        filter(lambda _: _ < get_utc_now()),
-        first,
-    )  # type: ignore
 
 
 # Should have param for checking if a similar goal already exists

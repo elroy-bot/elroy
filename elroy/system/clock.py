@@ -3,7 +3,6 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Generator, Optional
 
-import pytz
 from pytz import UTC
 
 from elroy.config import is_test_env
@@ -75,10 +74,6 @@ if is_test_env():
     get_utc_now = FakeClock.get_utc_now
 else:
     get_utc_now = lambda: datetime.now(UTC)
-
-
-def get_now(tz: str) -> datetime:
-    return get_utc_now().astimezone(pytz.timezone(tz))
 
 
 def string_to_timedelta(time_to_completion: str) -> timedelta:

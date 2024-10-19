@@ -1,11 +1,9 @@
 from functools import partial
 from typing import Tuple
 
-from elroy.llm.client import (query_llm, query_llm_json,
-                              query_llm_with_word_limit)
+from elroy.llm.client import query_llm_json, query_llm_with_word_limit
 from elroy.system.parameters import INNER_THOUGHT_TAG  # keep!
-from elroy.system.parameters import (CHAT_MODEL, LOW_TEMPERATURE,
-                                     MEMORY_PROCESSING_MODEL, UNKNOWN)
+from elroy.system.parameters import CHAT_MODEL, UNKNOWN
 
 query_llm_short_limit = partial(query_llm_with_word_limit, word_limit=300)
 
@@ -34,18 +32,6 @@ Summarize what happened in the conversation from the perspective of ELROY (use t
 Note not only the content of the messages but also the context and the relationship between the entities mentioned.
 Also take note of the overall tone of the conversation. For example, the user might be engaging in terse question and answer, or might be more conversational.
 Only output the summary, do NOT include anything else in your output.
-""",
-)
-
-
-summarize_calendar_text = partial(
-    query_llm,
-    model=MEMORY_PROCESSING_MODEL,
-    temperature=LOW_TEMPERATURE,
-    system="""
-Provide a textual summary of the following data. The data was extracted from a calendar. 
-Your grammar should reflect whether the event is in the past or the future. If there are attendees, discuss who they are.
-If a location is mentioned, adjust your discussion of times to reflect the correct time zone.
 """,
 )
 
