@@ -88,7 +88,7 @@ def convert_to_utc(dt: datetime) -> datetime:
 TRUST_LABELS = ["CARDINAL", "DATE", "TIME"]
 
 
-class ArchivalMemory(EmbeddableSqlModel, table=True):
+class Memory(EmbeddableSqlModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
