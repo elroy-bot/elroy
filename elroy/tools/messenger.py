@@ -58,15 +58,6 @@ def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
         else [] + [ContextMessage(role="user", content=msg)] + get_relevant_memories(context, context_messages)
     )
 
-    context_messages = pipe(
-        get_context_messages(context),
-        lambda x: (
-            [get_refreshed_system_message(get_user_preferred_name(context), [])] + x if not x else x
-        ),  # append new system message if it is missing
-        lambda x: x + [ContextMessage(role="user", content=msg)],
-        lambda x: x + get_relevant_memories(context, x),
-    )
-
     full_content = ""
 
     while True:
@@ -194,35 +185,7 @@ def _generate_assistant_reply(
 
     tool_call_accumulator = ToolCallAccumulator()
     for chunk in generate_chat_completion_message([asdict(x) for x in context_messages]):
-        if chunk.choices[0].delta.content:
-            yield ContentItem(content=chunk.choices[0].delta.content)
-        if chunk.choices[0].delta.tool_calls:
-            yield from tool_call_accumulator.update(chunk.choices[0].delta.tool_calls)
-
-    # except MissingToolCallIdError:
-    #     logging.error("Attempting to repair missing tool call ID")
-    #     new_context_messages = []
-    #     for msg in reversed(context_messages):
-    #         if msg.role != "assistant" or not msg.tool_calls:
-    #             new_context_messages = [msg] + new_context_messages
-    #         else:
-    #             for tool_call in msg.tool_calls:
-    #                 if any(m.tool_call_id == tool_call.id for m in new_context_messages):
-    #                     new_context_messages = [msg] + new_context_messages
-    #                 else:
-    #                     logging.error(f"Dropping assistant message without corresponding tool call message. ID: {msg.id}")
-    #                     continue
-    #     if len(context_messages) == len(new_context_messages):
-    #         raise ValueError("Could not repair missing tool call ID")
-    #     logging.error(f"Dropping {len(context_messages) - len(new_context_messages)} context messages for user {user_id}")
-    #     context_messages = new_context_messages
-
-    # if context_messages[-1].role == "assistant":
-    #     return iter([]), context_messages[-1]
-    # else:
-    #     return _generate_assistant_reply(
-    #         session,
-    #         user_id,
-    #         context_messages,
-    #         recursion_count + 1,
-    #     )
+        if chunk.choices[0].delta.content:  # type: ignore
+            yield ContentItem(content=chunk.choices[0].delta.content)  # type: ignore
+        if chunk.choices[0].delta.tool_calls:  # type: ignore
+            yield from tool_call_accumulator.update(chunk.choices[0].delta.tool_calls)  # type: ignore
