@@ -106,6 +106,7 @@ def start_db() -> str:
     return f"postgresql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 
+# TODO: Should be a little more careful for stopping db, if multiple sessions are live it will interupt.
 def stop_db() -> None:
     """Stops the dockerized postgres, if it is running."""
     subprocess.run(["docker", "stop", CONTAINER_NAME], check=True, capture_output=True)

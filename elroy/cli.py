@@ -2,10 +2,11 @@ import asyncio
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import List, Optional
 
 import typer
-from colorama import Fore, init
+from colorama import init
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import HTML
@@ -21,6 +22,7 @@ from toolz.curried import filter, map
 
 from alembic import command
 from alembic.config import Config
+from docker_postgres import is_docker_running, start_db, stop_db
 from elroy.config import (ROOT_DIR, ElroyConfig, ElroyContext, get_config,
                           session_manager)
 from elroy.logging_config import setup_logging
@@ -82,21 +84,9 @@ def get_relevant_memories(context: ElroyContext) -> List[str]:
     )  # type: ignore
 
 
-def hex_to_ansi(hex_color):
-    r, g, b = int(hex_color[1:3], 16), int(hex_color[3:5], 16), int(hex_color[5:7], 16)
-    return f"\033[38;2;{r};{g};{b}m"
-
-
-RESET_COLOR = Fore.RESET
-DEFAULT_OUTPUT_COLOR = hex_to_ansi("#77DFD8")
+DEFAULT_OUTPUT_COLOR = "#77DFD8"
 DEFAULT_INPUT_COLOR = "#FFE377"
-RESET_COLOR = "\033[0m"
 SYSTEM_MESSAGE_COLOR = "#9ACD32"
-
-
-def exit_cli():
-    print("Exiting...")
-    exit()
 
 
 def rule():
@@ -128,22 +118,23 @@ def chat(
 ):
     """Start the Elroy chat interface"""
 
-    setup_logging(log_file_path)
+    console = Console()
 
-    if use_docker_postgres:
-        if database_url is not None:
-            logging.info("use_docker_postgres is set to True, ignoring database_url")
+    with console.status(f"[{DEFAULT_OUTPUT_COLOR}] Initializing Elroy...", spinner="dots") as status:
+        setup_logging(log_file_path)
 
-        from docker_postgres import is_docker_running, start_db
+        if use_docker_postgres:
+            if database_url is not None:
+                logging.info("use_docker_postgres is set to True, ignoring database_url")
 
-        if not is_docker_running():
-            print("is_docker_running is set to True, but Docker is not running. Please start Docker and try again.")
-            exit(1)
+            if not is_docker_running():
+                console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running. Please start Docker and try again.[/]")
+                exit(1)
 
-        database_url = start_db()
+            database_url = start_db()
 
-    assert database_url, "Database URL is required"
-    assert openai_api_key, "OpenAI API key is required"
+        assert database_url, "Database URL is required"
+        assert openai_api_key, "OpenAI API key is required"
 
     pipe(
         get_config(
@@ -152,23 +143,20 @@ def chat(
             local_storage_path=local_storage_path,
             context_window_token_limit=context_window_token_limit,
         ),
-        main_chat,
+        partial(main_chat, console),
         asyncio.run,
     )
 
-    print("Exiting...")
+    console.print(f"[{SYSTEM_MESSAGE_COLOR}]Exiting...[/]")
+
     if use_docker_postgres:
-        from docker_postgres import stop_db
-
-        logging.info("Stopping Docker Postgres container...")
+        logging.info("Stopping Docker Postgres containr...")
         stop_db()
-    exit()
 
 
-async def main_chat(config: ElroyConfig):
+async def main_chat(console: Console, config: ElroyConfig):
     init(autoreset=True)
 
-    console = Console()
     history = InMemoryHistory()
 
     style = Style.from_dict(
@@ -212,12 +200,12 @@ async def main_chat(config: ElroyConfig):
                 else:
                     try:
                         response = invoke_system_command(context, user_input)
-                        print(f"{DEFAULT_OUTPUT_COLOR}{response}{RESET_COLOR}")
+                        console.print(f"[{DEFAULT_OUTPUT_COLOR}]{response}[/]", end="")
                     except Exception as e:
                         print(f"Error invoking system command: {e}")
             else:
                 for partial_response in process_message(context, user_input):
-                    print(f"{DEFAULT_OUTPUT_COLOR}{partial_response}{RESET_COLOR}", end="", flush=True)
+                    console.print(f"[{DEFAULT_OUTPUT_COLOR}]{partial_response}[/]", end="")
                 print()  # New line after complete response
 
             # Refresh slash completer
