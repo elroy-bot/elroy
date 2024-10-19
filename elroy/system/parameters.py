@@ -27,7 +27,7 @@ LOW_TEMPERATURE = 0.2
 ### Context refresh parameters ###
 
 # Time threshold to wait until refreshing the context window
-WATERMARK_INVALIDATION_SECONDS = timedelta(minutes=10).total_seconds()
+CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA = timedelta(minutes=15)
 # Max message age to keep within context window during context refresh
 MAX_IN_CONTEXT_MESSAGE_AGE_SECONDS = timedelta(hours=2).total_seconds()
 
