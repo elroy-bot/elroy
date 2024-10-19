@@ -9,7 +9,7 @@ from toolz import pipe
 from toolz.curried import filter, map
 
 from elroy.config import ElroyContext
-from elroy.store.data_models import ArchivalMemory, EmbeddableSqlModel, Goal
+from elroy.store.data_models import EmbeddableSqlModel, Goal, Memory
 from elroy.system.parameters import (L2_PERCENT_CLOSER_THAN_RANDOM_THRESHOLD,
                                      L2_RANDOM_WORD_DISTANCE,
                                      RESULT_SET_LIMIT_COUNT)
@@ -88,10 +88,10 @@ def get_closest_vector_match(
 
 
 get_most_relevant_goal = partial(get_closest_vector_match, table=Goal, filter_clause=Goal.is_active == True)
-get_most_relevant_archival_memory = partial(get_closest_vector_match, table=ArchivalMemory)
+get_most_relevant_archival_memory = partial(get_closest_vector_match, table=Memory)
 
 get_relevant_goals = partial(get_vector_matches_over_threshold, table=Goal, filter_clause=Goal.is_active == True)
-get_relevant_archival_memories = partial(get_vector_matches_over_threshold, table=ArchivalMemory)
+get_relevant_archival_memories = partial(get_vector_matches_over_threshold, table=Memory)
 
 
 def upsert_embedding(session: Session, row: EmbeddableSqlModel) -> None:
