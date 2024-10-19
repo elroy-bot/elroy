@@ -69,6 +69,22 @@ def get_message_goal_id(context_message: ContextMessage) -> Optional[int]:
     )  # type: ignore
 
 
+def get_current_context_message_set_db(context: ElroyContext) -> Optional[ContextMessageSet]:
+    return context.session.exec(
+        select(ContextMessageSet).where(
+            ContextMessageSet.user_id == context.user_id,
+            ContextMessageSet.is_active == True,
+        )
+    ).first()
+
+
+def get_time_since_context_message_creation(context: ElroyContext) -> Optional[timedelta]:
+    row = get_current_context_message_set_db(context)
+
+    if row:
+        return get_utc_now() - convert_to_utc(row.created_at)
+
+
 def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage]:
     # TODO: Cache this
     def get_message_dict(id: int) -> Dict:
@@ -76,12 +92,7 @@ def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage
         assert msg
         return db_message_to_context_message_dict(msg)
 
-    agent_context = context.session.exec(
-        select(ContextMessageSet).where(
-            ContextMessageSet.user_id == context.user_id,
-            ContextMessageSet.is_active == True,
-        )
-    ).first()
+    agent_context = get_current_context_message_set_db(context)
 
     return pipe(
         [] if not agent_context else agent_context.message_ids,

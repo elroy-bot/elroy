@@ -26,9 +26,6 @@ def onboard_user(session: Session, console: Console, config: ElroyConfig, prefer
             ContextMessage(role="system", content=ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name)),
         ],
     )
-    from elroy.system.watermark import set_context_watermark_seconds
-
-    set_context_watermark_seconds(user_id)
 
     return user_id
 
