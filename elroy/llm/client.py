@@ -23,9 +23,9 @@ def generate_chat_completion_message(context_messages: List[Dict]) -> Iterator[D
             messages=context_messages,
             model=CHAT_MODEL,
             tool_choice="auto",
-            tools=get_function_schemas(),
+            tools=get_function_schemas(),  # type: ignore
             stream=True,
-        )
+        )  # type: ignore
     except BadRequestError as e:
         if "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
             raise MissingToolCallIdError
@@ -33,7 +33,6 @@ def generate_chat_completion_message(context_messages: List[Dict]) -> Iterator[D
             raise e
 
 
-# TODO: Cache this
 def _query_llm(prompt: str, system: str, model: str, temperature: float, json_mode: bool) -> str:
     messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
     request = {"model": model, "messages": messages, "temperature": temperature}
@@ -41,7 +40,7 @@ def _query_llm(prompt: str, system: str, model: str, temperature: float, json_mo
         request["response_format"] = {"type": "json_object"}
 
     response = completion(**request)
-    return response.choices[0].message.content
+    return response.choices[0].message.content  # type: ignore
 
 
 def query_llm(prompt: str, system: str, model=CHAT_MODEL, temperature: float = ZERO_TEMPERATURE) -> str:
