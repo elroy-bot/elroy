@@ -91,6 +91,7 @@ RESET_COLOR = Fore.RESET
 DEFAULT_OUTPUT_COLOR = hex_to_ansi("#77DFD8")
 DEFAULT_INPUT_COLOR = "#FFE377"
 RESET_COLOR = "\033[0m"
+SYSTEM_MESSAGE_COLOR = "#9ACD32"
 
 
 def exit_cli():
@@ -187,6 +188,9 @@ async def main_chat(config: ElroyConfig):
             console=console,
             config=config,
         )
+
+        # Asynchronously refresh context, this will drop old message from context.
+        asyncio.create_task(async_context_refresh_if_needed(context))
 
         user_goals = get_user_goals(context)
         slash_completer = SlashCompleter(user_goals)
