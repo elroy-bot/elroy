@@ -6,7 +6,7 @@ from toolz import pipe
 from toolz.curried import map
 
 from elroy.config import ElroyContext
-from elroy.store.data_models import ContextMessage, Fact, Goal
+from elroy.store.data_models import ContextMessage, Goal
 from elroy.store.embeddings import upsert_embedding
 from elroy.system.clock import get_utc_now, string_to_timedelta
 
@@ -65,7 +65,7 @@ def create_goal(
             [
                 ContextMessage(
                     role="system",
-                    content=f"Goal '{goal_name}' has been created. {description}. {strategy}. {end_condition}.",
+                    content=f"New goal created: {goal.to_fact()}",
                     memory_metadata=[goal.to_memory_metadata()],
                 )
             ],
@@ -128,7 +128,7 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
         [
             ContextMessage(
                 role="system",
-                content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}'.",
+                content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
                 memory_metadata=[old_goal.to_memory_metadata()],
             )
         ],
@@ -148,7 +148,7 @@ def create_onboarding_goal(context: ElroyContext, preferred_name: str) -> None:
     )
 
 
-def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_or_note: str) -> None:
+def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_or_note: str) -> str:
     """Captures either a progress update or note relevant to the goal.
 
     Args:
@@ -156,12 +156,16 @@ def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_
         user_id (int): The user id
         goal_name (str): Name of the goal
         status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
+    Returns:
+        str: Confirmation message
     """
     logging.info(f"Updating goal {goal_name} for user {context.user_id}")
     _update_goal_status(context, goal_name, status_update_or_note, False)
 
+    return f"Status update added to goal '{goal_name}'."
 
-def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments: str) -> None:
+
+def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments: str) -> str:
     """Marks a goal as completed, with closing comments.
 
     Args:
@@ -169,6 +173,8 @@ def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments:
         user_id (int): The user ID
         goal_name (str): The name of the goal
         closing_comments (str): Updated status with a short account of how the goal was completed and what was learned.
+    Returns:
+        str: Confirmation message
     """
     _update_goal_status(
         context,
@@ -177,14 +183,18 @@ def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments:
         True,
     )
 
+    return f"Goal '{goal_name}' has been marked as completed."
 
-def delete_goal_permamently(context: ElroyContext, goal_name: str) -> None:
+
+def delete_goal_permamently(context: ElroyContext, goal_name: str) -> str:
     """Closes the goal.
 
     Args:
         session (Session): The database session.
         user_id (int): The user ID
         goal_name (str): The name of the goal
+    Returns:
+        str: Result of the deletion
     """
 
     _update_goal_status(
@@ -193,6 +203,8 @@ def delete_goal_permamently(context: ElroyContext, goal_name: str) -> None:
         "Goal has been deleted",
         True,
     )
+
+    return f"Goal '{goal_name}' has been deleted."
 
 
 def _update_goal_status(context: ElroyContext, goal_name: str, status: str, is_terminal: bool) -> None:
@@ -286,36 +298,3 @@ def get_active_goals(context: ElroyContext) -> List[Goal]:
         )
         .order_by(Goal.priority)  # type: ignore
     ).all()
-
-
-def get_goal_facts(context: ElroyContext) -> List[Fact]:
-    """
-    Retrieve goal-related facts for a given user after a specific epoch time.
-
-    Args:
-        session (Session): The database session.
-        user_id (int): The ID of the user.
-        after_epoch_utc_seconds (int): The epoch time in UTC seconds.
-
-    Returns:
-        List[Fact]: A list of goal-related facts.
-    """
-    return pipe(
-        context.session.exec(select(Goal).where(Goal.user_id == context.user_id)).all(),
-        map(lambda _: _.to_fact()),
-        list,
-    )  # type: ignore
-
-
-def get_goal_internal_monologue(last_user_message: str, goal: str) -> str:
-    from elroy.llm.prompts import CHAT_MODEL, query_llm_short_limit
-
-    return (
-        query_llm_short_limit(
-            prompt="LAST USER MESSAGE" + last_user_message + "\n" + "GOAL: " + goal,
-            model=CHAT_MODEL,
-            system="You are the internal monologue of an AI assistant. You will be given a user message, and a goal that has been recalled from memory."
-            "Formulate a short internal monologue thought process that the AI might have when deciding how to respond to the user message in the context of the goal.",
-        )
-        + f" I may be able to use my tools {mark_goal_completed.__name__} or {add_goal_status_update.__name__} to help track this goal."
-    )
