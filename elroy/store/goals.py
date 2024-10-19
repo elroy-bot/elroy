@@ -64,6 +64,7 @@ def _current_checkin_due_datetime(goal: Goal) -> datetime:
     )  # type: ignore
 
 
+# Should have param for checking if a similar goal already exists
 def create_goal(
     context: ElroyContext,
     goal_name: str,
@@ -126,6 +127,67 @@ def create_goal(
         upsert_embedding(context.session, goal)
 
 
+def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -> None:
+    """Renames an existing active goal.
+
+    Args:
+        context (ElroyContext): The Elroy context.
+        old_goal_name (str): The current name of the goal.
+        new_goal_name (str): The new name for the goal.
+
+    Raises:
+        Exception: If the goal with old_goal_name doesn't exist or if a goal with new_goal_name already exists.
+    """
+    # Check if the old goal exists and is active
+    old_goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == old_goal_name,
+            Goal.is_active == True,
+        )
+    ).first()
+    if not old_goal:
+        raise Exception(f"Active goal '{old_goal_name}' not found for user {context.user_id}")
+
+    # Check if a goal with the new name already exists
+    existing_goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == new_goal_name,
+            Goal.is_active == True,
+        )
+    ).first()
+    if existing_goal:
+        raise Exception(f"Active goal '{new_goal_name}' already exists for user {context.user_id}")
+
+    from elroy.tools.system_commands import drop_goal_from_current_context_only
+
+    # we need to drop the goal from context as the metadata includes the goal name.
+    drop_goal_from_current_context_only(context, old_goal.name)
+
+    # Rename the goal
+    old_goal.name = new_goal_name
+    old_goal.updated_at = get_utc_now()
+
+    context.session.commit()
+    context.session.refresh(old_goal)
+
+    upsert_embedding(context.session, old_goal)
+
+    from elroy.store.message import add_context_messages
+
+    add_context_messages(
+        context,
+        [
+            ContextMessage(
+                role="system",
+                content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}'.",
+                memory_metadata=[old_goal.to_memory_metadata()],
+            )
+        ],
+    )
+
+
 def create_onboarding_goal(context: ElroyContext, preferred_name: str) -> None:
 
     create_goal(
@@ -165,6 +227,23 @@ def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments:
         context,
         goal_name,
         closing_comments,
+        True,
+    )
+
+
+def delete_goal_permamently(context: ElroyContext, goal_name: str) -> None:
+    """Closes the goal.
+
+    Args:
+        session (Session): The database session.
+        user_id (int): The user ID
+        goal_name (str): The name of the goal
+    """
+
+    _update_goal_status(
+        context,
+        goal_name,
+        "Goal has been deleted",
         True,
     )
 
