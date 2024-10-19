@@ -34,7 +34,8 @@ from elroy.store.user import is_user_exists
 from elroy.system.parameters import CLI_USER_ID
 from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
-from elroy.tools.system_commands import SYSTEM_COMMANDS, invoke_system_command
+from elroy.tools.system_commands import (GOAL_COMMANDS, SYSTEM_COMMANDS,
+                                         invoke_system_command)
 
 app = typer.Typer()
 
@@ -59,15 +60,17 @@ class SlashCompleter(Completer):
 
         text = document.text_before_cursor
         if text.startswith("/"):
-            first_word = text.split("/")[-1].strip()
-            for goal in self.goals:
-                if goal.lower().startswith(first_word.lower()) or first_word in "print_goal":
-                    yield Completion("print_goal " + goal, start_position=-len(first_word))
-                elif goal.lower().startswith(first_word.lower()) or first_word in "drop_goal":
-                    yield Completion("drop_goal " + goal, start_position=-len(first_word))
-            for cmd in SYSTEM_COMMANDS:
-                if cmd.lower().startswith(first_word.lower()):
-                    yield Completion(cmd, start_position=-len(first_word))
+            input = text.split("/")[-1].strip()
+            input_cmd = input.split()[0] if len(input) > 1 else ""
+
+            for cmd in sorted(SYSTEM_COMMANDS.keys() - GOAL_COMMANDS):
+                if cmd.lower().startswith(input_cmd.lower()):
+                    yield Completion(cmd, start_position=-len(input_cmd))
+
+            for cmd in GOAL_COMMANDS:
+                for goal in self.goals:
+                    if f"{cmd} {goal}".lower().startswith(input.lower()):
+                        yield Completion(f"{cmd} {goal}", start_position=-len(input))
 
 
 def get_relevant_memories(context: ElroyContext) -> List[str]:
@@ -76,7 +79,7 @@ def get_relevant_memories(context: ElroyContext) -> List[str]:
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
-        filter(lambda m: m.memory_type == Goal.__name__),  # TODO: Consolidate memories if they are redundant
+        # filter(lambda m: m.memory_type == Goal.__name__),  # TODO: Consolidate memories if they are redundant
         map(lambda m: f"{m.memory_type}: {m.name}"),
         unique,
         list,
@@ -206,7 +209,7 @@ async def main_chat(console: Console, config: ElroyConfig):
             else:
                 for partial_response in process_message(context, user_input):
                     console.print(f"[{DEFAULT_OUTPUT_COLOR}]{partial_response}[/]", end="")
-                print()  # New line after complete response
+                console.print()  # New line after complete response
 
             # Refresh slash completer
             user_goals = get_user_goals(context)
