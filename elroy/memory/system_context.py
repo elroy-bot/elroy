@@ -15,7 +15,7 @@ from elroy.store.data_models import ContextMessage, EmbeddableSqlModel
 from elroy.store.message import (get_context_messages,
                                  get_time_since_context_message_creation,
                                  replace_context_messages)
-from elroy.store.store import persist_archival_memory
+from elroy.store.store import create_archival_memory
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import (CHAT_MODEL,
                                      CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA,
@@ -190,7 +190,7 @@ def context_refresh(context: ElroyContext) -> None:
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
     pipe(
         formulate_archival_memory(user_preferred_name, context_messages),
-        lambda response: persist_archival_memory(context, response[0], response[1]),
+        lambda response: create_archival_memory(context, response[0], response[1]),
     )
 
     pipe(
