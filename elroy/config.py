@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import Enum
 from typing import Optional
 
@@ -23,6 +24,8 @@ class ElroyConfig:
     context_window_token_limit: int
     context_refresh_token_trigger_limit: int  # how many tokens we reach before triggering refresh
     context_refresh_token_target: int  # how many tokens we aim to have after refresh
+    max_in_context_message_age_seconds: int  # max age of a message to keep in context
+    context_refresh_interval_seconds: int  # how often to refresh system message and compress context messages
 
 
 def str_to_bool(input: Optional[str]) -> bool:
@@ -44,6 +47,8 @@ def get_config(
         context_window_token_limit=context_window_token_limit,
         context_refresh_token_trigger_limit=int(context_window_token_limit * 0.66),
         context_refresh_token_target=int(context_window_token_limit * 0.33),
+        max_in_context_message_age_seconds=int(timedelta(hours=2).total_seconds()),
+        context_refresh_interval_seconds=int(timedelta(minutes=30).total_seconds()),
     )
 
 

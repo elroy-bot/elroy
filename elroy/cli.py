@@ -31,6 +31,7 @@ from elroy.onboard_user import onboard_user
 from elroy.store.data_models import Goal
 from elroy.store.message import get_context_messages
 from elroy.store.user import is_user_exists
+from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CLI_USER_ID
 from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
@@ -76,6 +77,7 @@ class SlashCompleter(Completer):
 def get_relevant_memories(context: ElroyContext) -> List[str]:
     return pipe(
         get_context_messages(context),
+        filter(lambda m: m.created_at_utc_epoch_secs > get_utc_now().timestamp() - context.config.max_in_context_message_age_seconds),
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
