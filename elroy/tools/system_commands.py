@@ -9,7 +9,8 @@ from elroy.config import ElroyContext
 from elroy.memory.system_context import format_context_messages
 from elroy.store.data_models import ContextMessage, Goal
 from elroy.store.goals import (add_goal_status_update, create_goal,
-                               mark_goal_completed)
+                               delete_goal_permamently, mark_goal_completed,
+                               rename_goal)
 from elroy.store.message import (add_context_messages, get_context_messages,
                                  get_current_system_message,
                                  replace_context_messages)
@@ -197,7 +198,7 @@ def contemplate(context: ElroyContext) -> str:
     return response
 
 
-def drop_goal(context: ElroyContext, goal_name: str) -> str:
+def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -> str:
     """Drops the goal with the given name
 
     Args:
@@ -231,9 +232,11 @@ ASSISTANT_VISIBLE_COMMANDS = [
     get_user_preferred_name,
     set_user_preferred_name,
     create_goal,
-    drop_goal,
+    rename_goal,
+    drop_goal_from_current_context_only,
     add_goal_status_update,
     mark_goal_completed,
+    delete_goal_permamently,
 ]
 
 USER_ONLY_COMMANDS = [
