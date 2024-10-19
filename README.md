@@ -1,15 +1,6 @@
 # Elroy
 
-Elroy is an AI personal assistant with long term memory.
-
-It's available via CLI, SMS, or WhatsApp.
-
-It includes an optional Google Calendar integration, for learning from and helping you manage your calendar.
-
-
-## (Coming Soon) Hosted service
-You can join the waitlist for the free alpha version of Elroy at https://elroy.dev.
-
+Elroy is an CLI AI personal assistant with long term memory and goal tracking capabilities..
 
 ## Install and running the CLI.
 
