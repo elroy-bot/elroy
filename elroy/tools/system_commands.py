@@ -218,10 +218,44 @@ def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -
     if goal:
         assert goal.id
         remove_goal_from_context(context, goal.id)
-        return f"Goal '{goal_name}' dropped."
+        return f"Goal '{goal_name}' dropped from context."
 
     else:
         return f"Goal '{goal_name}' not found for the current user."
+
+
+def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
+    """Adds goal with the given name to the current conversation context
+
+    Args:
+        context (ElroyContext): context obj
+        goal_name (str): The name of the goal to add
+
+    Returns:
+        str: _description_
+    """
+    goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == goal_name,
+        )
+    ).first()
+
+    if goal:
+
+        add_context_messages(
+            context,
+            [
+                ContextMessage(
+                    role="system",
+                    content=f"Goal '{goal_name}' has added to the conversation context.. {goal.description}. {goal.strategy}. {goal.end_condition}. Status updates: {goal.status_updates}",
+                    memory_metadata=[goal.to_memory_metadata()],
+                )
+            ],
+        )
+        return f"Goal '{goal_name}' added to context."
+    else:
+        return f"Goal {goal_name} not found."
 
 
 ASSISTANT_VISIBLE_COMMANDS = {
@@ -233,6 +267,7 @@ ASSISTANT_VISIBLE_COMMANDS = {
     create_goal,
     rename_goal,
     drop_goal_from_current_context_only,
+    add_goal_to_current_context,
     add_goal_status_update,
     mark_goal_completed,
     delete_goal_permamently,
@@ -256,6 +291,7 @@ GOAL_COMMANDS = {
         create_goal,
         rename_goal,
         print_goal,
+        add_goal_to_current_context,
         drop_goal_from_current_context_only,
         add_goal_status_update,
         mark_goal_completed,
