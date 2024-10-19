@@ -206,6 +206,7 @@ async def main_chat(console: Console, config: ElroyConfig):
                     try:
                         response = invoke_system_command(context, user_input)
                         console.print(f"[{DEFAULT_OUTPUT_COLOR}]{response}[/]", end="")
+                        console.print()  # New line after complete response
                     except Exception as e:
                         print(f"Error invoking system command: {e}")
             else:
@@ -260,6 +261,19 @@ def upgrade(
     alembic_cfg.set_main_option("sqlalchemy.url", database_url)
     command.upgrade(alembic_cfg, "head")
     typer.echo("Database upgrade completed.")
+
+
+@app.command()
+def migrate(
+    database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
+    message: str = typer.Argument(...),
+):
+    """Generate a new Alembic migration"""
+    assert database_url
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+    command.revision(alembic_cfg, message=message)
+    typer.echo("Migration generated.")
 
 
 def main():

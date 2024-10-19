@@ -194,7 +194,6 @@ def contemplate(context: ElroyContext) -> str:
 
     add_context_messages(context, [ContextMessage(role="assistant", content=response)])
 
-    context.console.print(response)
     return response
 
 
