@@ -1,5 +1,4 @@
 import logging
-import time
 from collections import deque
 from functools import partial, reduce
 from operator import add
@@ -13,15 +12,15 @@ from elroy.config import ElroyContext
 from elroy.llm.prompts import (persona, summarize_conversation,
                                summarize_for_archival_memory)
 from elroy.store.data_models import ContextMessage, EmbeddableSqlModel
-from elroy.store.message import get_context_messages, replace_context_messages
+from elroy.store.message import (get_context_messages,
+                                 get_time_since_context_message_creation,
+                                 replace_context_messages)
 from elroy.store.store import persist_archival_memory
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import (CHAT_MODEL,
-                                     MAX_IN_CONTEXT_MESSAGE_AGE_SECONDS,
-                                     WATERMARK_INVALIDATION_SECONDS)
+                                     CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA,
+                                     MAX_IN_CONTEXT_MESSAGE_AGE_SECONDS)
 from elroy.system.utils import logged_exec_time, utc_epoch_to_string
-from elroy.system.watermark import (get_context_watermark_seconds,
-                                    set_context_watermark_seconds)
 
 
 def get_refreshed_system_message(user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
@@ -99,14 +98,12 @@ def is_context_refresh_needed(context: ElroyContext) -> bool:
     else:
         logging.info(f"Token count {token_count} does not exceed threshold {context.config.context_refresh_token_trigger_limit}")
 
-    context_watermark_seconds = get_context_watermark_seconds(context.user_id)
-
-    elapsed_time = int(time.time()) - context_watermark_seconds
-    if elapsed_time > WATERMARK_INVALIDATION_SECONDS:
-        logging.info(f"Context watermark age {elapsed_time} exceeds threshold {WATERMARK_INVALIDATION_SECONDS}")
+    elapsed_time = get_time_since_context_message_creation(context)
+    if not elapsed_time or elapsed_time > CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA:
+        logging.info(f"Context watermark age {elapsed_time} exceeds threshold {CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA}")
         return True
     else:
-        logging.info(f"Context watermark age {elapsed_time} is below threshold {WATERMARK_INVALIDATION_SECONDS}")
+        logging.info(f"Context watermark age {elapsed_time} is below threshold {CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA}")
 
     return False
 
@@ -202,8 +199,6 @@ def context_refresh(context: ElroyContext) -> None:
         partial(compress_context_messages, context.config.context_refresh_token_target),
         partial(replace_context_messages, context),
     )
-
-    set_context_watermark_seconds(context.user_id, int(time.time()))
 
 
 # TODO: Add function reminders
