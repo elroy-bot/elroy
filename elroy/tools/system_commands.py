@@ -225,7 +225,7 @@ def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -
         return f"Goal '{goal_name}' not found for the current user."
 
 
-ASSISTANT_VISIBLE_COMMANDS = [
+ASSISTANT_VISIBLE_COMMANDS = {
     contemplate,
     get_user_full_name,
     set_user_full_name,
@@ -237,16 +237,29 @@ ASSISTANT_VISIBLE_COMMANDS = [
     add_goal_status_update,
     mark_goal_completed,
     delete_goal_permamently,
-]
+}
 
-USER_ONLY_COMMANDS = [
+USER_ONLY_COMMANDS = {
     reset_system_context,
     print_context_messages,
     print_goal,
     print_system_instruction,
     refresh_system_instructions,
     print_available_commands,
-]
+}
 
 
-SYSTEM_COMMANDS = {f.__name__: f for f in ASSISTANT_VISIBLE_COMMANDS + USER_ONLY_COMMANDS}
+SYSTEM_COMMANDS = {f.__name__: f for f in ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS}
+
+GOAL_COMMANDS = {
+    f.__name__
+    for f in {
+        create_goal,
+        rename_goal,
+        print_goal,
+        drop_goal_from_current_context_only,
+        add_goal_status_update,
+        mark_goal_completed,
+        delete_goal_permamently,
+    }
+}
