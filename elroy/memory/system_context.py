@@ -1,5 +1,6 @@
 import logging
 from collections import deque
+from datetime import timedelta
 from functools import partial, reduce
 from operator import add
 from typing import List, Optional, Tuple
@@ -17,9 +18,7 @@ from elroy.store.message import (get_context_messages,
                                  replace_context_messages)
 from elroy.store.store import create_archival_memory
 from elroy.system.clock import get_utc_now
-from elroy.system.parameters import (CHAT_MODEL,
-                                     CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA,
-                                     MAX_IN_CONTEXT_MESSAGE_AGE_SECONDS)
+from elroy.system.parameters import CHAT_MODEL
 from elroy.system.utils import logged_exec_time, utc_epoch_to_string
 
 
@@ -99,11 +98,12 @@ def is_context_refresh_needed(context: ElroyContext) -> bool:
         logging.info(f"Token count {token_count} does not exceed threshold {context.config.context_refresh_token_trigger_limit}")
 
     elapsed_time = get_time_since_context_message_creation(context)
-    if not elapsed_time or elapsed_time > CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA:
-        logging.info(f"Context watermark age {elapsed_time} exceeds threshold {CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA}")
+    threshold = timedelta(seconds=context.config.context_refresh_interval_seconds)
+    if not elapsed_time or elapsed_time > threshold:
+        logging.info(f"Context watermark age {elapsed_time} exceeds threshold {threshold}")
         return True
     else:
-        logging.info(f"Context watermark age {elapsed_time} is below threshold {CONTEXT_WATERMARK_INVALIDATION_TIME_DELTA}")
+        logging.info(f"Context watermark age {elapsed_time} is below threshold {threshold}")
 
     return False
 
@@ -137,7 +137,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
             continue
         if current_token_count > context.config.context_refresh_token_target:
             break
-        elif msg_created_at_utc_epoch_secs < get_utc_now().timestamp() - MAX_IN_CONTEXT_MESSAGE_AGE_SECONDS:
+        elif msg_created_at_utc_epoch_secs < get_utc_now().timestamp() - context.config.max_in_context_message_age_seconds:
             logging.info(f"Dropping old message {msg.id}")
             continue
         else:
