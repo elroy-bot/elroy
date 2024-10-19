@@ -115,7 +115,7 @@ def context_refresh_if_needed(context: ElroyContext):
         context_refresh(context)
 
 
-def compress_context_messages(context_refresh_token_target: int, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def compress_context_messages(context: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     """Refreshes context, saving to archival memory and compressing the context window."""
 
     system_message, prev_messages = context_messages[0], context_messages[1:]
@@ -135,7 +135,7 @@ def compress_context_messages(context_refresh_token_target: int, context_message
             current_token_count += count_tokens(msg.content)
             most_recent_kept_message = msg
             continue
-        if current_token_count > context_refresh_token_target:
+        if current_token_count > context.config.context_refresh_token_target:
             break
         elif msg_created_at_utc_epoch_secs < get_utc_now().timestamp() - MAX_IN_CONTEXT_MESSAGE_AGE_SECONDS:
             logging.info(f"Dropping old message {msg.id}")
@@ -196,7 +196,7 @@ def context_refresh(context: ElroyContext) -> None:
     pipe(
         get_refreshed_system_message(user_preferred_name, context_messages),
         partial(replace_system_message, context_messages),
-        partial(compress_context_messages, context.config.context_refresh_token_target),
+        partial(compress_context_messages, context),
         partial(replace_context_messages, context),
     )
 
