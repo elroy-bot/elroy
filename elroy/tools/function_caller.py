@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
+from rich.pretty import Pretty
 from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
@@ -79,7 +80,14 @@ ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
 def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> str:
-    context.console.print(f"Executing function call: {function_call.function_name} with arguments: {function_call.arguments}")
+    from elroy.cli import SYSTEM_MESSAGE_COLOR
+
+    msg = f"[{SYSTEM_MESSAGE_COLOR}]Executing function call: [bold]{function_call.function_name}[/bold]"
+
+    if function_call.arguments:
+        context.console.print(msg + f" with arguments:[/]", Pretty(function_call.arguments))
+    else:
+        context.console.print(msg + "[/]")
     context.console.print()
 
     try:
