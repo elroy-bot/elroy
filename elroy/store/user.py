@@ -3,7 +3,7 @@ from toolz import pipe
 from toolz.curried import do
 
 from elroy.config import ElroyContext
-from elroy.store.data_models import User, UserPreference
+from elroy.store.data_models import User
 
 
 def is_user_exists(context: ElroyContext) -> bool:
@@ -18,12 +18,3 @@ def create_user(session: Session) -> int:
         do(session.refresh),
         lambda user: user.id,
     )  # type: ignore
-
-
-assistant_writable_user_preference_fields = set(UserPreference.model_fields.keys()) - {
-    "id",
-    "created_at",
-    "updated_at",
-    "user_id",
-    "is_active",
-}
