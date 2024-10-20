@@ -33,17 +33,6 @@ class FunctionCall:
 
 
 @dataclass
-class Fact:
-    name: str
-    user_id: int
-    text: str
-    timestamp: datetime
-
-    def __str__(self) -> str:
-        return f"{self.name}\n\n{self.text}"
-
-
-@dataclass
 class MemoryMetadata:
     memory_type: str
     id: int
@@ -63,7 +52,7 @@ class EmbeddableSqlModel(ABC, SQLModel):
         pass
 
     @abstractmethod
-    def to_fact(self) -> Fact:
+    def to_fact(self) -> str:
         pass
 
     def to_memory_metadata(self) -> MemoryMetadata:
@@ -100,13 +89,8 @@ class Memory(EmbeddableSqlModel, table=True):
     def get_name(self) -> str:
         return self.name
 
-    def to_fact(self) -> Fact:
-        return Fact(
-            name="Archival Memory",
-            user_id=self.user_id,
-            text="Archival Memory" + "\n" + self.text,
-            timestamp=convert_to_utc(self.created_at),
-        )
+    def to_fact(self) -> str:
+        return f"#{self.name}\n{self.text}"
 
 
 class Goal(EmbeddableSqlModel, table=True):
@@ -133,29 +117,27 @@ class Goal(EmbeddableSqlModel, table=True):
     def get_name(self) -> str:
         return self.name
 
-    def __str__(self) -> str:
-        """Return a nicely formatted string representation of the Goal."""
-        return (
-            f"Goal"
-            f"name='{self.name}', "
-            f"description='{self.description}', target_completion_time={self.target_completion_time}, "
-            f"status_updates={self.status_updates}, strategy='{self.strategy}', "
-            f"end_condition='{self.end_condition}', is_active={self.is_active}, "
-            f"priority={self.priority})"
-        )
-
-    def to_fact(self) -> Fact:
+    def to_fact(self) -> str:
         from elroy.store.goals import (add_goal_status_update,
                                        mark_goal_completed)
 
-        """Convert the goal to a Fact object."""
-
-        return Fact(
-            name=f"Goal: {self.name}",
-            user_id=self.user_id,
-            timestamp=self.updated_at,
-            text=str(self)
-            + f"\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
+        return "\n".join(
+            [
+                f"# {self.__class__.__name__}: {self.name}",
+                self.description,
+                "## Strategy",
+                self.strategy,
+                "## End Condition",
+                self.end_condition,
+                "## Target Completion Time",
+                str(self.target_completion_time),
+                "## Status Updates",
+                "\n".join(self.status_updates) if self.status_updates else "No status updates",
+                "## Priority",
+                str(self.priority),
+                "### Note",
+                f"\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
+            ]
         )
 
 
