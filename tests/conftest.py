@@ -39,10 +39,9 @@ def apply_migrations(elroy_config, postgres_container):
 
 from sqlmodel import delete
 
-from elroy.store.data_models import Goal, User
+from elroy.store.data_models import Goal, User, UserPreference
 from elroy.store.message import ContextMessage, Message, add_context_messages
 from elroy.store.store import Memory
-from elroy.store.user import UserPreference
 
 
 @pytest.fixture(scope="session")
@@ -56,6 +55,7 @@ def session(postgres_container, apply_migrations, elroy_config):
         session.exec(delete(UserPreference))  # type: ignore
         session.exec(delete(Memory))  # type: ignore
         session.exec(delete(User))  # type: ignore
+        session.exec(delete(UserPreference))  # type: ignore
         session.commit()
 
         yield session
