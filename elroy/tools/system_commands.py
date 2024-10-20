@@ -326,14 +326,16 @@ import pty
 import select
 import termios
 import tty
+import time
 
-def start_aider_session(context: ElroyContext, file_location: str = ".") -> str:
+def start_aider_session(context: ElroyContext, file_location: str = ".", initial_text: str = "") -> str:
     """
     Starts an aider session using a pseudo-terminal, taking over the screen.
 
     Args:
         context (ElroyContext): The Elroy context object.
         file_location (str): The file or directory location to start aider with. Defaults to current directory.
+        initial_text (str): Initial text to be processed by aider as if it was typed. Defaults to empty string.
 
     Returns:
         str: A message indicating the result of the aider session start attempt.
@@ -366,9 +368,15 @@ def start_aider_session(context: ElroyContext, file_location: str = ".") -> str:
             # Set the terminal to raw mode
             tty.setraw(sys.stdin.fileno())
             
+            # Write the initial text to the master file descriptor
+            if initial_text:
+                os.write(master_fd, initial_text.encode())
+                os.write(master_fd, b'\n')  # Add a newline to "send" the command
+                time.sleep(0.5)  # Add a small delay to allow processing
+            
             # Main loop to handle I/O
             while process.poll() is None:
-                r, w, e = select.select([sys.stdin, master_fd], [], [])
+                r, w, e = select.select([sys.stdin, master_fd], [], [], 0.1)
                 if sys.stdin in r:
                     data = os.read(sys.stdin.fileno(), 1024)
                     os.write(master_fd, data)
