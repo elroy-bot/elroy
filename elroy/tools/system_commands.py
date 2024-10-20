@@ -1,3 +1,5 @@
+import os
+import subprocess
 from inspect import signature
 from typing import Callable, Optional, Set
 
@@ -317,4 +319,76 @@ USER_ONLY_COMMANDS = {
 }
 
 
-SYSTEM_COMMANDS = ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS | MEMORY_COMMANDS | GOAL_COMMANDS
+import os
+import subprocess
+import sys
+import pty
+import select
+import termios
+import tty
+
+def start_aider_session(context: ElroyContext, file_location: str = ".") -> str:
+    """
+    Starts an aider session using a pseudo-terminal, taking over the screen.
+
+    Args:
+        context (ElroyContext): The Elroy context object.
+        file_location (str): The file or directory location to start aider with. Defaults to current directory.
+
+    Returns:
+        str: A message indicating the result of the aider session start attempt.
+    """
+    try:
+        # Ensure the file_location is an absolute path
+        abs_file_location = os.path.abspath(file_location)
+        
+        # Print debug information
+        print(f"Starting aider session for location: {abs_file_location}")
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"Aider command: {' '.join(['aider', abs_file_location])}")
+        
+        # Save the current terminal settings
+        old_tty = termios.tcgetattr(sys.stdin)
+        
+        try:
+            # Create a pseudo-terminal
+            master_fd, slave_fd = pty.openpty()
+            
+            # Start the aider session
+            process = subprocess.Popen(
+                ["aider", abs_file_location],
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
+                preexec_fn=os.setsid
+            )
+            
+            # Set the terminal to raw mode
+            tty.setraw(sys.stdin.fileno())
+            
+            # Main loop to handle I/O
+            while process.poll() is None:
+                r, w, e = select.select([sys.stdin, master_fd], [], [])
+                if sys.stdin in r:
+                    data = os.read(sys.stdin.fileno(), 1024)
+                    os.write(master_fd, data)
+                if master_fd in r:
+                    data = os.read(master_fd, 1024)
+                    if data:
+                        os.write(sys.stdout.fileno(), data)
+                    else:
+                        break
+            
+            return_code = process.wait()
+            
+            if return_code == 0:
+                return f"Aider session completed for location: {abs_file_location}"
+            else:
+                return f"Aider session exited with return code: {return_code}"
+        finally:
+            # Restore the original terminal settings
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
+    except Exception as e:
+        return f"Failed to start aider session: {str(e)}"
+
+SYSTEM_COMMANDS = ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS | MEMORY_COMMANDS | GOAL_COMMANDS | {start_aider_session}
