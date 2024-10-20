@@ -66,7 +66,7 @@ class SlashCompleter(WordCompleter):
     def __init__(self, goals, memories):
         self.goals = goals
         self.memories = memories
-        super().__init__(self.get_words(), sentence=True, pattern=r"^/")
+        super().__init__(self.get_words(), sentence=True, pattern=r"^/")  # type: ignore
 
     def get_words(self):
         from elroy.tools.system_commands import (GOAL_COMMANDS,
@@ -86,7 +86,6 @@ def get_relevant_memories(context: ElroyContext) -> List[str]:
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
-        # filter(lambda m: m.memory_type == Goal.__name__),  # TODO: Consolidate memories if they are redundant
         map(lambda m: f"{m.memory_type}: {m.name}"),
         unique,
         list,
