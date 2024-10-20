@@ -26,7 +26,6 @@ T = TypeVar("T", bound=EmbeddableSqlModel)
 @dataclass
 class VectorResultMatch(Generic[T]):
     result: T
-    score: float
     percent_closer_than_random: float
 
 
@@ -61,7 +60,6 @@ def query_vector(
         map(
             lambda row: VectorResultMatch(
                 row[0],
-                round(row[1], 2),
                 l2_percent_closer_than_random(row[1]),
             )
         ),
@@ -88,10 +86,7 @@ def get_closest_vector_match(
 
 
 get_most_relevant_goal = partial(get_closest_vector_match, table=Goal, filter_clause=Goal.is_active == True)
-get_most_relevant_archival_memory = partial(get_closest_vector_match, table=Memory)
-
-get_relevant_goals = partial(get_vector_matches_over_threshold, table=Goal, filter_clause=Goal.is_active == True)
-get_relevant_archival_memories = partial(get_vector_matches_over_threshold, table=Memory)
+get_most_relevant_memory = partial(get_closest_vector_match, table=Memory)
 
 
 def upsert_embedding(session: Session, row: EmbeddableSqlModel) -> None:

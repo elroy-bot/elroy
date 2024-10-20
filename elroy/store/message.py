@@ -7,11 +7,10 @@ from toolz import first, pipe
 from toolz.curried import map, pipe
 
 from elroy.config import ElroyContext
-from elroy.store.data_models import (ContextMessage, ContextMessageSet, Goal,
+from elroy.store.data_models import (ContextMessage, ContextMessageSet,
                                      MemoryMetadata, Message, convert_to_utc)
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
-from elroy.system.utils import first_or_none, last_or_none
 
 
 def _get_last_user_message(context: ElroyContext) -> Optional[Message]:
@@ -62,13 +61,6 @@ def db_message_to_context_message_dict(db_message: Message) -> Dict:
     }
 
 
-def get_message_goal_id(context_message: ContextMessage) -> Optional[int]:
-    return pipe(
-        [m.id for m in context_message.memory_metadata if m.memory_type == Goal.__name__],
-        first_or_none,
-    )  # type: ignore
-
-
 def get_current_context_message_set_db(context: ElroyContext) -> Optional[ContextMessageSet]:
     return context.session.exec(
         select(ContextMessageSet).where(
@@ -105,13 +97,6 @@ def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage
 def get_current_system_message(context: ElroyContext) -> Optional[ContextMessage]:
     try:
         return first(_get_context_messages_iter(context))
-    except StopIteration:
-        return None
-
-
-def get_last_context_message(context: ElroyContext) -> Optional[ContextMessage]:
-    try:
-        return last_or_none(_get_context_messages_iter(context))
     except StopIteration:
         return None
 
@@ -169,7 +154,3 @@ def replace_context_messages(context: ElroyContext, messages: List[ContextMessag
     )
     context.session.add(new_context)
     context.session.commit()
-
-
-class InvalidContextMessageError(ValueError):
-    pass

@@ -28,10 +28,6 @@ class ElroyConfig:
     context_refresh_interval_seconds: int  # how often to refresh system message and compress context messages
 
 
-def str_to_bool(input: Optional[str]) -> bool:
-    return input is not None and input.lower() in ["true", "1"]
-
-
 def get_config(
     database_url: str,
     openai_api_key: str,
