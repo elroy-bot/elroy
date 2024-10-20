@@ -1,5 +1,5 @@
 from inspect import signature
-from typing import Optional
+from typing import Callable, Optional, Set
 
 from sqlmodel import select
 from toolz import pipe
@@ -7,7 +7,7 @@ from toolz.curried import map
 
 from elroy.config import ElroyContext
 from elroy.memory.system_context import format_context_messages
-from elroy.store.data_models import ContextMessage, Goal
+from elroy.store.data_models import ContextMessage, Goal, Memory
 from elroy.store.goals import (add_goal_status_update, create_goal,
                                delete_goal_permamently, mark_goal_completed,
                                rename_goal)
@@ -27,7 +27,7 @@ def invoke_system_command(context: ElroyContext, msg: str) -> str:
 
     command, *args = msg.split(" ")
 
-    func = SYSTEM_COMMANDS.get(command)
+    func = next((f for f in SYSTEM_COMMANDS if f.__name__ == command), None)
 
     if not func:
         return f"Unknown command: {command}"
@@ -97,7 +97,7 @@ def print_available_commands(context: ElroyContext) -> str:
         str: The available system commands
     """
 
-    return "Available commands: " + "\n".join(SYSTEM_COMMANDS.keys())
+    return "Available commands: " + "\n".join([f.__name__ for f in SYSTEM_COMMANDS])
 
 
 def reset_system_context(context: ElroyContext) -> str:
@@ -163,10 +163,32 @@ def print_goal(context: ElroyContext, goal_name: str) -> str:
         )
     ).first()
     if goal:
-        status_string = ("Status:" + "\n".join(goal.status_updates)) if goal.status_updates else ""
-        return f"Goal: {goal.name}\n\nDescription: {goal.description}\n{status_string}"
+        return goal.to_fact()
     else:
         return f"Goal '{goal_name}' not found for the current user."
+
+
+def print_memory(context: ElroyContext, memory_name: str) -> str:
+    """Prints the memory with the given name
+
+    Args:
+        context (ElroyContext): context obj
+        memory_name (str): Name of the memory
+
+    Returns:
+        str: Information for the memory with the given name
+    """
+    memory = context.session.exec(
+        select(Memory).where(
+            Memory.user_id == context.user_id,
+            Memory.name == memory_name,
+            Memory.is_active == True,
+        )
+    ).first()
+    if memory:
+        return memory.to_fact()
+    else:
+        return f"Memory '{memory_name}' not found for the current user."
 
 
 def contemplate(context: ElroyContext) -> str:
@@ -258,43 +280,41 @@ def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
         return f"Goal {goal_name} not found."
 
 
-ASSISTANT_VISIBLE_COMMANDS = {
-    contemplate,
-    get_user_full_name,
-    set_user_full_name,
-    get_user_preferred_name,
-    set_user_preferred_name,
+GOAL_COMMANDS: Set[Callable] = {
     create_goal,
     rename_goal,
-    drop_goal_from_current_context_only,
+    print_goal,
     add_goal_to_current_context,
+    drop_goal_from_current_context_only,
     add_goal_status_update,
     mark_goal_completed,
     delete_goal_permamently,
 }
 
+MEMORY_COMMANDS = {
+    print_memory,
+}
+
+
+ASSISTANT_VISIBLE_COMMANDS = (
+    {
+        contemplate,
+        get_user_full_name,
+        set_user_full_name,
+        get_user_preferred_name,
+        set_user_preferred_name,
+    }
+    | GOAL_COMMANDS
+    | MEMORY_COMMANDS
+)
+
 USER_ONLY_COMMANDS = {
     reset_system_context,
     print_context_messages,
-    print_goal,
     print_system_instruction,
     refresh_system_instructions,
     print_available_commands,
 }
 
 
-SYSTEM_COMMANDS = {f.__name__: f for f in ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS}
-
-GOAL_COMMANDS = {
-    f.__name__
-    for f in {
-        create_goal,
-        rename_goal,
-        print_goal,
-        add_goal_to_current_context,
-        drop_goal_from_current_context_only,
-        add_goal_status_update,
-        mark_goal_completed,
-        delete_goal_permamently,
-    }
-}
+SYSTEM_COMMANDS = ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS | MEMORY_COMMANDS | GOAL_COMMANDS
