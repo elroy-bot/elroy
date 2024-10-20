@@ -92,8 +92,7 @@ get_most_relevant_memory = partial(get_closest_vector_match, table=Memory)
 def upsert_embedding(session: Session, row: EmbeddableSqlModel) -> None:
     from elroy.llm.client import get_embedding
 
-    source_fact = row.to_fact()
-    new_text = source_fact.text
+    new_text = row.to_fact()
     new_md5 = hashlib.md5(new_text.encode()).hexdigest()
 
     if row.embedding_text_md5 == new_md5:
