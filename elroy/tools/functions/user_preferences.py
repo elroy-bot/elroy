@@ -1,4 +1,5 @@
 from elroy.config import ElroyContext
+from elroy.store.data_models import UserPreference
 from elroy.system.parameters import UNKNOWN
 
 
@@ -69,8 +70,6 @@ def get_user_full_name(context: ElroyContext) -> str:
 
 def _get_user_preference(context: ElroyContext):
     from sqlmodel import select
-
-    from elroy.store.user import UserPreference
 
     user_preference = context.session.exec(
         select(UserPreference).where(
