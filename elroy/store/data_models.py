@@ -121,22 +121,16 @@ class Goal(EmbeddableSqlModel, table=True):
         from elroy.store.goals import (add_goal_status_update,
                                        mark_goal_completed)
 
-        return "\n".join(
+        return "\n\n".join(
             [
                 f"# {self.__class__.__name__}: {self.name}",
                 self.description,
-                "## Strategy",
-                self.strategy,
-                "## End Condition",
-                self.end_condition,
-                "## Target Completion Time",
-                str(self.target_completion_time),
-                "## Status Updates",
-                "\n".join(self.status_updates) if self.status_updates else "No status updates",
-                "## Priority",
-                str(self.priority),
-                "### Note",
-                f"\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
+                f"## Strategy\n{self.strategy}",
+                f"## End Condition\n{self.end_condition}",
+                f"## Target Completion Time\n{self.target_completion_time}",
+                "## Status Updates\n" + ("\n".join(self.status_updates) if self.status_updates else "No status updates"),
+                f"## Priority\n{self.priority}",
+                f"### Note for assistant:\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
             ]
         )
 

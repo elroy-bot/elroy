@@ -3,12 +3,12 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import typer
 from colorama import init
 from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.lexers import PygmentsLexer
@@ -28,20 +28,19 @@ from elroy.config import (ROOT_DIR, ElroyConfig, ElroyContext, get_config,
 from elroy.logging_config import setup_logging
 from elroy.memory.system_context import context_refresh_if_needed
 from elroy.onboard_user import onboard_user
-from elroy.store.data_models import Goal
+from elroy.store.data_models import Goal, Memory
 from elroy.store.message import get_context_messages
 from elroy.store.user import is_user_exists
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CLI_USER_ID
 from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
-from elroy.tools.system_commands import (GOAL_COMMANDS, SYSTEM_COMMANDS,
-                                         invoke_system_command)
+from elroy.tools.system_commands import SYSTEM_COMMANDS, invoke_system_command
 
 app = typer.Typer()
 
 
-def get_user_goals(context: ElroyContext) -> List[str]:
+def get_user_goals(context: ElroyContext) -> Set[str]:
     """Fetch all active goals for the user"""
     goals = context.session.exec(
         select(Goal).where(
@@ -49,29 +48,35 @@ def get_user_goals(context: ElroyContext) -> List[str]:
             Goal.is_active == True,
         )
     ).all()
-    return [goal.name for goal in goals]
+    return {goal.name for goal in goals}
 
 
-class SlashCompleter(Completer):
-    def __init__(self, goals):
+def get_user_memories(context: ElroyContext) -> Set[str]:
+    """Fetch all active memories for the user"""
+    memories = context.session.exec(
+        select(Memory).where(
+            Memory.user_id == context.user_id,
+            Memory.is_active == True,
+        )
+    ).all()
+    return {memory.name for memory in memories}
+
+
+class SlashCompleter(WordCompleter):
+    def __init__(self, goals, memories):
         self.goals = goals
+        self.memories = memories
+        super().__init__(self.get_words(), sentence=True, pattern=r"^/")
 
-    def get_completions(self, document, complete_event):
-        from elroy.tools.system_commands import SYSTEM_COMMANDS
+    def get_words(self):
+        from elroy.tools.system_commands import (GOAL_COMMANDS,
+                                                 MEMORY_COMMANDS,
+                                                 SYSTEM_COMMANDS)
 
-        text = document.text_before_cursor
-        if text.startswith("/"):
-            input = text.split("/")[-1].strip()
-            input_cmd = input.split()[0] if len(input) > 1 else ""
-
-            for cmd in sorted(SYSTEM_COMMANDS.keys() - GOAL_COMMANDS):
-                if cmd.lower().startswith(input_cmd.lower()):
-                    yield Completion(cmd, start_position=-len(input_cmd))
-
-            for cmd in GOAL_COMMANDS:
-                for goal in self.goals:
-                    if f"{cmd} {goal}".lower().startswith(input.lower()):
-                        yield Completion(f"{cmd} {goal}", start_position=-len(input))
+        words = [f"/{f.__name__}" for f in SYSTEM_COMMANDS - (GOAL_COMMANDS | MEMORY_COMMANDS)]
+        words += [f"/{f.__name__} {goal}" for f in GOAL_COMMANDS for goal in self.goals]
+        words += [f"/{f.__name__} {memory}" for f in MEMORY_COMMANDS for memory in self.memories]
+        return words
 
 
 def get_relevant_memories(context: ElroyContext) -> List[str]:
@@ -186,7 +191,8 @@ async def main_chat(console: Console, config: ElroyConfig):
         asyncio.create_task(async_context_refresh_if_needed(context))
 
         user_goals = get_user_goals(context)
-        slash_completer = SlashCompleter(user_goals)
+        user_memories = get_user_memories(context)
+        slash_completer = SlashCompleter(user_goals, user_memories)
 
         session = PromptSession(
             history=history,
@@ -200,7 +206,7 @@ async def main_chat(console: Console, config: ElroyConfig):
             if user_input.startswith("/"):
                 cmd = user_input[1:].split()[0]
 
-                if cmd.lower() not in SYSTEM_COMMANDS:
+                if cmd.lower() not in {f.__name__ for f in SYSTEM_COMMANDS}:
                     console.print(f"Unknown command: {cmd}")
                 else:
                     try:
@@ -216,8 +222,9 @@ async def main_chat(console: Console, config: ElroyConfig):
 
             # Refresh slash completer
             user_goals = get_user_goals(context)
-            slash_completer.goals = user_goals
-            session.completer = slash_completer
+            user_memories = get_user_memories(context)
+
+            session.completer = SlashCompleter(user_goals, user_memories)
 
         if not is_user_exists(context):
             name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
