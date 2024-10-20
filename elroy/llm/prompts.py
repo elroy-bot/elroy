@@ -7,7 +7,6 @@ from elroy.system.parameters import CHAT_MODEL, UNKNOWN
 
 query_llm_short_limit = partial(query_llm_with_word_limit, word_limit=300)
 
-USER_HIDDEN_MSG_PREFIX = "[Automated system message, hidden from user]: "
 
 ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT = (
     lambda preferred_name: f"""
@@ -36,7 +35,7 @@ Only output the summary, do NOT include anything else in your output.
 )
 
 
-def summarize_for_archival_memory(user_preferred_name: str, conversation_summary: str, model: str = CHAT_MODEL) -> Tuple[str, str]:
+def summarize_for_memory(user_preferred_name: str, conversation_summary: str, model: str = CHAT_MODEL) -> Tuple[str, str]:
     response = query_llm_json(
         model=model,
         prompt=conversation_summary,

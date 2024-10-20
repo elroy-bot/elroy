@@ -11,12 +11,12 @@ from toolz.curried import map, remove
 
 from elroy.config import ElroyContext
 from elroy.llm.prompts import (persona, summarize_conversation,
-                               summarize_for_archival_memory)
-from elroy.store.data_models import ContextMessage, EmbeddableSqlModel
+                               summarize_for_memory)
+from elroy.store.data_models import ContextMessage
 from elroy.store.message import (get_context_messages,
                                  get_time_since_context_message_creation,
                                  replace_context_messages)
-from elroy.store.store import create_archival_memory
+from elroy.store.store import create_memory
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
 from elroy.system.utils import logged_exec_time, utc_epoch_to_string
@@ -160,10 +160,10 @@ def format_context_messages(user_preferred_name: str, context_messages: List[Con
     )  # type: ignore
 
 
-def formulate_archival_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
+def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
     return pipe(
         format_context_messages(user_preferred_name, context_messages),
-        partial(summarize_for_archival_memory, user_preferred_name),
+        partial(summarize_for_memory, user_preferred_name),
     )  # type: ignore
 
 
@@ -173,10 +173,6 @@ def replace_system_message(context_messages: List[ContextMessage], new_system_me
         return [new_system_message] + context_messages
     else:
         return [new_system_message] + context_messages[1:]
-
-
-def incoproate_new_entity_memory():
-    pass
 
 
 @logged_exec_time
@@ -189,8 +185,8 @@ def context_refresh(context: ElroyContext) -> None:
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
     pipe(
-        formulate_archival_memory(user_preferred_name, context_messages),
-        lambda response: create_archival_memory(context, response[0], response[1]),
+        formulate_memory(user_preferred_name, context_messages),
+        lambda response: create_memory(context, response[0], response[1]),
     )
 
     pipe(
@@ -198,18 +194,4 @@ def context_refresh(context: ElroyContext) -> None:
         partial(replace_system_message, context_messages),
         partial(compress_context_messages, context),
         partial(replace_context_messages, context),
-    )
-
-
-# TODO: Add function reminders
-def get_internal_though_monologue(last_user_message: str, embeddable_models: List[EmbeddableSqlModel]) -> str:
-    from elroy.llm.prompts import CHAT_MODEL, query_llm_short_limit
-
-    memory_text = "\n".join([model.to_fact().text for model in embeddable_models])
-
-    return query_llm_short_limit(
-        prompt="LAST USER MESSAGE" + last_user_message + "\n" + memory_text,
-        model=CHAT_MODEL,
-        system=f"You are the internal monologue of an AI assistant. You will be given a user message, and one or more items recalled from memory."
-        "Formulate a short internal monologue thought process that the AI might have when deciding how to respond to the user message in the context of the memory.",
     )
