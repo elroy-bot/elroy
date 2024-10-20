@@ -10,8 +10,8 @@ from toolz.curried import do, filter, map, remove, tail
 from elroy.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, get_embedding
 from elroy.store.data_models import EmbeddableSqlModel, Goal
-from elroy.store.embeddings import (get_most_relevant_archival_memory,
-                                    get_most_relevant_goal)
+from elroy.store.embeddings import (get_most_relevant_goal,
+                                    get_most_relevant_memory)
 from elroy.store.message import (ContextMessage, MemoryMetadata,
                                  add_context_messages, get_context_messages,
                                  remove_context_messages)
@@ -145,7 +145,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
     new_memory_messages = pipe(
         message_content,
         get_embedding,
-        lambda x: juxt(get_most_relevant_goal, get_most_relevant_archival_memory)(context, x),
+        lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(context, x),
         filter(lambda x: x is not None),
         remove(partial(is_memory_in_context, context_messages)),
         map(
