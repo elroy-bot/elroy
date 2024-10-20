@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Tuple
+from typing import Optional, Tuple
 
 from elroy.llm.client import query_llm_json, query_llm_with_word_limit
 from elroy.system.parameters import INNER_THOUGHT_TAG  # keep!
@@ -103,23 +103,25 @@ I do not, under any circumstances, deceive {user_noun}. As such:
 """
 
 
-def contemplate_prompt(user_preferred_name: str) -> str:
+DEFAULT_CONTEMPLATE_PROMPT = "Think about the conversation you're in the middle of having. What are important facts to remember?"
+"What conclusions can you draw?"
+"Also consider if any functions might be appropriate to invoke, and why"
+
+
+def contemplate_prompt(user_preferred_name: str, prompt: Optional[str]) -> str:
+    prompt = prompt or DEFAULT_CONTEMPLATE_PROMPT
+
     return f"""
 You are the internal thought monologue of an AI personal assistant, forming a memory from a conversation.
 
-Given a conversation summary, your will reflect on the conversation and decide which memories might be relevant in future interactions with {user_preferred_name}.
+Given a conversation summary with your user, {user_preferred_name}, your will reflect on a prompt.
 
-Pay particular attention facts about {user_preferred_name}, such as name, age, location, etc.
-Specifics about events and dates are also important.
+If you refer to dates and times, use ISO 8601 format, rather than relative references.
 
-When referring to dates and times, use use ISO 8601 format, rather than relative references.
-If an event is recurring, specify the frequency, start datetime, and end datetime if applicable.
+Your prompt is:
 
-Focus on facts in the real world, as opposed to facts about the conversation itself. However, it is also appropriate to draw conclusions from the infromation in the conversation.
+{prompt}
 
-Also consider if any functions might be appropriate to invoke, and why
-
-Your response should be in the first person voice of the assistant internal thought monolgoue, and should be understood to be as part of an ongoing conversation.
-
-Don't say things like "finally, we talked about", or "in conclusion", as this is not the end of the conversation.
+"Your response should be in the first person voice of the assistant internal thought monolgoue, and should be understood to be as part of an ongoing conversation."
+"Don't say things like 'finally, we talked about', or 'in conclusion', as this is not the end of the conversation."
 """
