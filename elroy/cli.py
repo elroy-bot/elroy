@@ -16,6 +16,8 @@ from prompt_toolkit.styles import Style
 from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
+from rich.live import Live
+from rich.layout import Layout
 from sqlmodel import select
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
@@ -98,16 +100,39 @@ DEFAULT_INPUT_COLOR = "#FFE377"
 SYSTEM_MESSAGE_COLOR = "#9ACD32"
 
 
-def rule():
-    console = Console()
-    console.rule(style=DEFAULT_INPUT_COLOR)
+class ElroyDisplay:
+    def __init__(self, console: Console):
+        self.console = console
+        self.layout = Layout()
+        self.layout.split(
+            Layout(name="context", size=5),
+            Layout(name="chat", ratio=1)
+        )
+        self.live = Live(self.layout, console=console, screen=True, refresh_per_second=4)
+        self.chat_content = []
+        self.context_content = []
 
+    def update_context(self, context_messages):
+        self.context_content = context_messages
+        self.refresh()
 
-def display_memory_titles(titles):
-    console = Console()
-    if titles:
-        panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=DEFAULT_INPUT_COLOR)
-        console.print(panel)
+    def add_message(self, message, style=None):
+        self.chat_content.append((message, style))
+        self.refresh()
+
+    def refresh(self):
+        context_panel = Panel("\n".join(self.context_content), title="Relevant Context", border_style=DEFAULT_INPUT_COLOR)
+        self.layout["context"].update(context_panel)
+
+        chat_panel = Panel("\n".join([f"[{m[1]}]{m[0]}[/]" if m[1] else m[0] for m in self.chat_content[-15:]]), 
+                           title="Chat", border_style=DEFAULT_OUTPUT_COLOR)
+        self.layout["chat"].update(chat_panel)
+
+    def start(self):
+        self.live.start()
+
+    def stop(self):
+        self.live.stop()
 
 
 async def async_context_refresh_if_needed(context):
@@ -200,29 +225,29 @@ async def main_chat(console: Console, config: ElroyConfig):
             completer=slash_completer,
         )
 
+        display = ElroyDisplay(console)
+        display.start()
+
         def process_and_deliver_msg(user_input):
             nonlocal slash_completer, session
             if user_input.startswith("/"):
                 cmd = user_input[1:].split()[0]
 
                 if cmd.lower() not in {f.__name__ for f in SYSTEM_COMMANDS}:
-                    console.print(f"Unknown command: {cmd}")
+                    display.add_message(f"Unknown command: {cmd}", DEFAULT_OUTPUT_COLOR)
                 else:
                     try:
                         response = invoke_system_command(context, user_input)
-                        console.print(f"[{DEFAULT_OUTPUT_COLOR}]{response}[/]", end="")
-                        console.print()  # New line after complete response
+                        display.add_message(response, DEFAULT_OUTPUT_COLOR)
                     except Exception as e:
-                        print(f"Error invoking system command: {e}")
+                        display.add_message(f"Error invoking system command: {e}", DEFAULT_OUTPUT_COLOR)
             else:
                 for partial_response in process_message(context, user_input):
-                    console.print(f"[{DEFAULT_OUTPUT_COLOR}]{partial_response}[/]", end="")
-                console.print()  # New line after complete response
+                    display.add_message(partial_response, DEFAULT_OUTPUT_COLOR)
 
             # Refresh slash completer
             user_goals = get_user_goals(context)
             user_memories = get_user_memories(context)
-
             session.completer = SlashCompleter(user_goals, user_memories)
 
         if not is_user_exists(context):
@@ -236,25 +261,24 @@ async def main_chat(console: Console, config: ElroyConfig):
 
         while True:
             try:
-                rule()
-
-                # Fetch and display relevant memories
+                # Update context
                 relevant_memories = get_relevant_memories(context)
-                if relevant_memories:
-                    display_memory_titles(relevant_memories)
+                display.update_context(relevant_memories)
 
                 user_input = await session.prompt_async(HTML("<b>> </b>"), style=style)
                 if user_input.lower().startswith("/exit") or user_input == "exit":
                     break
                 elif user_input:
+                    display.add_message(f"> {user_input}", DEFAULT_INPUT_COLOR)
                     process_and_deliver_msg(user_input)
                     # Start context refresh asynchronously
                     asyncio.create_task(async_context_refresh_if_needed(context))
             except KeyboardInterrupt:
-                console.clear()
                 continue
             except EOFError:
                 break
+
+        display.stop()
 
 
 @app.command()
