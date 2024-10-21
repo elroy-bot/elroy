@@ -1,7 +1,22 @@
 import inspect
-from typing import TypeVar
+from functools import wraps
+from typing import Callable, TypeVar
 
 T = TypeVar("T")
+
+
+def experimental(func: Callable) -> Callable:
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        context = next((arg for arg in args if hasattr(arg, "console")), None)
+        if not context:
+            context = next((value for value in kwargs.values() if hasattr(value, "console")), None)
+        if context and hasattr(context, "console"):
+            context.console.print("[yellow]Warning: This is an experimental feature.[/yellow]")
+            context.console.print("[yellow]Please provide feedback at https://github.com/elroy-bot/elroy/issues[/yellow]")
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def debug(value: T) -> T:
