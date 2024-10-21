@@ -3,6 +3,7 @@ import pty
 import subprocess
 import sys
 import termios
+import time
 import tty
 from inspect import signature
 from typing import Callable, Optional, Set
@@ -288,14 +289,15 @@ def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
         return f"Goal {goal_name} not found."
 
 
+# TODO: need to cd to the dir, and write a context file rather than feeding stdin.
 def start_aider_session(context: ElroyContext, file_location: str = ".", comment: str = "") -> str:
     """
-    Starts an aider session by writing a context file and changing to the specified directory.
+    Starts an aider session using a pseudo-terminal, taking over the screen.
 
     Args:
         context (ElroyContext): The Elroy context object.
         file_location (str): The file or directory location to start aider with. Defaults to current directory.
-        comment (str): Additional comment to include in the context file. Defaults to empty string.
+        comment (str): Initial text to be processed by aider as if it was typed. Defaults to empty string.
 
     Returns:
         str: A message indicating the result of the aider session start attempt.
@@ -305,36 +307,33 @@ def start_aider_session(context: ElroyContext, file_location: str = ".", comment
         # Ensure the file_location is an absolute path
         abs_file_location = os.path.abspath(file_location)
 
-        # Generate the aider context
-        aider_context = client.query_llm(
-            system="Your task is to provide context to a coding assistant AI. "
-            "Given information about a conversation, return information about what the goal is, what the user needs help with, and/or any approaches that have been discussed. "
-            "Focus your prompt specifically on what the coding Assistant needs to know. Do not include information about Elroy, personal information about the user, "
-            "or anything that isn't relevant to what code the coding assistant will need to write.",
-            prompt=pipe(
-                [
-                    f"# Aider session file location: {abs_file_location}",
-                    f"# Comment: {comment}" if comment else None,
-                    f"# Chat transcript: {print_context_messages(context)}",
-                ],
-                filter(lambda x: x is not None),
-                list,
-                "\n\n".join,
-            ),  # type: ignore
+        # Prepend /ask so the AI does not immediately start writing code.
+        aider_context = (
+            "{\n/ask "
+            + client.query_llm(
+                system="Your your task is to provde context to a coding assistant AI."
+                "Given information about a conversation, return information about what the goal is, what the user needs help with, and/or any approaches that have been discussed."
+                "Focus your prompt specifically on what the coding Assistant needs to know. Do not include information about Elroy, personal information about the user,"
+                "or anything that isn't relevant to what code the coding assistant will need to write.",
+                prompt=pipe(
+                    [
+                        f"# Aider session file location: {abs_file_location}",
+                        "# Comment: {comment}" if comment else None,
+                        f"# Chat transcript: {print_context_messages(context)}",
+                    ],
+                    filter(lambda x: x is not None),
+                    list,
+                    "\n\n".join,
+                ),  # type: ignore
+            )
+            + "\n}"
         )
-
-        # Change to the specified directory
-        os.chdir(abs_file_location)
-
-        # Write the .aider_context.md file
-        with open(".aider_context.md", "w") as f:
-            f.write(aider_context)
 
         # Print debug information
         print(f"Starting aider session for location: {abs_file_location}")
         print(f"Current working directory: {os.getcwd()}")
-
-        context.console.print(f"Aider context:\n{aider_context}")
+        print(f"Changing directory to: {os.path.dirname(abs_file_location)}")
+        print(f"Aider command: aider")
 
         # Save the current terminal settings
         old_tty = termios.tcgetattr(sys.stdin)
@@ -343,13 +342,20 @@ def start_aider_session(context: ElroyContext, file_location: str = ".", comment
             # Create a pseudo-terminal
             master_fd, slave_fd = pty.openpty()
 
+            # Change the working directory to the directory containing the file or directory
+            os.chdir(os.path.dirname(abs_file_location))
+
             # Start the aider session
-            process = subprocess.Popen(
-                ["aider", "--read", ".aider_context.md"], stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, preexec_fn=os.setsid
-            )
+            process = subprocess.Popen(["aider"], stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, preexec_fn=os.setsid)
 
             # Set the terminal to raw mode
             tty.setraw(sys.stdin.fileno())
+
+            # Write the initial text to the master file descriptor
+            if aider_context:
+                os.write(master_fd, aider_context.encode())
+                os.write(master_fd, b"\n")  # Add a newline to "send" the command
+                time.sleep(0.5)  # Add a small delay to allow processing
 
             # Main loop to handle I/O
             while process.poll() is None:
