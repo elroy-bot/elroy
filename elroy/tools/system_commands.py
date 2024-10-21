@@ -22,6 +22,7 @@ from elroy.store.goals import (add_goal_status_update, create_goal,
 from elroy.store.message import (add_context_messages, get_context_messages,
                                  get_current_system_message,
                                  replace_context_messages)
+from elroy.system.ops import experimental
 from elroy.system.parameters import CHAT_MODEL
 from elroy.tools.functions.user_preferences import (get_user_full_name,
                                                     get_user_preferred_name,
@@ -289,7 +290,7 @@ def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
         return f"Goal {goal_name} not found."
 
 
-# TODO: need to cd to the dir, and write a context file rather than feeding stdin.
+@experimental
 def start_aider_session(context: ElroyContext, file_location: str = ".", comment: str = "") -> str:
     """
     Starts an aider session using a pseudo-terminal, taking over the screen.
@@ -307,13 +308,19 @@ def start_aider_session(context: ElroyContext, file_location: str = ".", comment
         # Ensure the file_location is an absolute path
         abs_file_location = os.path.abspath(file_location)
 
+        # Determine the directory to change to
+        if os.path.isfile(abs_file_location):
+            change_dir = os.path.dirname(abs_file_location)
+        else:
+            change_dir = abs_file_location
+
         # Prepend /ask so the AI does not immediately start writing code.
         aider_context = (
             "{\n/ask "
             + client.query_llm(
-                system="Your your task is to provde context to a coding assistant AI."
-                "Given information about a conversation, return information about what the goal is, what the user needs help with, and/or any approaches that have been discussed."
-                "Focus your prompt specifically on what the coding Assistant needs to know. Do not include information about Elroy, personal information about the user,"
+                system="Your task is to provide context to a coding assistant AI. "
+                "Given information about a conversation, return information about what the goal is, what the user needs help with, and/or any approaches that have been discussed. "
+                "Focus your prompt specifically on what the coding Assistant needs to know. Do not include information about Elroy, personal information about the user, "
                 "or anything that isn't relevant to what code the coding assistant will need to write.",
                 prompt=pipe(
                     [
@@ -332,8 +339,7 @@ def start_aider_session(context: ElroyContext, file_location: str = ".", comment
         # Print debug information
         print(f"Starting aider session for location: {abs_file_location}")
         print(f"Current working directory: {os.getcwd()}")
-        print(f"Changing directory to: {os.path.dirname(abs_file_location)}")
-        print(f"Aider command: aider")
+        print(f"Changing directory to: {change_dir}")
 
         # Save the current terminal settings
         old_tty = termios.tcgetattr(sys.stdin)
@@ -342,8 +348,8 @@ def start_aider_session(context: ElroyContext, file_location: str = ".", comment
             # Create a pseudo-terminal
             master_fd, slave_fd = pty.openpty()
 
-            # Change the working directory to the directory containing the file or directory
-            os.chdir(os.path.dirname(abs_file_location))
+            # Change the working directory
+            os.chdir(change_dir)
 
             # Start the aider session
             process = subprocess.Popen(["aider"], stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, preexec_fn=os.setsid)
