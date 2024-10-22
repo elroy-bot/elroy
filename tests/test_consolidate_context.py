@@ -1,6 +1,6 @@
-from elroy.memory.system_context import (compress_context_messages,
-                                         count_tokens, format_context_messages)
 from elroy.store.message import get_context_messages
+from elroy.system_context import (compress_context_messages, count_tokens,
+                                  format_context_messages)
 
 
 def test_consolidate_context(george_context):

@@ -3,7 +3,7 @@ from sqlmodel import Session
 
 from elroy.config import ElroyConfig, ElroyContext
 from elroy.onboard_user import onboard_user
-from elroy.tools.messenger import process_message
+from tests.utils import process_test_message
 
 BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketball shots"
 
@@ -23,5 +23,5 @@ def create_test_user(session: Session, console: Console, elroy_config: ElroyConf
     )
 
     for message in initial_messages:
-        process_message(context, message)
+        process_test_message(context, message)
     return user_id

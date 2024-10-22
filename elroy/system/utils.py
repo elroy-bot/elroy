@@ -1,17 +1,12 @@
 import logging
-import re
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import partial
-from typing import Iterable, Optional, Type, TypeVar
+from typing import Iterable, Iterator, Optional, Type, TypeVar
 
-from toolz import first, last, pipe
-from toolz.curried import do
-
-from elroy.system.parameters import INNER_THOUGHT_TAG
+from toolz import last
 
 T = TypeVar("T")
-U = TypeVar("U")
 
 
 def logged_exec_time(func, name: Optional[str] = None):
@@ -31,11 +26,8 @@ def logged_exec_time(func, name: Optional[str] = None):
     return wrapper
 
 
-def first_or_none(iterable: Iterable[T]) -> Optional[T]:
-    try:
-        return first(iterable)
-    except IndexError:
-        return None
+def first_or_none(iterable: Iterator[T]) -> Optional[T]:
+    return next(iterable, None)
 
 
 def last_or_none(iterable: Iterable[T]) -> Optional[T]:
@@ -52,30 +44,7 @@ def assert_type(expected_type: Type, value: T) -> T:
         return value
 
 
-date_to_string = lambda date: date.strftime("%A, %B %d, %Y %I:%M %p %Z")
-
-utc_epoch_to_string = lambda epoch: date_to_string(datetime.utcfromtimestamp(epoch))
+datetime_to_string = lambda date: date.strftime("%A, %B %d, %Y %I:%M %p %Z")
 
 
-def extract_xml_tag_content(tag: str, xml_string: str) -> Optional[str]:
-    # Define the regex pattern
-    pattern = rf"<{tag}>(.*?)</{tag}>"
-    match = re.search(pattern, xml_string, flags=re.DOTALL)
-
-    # Extract and return the matched text, if found
-    if match:
-        return match.group(1).strip()
-    else:
-        return None
-
-
-def parse_tag(tag: str, xml_string: str):
-    return pipe(
-        xml_string,
-        partial(extract_xml_tag_content, tag),
-        do(lambda x: logging.debug(f"Could not find tag {tag} in xml_string") if x is None else None),
-        lambda x: x or xml_string,
-    )
-
-
-parse_internal_monologue = partial(parse_tag, INNER_THOUGHT_TAG)
+utc_epoch_to_datetime_string = lambda epoch: datetime_to_string(datetime.fromtimestamp(epoch, UTC))

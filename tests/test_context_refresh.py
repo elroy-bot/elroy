@@ -1,4 +1,4 @@
-from elroy.memory.system_context import context_refresh
+from elroy.system_context import context_refresh
 
 
 def test_context_refresh(george_context):

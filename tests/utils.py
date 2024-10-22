@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Any, Optional, Tuple, Type
+from typing import Optional, Tuple, Type
 
 from toolz import pipe
 from toolz.curried import do, map
@@ -8,8 +8,9 @@ from toolz.curried import do, map
 from elroy.config import ElroyContext
 from elroy.llm.client import query_llm
 from elroy.store.data_models import EmbeddableSqlModel
-from elroy.store.embeddings import get_closest_vector_match
+from elroy.store.embeddings import query_vector
 from elroy.store.message import get_context_messages, replace_context_messages
+from elroy.system.utils import first_or_none
 from elroy.tools.messenger import process_message
 
 
@@ -24,12 +25,10 @@ def process_test_message(context: ElroyContext, msg: str) -> str:
     )  # type: ignore
 
 
-def vector_search_by_text(
-    context: ElroyContext, query: str, table: Type[EmbeddableSqlModel], filter_clause: Any = lambda: True
-) -> Optional[EmbeddableSqlModel]:
+def vector_search_by_text(context: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
     from elroy.llm.client import get_embedding
 
-    return get_closest_vector_match(context, get_embedding(query), table, filter_clause)
+    return first_or_none(query_vector(context, get_embedding(query), table))
 
 
 def ask_assistant_bool(context: ElroyContext, question: str) -> Tuple[bool, str]:
