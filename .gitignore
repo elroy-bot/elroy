@@ -16,3 +16,4 @@ db.dump
 .aider*
 *.DS_Store*
 celerybeat-schedule
+dist/

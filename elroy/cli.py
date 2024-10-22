@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import List, Optional, Set
@@ -124,6 +125,7 @@ def chat(
     context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
     log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH"),
     use_docker_postgres: Optional[bool] = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
+    stop_docker_postgres_on_exit: Optional[bool] = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT"),
 ):
     """Start the Elroy chat interface"""
 
@@ -158,7 +160,7 @@ def chat(
 
     console.print(f"[{SYSTEM_MESSAGE_COLOR}]Exiting...[/]")
 
-    if use_docker_postgres:
+    if use_docker_postgres and stop_docker_postgres_on_exit:
         logging.info("Stopping Docker Postgres containr...")
         stop_db()
 
@@ -283,6 +285,8 @@ def migrate(
 
 
 def main():
+    if len(sys.argv) == 1:
+        sys.argv.append("chat")
     app()
 
 
