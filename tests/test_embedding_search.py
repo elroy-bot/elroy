@@ -6,9 +6,8 @@ from toolz.curried import filter
 
 from elroy.store.data_models import Goal
 from elroy.store.message import ContextMessage, get_context_messages
-from elroy.tools.messenger import process_message
 from tests.fixtures import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME
-from tests.utils import vector_search_by_text
+from tests.utils import process_test_message, vector_search_by_text
 
 
 def test_goal_relevance(george_context):
@@ -36,14 +35,14 @@ def test_goal_in_context(george_context):
     assert goal
     goal_id = goal.id
 
-    process_message(george_context, "I'm off to go play basketball!")
+    process_test_message(george_context, "I'm off to go play basketball!")
 
     context_messages = get_context_messages(george_context)
 
     assert len(messages_with_goal_id(context_messages, goal_id)) == 1
 
     # Ensure we do not redundantly add the same goal to the context
-    process_message(george_context, "I'm in the car, heading over to play basketball")
+    process_test_message(george_context, "I'm in the car, heading over to play basketball")
 
     context_messages = get_context_messages(george_context)
 

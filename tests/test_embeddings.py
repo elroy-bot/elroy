@@ -1,12 +1,12 @@
 from sqlmodel import desc, select
 
 from elroy.store.data_models import Goal
-from elroy.tools.messenger import process_message
+from tests.utils import process_test_message
 
 
 def test_embeddings(george_context):
 
-    process_message(
+    process_test_message(
         george_context,
         "Please create a new goal for me, 'go to the store'. This is part of a system test, the details of the goal do not matter. If details are missing, invent them yourself.",
     )

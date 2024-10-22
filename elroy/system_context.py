@@ -3,23 +3,23 @@ from collections import deque
 from datetime import timedelta
 from functools import partial, reduce
 from operator import add
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from tiktoken import encoding_for_model
 from toolz import pipe
-from toolz.curried import map, remove
+from toolz.curried import filter, map, remove
 
 from elroy.config import ElroyContext
-from elroy.llm.prompts import (persona, summarize_conversation,
-                               summarize_for_memory)
-from elroy.store.data_models import ContextMessage
+from elroy.llm.prompts import persona, summarize_conversation
+from elroy.memory import consolidate_memories
+from elroy.store.data_models import ContextMessage, Memory
+from elroy.store.embeddings import find_redundant_pairs
 from elroy.store.message import (get_context_messages,
                                  get_time_since_context_message_creation,
                                  replace_context_messages)
-from elroy.store.store import create_memory
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
-from elroy.system.utils import logged_exec_time, utc_epoch_to_string
+from elroy.system.utils import logged_exec_time, utc_epoch_to_datetime_string
 
 
 def get_refreshed_system_message(user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
@@ -52,7 +52,7 @@ def get_refreshed_system_message(user_preferred_name: str, context_messages: Lis
 
 
 def format_message(user_preferred_name: str, message: ContextMessage) -> Optional[str]:
-    datetime_str = utc_epoch_to_string(message.created_at_utc_epoch_secs)
+    datetime_str = utc_epoch_to_datetime_string(message.created_at_utc_epoch_secs)
     if message.role == "system":
         return f"SYSTEM ({datetime_str}): {message.content}"
     elif message.role == "user":
@@ -150,20 +150,24 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
 
 
 def format_context_messages(user_preferred_name: str, context_messages: List[ContextMessage]) -> str:
-    return pipe(
+    convo_range = pipe(
         context_messages,
-        map(lambda msg: format_message(user_preferred_name, msg)),
-        remove(lambda _: _ is None),
+        filter(lambda _: _.role == "user"),
+        map(lambda _: _.created_at_utc_epoch_secs),
         list,
-        "\n".join,
-        str,
-    )  # type: ignore
+        lambda l: f"Messages from {utc_epoch_to_datetime_string(min(l))} to {utc_epoch_to_datetime_string(max(l))}",
+    )
 
-
-def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
-    return pipe(
-        format_context_messages(user_preferred_name, context_messages),
-        partial(summarize_for_memory, user_preferred_name),
+    return (
+        pipe(
+            context_messages,
+            map(lambda msg: format_message(user_preferred_name, msg)),
+            remove(lambda _: _ is None),
+            list,
+            "\n".join,
+            str,
+        )
+        + convo_range
     )  # type: ignore
 
 
@@ -177,7 +181,7 @@ def replace_system_message(context_messages: List[ContextMessage], new_system_me
 
 @logged_exec_time
 def context_refresh(context: ElroyContext) -> None:
-    from elroy.memory.system_context import compress_context_messages
+    from elroy.memory import create_memory, formulate_memory
     from elroy.tools.functions.user_preferences import get_user_preferred_name
 
     context_messages = get_context_messages(context)
@@ -188,6 +192,9 @@ def context_refresh(context: ElroyContext) -> None:
         formulate_memory(user_preferred_name, context_messages),
         lambda response: create_memory(context, response[0], response[1]),
     )
+
+    for mem1, mem2 in find_redundant_pairs(context, Memory):
+        consolidate_memories(context, mem1, mem2)
 
     pipe(
         get_refreshed_system_message(user_preferred_name, context_messages),

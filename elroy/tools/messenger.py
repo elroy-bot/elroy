@@ -9,7 +9,7 @@ from toolz.curried import do, filter, map, remove, tail
 
 from elroy.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, get_embedding
-from elroy.store.data_models import EmbeddableSqlModel, Goal
+from elroy.store.data_models import EmbeddableSqlModel, Goal, Memory
 from elroy.store.embeddings import (get_most_relevant_goal,
                                     get_most_relevant_memory)
 from elroy.store.message import (ContextMessage, MemoryMetadata,
@@ -47,7 +47,7 @@ class ToolCallAccumulator:
 
 
 def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
-    from elroy.memory.system_context import get_refreshed_system_message
+    from elroy.system_context import get_refreshed_system_message
 
     context_messages = get_context_messages(context)
 
@@ -106,6 +106,12 @@ def is_memory_in_context(context_messages: List[ContextMessage], memory: Embedda
     )
 
 
+def remove_from_context(context: ElroyContext, memory: EmbeddableSqlModel):
+    id = memory.id
+    assert id
+    remove_memory_from_context(memory.__class__.__name__, context, id)
+
+
 def remove_memory_from_context(memory_type: str, context: ElroyContext, memory_id: int) -> None:
     def is_memory_in_context_message(msg: ContextMessage) -> bool:
         if not msg.memory_metadata:
@@ -122,6 +128,7 @@ def remove_memory_from_context(memory_type: str, context: ElroyContext, memory_i
 
 
 remove_goal_from_context = partial(remove_memory_from_context, Goal.__name__)
+remove_assistant_memory_from_context = partial(remove_memory_from_context, Memory.__name__)
 
 
 @logged_exec_time
