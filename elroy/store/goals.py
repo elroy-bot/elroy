@@ -273,7 +273,7 @@ def get_active_goals_summary(context: ElroyContext) -> str:
     """
     return pipe(
         get_active_goals(context),
-        map(str),
+        map(lambda x: x.to_fact()),
         list,
         "\n\n".join,
     )  # type: ignore

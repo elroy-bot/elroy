@@ -1,4 +1,4 @@
-from elroy.tools.messenger import process_message
+from tests.utils import process_test_message
 
 
 def test_hello_world(elroy_context):
@@ -6,7 +6,7 @@ def test_hello_world(elroy_context):
     test_message = "Hello, World!"
 
     # Get the argument passed to the delivery function
-    response = "".join(process_message(elroy_context, test_message))
+    response = process_test_message(elroy_context, test_message)
 
     # Assert that the response is a non-empty string
     assert isinstance(response, str)

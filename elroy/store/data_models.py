@@ -44,6 +44,7 @@ class EmbeddableSqlModel(ABC, SQLModel):
     created_at: datetime
     updated_at: datetime
     user_id: int
+    is_active: Optional[bool]
     embedding: Optional[List[float]] = Field(sa_column=Column(Vector(EMBEDDING_SIZE)))
     embedding_text_md5: Optional[str] = Field(..., description="Hash of the text used to generate the embedding")
 
