@@ -2,10 +2,10 @@ from functools import partial
 from typing import Optional, Tuple
 
 from elroy.llm.client import query_llm_json, query_llm_with_word_limit
-from elroy.system.parameters import INNER_THOUGHT_TAG  # keep!
-from elroy.system.parameters import CHAT_MODEL, UNKNOWN
+from elroy.system.parameters import (CHAT_MODEL, INNER_THOUGHT_TAG,
+                                     MEMORY_WORD_COUNT_LIMIT, UNKNOWN)
 
-query_llm_short_limit = partial(query_llm_with_word_limit, word_limit=300)
+query_llm_short_limit = partial(query_llm_with_word_limit, word_limit=MEMORY_WORD_COUNT_LIMIT)
 
 
 ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT = (

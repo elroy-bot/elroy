@@ -14,7 +14,6 @@ from toolz.curried import filter, map
 
 from elroy.config import ElroyContext
 from elroy.llm import client
-from elroy.memory.system_context import format_context_messages
 from elroy.store.data_models import ContextMessage, Goal, Memory
 from elroy.store.goals import (add_goal_status_update, create_goal,
                                delete_goal_permamently, mark_goal_completed,
@@ -74,8 +73,8 @@ def refresh_system_instructions(context: ElroyContext) -> str:
         str: The result of the system instruction refresh
     """
 
-    from elroy.memory.system_context import get_refreshed_system_message
     from elroy.store.message import get_context_messages
+    from elroy.system_context import get_refreshed_system_message
 
     context_messages = get_context_messages(context)
     context_messages[0] = get_refreshed_system_message(get_user_preferred_name(context), context_messages[1:])
@@ -155,7 +154,7 @@ def print_context_messages(context: ElroyContext) -> str:
 
 
 def print_goal(context: ElroyContext, goal_name: str) -> str:
-    """Prints the goal with the given name
+    """Prints the goal with the given name. This does NOT create a goal, it only prints the existing goal with the given name if it has been created already.
 
     Args:
         context (ElroyContext): context obj
@@ -215,6 +214,8 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
 
     user_preferred_name = get_user_preferred_name(context)
     context_messages = get_context_messages(context)
+
+    from elroy.system_context import format_context_messages
 
     msgs_input = format_context_messages(user_preferred_name, context_messages)
 
@@ -387,8 +388,8 @@ def start_aider_session(context: ElroyContext, file_location: str = ".", comment
         finally:
             # Restore the original terminal settings
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
-    except Exception:
-        return f"Failed to start aider session: {str(e)}"
+    except Exception as error:
+        return f"Failed to start aider session: {str(error)}"
 
 
 GOAL_COMMANDS: Set[Callable] = {

@@ -39,9 +39,8 @@ def apply_migrations(elroy_config, postgres_container):
 
 from sqlmodel import delete
 
-from elroy.store.data_models import Goal, User, UserPreference
+from elroy.store.data_models import Goal, Memory, User, UserPreference
 from elroy.store.message import ContextMessage, Message, add_context_messages
-from elroy.store.store import Memory
 
 
 @pytest.fixture(scope="session")
