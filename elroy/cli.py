@@ -168,14 +168,17 @@ def get_config_from_cli(
             logging.info("use_docker_postgres is set to True, ignoring database_url")
 
         if not is_docker_running():
-            raise typer.Exit("Docker is not running. Please start Docker and try again.")
+            console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running. Please start Docker and try again.[/]")
+            raise typer.Exit(code=1)
 
         database_url = start_db()
 
     if not database_url:
-        raise typer.Exit("Database URL is required")
+        context.console.print(f"[{SYSTEM_MESSAGE_COLOR}]Database URL is required[/]")
+        raise typer.Exit(code=1)
     if not openai_api_key:
-        raise typer.Exit("OpenAI API key is required")
+        console.print(f"[{SYSTEM_MESSAGE_COLOR}]OpenAI API key is required[/]")
+        raise typer.Exit(code=1)
 
     # Check if database needs migrations
     if not check_database_migrations(database_url):
