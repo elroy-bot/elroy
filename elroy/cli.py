@@ -44,6 +44,7 @@ app = typer.Typer(help="Elroy CLI")
 def version_callback(value: bool):
     if value:
         typer.echo(f"Elroy version: {__version__}")
+        typer.echo("Licensed under GNU General Public License v3.0")
         raise typer.Exit()
 
 @app.callback()
