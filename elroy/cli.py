@@ -23,9 +23,9 @@ from toolz.curried import filter, map
 
 from alembic import command
 from alembic.config import Config
-from docker_postgres import is_docker_running, start_db, stop_db
 from elroy.config import (ROOT_DIR, ElroyConfig, ElroyContext, get_config,
                           session_manager)
+from elroy.docker_postgres import is_docker_running, start_db, stop_db
 from elroy.logging_config import setup_logging
 from elroy.onboard_user import onboard_user
 from elroy.store.data_models import Goal, Memory
