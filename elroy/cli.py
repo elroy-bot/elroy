@@ -131,6 +131,41 @@ async def async_context_refresh_if_needed(context):
         await loop.run_in_executor(pool, context_refresh_if_needed, context)
 
 
+def get_config_from_cli(
+    database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
+    openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY"),
+    local_storage_path: Optional[str] = typer.Option(None, envvar="ELROY_LOCAL_STORAGE_PATH"),
+    context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
+    log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH"),
+    use_docker_postgres: bool = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
+    stop_docker_postgres_on_exit: bool = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT"),
+) -> tuple[ElroyConfig, str, bool, bool]:
+    """Common CLI configuration handler"""
+    setup_logging(log_file_path)
+
+    if use_docker_postgres:
+        if database_url is not None:
+            logging.info("use_docker_postgres is set to True, ignoring database_url")
+
+        if not is_docker_running():
+            raise typer.Exit("Docker is not running. Please start Docker and try again.")
+
+        database_url = start_db()
+
+    if not database_url:
+        raise typer.Exit("Database URL is required")
+    if not openai_api_key:
+        raise typer.Exit("OpenAI API key is required")
+
+    config = get_config(
+        database_url=database_url,
+        openai_api_key=openai_api_key,
+        local_storage_path=local_storage_path,
+        context_window_token_limit=context_window_token_limit,
+    )
+    
+    return config, database_url, use_docker_postgres, stop_docker_postgres_on_exit
+
 @app.command()
 def chat(
     database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
@@ -138,44 +173,29 @@ def chat(
     local_storage_path: Optional[str] = typer.Option(None, envvar="ELROY_LOCAL_STORAGE_PATH"),
     context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
     log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH"),
-    use_docker_postgres: Optional[bool] = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
-    stop_docker_postgres_on_exit: Optional[bool] = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT"),
+    use_docker_postgres: bool = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
+    stop_docker_postgres_on_exit: bool = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT"),
 ):
     """Start the Elroy chat interface"""
-
     console = Console()
 
-    with console.status(f"[{DEFAULT_OUTPUT_COLOR}] Initializing Elroy...", spinner="dots") as status:
-        setup_logging(log_file_path)
-
-        if use_docker_postgres:
-            if database_url is not None:
-                logging.info("use_docker_postgres is set to True, ignoring database_url")
-
-            if not is_docker_running():
-                console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running. Please start Docker and try again.[/]")
-                exit(1)
-
-            database_url = start_db()
-
-        assert database_url, "Database URL is required"
-        assert openai_api_key, "OpenAI API key is required"
-
-    pipe(
-        get_config(
+    with console.status(f"[{DEFAULT_OUTPUT_COLOR}] Initializing Elroy...", spinner="dots"):
+        config, database_url, use_docker_postgres, stop_docker_postgres_on_exit = get_config_from_cli(
             database_url=database_url,
             openai_api_key=openai_api_key,
             local_storage_path=local_storage_path,
             context_window_token_limit=context_window_token_limit,
-        ),
-        partial(main_chat, console),
-        asyncio.run,
-    )
+            log_file_path=log_file_path,
+            use_docker_postgres=use_docker_postgres,
+            stop_docker_postgres_on_exit=stop_docker_postgres_on_exit,
+        )
+
+    pipe(config, partial(main_chat, console), asyncio.run)
 
     console.print(f"[{SYSTEM_MESSAGE_COLOR}]Exiting...[/]")
 
     if use_docker_postgres and stop_docker_postgres_on_exit:
-        logging.info("Stopping Docker Postgres containr...")
+        logging.info("Stopping Docker Postgres container...")
         stop_db()
 
 
@@ -276,26 +296,64 @@ async def main_chat(console: Console, config: ElroyConfig):
 @app.command()
 def upgrade(
     database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
+    openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY"),
+    local_storage_path: Optional[str] = typer.Option(None, envvar="ELROY_LOCAL_STORAGE_PATH"),
+    context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
+    log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH"),
+    use_docker_postgres: bool = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
+    stop_docker_postgres_on_exit: bool = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT"),
 ):
     """Run Alembic database migrations"""
-    assert database_url
+    config, database_url, use_docker_postgres, stop_docker_postgres_on_exit = get_config_from_cli(
+        database_url=database_url,
+        openai_api_key=openai_api_key,
+        local_storage_path=local_storage_path,
+        context_window_token_limit=context_window_token_limit,
+        log_file_path=log_file_path,
+        use_docker_postgres=use_docker_postgres,
+        stop_docker_postgres_on_exit=stop_docker_postgres_on_exit,
+    )
+
     alembic_cfg = Config("alembic.ini")
     alembic_cfg.set_main_option("sqlalchemy.url", database_url)
     command.upgrade(alembic_cfg, "head")
     typer.echo("Database upgrade completed.")
 
+    if use_docker_postgres and stop_docker_postgres_on_exit:
+        logging.info("Stopping Docker Postgres container...")
+        stop_db()
+
 
 @app.command()
 def migrate(
     database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
+    openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY"),
+    local_storage_path: Optional[str] = typer.Option(None, envvar="ELROY_LOCAL_STORAGE_PATH"),
+    context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
+    log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH"),
+    use_docker_postgres: bool = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
+    stop_docker_postgres_on_exit: bool = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT"),
     message: str = typer.Argument(...),
 ):
     """Generate a new Alembic migration"""
-    assert database_url
+    config, database_url, use_docker_postgres, stop_docker_postgres_on_exit = get_config_from_cli(
+        database_url=database_url,
+        openai_api_key=openai_api_key,
+        local_storage_path=local_storage_path,
+        context_window_token_limit=context_window_token_limit,
+        log_file_path=log_file_path,
+        use_docker_postgres=use_docker_postgres,
+        stop_docker_postgres_on_exit=stop_docker_postgres_on_exit,
+    )
+
     alembic_cfg = Config("alembic.ini")
     alembic_cfg.set_main_option("sqlalchemy.url", database_url)
     command.revision(alembic_cfg, message=message)
     typer.echo("Migration generated.")
+
+    if use_docker_postgres and stop_docker_postgres_on_exit:
+        logging.info("Stopping Docker Postgres container...")
+        stop_db()
 
 
 def main():
