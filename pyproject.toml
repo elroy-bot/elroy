@@ -30,6 +30,7 @@ celery = "^5.3.6"
 pygments = "^2.18.0"
 litellm = "^1.49.6"
 typer = "^0.12.5"
+bumpversion = "^0.6.0"
 
 [tool.pyright]
 include = [
@@ -70,6 +71,7 @@ pylint = "^3.3.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
 
 
 
