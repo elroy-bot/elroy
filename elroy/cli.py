@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from elroy import __version__
 from functools import partial
 from typing import List, Optional, Set
 
@@ -38,7 +39,19 @@ from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
 from elroy.tools.system_commands import SYSTEM_COMMANDS, invoke_system_command
 
-app = typer.Typer()
+app = typer.Typer(help="Elroy CLI")
+
+def version_callback(value: bool):
+    if value:
+        typer.echo(f"Elroy version: {__version__}")
+        raise typer.Exit()
+
+@app.callback()
+def common(
+    version: bool = typer.Option(None, "--version", callback=version_callback, is_eager=True, help="Show version and exit.")
+):
+    """Common parameters."""
+    pass
 
 
 def get_user_goals(context: ElroyContext) -> Set[str]:
