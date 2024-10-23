@@ -18,11 +18,13 @@ from prompt_toolkit.styles import Style
 from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
-from sqlmodel import select
+from sqlmodel import create_engine, select
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
 from alembic import command
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from alembic.config import Config
 from elroy.config import (ROOT_DIR, ElroyConfig, ElroyContext, get_config,
                           session_manager)
@@ -131,6 +133,24 @@ async def async_context_refresh_if_needed(context):
         await loop.run_in_executor(pool, context_refresh_if_needed, context)
 
 
+def check_database_migrations(database_url: str) -> bool:
+    """Check if database is up to date with migrations
+    Returns True if up to date, False if migrations are needed
+    """
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+    
+    # Get current and head revisions
+    engine = create_engine(database_url)
+    with engine.connect() as conn:
+        context = MigrationContext.configure(conn)
+        current_rev = context.get_current_revision()
+    
+    script = ScriptDirectory.from_config(alembic_cfg)
+    head_rev = script.get_current_head()
+    
+    return current_rev == head_rev
+
 def get_config_from_cli(
     database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
     openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY"),
@@ -156,6 +176,10 @@ def get_config_from_cli(
         raise typer.Exit("Database URL is required")
     if not openai_api_key:
         raise typer.Exit("OpenAI API key is required")
+
+    # Check if database needs migrations
+    if not check_database_migrations(database_url):
+        raise typer.Exit("Database is not up to date. Please run 'elroy upgrade' first.")
 
     config = get_config(
         database_url=database_url,
@@ -304,6 +328,7 @@ def upgrade(
     stop_docker_postgres_on_exit: bool = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT"),
 ):
     """Run Alembic database migrations"""
+    # Skip migration check for upgrade command
     config, database_url, use_docker_postgres, stop_docker_postgres_on_exit = get_config_from_cli(
         database_url=database_url,
         openai_api_key=openai_api_key,
@@ -313,6 +338,10 @@ def upgrade(
         use_docker_postgres=use_docker_postgres,
         stop_docker_postgres_on_exit=stop_docker_postgres_on_exit,
     )
+
+    if check_database_migrations(database_url):
+        typer.echo("Database is already up to date.")
+        return
 
     alembic_cfg = Config("alembic.ini")
     alembic_cfg.set_main_option("sqlalchemy.url", database_url)
