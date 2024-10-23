@@ -8,7 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    environment:
+      name: release
     steps:
     - name: Check out code
       uses: actions/checkout@v2
@@ -16,7 +17,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.x'  # Specify the Python version
+        python-version: '3.11'  # Specify the Python version
 
     - name: Install dependencies
       run: poetry install
