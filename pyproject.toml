@@ -2,7 +2,7 @@
 name = "elroy"
 version = "0.0.6"
 description = ""
-authors = ["Tom Bedor <tombedor@gmail.com>"]
+authors = ["Elroy Bot <bot@elroy.ai>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
