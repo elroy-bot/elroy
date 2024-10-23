@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "elroy"
-version = "0.0.3"
+version = "0.0.5"
 description = ""
 authors = ["Tom Bedor <tombedor@gmail.com>"]
 readme = "README.md"
