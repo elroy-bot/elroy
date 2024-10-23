@@ -1,13 +1,17 @@
 import logging
 from functools import partial
-from typing import List, Tuple
+from typing import List, Set, Tuple
 
-from toolz import pipe
+from sqlmodel import select
+from toolz import concat, pipe
+from toolz.curried import filter, map, unique
 
 from elroy.config import ElroyContext
 from elroy.llm.client import query_llm_json
 from elroy.llm.prompts import summarize_for_memory
 from elroy.store.data_models import ContextMessage, Memory
+from elroy.store.message import get_context_messages
+from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL, MEMORY_WORD_COUNT_LIMIT
 from elroy.tools.messenger import remove_from_context
 
@@ -60,7 +64,7 @@ def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory
         if isinstance(new_texts, dict):
             new_texts = [new_texts]
 
-        print("REASONING: ", response["REASONING"])  # type: ignore
+        logging.info("REASONING: ", response["REASONING"])  # type: ignore
 
         new_ids = []
         for new_text in new_texts:
@@ -100,3 +104,28 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     upsert_embedding(context.session, memory)
 
     return memory_id
+
+
+def get_memory_names(context: ElroyContext) -> Set[str]:
+    """Fetch all active memories for the user"""
+    memories = context.session.exec(
+        select(Memory).where(
+            Memory.user_id == context.user_id,
+            Memory.is_active == True,
+        )
+    ).all()
+    return {memory.name for memory in memories}
+
+
+def get_relevant_memories(context: ElroyContext) -> List[str]:
+    return pipe(
+        get_context_messages(context),
+        filter(lambda m: m.created_at_utc_epoch_secs > get_utc_now().timestamp() - context.config.max_in_context_message_age_seconds),
+        map(lambda m: m.memory_metadata),
+        filter(lambda m: m is not None),
+        concat,
+        map(lambda m: f"{m.memory_type}: {m.name}"),
+        unique,
+        list,
+        sorted,
+    )  # type: ignore
