@@ -2913,24 +2913,6 @@ files = [
 cffi = {version = "*", markers = "implementation_name == \"pypy\""}
 
 [[package]]
-name = "questionary"
-version = "2.0.1"
-description = "Python library to build pretty command line user prompts ⭐️"
-optional = false
-python-versions = ">=3.8"
-files = []
-develop = false
-
-[package.dependencies]
-prompt_toolkit = ">=2.0,<4.0"
-
-[package.source]
-type = "git"
-url = "https://github.com/tmbo/questionary.git"
-reference = "669cda296f3913267ca430fa5b769fadfb0b2953"
-resolved_reference = "669cda296f3913267ca430fa5b769fadfb0b2953"
-
-[[package]]
 name = "referencing"
 version = "0.35.1"
 description = "JSON Referencing + Python"
@@ -4019,4 +4001,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "39ee0c8fcce6f4f91a94588bc37d191ede4540147c8d747e7897e3f03a809f7e"
+content-hash = "92c5c74af2bd685b562c94d54cdc4a5d2c63171b4f9c806ea6fb19e74213a909"
