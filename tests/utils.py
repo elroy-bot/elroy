@@ -28,7 +28,7 @@ def process_test_message(context: ElroyContext, msg: str) -> str:
 def vector_search_by_text(context: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
     from elroy.llm.client import get_embedding
 
-    return first_or_none(query_vector(context, get_embedding(query), table))
+    return first_or_none(query_vector(context, get_embedding(query), table)) # type: ignore
 
 
 def ask_assistant_bool(context: ElroyContext, question: str) -> Tuple[bool, str]:

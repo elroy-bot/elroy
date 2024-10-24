@@ -80,7 +80,7 @@ ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
 def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> str:
-    from elroy.cli import SYSTEM_MESSAGE_COLOR
+    from elroy.system.parameters import SYSTEM_MESSAGE_COLOR
 
     msg = f"[{SYSTEM_MESSAGE_COLOR}]Executing function call: [bold]{function_call.function_name}[/bold]"
 
