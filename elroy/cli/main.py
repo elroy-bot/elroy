@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import sys
-import requests
 from importlib.metadata import version, packages_distributions
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -21,14 +20,10 @@ from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
 
-from io import StringIO
-import contextlib
 
 from alembic import command
 from alembic.config import Config
-from alembic.runtime.migration import MigrationContext
-from alembic.script import ScriptDirectory
-from sqlalchemy import engine_from_config
+from elroy.cli.updater import _check_latest_version, _check_migrations_status, _restart_command, _upgrade_if_confirmed, _version_tuple, version_callback
 from elroy.config import (ROOT_DIR, ElroyContext, get_config,
                           session_manager)
 from elroy.docker_postgres import is_docker_running, start_db, stop_db
@@ -38,6 +33,9 @@ from elroy.onboard_user import onboard_user
 from elroy.store.goals import get_goal_names
 from elroy.store.user import is_user_exists
 from elroy.system.parameters import CLI_USER_ID
+from elroy.system.parameters import DEFAULT_OUTPUT_COLOR
+from elroy.system.parameters import DEFAULT_INPUT_COLOR
+from elroy.system.parameters import SYSTEM_MESSAGE_COLOR
 from elroy.system_context import context_refresh_if_needed
 from elroy.tools.functions.user_preferences import set_user_preferred_name
 from elroy.tools.messenger import process_message
@@ -45,77 +43,6 @@ from elroy.tools.system_commands import SYSTEM_COMMANDS, invoke_system_command
 
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
-def _version_tuple(v: str) -> tuple:
-    """Convert version string to tuple for comparison"""
-    return tuple(map(int, v.split('.')))
-
-def _check_latest_version() -> tuple[str, str]:
-    """Check latest version of elroy on PyPI
-    Returns tuple of (current_version, latest_version)"""
-    current_version = __version__
-    try:
-        response = requests.get("https://pypi.org/pypi/elroy/json")
-        latest_version = response.json()["info"]["version"]
-        return current_version, latest_version
-    except Exception as e:
-        logging.warning(f"Failed to check latest version: {e}")
-        return current_version, current_version
-
-
-def version_callback(value: bool):
-    if value:
-        current_version, latest_version = _check_latest_version()
-        if _version_tuple(latest_version) > _version_tuple(current_version):
-            typer.echo(f"Elroy version: {current_version} (newer version {latest_version} available)")
-            typer.echo("\nTo upgrade, run:")
-            typer.echo(f"    pip install --upgrade elroy=={latest_version}")            
-        else:
-            typer.echo(f"Elroy version: {current_version} (up to date)")
-            
-        raise typer.Exit()
-
-
-def _check_migrations_status(console, database_url: str) -> None:
-    """Check if all migrations have been run.
-    Returns True if migrations are up to date, False otherwise."""
-    config = Config("alembic.ini")
-    config.set_main_option("sqlalchemy.url", database_url)
-    
-    # Configure alembic logging to use Python's logging
-    logging.getLogger('alembic').setLevel(logging.INFO)
-    
-    script = ScriptDirectory.from_config(config)
-    engine = engine_from_config(
-        config.get_section(config.config_ini_section), # type: ignore
-        prefix='sqlalchemy.',
-    )
-
-    with engine.connect() as connection:
-        context = MigrationContext.configure(connection)
-        current_rev = context.get_current_revision()
-        head_rev = script.get_current_head()
-        
-        if current_rev != head_rev:
-            with console.status(f"[{SYSTEM_MESSAGE_COLOR}] setting up database...[/]"):
-                # Capture and redirect alembic output to logging
-                
-                with contextlib.redirect_stdout(StringIO()) as stdout:
-                    command.upgrade(config, "head")
-                    for line in stdout.getvalue().splitlines():
-                        if line.strip():
-                            logging.info(f"Alembic: {line.strip()}")
-        else:
-            logging.debug("Database is up to date.")
-            
-def _upgrade_if_confirmed(current_version: str, latest_version: str) -> bool:
-    """Prompt for upgrade if newer version available. Returns True if upgraded."""
-    if _version_tuple(latest_version) > _version_tuple(current_version):
-        if typer.confirm("Would you like to upgrade elroy?"):
-            typer.echo("Upgrading elroy...")
-            os.system(f"{sys.executable} -m pip install --upgrade elroy=={latest_version}")
-            return True
-    return False            
-        
 @contextmanager
 def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext as a context manager"""
@@ -186,11 +113,6 @@ def common(
     }
 
 
-DEFAULT_OUTPUT_COLOR = "#77DFD8"
-DEFAULT_INPUT_COLOR = "#FFE377"
-SYSTEM_MESSAGE_COLOR = "#9ACD32"
-
-
 @app.command()
 def chat(ctx: typer.Context):
     """Start the Elroy chat interface"""
@@ -212,13 +134,6 @@ def upgrade(ctx: typer.Context):
         command.upgrade(alembic_cfg, "head")
         typer.echo("Database upgrade completed.")
         
-def _restart_command():
-    """Restart the current command with the same arguments"""
-    typer.echo("Restarting elroy...")
-    os.execv(sys.executable, [sys.executable] + sys.argv)
-
-    
-
 def process_and_deliver_msg(context: ElroyContext, user_input: str):
     if user_input.startswith("/"):
         cmd = user_input[1:].split()[0]
@@ -255,9 +170,6 @@ class SlashCompleter(WordCompleter):
         words += [f"/{f.__name__} {memory}" for f in MEMORY_COMMANDS for memory in self.memories]
         return words
 
-def rule():
-    console = Console()
-    console.rule(style=DEFAULT_INPUT_COLOR)
 
 
 def display_memory_titles(titles):
@@ -308,7 +220,7 @@ async def main_chat(context: ElroyContext):
 
     while True:
         try:
-            rule()
+            context.console.rule(style=DEFAULT_INPUT_COLOR)
             session.completer = SlashCompleter(get_goal_names(context),get_memory_names(context),)
             relevant_memories = get_relevant_memories(context)
             if relevant_memories:
