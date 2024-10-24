@@ -36,9 +36,3 @@ def debug_log(value: T) -> T:
     print(f"CURRENT VALUE: {value}")
     return value
 
-
-def get_missing_arguments(func):
-    signature = inspect.signature(func.func)
-    bound = signature.bind_partial(**func.keywords)
-    missing_args = [param_name for param_name, param in signature.parameters.items() if param_name not in bound.arguments]
-    return missing_args

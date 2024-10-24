@@ -1,7 +1,6 @@
 import os
 from dataclasses import dataclass
 from datetime import timedelta
-from enum import Enum
 from typing import Optional
 
 from rich.console import Console
@@ -11,9 +10,6 @@ from sqlmodel import Session
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-class ElroyEnv(Enum):
-    TESTING = "testing"
-    LOCAL = "local"
 
 
 @dataclass
@@ -64,15 +60,6 @@ def session_manager(database_url: str) -> Generator[Session, None, None]:
     finally:
         session.close()
 
-
-def _get_elroy_env() -> ElroyEnv:
-    if os.environ.get("PYTEST_VERSION"):
-        return ElroyEnv.TESTING
-    else:
-        return ElroyEnv.LOCAL
-
-
-is_test_env = lambda: _get_elroy_env() == ElroyEnv.TESTING
 
 
 @dataclass

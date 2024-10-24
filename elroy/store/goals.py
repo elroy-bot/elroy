@@ -255,9 +255,9 @@ def _update_goal_status(context: ElroyContext, goal_name: str, status: str, is_t
     upsert_embedding(context.session, goal)
 
     if not goal.is_active:
-        from elroy.tools.messenger import remove_goal_from_context
+        from elroy.tools.messenger import remove_from_context
 
-        remove_goal_from_context(context, goal.id)
+        remove_from_context(context, goal)
 
 
 def get_active_goals_summary(context: ElroyContext) -> str:

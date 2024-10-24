@@ -2,9 +2,8 @@ import logging
 import time
 from datetime import UTC, datetime
 from functools import partial
-from typing import Iterable, Iterator, Optional, Type, TypeVar
+from typing import Iterator, Optional, TypeVar
 
-from toolz import last
 
 T = TypeVar("T")
 
@@ -30,18 +29,9 @@ def first_or_none(iterable: Iterator[T]) -> Optional[T]:
     return next(iterable, None)
 
 
-def last_or_none(iterable: Iterable[T]) -> Optional[T]:
-    try:
-        return last(iterable)
-    except IndexError:
-        return None
 
 
-def assert_type(expected_type: Type, value: T) -> T:
-    if not isinstance(value, expected_type):
-        raise ValueError(f"Expected {expected_type} but got {type(value)}")
-    else:
-        return value
+
 
 
 datetime_to_string = lambda date: date.strftime("%A, %B %d, %Y %I:%M %p %Z")

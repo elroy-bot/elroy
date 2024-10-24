@@ -13,26 +13,6 @@ from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
 
 
-def _get_last_user_message(context: ElroyContext) -> Optional[Message]:
-    statement = (
-        select(Message)
-        .where(
-            Message.user_id == context.user_id,
-            Message.role == "user",
-        )
-        .order_by(desc(Message.created_at))
-    )
-    return context.session.exec(statement).first()
-
-
-def get_time_since_last_user_message(context: ElroyContext) -> Optional[timedelta]:
-    last_user_message = _get_last_user_message(context)
-
-    if not last_user_message:
-        return None
-
-    else:
-        return get_utc_now() - convert_to_utc(last_user_message.created_at)
 
 
 def context_message_to_db_message(user_id: int, context_message: ContextMessage):

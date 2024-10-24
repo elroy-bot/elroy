@@ -5,7 +5,6 @@ CLI_USER_ID = 1
 ### Model parameters ###
 
 CHAT_MODEL = os.getenv("ELROY_CHAT_MODEL", "gpt-4o")
-MEMORY_PROCESSING_MODEL = os.getenv("MEMORY_PROCESSING_MODEL", "gpt-4o-mini")
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_SIZE = 1536

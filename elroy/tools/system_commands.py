@@ -240,7 +240,7 @@ def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -
     Returns:
         str: Information for the goal with the given name
     """
-    from elroy.tools.messenger import remove_goal_from_context
+    from elroy.tools.messenger import remove_from_context
 
     goal = context.session.exec(
         select(Goal).where(
@@ -249,8 +249,7 @@ def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -
         )
     ).first()
     if goal:
-        assert goal.id
-        remove_goal_from_context(context, goal.id)
+        remove_from_context(context, goal)
         return f"Goal '{goal_name}' dropped from context."
 
     else:
