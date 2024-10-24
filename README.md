@@ -1,23 +1,36 @@
 # Elroy
 
-Elroy is an CLI AI personal assistant with long term memory and goal tracking capabilities..
+Elroy is an CLI AI personal assistant with long term memory and goal tracking capabilities.
 
-## Install and running the CLI.
+## Installation
 
-### Prerequisites
+There are two ways to install and run Elroy:
 
+### 1. Using pipx (Recommended)
+
+#### Prerequisites
+- Python 3.11 or higher
+- pipx: Install with `python3.11 -m pip install --user pipx`
+- OpenAI key: Set the `OPENAI_API_KEY` environment variable
+
+#### Installation
+```
+pipx install --python python3.11 elroy
+```
+
+To run:
+```
+elroy
+```
+
+### 2. Docker Requirement
+
+#### Prerequisites
 - Docker: [Install Docker](https://docs.docker.com/get-docker/)
-- OpenAI key: Your OpenAI key should be available via the `OPENAI_API_KEY` env variable. Elroy uses GPT-4o.
+- Docker daemon must be running (Elroy uses it to create a PostgreSQL container)
+- OpenAI key: Set the `OPENAI_API_KEY` environment variable
 
-### Running the CLI
-
-The Elroy CLI runs via Docker. To install and run:
-
-```
-git clone https://github.com/tombedor/elroy.git
-cd elroy
-./cli.sh
-```
+Note: You don't need to run Elroy in Docker - it just needs Docker running to manage its PostgreSQL database.
 
 ## License
 

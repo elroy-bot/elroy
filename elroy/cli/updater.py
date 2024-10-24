@@ -28,7 +28,7 @@ def _upgrade_if_confirmed(current_version: str, latest_version: str) -> bool:
     if _version_tuple(latest_version) > _version_tuple(current_version):
         if typer.confirm("Would you like to upgrade elroy?"):
             typer.echo("Upgrading elroy...")
-            os.system(f"{sys.executable} -m pip install --upgrade elroy=={latest_version}")
+            os.system(f"{sys.executable} -m pipx upgrade elroy=={latest_version}")
             return True
     return False
 
@@ -91,7 +91,7 @@ def version_callback(value: bool):
         if _version_tuple(latest_version) > _version_tuple(current_version):
             typer.echo(f"Elroy version: {current_version} (newer version {latest_version} available)")
             typer.echo("\nTo upgrade, run:")
-            typer.echo(f"    pip install --upgrade elroy=={latest_version}")
+            typer.echo(f"    pipx upgrade elroy=={latest_version}")
         else:
             typer.echo(f"Elroy version: {current_version} (up to date)")
 
