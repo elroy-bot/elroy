@@ -1,79 +1,10 @@
 import logging
-from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Generator, Optional
 
 from pytz import UTC
 
-from elroy.config import is_test_env
 
-
-class FakeClock:
-    frozen_time: Optional[datetime] = None
-    offset: timedelta = timedelta()
-
-    @classmethod
-    def get_utc_now(cls) -> datetime:
-        if cls.frozen_time:
-            return cls.frozen_time
-        else:
-            return datetime.now(UTC) + cls.offset
-
-    @classmethod
-    def advance(cls, delta: timedelta) -> None:
-        if cls.frozen_time:
-            cls._set_frozen_time(cls.frozen_time + delta)
-        else:
-            cls.set_offset(cls.offset + delta)
-
-    @classmethod
-    def freeze_time(cls, time: datetime) -> None:
-        cls._set_frozen_time(time)
-
-    @classmethod
-    def reset(cls) -> None:
-        cls.set_offset(timedelta())
-
-    @classmethod
-    def start(cls) -> None:
-        assert cls.frozen_time
-        cls.set_offset(cls.frozen_time - cls.get_utc_now())
-
-    @classmethod
-    def stop(cls) -> None:
-        assert cls.frozen_time is None
-
-        cls._set_frozen_time(cls.get_utc_now() + cls.offset)
-
-    @classmethod
-    def set_offset(cls, offset: timedelta) -> None:
-        """
-        Either an offset or a frozen time can be set, but not both.
-        """
-        cls.frozen_time = None
-        cls.offset = offset
-
-    @classmethod
-    def _set_frozen_time(cls, dt: datetime) -> None:
-        assert cls.frozen_time is not None
-
-        cls.frozen_time = dt
-        cls.offset = timedelta()
-
-
-@contextmanager
-def clock_starting_at(time: datetime) -> Generator[None, None, None]:
-    FakeClock.set_offset(time - FakeClock.get_utc_now())
-    try:
-        yield
-    finally:
-        FakeClock.reset()
-
-
-if is_test_env():
-    get_utc_now = FakeClock.get_utc_now
-else:
-    get_utc_now = lambda: datetime.now(UTC)
+get_utc_now = lambda: datetime.now(UTC)
 
 
 def string_to_timedelta(time_to_completion: str) -> timedelta:
