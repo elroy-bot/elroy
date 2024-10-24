@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import sys
-from importlib.metadata import version, packages_distributions
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Generator
