@@ -127,8 +127,6 @@ def remove_memory_from_context(memory_type: str, context: ElroyContext, memory_i
     )
 
 
-remove_goal_from_context = partial(remove_memory_from_context, Goal.__name__)
-remove_assistant_memory_from_context = partial(remove_memory_from_context, Memory.__name__)
 
 
 @logged_exec_time
