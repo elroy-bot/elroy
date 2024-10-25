@@ -10,7 +10,7 @@ from typing import Callable, Optional, Set
 
 from sqlmodel import select
 from toolz import pipe
-from toolz.curried import filter, map
+from toolz.curried import filter
 
 from elroy.config import ElroyContext
 from elroy.llm import client
@@ -28,6 +28,7 @@ from elroy.tools.functions.user_preferences import (get_user_full_name,
                                                     set_user_full_name,
                                                     set_user_preferred_name)
 
+from rich.pretty import Pretty
 
 def invoke_system_command(context: ElroyContext, msg: str) -> str:
     if msg.startswith("/"):
@@ -134,7 +135,7 @@ def reset_system_context(context: ElroyContext) -> str:
     return "Context reset complete"
 
 
-def print_context_messages(context: ElroyContext) -> str:
+def print_context_messages(context: ElroyContext) -> Pretty:
     """Logs all of the current context messages to stdout
 
     Args:
@@ -144,13 +145,7 @@ def print_context_messages(context: ElroyContext) -> str:
 
     from elroy.store.message import get_context_messages
 
-    return pipe(
-        get_context_messages(context),
-        map(lambda x: f"{x.role} ({x.memory_metadata}): {x.content}"),
-        list,
-        "-----\n".join,
-        str,
-    )  # type: ignore
+    return Pretty(get_context_messages(context))
 
 
 def print_goal(context: ElroyContext, goal_name: str) -> str:

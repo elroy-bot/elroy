@@ -19,6 +19,8 @@ from prompt_toolkit.styles import Style
 from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
+from rich.pretty import Pretty
+from rich.text import Text
 
 
 from alembic import command
@@ -52,31 +54,30 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
     session = None
 
     try:
-        with console.status(f"[{DEFAULT_OUTPUT_COLOR}] Initializing Elroy...", spinner="dots"):
-            setup_logging(ctx.obj["log_file_path"])
+        setup_logging(ctx.obj["log_file_path"])
 
-            if ctx.obj["use_docker_postgres"]:
-                if ctx.obj["database_url"] is not None:
-                    logging.info("use_docker_postgres is set to True, ignoring database_url")
+        if ctx.obj["use_docker_postgres"]:
+            if ctx.obj["database_url"] is not None:
+                logging.info("use_docker_postgres is set to True, ignoring database_url")
 
-                if not is_docker_running():
-                    console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running. Please start Docker and try again.[/]")
-                    exit(1)
+            if not is_docker_running():
+                console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running. Please start Docker and try again.[/]")
+                exit(1)
 
-                ctx.obj["database_url"] = start_db()
+            ctx.obj["database_url"] = start_db()
 
-            assert ctx.obj["database_url"], "Database URL is required"
-            assert ctx.obj["openai_api_key"], "OpenAI API key is required"
+        assert ctx.obj["database_url"], "Database URL is required"
+        assert ctx.obj["openai_api_key"], "OpenAI API key is required"
 
-            # Check if migrations need to be run
-            _check_migrations_status(console, ctx.obj["database_url"])
+        # Check if migrations need to be run
+        _check_migrations_status(console, ctx.obj["database_url"])
 
-            config = get_config(
-                database_url=ctx.obj["database_url"],
-                openai_api_key=ctx.obj["openai_api_key"],
-                local_storage_path=ctx.obj["local_storage_path"],
-                context_window_token_limit=ctx.obj["context_window_token_limit"],
-            )
+        config = get_config(
+            database_url=ctx.obj["database_url"],
+            openai_api_key=ctx.obj["openai_api_key"],
+            local_storage_path=ctx.obj["local_storage_path"],
+            context_window_token_limit=ctx.obj["context_window_token_limit"],
+        )
 
         with session_manager(config.database_url) as session:
             yield ElroyContext(
@@ -145,7 +146,10 @@ def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
         else:
             try:
                 response = invoke_system_command(context, user_input)
-                context.console.print(f"[{DEFAULT_OUTPUT_COLOR}]{response}[/]", end="")
+                if isinstance(response, Pretty):
+                    context.console.print(response)
+                else:
+                    context.console.print(f"[{DEFAULT_OUTPUT_COLOR}]{response}[/]", end="")
                 context.console.print()  # New line after complete response
             except Exception as e:
                 context.console.print(f"Error invoking system command: {e}")
@@ -191,7 +195,9 @@ async def async_context_refresh_if_needed(context):
 
 
 async def main_chat(context: ElroyContext):
+
     init(autoreset=True)
+    context.console.rule(Text("Elroy", justify="center", style=DEFAULT_INPUT_COLOR), style=DEFAULT_INPUT_COLOR)
 
     history = InMemoryHistory()
 
@@ -225,7 +231,7 @@ async def main_chat(context: ElroyContext):
     else:
         preferred_name = get_user_preferred_name(context)
 
-        process_and_deliver_msg(context, f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now())}", ASSISTANT)
+        process_and_deliver_msg(context, f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now())}. I should offer a brief greeting.", ASSISTANT)
 
     while True:
         try:
