@@ -39,11 +39,11 @@ def _restart_command():
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
-def _check_migrations_status(console, database_url: str) -> None:
+def _check_migrations_status(console, postgres_url: str) -> None:
     """Check if all migrations have been run.
     Returns True if migrations are up to date, False otherwise."""
     config = Config("alembic.ini")
-    config.set_main_option("sqlalchemy.url", database_url)
+    config.set_main_option("sqlalchemy.url", postgres_url)
 
     # Configure alembic logging to use Python's logging
     logging.getLogger('alembic').setLevel(logging.INFO)

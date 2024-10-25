@@ -17,7 +17,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @dataclass
 class ElroyConfig:
-    database_url: str
+    postgres_url: str
     openai_api_key: str
     local_storage_path: Optional[str]
     context_window_token_limit: int
@@ -28,7 +28,7 @@ class ElroyConfig:
 
 
 def get_config(
-    database_url: str,
+    postgres_url: str,
     openai_api_key: str,
     local_storage_path: Optional[str] = None,
     context_window_token_limit: Optional[int] = None,
@@ -36,7 +36,7 @@ def get_config(
     context_window_token_limit = context_window_token_limit or 16384
 
     return ElroyConfig(
-        database_url=database_url,
+        postgres_url=postgres_url,
         openai_api_key=openai_api_key,
         local_storage_path=local_storage_path or ".cache",
         context_window_token_limit=context_window_token_limit,
@@ -50,8 +50,8 @@ def get_config(
 
 
 @contextmanager
-def session_manager(database_url: str) -> Generator[Session, None, None]:
-    session = Session(create_engine(database_url, poolclass=NullPool))
+def session_manager(postgres_url: str) -> Generator[Session, None, None]:
+    session = Session(create_engine(postgres_url, poolclass=NullPool))
     try:
         yield session
         session.commit()

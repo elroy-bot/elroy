@@ -57,29 +57,29 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
         setup_logging(ctx.obj["log_file_path"])
 
         if ctx.obj["use_docker_postgres"]:
-            if ctx.obj["database_url"] is not None:
-                logging.info("use_docker_postgres is set to True, ignoring database_url")
+            if ctx.obj["postgres_url"] is not None:
+                logging.info("postgres_url is set, ignoring use_docker_postgres set to True")
 
-            if not is_docker_running():
-                console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running. Please start Docker and try again.[/]")
-                exit(1)
+            else:
+                if not is_docker_running():
+                    console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running. Please start Docker and try again.[/]")
+                    exit(1)
+                ctx.obj["postgres_url"] = start_db()
 
-            ctx.obj["database_url"] = start_db()
-
-        assert ctx.obj["database_url"], "Database URL is required"
+        assert ctx.obj["postgres_url"], "Database URL is required"
         assert ctx.obj["openai_api_key"], "OpenAI API key is required"
 
         # Check if migrations need to be run
-        _check_migrations_status(console, ctx.obj["database_url"])
+        _check_migrations_status(console, ctx.obj["postgres_url"])
 
         config = get_config(
-            database_url=ctx.obj["database_url"],
+            postgres_url=ctx.obj["postgres_url"],
             openai_api_key=ctx.obj["openai_api_key"],
             local_storage_path=ctx.obj["local_storage_path"],
             context_window_token_limit=ctx.obj["context_window_token_limit"],
         )
 
-        with session_manager(config.database_url) as session:
+        with session_manager(config.postgres_url) as session:
             yield ElroyContext(
                 user_id=CLI_USER_ID,
                 session=session,
@@ -96,7 +96,7 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
 def common(
     ctx: typer.Context,
     version: bool = typer.Option(None, "--version", callback=version_callback, is_eager=True, help="Show version and exit."),
-    database_url: Optional[str] = typer.Option(None, envvar="ELROY_DATABASE_URL"),
+    postgres_url: Optional[str] = typer.Option(None, envvar="ELROY_POSTGRES_URL"),
     openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY"),
     local_storage_path: Optional[str] = typer.Option(None, envvar="ELROY_LOCAL_STORAGE_PATH"),
     context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
@@ -106,7 +106,7 @@ def common(
 ):
     """Common parameters."""
     ctx.obj = {
-        "database_url": database_url,
+        "postgres_url": postgres_url,
         "openai_api_key": openai_api_key,
         "local_storage_path": local_storage_path,
         "context_window_token_limit": context_window_token_limit,
@@ -130,10 +130,10 @@ def chat(ctx: typer.Context):
 
 @app.command()
 def upgrade(ctx: typer.Context):
-    """Run Alembic database migrations"""
+    """Upgrades Elroy to the most recent version."""
     with get_elroy_context(ctx) as context:
         alembic_cfg = Config("alembic.ini")
-        alembic_cfg.set_main_option("sqlalchemy.url", context.config.database_url)
+        alembic_cfg.set_main_option("sqlalchemy.url", context.config.postgres_url)
         command.upgrade(alembic_cfg, "head")
         typer.echo("Database upgrade completed.")
 

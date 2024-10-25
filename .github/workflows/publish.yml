@@ -32,9 +32,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-    - name: Set ELROY_TEST_DATABASE_URL
+    - name: Set ELROY_TEST_POSTGRES_URL
       run: |
-        echo "ELROY_TEST_DATABASE_URL=postgresql://your_db_user:your_db_password@localhost:5432/your_db_name" >> $GITHUB_ENV
+        echo "ELROY_TEST_POSTGRES_URL=postgresql://your_db_user:your_db_password@localhost:5432/your_db_name" >> $GITHUB_ENV
     - name: Set up Python 3.11
       uses: actions/setup-python@v2
       with:
@@ -84,9 +84,9 @@ jobs:
       name: release
 
     steps:
-    - name: Set DATABASE_URL
+    - name: Set POSTGRES_URL
       run: |
-        echo "DATABASE_URL=postgresql://your_db_user:your_db_password@localhost:5432/your_db_name" >> $GITHUB_ENV
+        echo "POSTGRES_URL=postgresql://your_db_user:your_db_password@localhost:5432/your_db_name" >> $GITHUB_ENV
 
     - name: Check out code
       uses: actions/checkout@v2
