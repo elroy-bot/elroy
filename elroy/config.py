@@ -19,7 +19,6 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class ElroyConfig:
     postgres_url: str
     openai_api_key: str
-    local_storage_path: Optional[str]
     context_window_token_limit: int
     context_refresh_token_trigger_limit: int  # how many tokens we reach before triggering refresh
     context_refresh_token_target: int  # how many tokens we aim to have after refresh
@@ -30,7 +29,6 @@ class ElroyConfig:
 def get_config(
     postgres_url: str,
     openai_api_key: str,
-    local_storage_path: Optional[str] = None,
     context_window_token_limit: Optional[int] = None,
 ) -> ElroyConfig:
     context_window_token_limit = context_window_token_limit or 16384
@@ -38,7 +36,6 @@ def get_config(
     return ElroyConfig(
         postgres_url=postgres_url,
         openai_api_key=openai_api_key,
-        local_storage_path=local_storage_path or ".cache",
         context_window_token_limit=context_window_token_limit,
         context_refresh_token_trigger_limit=int(context_window_token_limit * 0.66),
         context_refresh_token_target=int(context_window_token_limit * 0.33),

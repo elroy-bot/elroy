@@ -75,7 +75,6 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
         config = get_config(
             postgres_url=ctx.obj["postgres_url"],
             openai_api_key=ctx.obj["openai_api_key"],
-            local_storage_path=ctx.obj["local_storage_path"],
             context_window_token_limit=ctx.obj["context_window_token_limit"],
         )
 
@@ -96,9 +95,8 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
 def common(
     ctx: typer.Context,
     version: bool = typer.Option(None, "--version", callback=version_callback, is_eager=True, help="Show version and exit."),
-    postgres_url: Optional[str] = typer.Option(None, envvar="ELROY_POSTGRES_URL"),
-    openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY"),
-    local_storage_path: Optional[str] = typer.Option(None, envvar="ELROY_LOCAL_STORAGE_PATH"),
+    postgres_url: Optional[str] = typer.Option(None, envvar="ELROY_POSTGRES_URL", help="Postgres URL to use for Elroy. If set, ovverrides use_docker_postgres."),
+    openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY", help="OpenAI API key, required."),
     context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
     log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH"),
     use_docker_postgres: Optional[bool] = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
@@ -108,7 +106,6 @@ def common(
     ctx.obj = {
         "postgres_url": postgres_url,
         "openai_api_key": openai_api_key,
-        "local_storage_path": local_storage_path,
         "context_window_token_limit": context_window_token_limit,
         "log_file_path": log_file_path,
         "use_docker_postgres": use_docker_postgres,
