@@ -97,10 +97,10 @@ def common(
     version: bool = typer.Option(None, "--version", callback=version_callback, is_eager=True, help="Show version and exit."),
     postgres_url: Optional[str] = typer.Option(None, envvar="ELROY_POSTGRES_URL", help="Postgres URL to use for Elroy. If set, ovverrides use_docker_postgres."),
     openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY", help="OpenAI API key, required."),
-    context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT"),
-    log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH"),
-    use_docker_postgres: Optional[bool] = typer.Option(True, envvar="USE_DOCKER_POSTGRES"),
-    stop_docker_postgres_on_exit: Optional[bool] = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT"),
+    context_window_token_limit: Optional[int] = typer.Option(None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT", help="How many tokens to keep in context before compressing."),
+    log_file_path: str = typer.Option(os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH", help="Where to write logs."),
+    use_docker_postgres: Optional[bool] = typer.Option(True, envvar="USE_DOCKER_POSTGRES", help="If true and postgres_url is not set, will attempt to start a Docker container for Postgres."),
+    stop_docker_postgres_on_exit: Optional[bool] = typer.Option(False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT", help="Whether or not to stop the Postgres container on exit."),
 ):
     """Common parameters."""
     ctx.obj = {
