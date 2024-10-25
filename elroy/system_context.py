@@ -12,7 +12,7 @@ from toolz.curried import filter, map, remove
 from elroy.config import ElroyContext
 from elroy.llm.prompts import persona, summarize_conversation
 from elroy.memory import consolidate_memories
-from elroy.store.data_models import ContextMessage, Memory
+from elroy.store.data_models import ASSISTANT, TOOL, USER, ContextMessage, Memory
 from elroy.store.embeddings import find_redundant_pairs
 from elroy.store.message import (get_context_messages,
                                  get_time_since_context_message_creation,
@@ -28,7 +28,7 @@ def get_refreshed_system_message(user_preferred_name: str, context_messages: Lis
         # skip existing system message if it is still in context.
         context_messages = context_messages[1:]
 
-    if len([msg for msg in context_messages if msg.role == "user"]) == 0:
+    if len([msg for msg in context_messages if msg.role == USER]) == 0:
         conversation_summary = None
     else:
         conversation_summary = pipe(
@@ -55,9 +55,9 @@ def format_message(user_preferred_name: str, message: ContextMessage) -> Optiona
     datetime_str = utc_epoch_to_datetime_string(message.created_at_utc_epoch_secs)
     if message.role == "system":
         return f"SYSTEM ({datetime_str}): {message.content}"
-    elif message.role == "user":
+    elif message.role == USER:
         return f"{user_preferred_name.upper()} ({datetime_str}): {message.content}"
-    elif message.role == "assistant":
+    elif message.role == ASSISTANT:
         if message.content:
             return f"ELROY ({datetime_str}): {message.content}"
         elif message.tool_calls:
@@ -78,7 +78,7 @@ def count_tokens(s: Optional[str]) -> int:
 def is_context_refresh_needed(context: ElroyContext) -> bool:
     context_messages = get_context_messages(context)
 
-    if sum(1 for m in context_messages if m.role == "user") == 0:
+    if sum(1 for m in context_messages if m.role == USER) == 0:
         logging.info("No user messages in context, skipping context refresh")
         return False
 
@@ -130,7 +130,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
         msg_created_at_utc_epoch_secs = msg.created_at_utc_epoch_secs
         assert isinstance(msg_created_at_utc_epoch_secs, float)
 
-        if most_recent_kept_message and most_recent_kept_message.role == "tool":
+        if most_recent_kept_message and most_recent_kept_message.role == TOOL:
             new_messages.appendleft(msg)
             current_token_count += count_tokens(msg.content)
             most_recent_kept_message = msg
@@ -152,7 +152,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
 def format_context_messages(user_preferred_name: str, context_messages: List[ContextMessage]) -> str:
     convo_range = pipe(
         context_messages,
-        filter(lambda _: _.role == "user"),
+        filter(lambda _: _.role == USER),
         map(lambda _: _.created_at_utc_epoch_secs),
         list,
         lambda l: f"Messages from {utc_epoch_to_datetime_string(min(l))} to {utc_epoch_to_datetime_string(max(l))}",

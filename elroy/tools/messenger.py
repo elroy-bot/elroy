@@ -9,7 +9,7 @@ from toolz.curried import do, filter, map, remove, tail
 
 from elroy.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, get_embedding
-from elroy.store.data_models import EmbeddableSqlModel, Goal, Memory
+from elroy.store.data_models import ASSISTANT, TOOL, USER, EmbeddableSqlModel, Goal, Memory
 from elroy.store.embeddings import (get_most_relevant_goal,
                                     get_most_relevant_memory)
 from elroy.store.message import (ContextMessage, MemoryMetadata,
@@ -46,8 +46,10 @@ class ToolCallAccumulator:
                 self.last_updated_index = delta.index
 
 
-def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
+def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterator[str]:
     from elroy.system_context import get_refreshed_system_message
+    
+    assert role in [USER, ASSISTANT]
 
     context_messages = get_context_messages(context)
 
@@ -55,7 +57,7 @@ def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
     new_messages = (
         [get_refreshed_system_message(get_user_preferred_name(context), [])]
         if not context_messages
-        else [] + [ContextMessage(role="user", content=msg)] + get_relevant_memories(context, context_messages)
+        else [] + [ContextMessage(role=USER, content=msg)] + get_relevant_memories(context, context_messages)
     )
 
     full_content = ""
@@ -73,7 +75,7 @@ def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
                     stream_chunk,
                     do(function_calls.append),
                     lambda x: ContextMessage(
-                        role="tool",
+                        role=TOOL,
                         tool_call_id=x.id,
                         content=exec_function_call(context, x),
                     ),
@@ -81,7 +83,7 @@ def process_message(context: ElroyContext, msg: str) -> Iterator[str]:
                 )
         new_messages.append(
             ContextMessage(
-                role="assistant",
+                role=ASSISTANT,
                 content=full_content,
                 tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
             )
@@ -185,7 +187,7 @@ def _generate_assistant_reply(
     elif recursion_count > 0:
         logging.info(f"Recursion count: {recursion_count}")
 
-    if context_messages[-1].role == "assistant":
+    if context_messages[-1].role == ASSISTANT:
         raise ValueError("Assistant message already the most recent message")
 
     tool_call_accumulator = ToolCallAccumulator()

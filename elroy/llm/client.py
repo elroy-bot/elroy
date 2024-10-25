@@ -4,6 +4,7 @@ from typing import Dict, Iterator, List, Union
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
 
+from elroy.store.data_models import USER
 from elroy.system.parameters import CHAT_MODEL, EMBEDDING_MODEL
 from elroy.system.utils import logged_exec_time
 
@@ -34,7 +35,7 @@ def generate_chat_completion_message(context_messages: List[Dict]) -> Iterator[D
 
 
 def _query_llm(prompt: str, system: str, model: str, temperature: float, json_mode: bool) -> str:
-    messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
+    messages = [{"role": "system", "content": system}, {"role": USER, "content": prompt}]
     request = {"model": model, "messages": messages, "temperature": temperature}
     if json_mode:
         request["response_format"] = {"type": "json_object"}

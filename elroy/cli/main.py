@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import logging
 import os
 import sys
@@ -29,14 +30,16 @@ from elroy.docker_postgres import is_docker_running, start_db, stop_db
 from elroy.logging_config import setup_logging
 from elroy.memory import get_memory_names, get_relevant_memories
 from elroy.onboard_user import onboard_user
+from elroy.store.data_models import ASSISTANT, USER
 from elroy.store.goals import get_goal_names
 from elroy.store.user import is_user_exists
 from elroy.system.parameters import CLI_USER_ID
 from elroy.system.parameters import DEFAULT_OUTPUT_COLOR
 from elroy.system.parameters import DEFAULT_INPUT_COLOR
 from elroy.system.parameters import SYSTEM_MESSAGE_COLOR
+from elroy.system.utils import datetime_to_string
 from elroy.system_context import context_refresh_if_needed
-from elroy.tools.functions.user_preferences import set_user_preferred_name
+from elroy.tools.functions.user_preferences import get_user_preferred_name, set_user_preferred_name
 from elroy.tools.messenger import process_message
 from elroy.tools.system_commands import SYSTEM_COMMANDS, invoke_system_command
 
@@ -133,8 +136,8 @@ def upgrade(ctx: typer.Context):
         command.upgrade(alembic_cfg, "head")
         typer.echo("Database upgrade completed.")
         
-def process_and_deliver_msg(context: ElroyContext, user_input: str):
-    if user_input.startswith("/"):
+def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
+    if user_input.startswith("/") and role == USER:
         cmd = user_input[1:].split()[0]
 
         if cmd.lower() not in {f.__name__ for f in SYSTEM_COMMANDS}:
@@ -145,12 +148,11 @@ def process_and_deliver_msg(context: ElroyContext, user_input: str):
                 context.console.print(f"[{DEFAULT_OUTPUT_COLOR}]{response}[/]", end="")
                 context.console.print()  # New line after complete response
             except Exception as e:
-                print(f"Error invoking system command: {e}")
+                context.console.print(f"Error invoking system command: {e}")
     else:
-        for partial_response in process_message(context, user_input):
+        for partial_response in process_message(context, user_input, role):
             context.console.print(f"[{DEFAULT_OUTPUT_COLOR}]{partial_response}[/]", end="")
         context.console.print()  # New line after complete response
-
 
 
 class SlashCompleter(WordCompleter):
@@ -216,6 +218,11 @@ async def main_chat(context: ElroyContext):
         set_user_preferred_name(context, name)
         msg = f"[This is a hidden system message. Elroy user {name} has been onboarded. Say hello and introduce yourself.]"
         process_and_deliver_msg(context, msg)
+
+    else: 
+        preferred_name = get_user_preferred_name(context)
+        
+        process_and_deliver_msg(context, f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now())}", ASSISTANT)
 
     while True:
         try:

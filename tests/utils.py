@@ -7,7 +7,7 @@ from toolz.curried import do, map
 
 from elroy.config import ElroyContext
 from elroy.llm.client import query_llm
-from elroy.store.data_models import EmbeddableSqlModel
+from elroy.store.data_models import USER, EmbeddableSqlModel
 from elroy.store.embeddings import query_vector
 from elroy.store.message import get_context_messages, replace_context_messages
 from elroy.system.utils import first_or_none
@@ -69,7 +69,7 @@ def ask_assistant_bool(context: ElroyContext, question: str) -> Tuple[bool, str]
     assert isinstance(context_messages, list)
     endpoint_index = -1
     for idx, message in enumerate(context_messages[::-1]):
-        if message.role == "user" and message.content == question:
+        if message.role == USER and message.content == question:
             endpoint_index = idx
             break
     else:
