@@ -119,8 +119,8 @@ def chat(ctx: typer.Context):
 
     current_version, latest_version = _check_latest_version()
     if _version_tuple(latest_version) > _version_tuple(current_version):
-        _upgrade_if_confirmed(current_version, latest_version)
-        _restart_command()
+        if _upgrade_if_confirmed(current_version, latest_version):
+            _restart_command()
     with get_elroy_context(ctx) as context:
         asyncio.run(main_chat(context))
         context.console.print(f"[{SYSTEM_MESSAGE_COLOR}]Exiting...[/]")
