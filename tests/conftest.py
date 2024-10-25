@@ -24,25 +24,25 @@ from elroy.store.message import ContextMessage, Message, add_context_messages
 
 
 
-ELROY_TEST_DATABASE_URL = "ELROY_TEST_DATABASE_URL"
+ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--database-url", action="store", default=None,
+        "--postgres-url", action="store", default=None,
         help="Database URL from either environment or command line"
     )
 
 
 @pytest.fixture(scope="session")
-def database_url(request):
-    if request.config.getoption("--database-url"):
-        yield request.config.getoption("--database-url")
-    elif ELROY_TEST_DATABASE_URL in os.environ:
-        yield os.environ[ELROY_TEST_DATABASE_URL]
+def postgres_url(request):
+    if request.config.getoption("--postgres-url"):
+        yield request.config.getoption("--postgres-url")
+    elif ELROY_TEST_POSTGRES_URL in os.environ:
+        yield os.environ[ELROY_TEST_POSTGRES_URL]
     elif not is_docker_running():
         raise Exception("By default, tests run using Docker containers for PostgreSQL."
-                        "To run tests without Docker, please provide a --database-url argument, "
-                        f"or set the {ELROY_TEST_DATABASE_URL} environment variable.")
+                        "To run tests without Docker, please provide a --postgres-url argument, "
+                        f"or set the {ELROY_TEST_POSTGRES_URL} environment variable.")
     else:
         from testcontainers.postgres import PostgresContainer
         with PostgresContainer("ankane/pgvector:v0.5.1") as postgres_container:
@@ -52,10 +52,10 @@ def database_url(request):
 
 
 @pytest.fixture(scope="session")
-def elroy_config(database_url):
+def elroy_config(postgres_url):
     # Get the PostgreSQL host and port
     yield get_config(
-        database_url=database_url,
+        postgres_url=postgres_url,
         openai_api_key=os.environ["OPENAI_API_KEY"],
     )
 
@@ -63,16 +63,16 @@ def elroy_config(database_url):
 
 @pytest.fixture(scope="session")
 def session(elroy_config):
-    with session_manager(elroy_config.database_url) as session:
+    with session_manager(elroy_config.postgres_url) as session:
         session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))  # type: ignore
 
 
     # apply migrations
     alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.database_url)
+    alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.postgres_url)
     upgrade(alembic_cfg, "head")
 
-    with session_manager(elroy_config.database_url) as session:
+    with session_manager(elroy_config.postgres_url) as session:
         for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
             session.exec(delete(table)) # type: ignore
         session.commit()
