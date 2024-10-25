@@ -50,7 +50,7 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
     """Create an ElroyContext as a context manager"""
     console = Console()
     session = None
-    
+
     try:
         with console.status(f"[{DEFAULT_OUTPUT_COLOR}] Initializing Elroy...", spinner="dots"):
             setup_logging(ctx.obj["log_file_path"])
@@ -77,7 +77,7 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
                 local_storage_path=ctx.obj["local_storage_path"],
                 context_window_token_limit=ctx.obj["context_window_token_limit"],
             )
-        
+
         with session_manager(config.database_url) as session:
             yield ElroyContext(
                 user_id=CLI_USER_ID,
@@ -118,7 +118,7 @@ def common(
 @app.command()
 def chat(ctx: typer.Context):
     """Start the Elroy chat interface"""
-    
+
     current_version, latest_version = _check_latest_version()
     if _version_tuple(latest_version) > _version_tuple(current_version):
         _upgrade_if_confirmed(current_version, latest_version)
@@ -135,7 +135,7 @@ def upgrade(ctx: typer.Context):
         alembic_cfg.set_main_option("sqlalchemy.url", context.config.database_url)
         command.upgrade(alembic_cfg, "head")
         typer.echo("Database upgrade completed.")
-        
+
 def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
     if user_input.startswith("/") and role == USER:
         cmd = user_input[1:].split()[0]
@@ -150,9 +150,12 @@ def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
             except Exception as e:
                 context.console.print(f"Error invoking system command: {e}")
     else:
-        for partial_response in process_message(context, user_input, role):
-            context.console.print(f"[{DEFAULT_OUTPUT_COLOR}]{partial_response}[/]", end="")
-        context.console.print()  # New line after complete response
+        try:
+            for partial_response in process_message(context, user_input, role):
+                context.console.print(f"[{DEFAULT_OUTPUT_COLOR}]{partial_response}[/]", end="")
+            context.console.print()  # New line after complete response
+        except KeyboardInterrupt:
+            context.console.print()
 
 
 class SlashCompleter(WordCompleter):
@@ -219,9 +222,9 @@ async def main_chat(context: ElroyContext):
         msg = f"[This is a hidden system message. Elroy user {name} has been onboarded. Say hello and introduce yourself.]"
         process_and_deliver_msg(context, msg)
 
-    else: 
+    else:
         preferred_name = get_user_preferred_name(context)
-        
+
         process_and_deliver_msg(context, f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now())}", ASSISTANT)
 
     while True:

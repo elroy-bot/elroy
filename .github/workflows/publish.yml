@@ -5,12 +5,86 @@ on:
     tags:
       - 'v*.*.*'  # Triggers the workflow on new version tags
 
+  pull_request:
+      branches:
+        - "main"
+
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: your_db_name
+          POSTGRES_USER: your_db_user
+          POSTGRES_PASSWORD: your_db_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     environment:
       name: release
+
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Set ELROY_TEST_DATABASE_URL
+      run: |
+        echo "ELROY_TEST_DATABASE_URL=postgres://your_db_user:your_db_password@localhost:5432/your_db_name" >> $GITHUB_ENV
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+    - name: Add Poetry to PATH
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+    - name: Install package deps
+      run: |
+        poetry config virtualenvs.create false
+        poetry install --no-root
+    - name: Install test dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+    - name: Run Tests
+      run: |
+        pytest
+
+
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    services:
+      postgres:
+        image: postgres:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: your_db_name
+          POSTGRES_USER: your_db_user
+          POSTGRES_PASSWORD: your_db_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    environment:
+      name: release
+
+    steps:
+    - name: Set DATABASE_URL
+      run: |
+        echo "DATABASE_URL=postgres://your_db_user:your_db_password@localhost:5432/your_db_name" >> $GITHUB_ENV
+
     - name: Check out code
       uses: actions/checkout@v2
 
@@ -31,6 +105,16 @@ jobs:
 
     - name: Build package
       run: poetry build
+
+    - name: Install pipx
+      run: |
+        python -m pip install --user pipx
+        python -m pipx ensurepath
+
+    - name: Install and Test elroy
+      run: |
+        pipx install ./dist/elroy-*.whl --python python3.11
+        elroy --version
 
     - name: Publish to PyPI
       env:
