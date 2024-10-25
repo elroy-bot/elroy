@@ -217,6 +217,7 @@ async def main_chat(context: ElroyContext):
     )
 
     if not is_user_exists(context):
+        context.console.print(f"{DEFAULT_INPUT_COLOR}Elroy is in alpha release, feedback welcome at https://github.com/elroy-bot/elroy/issues[/]")
         name = await session.prompt_async(HTML("<b>Welcome to Elroy! What should I call you? </b>"), style=style)
         user_id = onboard_user(context.session, context.console, context.config, name)
         assert isinstance(user_id, int)
