@@ -58,13 +58,15 @@ def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory
             ),
             model=CHAT_MODEL,
         )
+        assert isinstance(response, dict)
 
         new_texts = response["NEW_TEXTS"]  # type: ignore
 
         if isinstance(new_texts, dict):
             new_texts = [new_texts]
 
-        logging.info("REASONING: ", response["REASONING"])  # type: ignore
+        
+        logging.info(f"REASONING: {response['REASONING']}") 
 
         new_ids = []
         for new_text in new_texts:
