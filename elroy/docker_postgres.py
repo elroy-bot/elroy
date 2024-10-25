@@ -3,6 +3,8 @@ import subprocess
 import time
 from urllib.parse import quote_plus
 
+import docker
+from docker.errors import DockerException 
 import psycopg2
 
 DB_NAME = "elroy"
@@ -15,11 +17,11 @@ VOLUME_NAME = "elroy_postgres-data"
 
 
 def is_docker_running():
-    """Checks if the Docker daemon is running."""
     try:
-        subprocess.run(["docker", "info"], check=True, capture_output=True)
+        client = docker.from_env()
+        client.ping()
         return True
-    except subprocess.CalledProcessError:
+    except DockerException:
         return False
 
 

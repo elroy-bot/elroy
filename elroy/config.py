@@ -6,6 +6,9 @@ from typing import Optional
 from rich.console import Console
 from sqlalchemy import NullPool, create_engine
 from sqlmodel import Session
+from contextlib import contextmanager
+from typing import Generator
+
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -44,8 +47,6 @@ def get_config(
     )
 
 
-from contextlib import contextmanager
-from typing import Generator
 
 
 @contextmanager
