@@ -1,78 +1,98 @@
 import os
+from typing import Any, Generator
 
 import pytest
 from rich.console import Console
-from testcontainers.postgres import PostgresContainer
+
 
 from alembic.command import upgrade
 from alembic.config import Config
 from elroy.config import ElroyConfig, ElroyContext, get_config, session_manager
+from elroy.docker_postgres import is_docker_running
 from elroy.store.goals import create_goal
 from tests.fixtures import (BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
                             create_test_user)
+from sqlmodel import text
 
-
-@pytest.fixture(scope="session")
-def postgres_container():
-    with PostgresContainer("ankane/pgvector:v0.5.1") as postgres:
-        yield postgres
-
-
-@pytest.fixture(scope="session")
-def elroy_config(postgres_container) -> ElroyConfig:
-    # Get the PostgreSQL host and port
-    postgres_host = postgres_container.get_container_host_ip()
-    postgres_port = postgres_container.get_exposed_port(5432)
-    return get_config(
-        database_url=f"postgresql://test:test@{postgres_host}:{postgres_port}/test",
-        openai_api_key=os.environ["OPENAI_API_KEY"],
-    )
-
-
-@pytest.fixture(scope="session", autouse=True)
-def apply_migrations(elroy_config, postgres_container):
-    alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.database_url)
-    postgres_container.exec(["psql", "-U", "test", "-d", "test", "-c", "CREATE EXTENSION IF NOT EXISTS vector;"])
-    upgrade(alembic_cfg, "head")
 
 
 from sqlmodel import delete
 
-from elroy.store.data_models import ASSISTANT, USER, Goal, Memory, User, UserPreference
+from elroy.store.data_models import ASSISTANT, USER, ContextMessageSet, Goal, Memory, User, UserPreference
 from elroy.store.message import ContextMessage, Message, add_context_messages
 
 
+
+
+ELROY_TEST_DATABASE_URL = "ELROY_TEST_DATABASE_URL"
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--database-url", action="store", default=None,
+        help="Database URL from either environment or command line"
+    )
+
+
 @pytest.fixture(scope="session")
-def session(postgres_container, apply_migrations, elroy_config):
-    # Reset both engine and session_maker to ensure we're using the test database
+def database_url(request):
+    if request.config.getoption("--database-url"):
+        yield request.config.getoption("--database-url")
+    elif ELROY_TEST_DATABASE_URL in os.environ:
+        yield os.environ[ELROY_TEST_DATABASE_URL]
+    elif not is_docker_running():
+        raise Exception("By default, tests run using Docker containers for PostgreSQL."
+                        "To run tests without Docker, please provide a --database-url argument, "
+                        f"or set the {ELROY_TEST_DATABASE_URL} environment variable.")
+    else:
+        from testcontainers.postgres import PostgresContainer
+        with PostgresContainer("ankane/pgvector:v0.5.1") as postgres_container:
+            postgres_host = postgres_container.get_container_host_ip()
+            postgres_port = postgres_container.get_exposed_port(5432)
+            yield f"postgresql://test:test@{postgres_host}:{postgres_port}/test"
+
+
+@pytest.fixture(scope="session")
+def elroy_config(database_url):
+    # Get the PostgreSQL host and port
+    yield get_config(
+        database_url=database_url,
+        openai_api_key=os.environ["OPENAI_API_KEY"],
+    )
+
+
+
+@pytest.fixture(scope="session")
+def session(elroy_config):
+    with session_manager(elroy_config.database_url) as session:
+        session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))  # type: ignore
+
+
+    # apply migrations
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.database_url)
+    upgrade(alembic_cfg, "head")
 
     with session_manager(elroy_config.database_url) as session:
-        # Delete all rows from the tables
-        session.exec(delete(Message))  # type: ignore
-        session.exec(delete(Goal))  # type: ignore
-        session.exec(delete(UserPreference))  # type: ignore
-        session.exec(delete(Memory))  # type: ignore
-        session.exec(delete(User))  # type: ignore
-        session.exec(delete(UserPreference))  # type: ignore
+        for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
+            session.exec(delete(table)) # type: ignore
         session.commit()
 
         yield session
 
 
 @pytest.fixture(scope="function")
-def user_id(session, console, elroy_config) -> int:
-    return create_test_user(session, console, elroy_config)
+def user_id(session, console, elroy_config)  -> Generator[int, Any, None]:
+    yield create_test_user(session, console, elroy_config)
 
 
 @pytest.fixture(scope="session")
-def console():
-    return Console()
+def console() -> Generator[Console, Any, None]:
+    yield Console()
 
 
 @pytest.fixture(scope="function")
-def elroy_context(session, user_id, console, elroy_config) -> ElroyContext:
-    return ElroyContext(
+def elroy_context(session, user_id, console, elroy_config)   -> Generator[ElroyContext, Any, None]:
+    yield ElroyContext(
         session=session,
         user_id=user_id,
         console=console,
@@ -81,8 +101,8 @@ def elroy_context(session, user_id, console, elroy_config) -> ElroyContext:
 
 
 @pytest.fixture(scope="function")
-def onboarded_user_id(session, console, elroy_config) -> int:
-    return create_test_user(
+def onboarded_user_id(session, console, elroy_config) -> Generator[int, None, None]:
+    yield create_test_user(
         session,
         console,
         elroy_config,
@@ -91,8 +111,8 @@ def onboarded_user_id(session, console, elroy_config) -> int:
 
 
 @pytest.fixture(scope="function")
-def onboarded_context(session, onboarded_user_id, console, elroy_config) -> ElroyContext:
-    return ElroyContext(
+def onboarded_context(session, onboarded_user_id, console, elroy_config) -> Generator[ElroyContext, None, None]:
+    yield ElroyContext(
         session=session,
         user_id=onboarded_user_id,
         console=console,
@@ -169,8 +189,8 @@ def george_user_id(elroy_context) -> int:
 
 
 @pytest.fixture(scope="function")
-def george_context(session, george_user_id, elroy_config) -> ElroyContext:
-    return ElroyContext(
+def george_context(session, george_user_id, elroy_config) -> Generator[ElroyContext, None, None]:
+    yield ElroyContext(
         session=session,
         user_id=george_user_id,
         console=Console(),
