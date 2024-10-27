@@ -25,7 +25,7 @@ from rich.text import Text
 
 from alembic import command
 from alembic.config import Config
-from elroy.cli.updater import _check_latest_version, _check_migrations_status, _restart_command, _upgrade_if_confirmed, _version_tuple, version_callback
+from elroy.cli.updater import _check_latest_version, ensure_current_db_migration, version_callback
 from elroy.config import (ROOT_DIR, ElroyContext, get_config,
                           session_manager)
 from elroy.docker_postgres import is_docker_running, start_db, stop_db
@@ -48,10 +48,9 @@ from elroy.tools.system_commands import SYSTEM_COMMANDS, invoke_system_command
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
 @contextmanager
-def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]:
+def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext as a context manager"""
     console = Console()
-    session = None
 
     try:
         setup_logging(ctx.obj["log_file_path"])
@@ -62,7 +61,7 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
 
             else:
                 if not is_docker_running():
-                    console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running. Please start Docker and try again.[/]")
+                    console.print(f"[{SYSTEM_MESSAGE_COLOR}]Docker is not running, and elroy started with --use_docker_postgres. Please start Docker and try again.[/]")
                     exit(1)
                 ctx.obj["postgres_url"] = start_db()
 
@@ -70,7 +69,7 @@ def get_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]
         assert ctx.obj["openai_api_key"], "OpenAI API key is required"
 
         # Check if migrations need to be run
-        _check_migrations_status(console, ctx.obj["postgres_url"])
+        ensure_current_db_migration(console, ctx.obj["postgres_url"])
 
         config = get_config(
             postgres_url=ctx.obj["postgres_url"],
@@ -117,18 +116,23 @@ def common(
 def chat(ctx: typer.Context):
     """Start the Elroy chat interface"""
 
-    current_version, latest_version = _check_latest_version()
-    if _version_tuple(latest_version) > _version_tuple(current_version):
-        if _upgrade_if_confirmed(current_version, latest_version):
-            _restart_command()
-    with get_elroy_context(ctx) as context:
+    with init_elroy_context(ctx) as context:
+        current_version, latest_version = _check_latest_version()
+        if latest_version > current_version:
+            if typer.confirm("Would you like to upgrade elroy?"):
+                typer.echo("Upgrading elroy...")
+                try:
+                    os.system(f"{sys.executable} -m pipx upgrade elroy=={latest_version}")
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                except Exception as e:
+                    context.console.print(f"[{SYSTEM_MESSAGE_COLOR}]Error during upgrade: {e}. Please try upgrading manually using: pipx upgrade elroy[/]")
         asyncio.run(main_chat(context))
         context.console.print(f"[{SYSTEM_MESSAGE_COLOR}]Exiting...[/]")
 
 @app.command()
 def upgrade(ctx: typer.Context):
     """Upgrades Elroy to the most recent version."""
-    with get_elroy_context(ctx) as context:
+    with init_elroy_context(ctx) as context:
         alembic_cfg = Config("alembic.ini")
         alembic_cfg.set_main_option("sqlalchemy.url", context.config.postgres_url)
         command.upgrade(alembic_cfg, "head")

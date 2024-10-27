@@ -10,36 +10,9 @@ from io import StringIO
 from elroy import __version__
 from elroy.system.parameters import SYSTEM_MESSAGE_COLOR
 
-
 import typer
 
-
-import os
-import sys
-
-
-def _version_tuple(v: str) -> tuple:
-    """Convert version string to tuple for comparison"""
-    return tuple(map(int, v.split('.')))
-
-
-def _upgrade_if_confirmed(current_version: str, latest_version: str) -> bool:
-    """Prompt for upgrade if newer version available. Returns True if upgraded."""
-    if _version_tuple(latest_version) > _version_tuple(current_version):
-        if typer.confirm("Would you like to upgrade elroy?"):
-            typer.echo("Upgrading elroy...")
-            os.system(f"{sys.executable} -m pipx upgrade elroy=={latest_version}")
-            return True
-    return False
-
-
-def _restart_command():
-    """Restart the current command with the same arguments"""
-    typer.echo("Restarting elroy...")
-    os.execv(sys.executable, [sys.executable] + sys.argv)
-
-
-def _check_migrations_status(console, postgres_url: str) -> None:
+def ensure_current_db_migration(console, postgres_url: str) -> None:
     """Check if all migrations have been run.
     Returns True if migrations are up to date, False otherwise."""
     config = Config("alembic.ini")
@@ -72,27 +45,29 @@ def _check_migrations_status(console, postgres_url: str) -> None:
             logging.debug("Database is up to date.")
 
 
-def _check_latest_version() -> tuple[str, str]:
+def _check_latest_version() -> tuple[tuple,tuple]:
     """Check latest version of elroy on PyPI
     Returns tuple of (current_version, latest_version)"""
     current_version = __version__
+
+    to_version_tuple = lambda v: tuple(map(int, v.split('.')))
     try:
         response = requests.get("https://pypi.org/pypi/elroy/json")
         latest_version = response.json()["info"]["version"]
-        return current_version, latest_version
+        return to_version_tuple(current_version), to_version_tuple(latest_version)
     except Exception as e:
         logging.warning(f"Failed to check latest version: {e}")
-        return current_version, current_version
+        return to_version_tuple(current_version), to_version_tuple(current_version)
 
 
 def version_callback(value: bool):
     if value:
         current_version, latest_version = _check_latest_version()
-        if _version_tuple(latest_version) > _version_tuple(current_version):
-            typer.echo(f"Elroy version: {current_version} (newer version {latest_version} available)")
+        if latest_version > current_version:
+            typer.echo(f"Elroy version: {'.'.join(current_version)} (newer version {'.'.join(latest_version)} available)")
             typer.echo("\nTo upgrade, run:")
-            typer.echo(f"    pipx upgrade elroy=={latest_version}")
+            typer.echo(f"    pipx upgrade elroy=={'.'.join(latest_version)}")
         else:
-            typer.echo(f"Elroy version: {current_version} (up to date)")
+            typer.echo(f"Elroy version: {'.'.join(current_version)} (up to date)")
 
         raise typer.Exit()
