@@ -8,22 +8,22 @@ from toolz.curried import filter, map, unique
 
 from elroy.config import ElroyContext
 from elroy.llm.client import query_llm_json
-from elroy.llm.prompts import summarize_for_memory
 from elroy.store.data_models import ContextMessage, Memory
-from elroy.store.message import get_context_messages
 from elroy.system.clock import get_utc_now
+from elroy.system.constants import MEMORY_TITLE_EXAMPLES
 from elroy.system.parameters import CHAT_MODEL, MEMORY_WORD_COUNT_LIMIT
-from elroy.tools.messenger import remove_from_context
+
+
 
 
 def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
     from elroy.system_context import format_context_messages
+    from elroy.llm.prompts import summarize_for_memory
 
     return pipe(
         format_context_messages(user_preferred_name, context_messages),
         partial(summarize_for_memory, user_preferred_name),
     )  # type: ignore
-
 
 def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory):
     if memory1.text == memory2.text:
@@ -43,6 +43,10 @@ def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory
             "If the two texts are redunant, but they together discuss distinct topics, you can create multiple new texts rather than just one."
             "One hint that multiple texts are warranted is if the title has the word 'and', and can reasonably be split into two titles."
             "Above all, ensure that each consolidate text has one basic topic, and that the text is coherent."
+            "\n"
+            f"{MEMORY_TITLE_EXAMPLES}"
+            "\n"
+            "\n"
             "Return your response in JSON format, with the following structure:"
             "- REASONING: an explanation of your reasoning how you chose to consolidate or reorganize the texts. This must include information about what factored into your decision about whether to output one new texts, or multiple."
             "- NEW_TEXTS: Key to contain the new text or texts. This should be a list, each of which should have the following keys:"
@@ -65,8 +69,8 @@ def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory
         if isinstance(new_texts, dict):
             new_texts = [new_texts]
 
-        
-        logging.info(f"REASONING: {response['REASONING']}") 
+
+        logging.info(f"REASONING: {response['REASONING']}")
 
         new_ids = []
         for new_text in new_texts:
@@ -87,6 +91,7 @@ def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory
 
 
 def mark_memory_inactive(context: ElroyContext, memory: Memory):
+    from elroy.tools.messenger import remove_from_context
     memory.is_active = False
     context.session.add(memory)
     context.session.commit()
@@ -94,6 +99,40 @@ def mark_memory_inactive(context: ElroyContext, memory: Memory):
 
 
 def create_memory(context: ElroyContext, name: str, text: str) -> int:
+    """Creates a new memory for the assistant.
+
+    Examples of good and bad memory titles are below. Note, the BETTER examples, some titles have been split into two.:
+
+    BAD:
+    - [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
+
+    BETTER:
+    - [User Name]'s project on building a treehouse: More specific, and describes a single topic.
+    - [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.
+
+    BAD:
+    - [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.
+
+    BETTER:
+    - [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.
+
+    BAD:
+    - [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.
+
+    BETTER:
+    - [User Name]'s preferred name: Describes a specific topic.
+    - [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.
+
+    Args:
+        context (ElroyContext): _description_
+        name (str): The name of the memory. Should be specific and discuss one topic.
+        text (str): The text of the memory.
+
+    Returns:
+        int: The database ID of the memory.
+    """
+    from elroy.tools.messenger import add_to_context
+
     memory = Memory(user_id=context.user_id, name=name, text=text)
     context.session.add(memory)
     context.session.commit()
@@ -104,6 +143,8 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     assert memory_id
 
     upsert_embedding(context.session, memory)
+    add_to_context(context, memory)
+
 
     return memory_id
 
@@ -120,6 +161,7 @@ def get_memory_names(context: ElroyContext) -> Set[str]:
 
 
 def get_relevant_memories(context: ElroyContext) -> List[str]:
+    from elroy.store.message import get_context_messages
     return pipe(
         get_context_messages(context),
         filter(lambda m: m.created_at_utc_epoch_secs > get_utc_now().timestamp() - context.config.max_in_context_message_age_seconds),

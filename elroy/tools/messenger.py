@@ -4,6 +4,7 @@ from functools import partial
 from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
+from sqlmodel import select
 from toolz import concat, juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
@@ -48,7 +49,7 @@ class ToolCallAccumulator:
 
 def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterator[str]:
     from elroy.system_context import get_refreshed_system_message
-    
+
     assert role in [USER, ASSISTANT]
 
     context_messages = get_context_messages(context)
@@ -127,6 +128,46 @@ def remove_memory_from_context(memory_type: str, context: ElroyContext, memory_i
         list,
         partial(remove_context_messages, context),
     )
+
+def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
+    memory_id = memory.id
+    assert memory_id
+
+    add_context_messages(
+        context,
+        [
+            ContextMessage(
+                role="system",
+                memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
+                content=str(memory.to_fact()),
+            )
+        ],
+    )
+
+
+
+def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
+    """Adds goal with the given name to the current conversation context
+
+    Args:
+        context (ElroyContext): context obj
+        goal_name (str): The name of the goal to add
+
+    Returns:
+        str: _description_
+    """
+    goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == goal_name,
+        )
+    ).first()
+
+    if goal:
+        add_to_context(context, goal)
+        return f"Goal '{goal_name}' added to context."
+    else:
+        return f"Goal {goal_name} not found."
 
 
 

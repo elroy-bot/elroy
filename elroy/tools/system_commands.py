@@ -14,6 +14,8 @@ from toolz.curried import filter
 
 from elroy.config import ElroyContext
 from elroy.llm import client
+
+from elroy.memory import create_memory
 from elroy.store.data_models import ASSISTANT, ContextMessage, Goal, Memory
 from elroy.store.goals import (add_goal_status_update, create_goal,
                                delete_goal_permamently, mark_goal_completed,
@@ -251,6 +253,7 @@ def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -
         return f"Goal '{goal_name}' not found for the current user."
 
 
+
 def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
     """Adds goal with the given name to the current conversation context
 
@@ -399,6 +402,7 @@ GOAL_COMMANDS: Set[Callable] = {
 
 MEMORY_COMMANDS = {
     print_memory,
+    create_memory,
 }
 
 
