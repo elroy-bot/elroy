@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "elroy"
-version = "version = "0.0.17"
+version = "0.0.17"
 description = ""
 authors = ["Elroy Bot <bot@elroy.ai>"]
 readme = "README.md"
