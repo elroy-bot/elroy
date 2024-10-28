@@ -9,7 +9,7 @@ from sqlalchemy import engine_from_config
 from io import StringIO
 from elroy import __version__
 from elroy.system.parameters import SYSTEM_MESSAGE_COLOR
-
+from semantic_version import Version
 import typer
 
 def ensure_current_db_migration(console, postgres_url: str) -> None:
@@ -45,29 +45,28 @@ def ensure_current_db_migration(console, postgres_url: str) -> None:
             logging.debug("Database is up to date.")
 
 
-def _check_latest_version() -> tuple[tuple,tuple]:
+def _check_latest_version() -> tuple[Version, Version]:
     """Check latest version of elroy on PyPI
     Returns tuple of (current_version, latest_version)"""
-    current_version = __version__
+    current_version = Version(__version__)
 
-    to_version_tuple = lambda v: tuple(map(int, v.split('.')))
     try:
         response = requests.get("https://pypi.org/pypi/elroy/json")
-        latest_version = response.json()["info"]["version"]
-        return to_version_tuple(current_version), to_version_tuple(latest_version)
+        latest_version = Version(response.json()["info"]["version"])
+        return current_version, latest_version
     except Exception as e:
         logging.warning(f"Failed to check latest version: {e}")
-        return to_version_tuple(current_version), to_version_tuple(current_version)
+        return current_version, current_version
 
 
 def version_callback(value: bool):
     if value:
         current_version, latest_version = _check_latest_version()
         if latest_version > current_version:
-            typer.echo(f"Elroy version: {'.'.join(current_version)} (newer version {'.'.join(latest_version)} available)")
+            typer.echo(f"Elroy version: {current_version} (newer version {latest_version} available)")
             typer.echo("\nTo upgrade, run:")
-            typer.echo(f"    pipx upgrade elroy=={'.'.join(latest_version)}")
+            typer.echo(f"    pipx upgrade elroy=={latest_version}")
         else:
-            typer.echo(f"Elroy version: {'.'.join(current_version)} (up to date)")
+            typer.echo(f"Elroy version: {current_version} (up to date)")
 
         raise typer.Exit()
