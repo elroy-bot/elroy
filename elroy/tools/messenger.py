@@ -10,7 +10,8 @@ from toolz.curried import do, filter, map, remove, tail
 
 from elroy.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, get_embedding
-from elroy.store.data_models import ASSISTANT, TOOL, USER, EmbeddableSqlModel, Goal, Memory
+from elroy.store.data_models import (ASSISTANT, TOOL, USER, EmbeddableSqlModel,
+                                     Goal)
 from elroy.store.embeddings import (get_most_relevant_goal,
                                     get_most_relevant_memory)
 from elroy.store.message import (ContextMessage, MemoryMetadata,
@@ -129,6 +130,7 @@ def remove_memory_from_context(memory_type: str, context: ElroyContext, memory_i
         partial(remove_context_messages, context),
     )
 
+
 def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
     memory_id = memory.id
     assert memory_id
@@ -143,7 +145,6 @@ def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
             )
         ],
     )
-
 
 
 def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
@@ -168,8 +169,6 @@ def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
         return f"Goal '{goal_name}' added to context."
     else:
         return f"Goal {goal_name} not found."
-
-
 
 
 @logged_exec_time

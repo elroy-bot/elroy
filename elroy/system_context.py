@@ -12,7 +12,8 @@ from toolz.curried import filter, map, remove
 from elroy.config import ElroyContext
 from elroy.llm.prompts import persona, summarize_conversation
 from elroy.memory import consolidate_memories
-from elroy.store.data_models import ASSISTANT, TOOL, USER, ContextMessage, Memory
+from elroy.store.data_models import (ASSISTANT, TOOL, USER, ContextMessage,
+                                     Memory)
 from elroy.store.embeddings import find_redundant_pairs
 from elroy.store.message import (get_context_messages,
                                  get_time_since_context_message_creation,

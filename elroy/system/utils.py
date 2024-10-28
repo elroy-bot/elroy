@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from functools import partial
 from typing import Iterator, Optional, TypeVar
 
-
 T = TypeVar("T")
 
 
@@ -27,10 +26,6 @@ def logged_exec_time(func, name: Optional[str] = None):
 
 def first_or_none(iterable: Iterator[T]) -> Optional[T]:
     return next(iterable, None)
-
-
-
-
 
 
 def datetime_to_string(dt: datetime) -> str:

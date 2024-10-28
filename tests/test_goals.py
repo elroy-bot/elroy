@@ -1,4 +1,5 @@
 import pytest
+
 from elroy.store.goals import get_active_goals_summary
 from tests.utils import ask_assistant_bool, process_test_message
 

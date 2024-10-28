@@ -1,13 +1,11 @@
 import inspect
 import json
-import logging
 from dataclasses import dataclass
 from types import FunctionType, ModuleType
 from typing import Dict, List, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
-from rich.pretty import Pretty
 from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
@@ -80,15 +78,8 @@ ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
 def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> str:
-    from elroy.system.parameters import SYSTEM_MESSAGE_COLOR
 
-    msg = f"[{SYSTEM_MESSAGE_COLOR}]Executing function call: [bold]{function_call.function_name}[/bold]"
-
-    if function_call.arguments:
-        context.console.print(msg + f" with arguments:[/]", Pretty(function_call.arguments))
-    else:
-        context.console.print(msg + "[/]")
-    context.console.print()
+    context.io.notify_function_call(function_call)
 
     try:
         function_to_call = get_functions()[function_call.function_name]
@@ -102,8 +93,7 @@ def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> st
         )  # type: ignore
 
     except Exception as e:
-        logging.error("Function call resulted in error: %s", e)
-        context.console.print(f"Error invoking function: {e}")
+        context.io.notify_function_call_error(function_call, e)
         return f"{ERROR_PREFIX}{e}"
 
 

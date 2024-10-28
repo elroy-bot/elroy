@@ -1,18 +1,15 @@
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Optional
+from typing import Generator, Generic, Optional, TypeVar
 
-from rich.console import Console
 from sqlalchemy import NullPool, create_engine
 from sqlmodel import Session
-from contextlib import contextmanager
-from typing import Generator
 
+from elroy.io.base import ElroyIO
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
 
 
 @dataclass
@@ -44,8 +41,6 @@ def get_config(
     )
 
 
-
-
 @contextmanager
 def session_manager(postgres_url: str) -> Generator[Session, None, None]:
     session = Session(create_engine(postgres_url, poolclass=NullPool))
@@ -59,10 +54,12 @@ def session_manager(postgres_url: str) -> Generator[Session, None, None]:
         session.close()
 
 
+T = TypeVar("T", bound=ElroyIO)
+
 
 @dataclass
-class ElroyContext:
+class ElroyContext(Generic[T]):
     session: Session
-    console: Console
+    io: T
     config: ElroyConfig
     user_id: int
