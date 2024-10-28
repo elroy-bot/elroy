@@ -2,7 +2,7 @@ from dataclasses import asdict
 from datetime import timedelta
 from typing import Dict, Iterable, List, Optional
 
-from sqlmodel import desc, select
+from sqlmodel import select
 from toolz import first, pipe
 from toolz.curried import map, pipe
 
@@ -11,8 +11,6 @@ from elroy.store.data_models import (ContextMessage, ContextMessageSet,
                                      MemoryMetadata, Message, convert_to_utc)
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
-
-
 
 
 def context_message_to_db_message(user_id: int, context_message: ContextMessage):

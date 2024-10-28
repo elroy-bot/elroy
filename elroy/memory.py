@@ -14,16 +14,15 @@ from elroy.system.constants import MEMORY_TITLE_EXAMPLES
 from elroy.system.parameters import CHAT_MODEL, MEMORY_WORD_COUNT_LIMIT
 
 
-
-
 def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
-    from elroy.system_context import format_context_messages
     from elroy.llm.prompts import summarize_for_memory
+    from elroy.system_context import format_context_messages
 
     return pipe(
         format_context_messages(user_preferred_name, context_messages),
         partial(summarize_for_memory, user_preferred_name),
     )  # type: ignore
+
 
 def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory):
     if memory1.text == memory2.text:
@@ -69,7 +68,6 @@ def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory
         if isinstance(new_texts, dict):
             new_texts = [new_texts]
 
-
         logging.info(f"REASONING: {response['REASONING']}")
 
         new_ids = []
@@ -92,6 +90,7 @@ def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory
 
 def mark_memory_inactive(context: ElroyContext, memory: Memory):
     from elroy.tools.messenger import remove_from_context
+
     memory.is_active = False
     context.session.add(memory)
     context.session.commit()
@@ -145,7 +144,6 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     upsert_embedding(context.session, memory)
     add_to_context(context, memory)
 
-
     return memory_id
 
 
@@ -162,6 +160,7 @@ def get_memory_names(context: ElroyContext) -> Set[str]:
 
 def get_relevant_memories(context: ElroyContext) -> List[str]:
     from elroy.store.message import get_context_messages
+
     return pipe(
         get_context_messages(context),
         filter(lambda m: m.created_at_utc_epoch_secs > get_utc_now().timestamp() - context.config.max_in_context_message_age_seconds),

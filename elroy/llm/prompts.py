@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 from elroy.llm.client import query_llm_json, query_llm_with_word_limit
 from elroy.system.constants import INNER_THOUGHT_TAG, UNKNOWN
-from elroy.system.parameters import (CHAT_MODEL, MEMORY_WORD_COUNT_LIMIT)
+from elroy.system.parameters import CHAT_MODEL, MEMORY_WORD_COUNT_LIMIT
 
 query_llm_short_limit = partial(query_llm_with_word_limit, word_limit=MEMORY_WORD_COUNT_LIMIT)
 
@@ -66,9 +66,9 @@ Return your response in JSON format, with the following structure:
 
 
 def persona(user_name: str) -> str:
+    from elroy.memory import create_memory
     from elroy.store.goals import (add_goal_status_update, create_goal,
                                    mark_goal_completed)
-    from elroy.memory import create_memory
 
     user_noun = user_name if user_name != UNKNOWN else "my user"
 

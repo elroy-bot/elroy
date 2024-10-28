@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 
 from pytz import UTC
 
-
 get_utc_now = lambda: datetime.now(UTC)
 
 

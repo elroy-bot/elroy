@@ -4,8 +4,8 @@ import time
 from urllib.parse import quote_plus
 
 import docker
-from docker.errors import DockerException 
 import psycopg2
+from docker.errors import DockerException
 
 DB_NAME = "elroy"
 DB_USER = "elroy"

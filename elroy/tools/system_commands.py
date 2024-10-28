@@ -8,13 +8,13 @@ import tty
 from inspect import signature
 from typing import Callable, Optional, Set
 
+from rich.pretty import Pretty
 from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
 from elroy.config import ElroyContext
 from elroy.llm import client
-
 from elroy.memory import create_memory
 from elroy.store.data_models import ASSISTANT, ContextMessage, Goal, Memory
 from elroy.store.goals import (add_goal_status_update, create_goal,
@@ -30,7 +30,6 @@ from elroy.tools.functions.user_preferences import (get_user_full_name,
                                                     set_user_full_name,
                                                     set_user_preferred_name)
 
-from rich.pretty import Pretty
 
 def invoke_system_command(context: ElroyContext, msg: str) -> str:
     if msg.startswith("/"):
@@ -251,7 +250,6 @@ def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -
 
     else:
         return f"Goal '{goal_name}' not found for the current user."
-
 
 
 def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
