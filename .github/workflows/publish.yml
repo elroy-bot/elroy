@@ -111,6 +111,8 @@ jobs:
         python -m pipx ensurepath
 
     - name: Install and Test elroy
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         pipx install ./dist/elroy-*.whl --python python3.11
         elroy --version
