@@ -42,8 +42,23 @@ While chatting with Elroy, you can use these commands:
 - `/help` - Show available commands
 - `/goals` - List and manage your goals
 - `/remember` - Save important information to long-term memory
-- `/recall` - Search your saved memories
+- `/recall` - Search your saved memories 
+- `/name` - Set your preferred name
 - `/exit` - Exit the chat
+
+You can also pipe text directly to Elroy:
+```bash
+echo "Summarize this" | elroy
+```
+
+## Features
+
+- **Long-term Memory**: Elroy maintains memories across conversations
+- **Goal Tracking**: Track and manage personal/professional goals
+- **Context Awareness**: Maintains conversation context with configurable token limits
+- **Auto-updates**: Checks for new versions and database updates
+- **Memory Panel**: Shows relevant memories during conversations
+- **Name Customization**: Remembers and uses your preferred name
 
 ## Customization
 
@@ -80,7 +95,7 @@ In either case, you'll need:
 * `--version`: Show version and exit.
 * `--postgres-url TEXT`: Postgres URL to use for Elroy. If set, ovverrides use_docker_postgres.  [env var: ELROY_POSTGRES_URL]
 * `--openai-api-key TEXT`: OpenAI API key, required.  [env var: OPENAI_API_KEY]
-* `--context-window-token-limit INTEGER`: How many tokens to keep in context before compressing.  [env var: ELROY_CONTEXT_WINDOW_TOKEN_LIMIT]
+* `--context-window-token-limit INTEGER`: How many tokens to keep in context before compressing. Controls how much conversation history Elroy maintains before summarizing older content. [env var: ELROY_CONTEXT_WINDOW_TOKEN_LIMIT]
 * `--log-file-path TEXT`: Where to write logs.  [env var: ELROY_LOG_FILE_PATH; default: /Users/tombedor/development/elroy/logs/elroy.log]
 * `--use-docker-postgres / --no-use-docker-postgres`: If true and postgres_url is not set, will attempt to start a Docker container for Postgres.  [env var: USE_DOCKER_POSTGRES; default: use-docker-postgres]
 * `--stop-docker-postgres-on-exit / --no-stop-docker-postgres-on-exit`: Whether or not to stop the Postgres container on exit.  [env var: STOP_DOCKER_POSTGRES_ON_EXIT; default: no-stop-docker-postgres-on-exit]
