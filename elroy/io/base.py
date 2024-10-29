@@ -32,7 +32,22 @@ class StdIO(ElroyIO):
     IO which emits plain text to stdin and stdout.
     """
 
-    pass
+    def sys_message(self, message: str) -> None:
+        print(f"[{datetime.now()}] SYSTEM: {message}")
+
+    def assistant_msg(self, message: Union[str, Iterator[str], Generator[str, None, None]]) -> None:
+        if isinstance(message, (Iterator, Generator)):
+            message = "".join(message)
+        print(f"[{datetime.now()}] ASSISTANT: {message}")
+
+    def notify_function_call(self, function_call: FunctionCall) -> None:
+        print(f"[{datetime.now()}] FUNCTION CALL: {function_call.function_name}({function_call.arguments})")
+
+    def notify_function_call_error(self, function_call: FunctionCall, error: Exception) -> None:
+        print(f"[{datetime.now()}] FUNCTION ERROR: {function_call.function_name} - {str(error)}")
+
+    def notify_warning(self, message: str) -> None:
+        print(f"[{datetime.now()}] WARNING: {message}")
 
 class TestIO(ElroyIO):
     """
