@@ -15,13 +15,17 @@ There are two ways to install and run Elroy:
 
 #### Installation
 ```
-pipx install --python python3.11 elroy
+pip install elroy
 ```
 
 To run:
 ```
 elroy
 ```
+
+### System Requirements
+
+Elroy requires Python > 3.11
 
 ### Database Requirement
 

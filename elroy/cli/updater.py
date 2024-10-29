@@ -68,7 +68,7 @@ def version_callback(value: bool):
         if latest_version > current_version:
             typer.echo(f"Elroy version: {current_version} (newer version {latest_version} available)")
             typer.echo("\nTo upgrade, run:")
-            typer.echo(f"    pipx upgrade elroy=={latest_version}")
+            typer.echo(f"    pip install --upgrade elroy=={latest_version}")
         else:
             typer.echo(f"Elroy version: {current_version} (up to date)")
 
