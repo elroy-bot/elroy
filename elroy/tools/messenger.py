@@ -19,7 +19,6 @@ from elroy.store.message import (ContextMessage, MemoryMetadata,
 from elroy.system.utils import logged_exec_time
 from elroy.tools.function_caller import (FunctionCall, PartialToolCall,
                                          exec_function_call)
-from elroy.tools.functions.user_preferences import get_user_preferred_name
 
 
 class ToolCallAccumulator:
@@ -48,18 +47,11 @@ class ToolCallAccumulator:
 
 
 def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterator[str]:
-    from elroy.system_context import get_refreshed_system_message
-
     assert role in [USER, ASSISTANT]
 
     context_messages = get_context_messages(context)
 
-    # if context messages is empty, add system message to init. else add new message and any relevant memories
-    new_messages = (
-        [get_refreshed_system_message(get_user_preferred_name(context), [])]
-        if not context_messages
-        else [] + [ContextMessage(role=USER, content=msg)] + get_relevant_memories(context, context_messages)
-    )
+    new_messages = [ContextMessage(role=USER, content=msg)] + get_relevant_memories(context, context_messages)
 
     full_content = ""
 
