@@ -58,8 +58,15 @@ def ensure_not_main():
     protected_branch = "main"
     current_branch = get_current_branch()
     if current_branch == protected_branch:
-        print(f"Commits directly to {protected_branch} not allowed")
-        sys.exit(1)
+        # Get the commit message from the staged commit
+        result = subprocess.run(['git', 'log', '-1', '--pretty=%B', 'HEAD'], 
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        commit_msg = result.stdout.decode('utf-8').strip()
+        
+        # Allow commits that start with "Bump version"
+        if not commit_msg.startswith("Bump version"):
+            print(f"Commits directly to {protected_branch} not allowed")
+            sys.exit(1)
 
 def main():
     ensure_not_main()
