@@ -1,6 +1,11 @@
 # Elroy
 
-Elroy is an CLI AI personal assistant with long term memory and goal tracking capabilities.
+Elroy is a CLI AI personal assistant with long term memory and goal tracking capabilities. It can:
+
+- Remember important information across conversations
+- Track and help you achieve your goals
+- Maintain context of your ongoing discussions
+- Customize its behavior to your preferences
 
 ## Installation
 
@@ -19,9 +24,35 @@ pip install elroy
 ```
 
 To run:
-```
+```bash
+# Start the chat interface
+elroy chat
+
+# Or just 'elroy' which defaults to chat mode
 elroy
+
+# Upgrade the database schema if needed
+elroy upgrade
 ```
+
+## Available Commands
+
+While chatting with Elroy, you can use these commands:
+
+- `/help` - Show available commands
+- `/goals` - List and manage your goals
+- `/remember` - Save important information to long-term memory
+- `/recall` - Search your saved memories
+- `/exit` - Exit the chat
+
+## Customization
+
+You can customize Elroy's appearance with these options:
+
+- `--system-message-color TEXT` - Color for system messages
+- `--user-input-color TEXT` - Color for user input
+- `--assistant-color TEXT` - Color for assistant output
+- `--warning-color TEXT` - Color for warning messages
 
 ### System Requirements
 
