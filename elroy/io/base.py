@@ -27,6 +27,12 @@ class ElroyIO(ABC):
     def notify_warning(self, message: str) -> None:
         raise NotImplementedError
 
+class StdIO(ElroyIO):
+    """
+    IO which emits plain text to stdin and stdout.
+    """
+
+    pass
 
 class TestIO(ElroyIO):
     """
