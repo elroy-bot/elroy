@@ -31,5 +31,3 @@ Use pytest for writing and running tests.
 
 Use sqlmodel session.exec, rather than session.query
 
-To facilitate testing, use utility functions in elroy.system.clock to get the current system time.
-
