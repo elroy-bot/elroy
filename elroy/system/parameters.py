@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 CLI_USER_ID = 1
 
@@ -8,6 +9,8 @@ CHAT_MODEL = os.getenv("ELROY_CHAT_MODEL", "gpt-4o")
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_SIZE = 1536
+
+MIN_CONVO_AGE_FOR_GREETING = timedelta(minutes=10)
 
 L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD = 1.24
 

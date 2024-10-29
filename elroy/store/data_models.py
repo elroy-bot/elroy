@@ -11,7 +11,7 @@ from sqlmodel import Column, Field, SQLModel
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import EMBEDDING_SIZE
 
-USER, ASSISTANT, TOOL, SYSTEM = VALID_CONTEXT_MESSAGE_ROLES = ["user", "assistant", "tool", "system"]
+USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
 
 
 @dataclass
@@ -134,7 +134,7 @@ class ContextMessage:
     content: Optional[str]
     role: str
     id: Optional[int] = None
-    created_at_utc_epoch_secs: Optional[float] = None
+    created_at: Optional[datetime] = None
     tool_calls: Optional[List[ToolCall]] = None
     tool_call_id: Optional[str] = None
     memory_metadata: List[MemoryMetadata] = field(default_factory=list)

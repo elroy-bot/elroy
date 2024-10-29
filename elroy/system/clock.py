@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
+import pytz
 from pytz import UTC
 
 get_utc_now = lambda: datetime.now(UTC)
@@ -29,3 +30,11 @@ def string_to_timedelta(time_to_completion: str) -> timedelta:
         return timedelta(days=int(time_amount) * 365)  # approximate
     else:
         raise ValueError(f"Invalid time unit: {time_to_completion.split()[1]}. Must be one of HOURS, DAYS, WEEKS, MONTHS, or YEARS.")
+
+
+def ensure_utc(dt: datetime) -> datetime:
+    """Convert a datetime object to UTC if it contains time; leave date-only as naive."""
+    if dt.tzinfo is None:
+        return pytz.utc.localize(dt)
+    else:
+        return dt.astimezone(pytz.UTC)
