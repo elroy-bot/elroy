@@ -14,9 +14,9 @@ jobs:
         ports:
           - 5432:5432
         env:
-          POSTGRES_DB: your_db_name
-          POSTGRES_USER: your_db_user
-          POSTGRES_PASSWORD: your_db_password
+          POSTGRES_DB: elroy
+          POSTGRES_USER: elroy
+          POSTGRES_PASSWORD: password
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -30,7 +30,7 @@ jobs:
       uses: actions/checkout@v2
     - name: Set ELROY_TEST_POSTGRES_URL
       run: |
-        echo "ELROY_TEST_POSTGRES_URL=postgresql://your_db_user:your_db_password@localhost:5432/your_db_name" >> $GITHUB_ENV
+        echo "ELROY_TEST_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
     - name: Set up Python 3.11
       uses: actions/setup-python@v2
       with:
@@ -68,9 +68,9 @@ jobs:
         ports:
           - 5432:5432
         env:
-          POSTGRES_DB: your_db_name
-          POSTGRES_USER: your_db_user
-          POSTGRES_PASSWORD: your_db_password
+          POSTGRES_DB: elroy
+          POSTGRES_USER: elroy
+          POSTGRES_PASSWORD: password
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -80,9 +80,9 @@ jobs:
       name: release
 
     steps:
-    - name: Set POSTGRES_URL
+    - name: Set ELROY_POSTGRES_URL
       run: |
-        echo "POSTGRES_URL=postgresql://your_db_user:your_db_password@localhost:5432/your_db_name" >> $GITHUB_ENV
+        echo "ELROY_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
 
     - name: Check out code
       uses: actions/checkout@v2
