@@ -4,7 +4,7 @@ import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Generator, Optional
 
 import typer
@@ -23,11 +23,13 @@ from elroy.memory import get_memory_names, get_relevant_memories
 from elroy.onboard_user import onboard_user
 from elroy.store.data_models import ASSISTANT, SYSTEM, USER
 from elroy.store.goals import get_goal_names
+from elroy.store.message import get_time_since_most_recent_message
 from elroy.store.user import is_user_exists
 from elroy.system.parameters import (CLI_USER_ID, DEFAULT_ASSISTANT_COLOR,
                                      DEFAULT_INPUT_COLOR,
                                      DEFAULT_SYSTEM_MESSAGE_COLOR,
-                                     DEFAULT_WARNING_COLOR)
+                                     DEFAULT_WARNING_COLOR,
+                                     MIN_CONVO_AGE_FOR_GREETING)
 from elroy.system.utils import datetime_to_string
 from elroy.system_context import context_refresh_if_needed
 from elroy.tools.functions.user_preferences import (get_user_preferred_name,
@@ -197,6 +199,8 @@ async def main_chat(context: ElroyContext[CliIO]):
         set_user_preferred_name(context, name)
         process_and_deliver_msg(context, "Elroy user {name} has been onboarded. Say hello and introduce yourself.", role=SYSTEM)
 
+    elif (get_time_since_most_recent_message(context) or timedelta()) > MIN_CONVO_AGE_FOR_GREETING:
+        logging.info("User has interacted recently, skipping greeting.")
     else:
         preferred_name = get_user_preferred_name(context)
 

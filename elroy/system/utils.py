@@ -28,8 +28,9 @@ def first_or_none(iterable: Iterator[T]) -> Optional[T]:
     return next(iterable, None)
 
 
-def datetime_to_string(dt: datetime) -> str:
-    return dt.strftime("%A, %B %d, %Y %I:%M %p %Z")
+def datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
+    if dt:
+        return dt.strftime("%A, %B %d, %Y %I:%M %p %Z")
 
 
 utc_epoch_to_datetime_string = lambda epoch: datetime_to_string(datetime.fromtimestamp(epoch, UTC))

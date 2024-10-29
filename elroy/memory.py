@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from functools import partial
 from typing import List, Set, Tuple
 
@@ -163,7 +164,7 @@ def get_relevant_memories(context: ElroyContext) -> List[str]:
 
     return pipe(
         get_context_messages(context),
-        filter(lambda m: m.created_at_utc_epoch_secs > get_utc_now().timestamp() - context.config.max_in_context_message_age_seconds),
+        filter(lambda m: m.created_at > get_utc_now() - timedelta(seconds=context.config.max_in_context_message_age_seconds)),
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,

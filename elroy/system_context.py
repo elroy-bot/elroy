@@ -1,6 +1,6 @@
 import logging
 from collections import deque
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import partial, reduce
 from operator import add
 from typing import List, Optional
@@ -20,7 +20,7 @@ from elroy.store.message import (get_context_messages,
                                  replace_context_messages)
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import CHAT_MODEL
-from elroy.system.utils import logged_exec_time, utc_epoch_to_datetime_string
+from elroy.system.utils import datetime_to_string, logged_exec_time
 
 
 def get_refreshed_system_message(user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
@@ -53,7 +53,7 @@ def get_refreshed_system_message(user_preferred_name: str, context_messages: Lis
 
 
 def format_message(user_preferred_name: str, message: ContextMessage) -> Optional[str]:
-    datetime_str = utc_epoch_to_datetime_string(message.created_at_utc_epoch_secs)
+    datetime_str = datetime_to_string(message.created_at)
     if message.role == "system":
         return f"SYSTEM ({datetime_str}): {message.content}"
     elif message.role == USER:
@@ -128,8 +128,8 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
     # iterate through non-system context messages in reverse order
     # we keep the most current messages that are fresh enough to be relevant
     for msg in reversed(prev_messages):  # iterate in reverse order,
-        msg_created_at_utc_epoch_secs = msg.created_at_utc_epoch_secs
-        assert isinstance(msg_created_at_utc_epoch_secs, float)
+        msg_created_at = msg.created_at
+        assert isinstance(msg_created_at, datetime)
 
         if most_recent_kept_message and most_recent_kept_message.role == TOOL:
             new_messages.appendleft(msg)
@@ -138,7 +138,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
             continue
         if current_token_count > context.config.context_refresh_token_target:
             break
-        elif msg_created_at_utc_epoch_secs < get_utc_now().timestamp() - context.config.max_in_context_message_age_seconds:
+        elif msg_created_at < get_utc_now() - timedelta(seconds=context.config.max_in_context_message_age_seconds):
             logging.info(f"Dropping old message {msg.id}")
             continue
         else:
@@ -154,9 +154,9 @@ def format_context_messages(user_preferred_name: str, context_messages: List[Con
     convo_range = pipe(
         context_messages,
         filter(lambda _: _.role == USER),
-        map(lambda _: _.created_at_utc_epoch_secs),
+        map(lambda _: _.created_at),
         list,
-        lambda l: f"Messages from {utc_epoch_to_datetime_string(min(l))} to {utc_epoch_to_datetime_string(max(l))}",
+        lambda l: f"Messages from {datetime_to_string(min(l))} to {datetime_to_string(max(l))}",
     )
 
     return (

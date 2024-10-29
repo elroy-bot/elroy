@@ -3,13 +3,13 @@ from datetime import timedelta
 from typing import Dict, Iterable, List, Optional
 
 from sqlmodel import select
-from toolz import first, pipe
+from toolz import first, last, pipe
 from toolz.curried import map, pipe
 
 from elroy.config import ElroyContext
 from elroy.store.data_models import (ContextMessage, ContextMessageSet,
-                                     MemoryMetadata, Message, convert_to_utc)
-from elroy.system.clock import get_utc_now
+                                     MemoryMetadata, Message)
+from elroy.system.clock import ensure_utc, get_utc_now
 from elroy.system.parameters import CHAT_MODEL
 
 
@@ -32,7 +32,7 @@ def db_message_to_context_message_dict(db_message: Message) -> Dict:
         "id": db_message.id,
         "content": db_message.content,
         "role": db_message.role,
-        "created_at_utc_epoch_secs": db_message.created_at.timestamp(),
+        "created_at": ensure_utc(db_message.created_at),
         "tool_calls": db_message.tool_calls,
         "tool_call_id": db_message.tool_call_id,
         "memory_metadata": [MemoryMetadata(**m) for m in db_message.memory_metadata] if db_message.memory_metadata else [],
@@ -52,7 +52,7 @@ def get_time_since_context_message_creation(context: ElroyContext) -> Optional[t
     row = get_current_context_message_set_db(context)
 
     if row:
-        return get_utc_now() - convert_to_utc(row.created_at)
+        return get_utc_now() - ensure_utc(row.created_at)
 
 
 def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage]:
@@ -77,6 +77,14 @@ def get_current_system_message(context: ElroyContext) -> Optional[ContextMessage
         return first(_get_context_messages_iter(context))
     except StopIteration:
         return None
+
+
+def get_time_since_most_recent_message(context: ElroyContext) -> Optional[timedelta]:
+    return pipe(
+        _get_context_messages_iter(context),
+        last,
+        lambda x: get_utc_now() - x.created_at,
+    )  # type: ignore
 
 
 def get_context_messages(context: ElroyContext) -> List[ContextMessage]:
