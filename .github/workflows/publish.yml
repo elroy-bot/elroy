@@ -114,6 +114,7 @@ jobs:
       run: |
         pipx install ./dist/elroy-*.whl --python python3.11
         elroy --version
+        echo "Say 'Hello World'" | elroy | grep -q "Hello World"
 
     - name: Publish to PyPI
       env:
