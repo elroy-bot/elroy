@@ -13,7 +13,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from elroy import __version__
+from elroy import ROOT_DIR, __version__
 from elroy.config import ElroyContext
 from elroy.io.base import ElroyIO
 
@@ -33,7 +33,7 @@ def check_updates(context: ElroyContext):
 def ensure_current_db_migration(io: ElroyIO, postgres_url: str) -> None:
     """Check if all migrations have been run.
     Returns True if migrations are up to date, False otherwise."""
-    config = Config("alembic.ini")
+    config = Config(os.path.join(ROOT_DIR, "alembic", "alembic.ini"))
     config.set_main_option("sqlalchemy.url", postgres_url)
 
     # Configure alembic logging to use Python's logging

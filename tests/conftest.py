@@ -6,6 +6,7 @@ from sqlmodel import delete, text
 
 from alembic.command import upgrade
 from alembic.config import Config
+from elroy import ROOT_DIR
 from elroy.config import ElroyContext, get_config, session_manager
 from elroy.docker_postgres import is_docker_running
 from elroy.io.base import ElroyIO, TestIO
@@ -59,7 +60,7 @@ def session(elroy_config):
         session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))  # type: ignore
 
     # apply migrations
-    alembic_cfg = Config("alembic.ini")
+    alembic_cfg = Config(os.path.join(ROOT_DIR, "alembic", "alembic.ini"))
     alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.postgres_url)
     upgrade(alembic_cfg, "head")
 
