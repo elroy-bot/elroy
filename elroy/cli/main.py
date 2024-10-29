@@ -11,8 +11,6 @@ import typer
 from colorama import init
 from toolz import pipe
 
-from alembic import command
-from alembic.config import Config
 from elroy.cli.updater import (check_updates, ensure_current_db_migration,
                                version_callback)
 from elroy.config import ROOT_DIR, ElroyContext, get_config, session_manager
@@ -149,16 +147,6 @@ def chat(ctx: typer.Context):
         check_updates(context)
         asyncio.run(main_chat(context))
         context.io.sys_message(f"Exiting...")
-
-
-@app.command()
-def upgrade(ctx: typer.Context):
-    """Upgrades Elroy to the most recent version."""
-    with init_elroy_context(ctx) as context:
-        alembic_cfg = Config("alembic.ini")
-        alembic_cfg.set_main_option("sqlalchemy.url", context.config.postgres_url)
-        command.upgrade(alembic_cfg, "head")
-        typer.echo("Database upgrade completed.")
 
 
 def process_and_deliver_msg(context: ElroyContext[CliIO], user_input: str, role=USER):
