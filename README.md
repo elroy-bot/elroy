@@ -1,27 +1,26 @@
 # Elroy
 
-Elroy is a CLI AI personal assistant with long term memory and goal tracking capabilities. It can:
+Elroy is a CLI AI personal assistant with long term memory and goal tracking capabilities. It features:
 
-- Remember important information across conversations
-- Track and help you achieve your goals
-- Maintain context of your ongoing discussions
-- Customize its behavior to your preferences
+- **Long-term Memory**: Elroy maintains memories across conversations
+- **Goal Tracking**: Track and manage personal/professional goals
+- **Memory Panel**: Shows relevant memories during conversations
+
 
 ## Installation
 
-There are two ways to install and run Elroy:
-
-### 1. Using pipx (Recommended)
+### Using pip (Recommended)
 
 #### Prerequisites
 - Python 3.11 or higher
-- pipx: Install with `python3.11 -m pip install --user pipx`
 - OpenAI key: Set the `OPENAI_API_KEY` environment variable
 
 #### Installation
 ```
 pip install elroy
 ```
+
+## Usage
 
 To run:
 ```bash
@@ -30,12 +29,17 @@ elroy chat
 
 # Or just 'elroy' which defaults to chat mode
 elroy
+```
 
+```bash
+# Elroy also accepts stdin
+> echo "Say hello world | elroy"
+hello world
 ```
 
 ## Available Commands
 
-While chatting with Elroy, you can use these commands:
+While chatting with Elroy, you can use the following commands. For the most part, these commands are available for Elroy to use autonomously:
 
 ### System Commands
 - `/print_available_commands` - Show all available commands
@@ -49,7 +53,7 @@ While chatting with Elroy, you can use these commands:
 - `/rename_goal` - Rename an existing goal
 - `/print_goal` - View details of a specific goal
 - `/add_goal_to_current_context` - Add a goal to current conversation
-- `/drop_goal_from_current_context_only` - Remove goal from current context
+- `/drop_goal_from_current_context_only` - Remove goal from current conversation
 - `/add_goal_status_update` - Update goal progress
 - `/mark_goal_completed` - Mark a goal as complete
 - `/delete_goal_permamently` - Delete a goal
@@ -66,22 +70,8 @@ While chatting with Elroy, you can use these commands:
 
 ### Conversation
 - `/contemplate` - Ask Elroy to reflect on the conversation
-- `/start_aider_session` - Start an AI-powered coding session (experimental)
 - `/exit` - Exit the chat
 
-You can also pipe text directly to Elroy:
-```bash
-echo "Summarize this" | elroy
-```
-
-## Features
-
-- **Long-term Memory**: Elroy maintains memories across conversations
-- **Goal Tracking**: Track and manage personal/professional goals
-- **Context Awareness**: Maintains conversation context with configurable token limits
-- **Auto-updates**: Checks for new versions and database updates
-- **Memory Panel**: Shows relevant memories during conversations
-- **Name Customization**: Remembers and uses your preferred name
 
 ## Customization
 
@@ -92,9 +82,6 @@ You can customize Elroy's appearance with these options:
 - `--assistant-color TEXT` - Color for assistant output
 - `--warning-color TEXT` - Color for warning messages
 
-### System Requirements
-
-Elroy requires Python > 3.11
 
 ### Database Requirement
 
@@ -107,10 +94,6 @@ Elroy needs a PostgreSQL database. By default, it will use Docker to automatical
 2. Use your own PostgreSQL (Advanced):
    - Set ELROY_POSTGRES_URL to your database connection string
    - Docker is not required in this case
-
-In either case, you'll need:
-- OpenAI key: Set the `OPENAI_API_KEY` environment variable
-
 
 
 ## Options
