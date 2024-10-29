@@ -37,11 +37,36 @@ elroy
 
 While chatting with Elroy, you can use these commands:
 
-- `/help` - Show available commands
-- `/goals` - List and manage your goals
-- `/remember` - Save important information to long-term memory
-- `/recall` - Search your saved memories
-- `/name` - Set your preferred name
+### System Commands
+- `/print_available_commands` - Show all available commands
+- `/print_system_instruction` - View current system instructions
+- `/refresh_system_instructions` - Refresh system instructions
+- `/reset_system_context` - Reset conversation context
+- `/print_context_messages` - View current conversation context
+
+### Goal Management
+- `/create_goal` - Create a new goal
+- `/rename_goal` - Rename an existing goal
+- `/print_goal` - View details of a specific goal
+- `/add_goal_to_current_context` - Add a goal to current conversation
+- `/drop_goal_from_current_context_only` - Remove goal from current context
+- `/add_goal_status_update` - Update goal progress
+- `/mark_goal_completed` - Mark a goal as complete
+- `/delete_goal_permamently` - Delete a goal
+
+### Memory Management
+- `/print_memory` - View a specific memory
+- `/create_memory` - Create a new memory
+
+### User Preferences
+- `/get_user_full_name` - Get your full name
+- `/set_user_full_name` - Set your full name
+- `/get_user_preferred_name` - Get your preferred name
+- `/set_user_preferred_name` - Set your preferred name
+
+### Conversation
+- `/contemplate` - Ask Elroy to reflect on the conversation
+- `/start_aider_session` - Start an AI-powered coding session (experimental)
 - `/exit` - Exit the chat
 
 You can also pipe text directly to Elroy:
