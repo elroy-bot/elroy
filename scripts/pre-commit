@@ -46,7 +46,7 @@ def autoflake_files():
     print("Running autoflake...")
     run_command('poetry run find . -type f -name "*.py" ! -path "./.venv/*" -exec autoflake --ignore-init-module-imports --in-place --remove-unused-variables --remove-all-unused-imports {} +')
     run_command('git add .')
-    
+
 def run_vulture():
     print("Running vulture...")
     run_command(
@@ -54,12 +54,15 @@ def run_vulture():
         '''--ignore-decorators "@shared_task,@app.task,@app.route" .''', True
         )
 
-def main():
+def ensure_not_main():
     protected_branch = "main"
     current_branch = get_current_branch()
     if current_branch == protected_branch:
         print(f"Commits directly to {protected_branch} not allowed")
         sys.exit(1)
+
+def main():
+    ensure_not_main()
 
     changed_files = get_changed_files()
 
@@ -77,7 +80,7 @@ def main():
             print("poetry.lock not updated, running `poetry lock`...")
             run_command('poetry lock')
             run_command('git add poetry.lock')
-       
+
 
     # Continue with the commit
     sys.exit(0)
