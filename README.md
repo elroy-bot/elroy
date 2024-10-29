@@ -31,8 +31,6 @@ elroy chat
 # Or just 'elroy' which defaults to chat mode
 elroy
 
-# Upgrade the database schema if needed
-elroy upgrade
 ```
 
 ## Available Commands
@@ -42,7 +40,7 @@ While chatting with Elroy, you can use these commands:
 - `/help` - Show available commands
 - `/goals` - List and manage your goals
 - `/remember` - Save important information to long-term memory
-- `/recall` - Search your saved memories 
+- `/recall` - Search your saved memories
 - `/name` - Set your preferred name
 - `/exit` - Exit the chat
 
