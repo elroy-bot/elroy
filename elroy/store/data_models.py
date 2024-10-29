@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import pytz
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
@@ -67,14 +66,6 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-
-
-def convert_to_utc(dt: datetime) -> datetime:
-    """Convert a datetime object to UTC if it contains time; leave date-only as naive."""
-    if dt.tzinfo is None:
-        return pytz.utc.localize(dt)
-    else:
-        return dt.astimezone(pytz.UTC)
 
 
 class Memory(EmbeddableSqlModel, table=True):
