@@ -113,7 +113,7 @@ def common(
     ),
     system_message_color: str = typer.Option(DEFAULT_SYSTEM_MESSAGE_COLOR, help="Color for system messages."),
     user_input_color: str = typer.Option(DEFAULT_INPUT_COLOR, help="Color for user input."),
-    output_color: str = typer.Option(DEFAULT_ASSISTANT_COLOR, help="Color for assistant output."),
+    assistant_color: str = typer.Option(DEFAULT_ASSISTANT_COLOR, help="Color for assistant output."),
     warning_color: str = typer.Option(DEFAULT_WARNING_COLOR, help="Color for warning messages."),
 ):
     """Common parameters."""
@@ -126,7 +126,7 @@ def common(
         "stop_docker_postgres_on_exit": stop_docker_postgres_on_exit,
         "system_message_color": system_message_color,
         "user_input_color": user_input_color,
-        "output_color": output_color,
+        "assistant_color": assistant_color,
         "warning_color": warning_color,
     }
 

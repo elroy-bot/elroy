@@ -53,10 +53,10 @@ class CliIO(ElroyIO):
                 self.console.print()
                 return
 
-        if isinstance(message, Pretty):
+        elif isinstance(message, Pretty):
             self.console.print(message)
         else:
-            self.console.print(f"[{self.user_input_color}]{message}[/]", end="")
+            self.console.print(f"[{self.assistant_message_color}]{message}[/]", end="")
         self.console.print()  # New line after complete response
 
     def sys_message(self, message: Union[str, Pretty]) -> None:
