@@ -1,5 +1,7 @@
 import contextlib
 import logging
+import os
+import sys
 from io import StringIO
 
 import requests
@@ -12,10 +14,23 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from elroy import __version__
-from elroy.io.cli import CliIO
+from elroy.config import ElroyContext
+from elroy.io.base import ElroyIO
 
 
-def ensure_current_db_migration(io: CliIO, postgres_url: str) -> None:
+def check_updates(context: ElroyContext):
+    current_version, latest_version = _check_latest_version()
+    if latest_version > current_version:
+        if typer.confirm(f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"):
+            typer.echo("Upgrading elroy...")
+            try:
+                os.system(f"{sys.executable} -m pip install --upgrade elroy=={latest_version}")
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            except Exception as e:
+                context.io.sys_message(f"Error during upgrade: {e}. Please try upgrading manually using: pipx upgrade elroy")
+
+
+def ensure_current_db_migration(io: ElroyIO, postgres_url: str) -> None:
     """Check if all migrations have been run.
     Returns True if migrations are up to date, False otherwise."""
     config = Config("alembic.ini")

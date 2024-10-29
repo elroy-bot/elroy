@@ -13,10 +13,11 @@ from toolz import pipe
 
 from alembic import command
 from alembic.config import Config
-from elroy.cli.updater import (_check_latest_version,
-                               ensure_current_db_migration, version_callback)
+from elroy.cli.updater import (check_updates, ensure_current_db_migration,
+                               version_callback)
 from elroy.config import ROOT_DIR, ElroyContext, get_config, session_manager
 from elroy.docker_postgres import is_docker_running, start_db, stop_db
+from elroy.io.base import ElroyIO, StdIO
 from elroy.io.cli import CliIO
 from elroy.logging_config import setup_logging
 from elroy.memory import get_memory_names, get_relevant_memories
@@ -41,15 +42,16 @@ app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
 
 @contextmanager
-def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]:
+def init_elroy_context(ctx: typer.Context, io: Optional[ElroyIO] = None) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext as a context manager"""
 
-    io = CliIO(
-        ctx.obj["system_message_color"],
-        ctx.obj["assistant_color"],
-        ctx.obj["user_input_color"],
-        ctx.obj["warning_color"],
-    )
+    if not io:
+        io = CliIO(
+            ctx.obj["system_message_color"],
+            ctx.obj["assistant_color"],
+            ctx.obj["user_input_color"],
+            ctx.obj["warning_color"],
+        )
 
     try:
         setup_logging(ctx.obj["log_file_path"])
@@ -137,16 +139,14 @@ def common(
 def chat(ctx: typer.Context):
     """Start the Elroy chat interface"""
 
+    if not sys.stdin.isatty():
+        with init_elroy_context(ctx, StdIO()) as context:
+            for line in sys.stdin:
+                process_and_deliver_msg(context, line)
+        return
+
     with init_elroy_context(ctx) as context:
-        current_version, latest_version = _check_latest_version()
-        if latest_version > current_version:
-            if typer.confirm(f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"):
-                typer.echo("Upgrading elroy...")
-                try:
-                    os.system(f"{sys.executable} -m pip install --upgrade elroy=={latest_version}")
-                    os.execv(sys.executable, [sys.executable] + sys.argv)
-                except Exception as e:
-                    context.io.sys_message(f"Error during upgrade: {e}. Please try upgrading manually using: pipx upgrade elroy")
+        check_updates(context)
         asyncio.run(main_chat(context))
         context.io.sys_message(f"Exiting...")
 

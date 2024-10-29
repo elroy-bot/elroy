@@ -1,10 +1,13 @@
 import json
+from dataclasses import asdict
 from typing import Dict, Iterator, List, Union
 
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
+from toolz import pipe
+from toolz.curried import keyfilter, map
 
-from elroy.store.data_models import USER
+from elroy.store.data_models import USER, ContextMessage
 from elroy.system.parameters import CHAT_MODEL, EMBEDDING_MODEL
 from elroy.system.utils import logged_exec_time
 
@@ -16,8 +19,15 @@ class MissingToolCallIdError(Exception):
 
 
 @logged_exec_time
-def generate_chat_completion_message(context_messages: List[Dict]) -> Iterator[Dict]:
+def generate_chat_completion_message(context_messages: List[ContextMessage]) -> Iterator[Dict]:
     from elroy.tools.function_caller import get_function_schemas
+
+    context_messages = pipe(
+        context_messages,
+        map(asdict),
+        map(keyfilter(lambda k: k not in ("id", "created_at"))),
+        list,
+    )
 
     try:
         return completion(

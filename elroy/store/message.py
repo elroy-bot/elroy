@@ -11,6 +11,7 @@ from elroy.store.data_models import (ContextMessage, ContextMessageSet,
                                      MemoryMetadata, Message)
 from elroy.system.clock import ensure_utc, get_utc_now
 from elroy.system.parameters import CHAT_MODEL
+from elroy.system.utils import logged_exec_time
 
 
 def context_message_to_db_message(user_id: int, context_message: ContextMessage):
@@ -87,6 +88,7 @@ def get_time_since_most_recent_message(context: ElroyContext) -> Optional[timede
     )  # type: ignore
 
 
+@logged_exec_time
 def get_context_messages(context: ElroyContext) -> List[ContextMessage]:
     return list(_get_context_messages_iter(context))
 
