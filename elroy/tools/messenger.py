@@ -1,5 +1,4 @@
 import logging
-from dataclasses import asdict
 from functools import partial
 from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
@@ -231,7 +230,7 @@ def _generate_assistant_reply(
         raise ValueError("Assistant message already the most recent message")
 
     tool_call_accumulator = ToolCallAccumulator()
-    for chunk in generate_chat_completion_message([asdict(x) for x in context_messages]):
+    for chunk in generate_chat_completion_message(context_messages):
         if chunk.choices[0].delta.content:  # type: ignore
             yield ContentItem(content=chunk.choices[0].delta.content)  # type: ignore
         if chunk.choices[0].delta.tool_calls:  # type: ignore
