@@ -9,7 +9,7 @@ from toolz.curried import do, filter, map, remove, tail
 
 from elroy.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, get_embedding
-from elroy.store.data_models import (ASSISTANT, TOOL, USER, EmbeddableSqlModel,
+from elroy.store.data_models import (ASSISTANT, SYSTEM, TOOL, USER, EmbeddableSqlModel,
                                      Goal)
 from elroy.store.embeddings import (get_most_relevant_goal,
                                     get_most_relevant_memory)
@@ -47,11 +47,11 @@ class ToolCallAccumulator:
 
 
 def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterator[str]:
-    assert role in [USER, ASSISTANT]
+    assert role in [USER, ASSISTANT, SYSTEM]
 
     context_messages = get_context_messages(context)
 
-    new_messages = [ContextMessage(role=USER, content=msg)] + get_relevant_memories(context, context_messages)
+    new_messages = [ContextMessage(role=role, content=msg)] + get_relevant_memories(context, context_messages)
 
     full_content = ""
 
