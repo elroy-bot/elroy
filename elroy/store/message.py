@@ -4,10 +4,10 @@ from typing import Dict, Iterable, List, Optional
 
 from sqlmodel import select
 from toolz import first, last, pipe
-from toolz.curried import map, pipe
+from toolz.curried import map, pipe, filter
 
 from elroy.config import ElroyContext
-from elroy.store.data_models import (ContextMessage, ContextMessageSet,
+from elroy.store.data_models import (USER, ContextMessage, ContextMessageSet,
                                      MemoryMetadata, Message)
 from elroy.system.clock import ensure_utc, get_utc_now
 from elroy.system.parameters import CHAT_MODEL
@@ -80,9 +80,11 @@ def get_current_system_message(context: ElroyContext) -> Optional[ContextMessage
         return None
 
 
-def get_time_since_most_recent_message(context: ElroyContext) -> Optional[timedelta]:
+@logged_exec_time
+def get_time_since_most_recent_user_message(context: ElroyContext) -> Optional[timedelta]:
     return pipe(
         _get_context_messages_iter(context),
+        filter(lambda x: x.role == USER),
         last,
         lambda x: get_utc_now() - x.created_at,
     )  # type: ignore
