@@ -4,7 +4,7 @@ from typing import Dict, Iterable, List, Optional
 
 from sqlmodel import select
 from toolz import first, last, pipe
-from toolz.curried import map, pipe, filter
+from toolz.curried import filter, map, pipe
 
 from elroy.config import ElroyContext
 from elroy.store.data_models import (USER, ContextMessage, ContextMessageSet,
