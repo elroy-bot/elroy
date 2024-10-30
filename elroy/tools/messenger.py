@@ -9,8 +9,8 @@ from toolz.curried import do, filter, map, remove, tail
 
 from elroy.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, get_embedding
-from elroy.store.data_models import (ASSISTANT, SYSTEM, TOOL, USER, EmbeddableSqlModel,
-                                     Goal)
+from elroy.store.data_models import (ASSISTANT, SYSTEM, TOOL, USER,
+                                     EmbeddableSqlModel, Goal)
 from elroy.store.embeddings import (get_most_relevant_goal,
                                     get_most_relevant_memory)
 from elroy.store.message import (ContextMessage, MemoryMetadata,

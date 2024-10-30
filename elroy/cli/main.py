@@ -20,7 +20,7 @@ from elroy.io.cli import CliIO
 from elroy.logging_config import setup_logging
 from elroy.memory import get_memory_names, get_relevant_memories
 from elroy.onboard_user import onboard_user
-from elroy.store.data_models import ASSISTANT, SYSTEM, USER
+from elroy.store.data_models import SYSTEM, USER
 from elroy.store.goals import get_goal_names
 from elroy.store.message import get_time_since_most_recent_user_message
 from elroy.store.user import is_user_exists
