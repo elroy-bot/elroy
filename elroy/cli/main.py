@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import sys
-from concurrent.futures import ThreadPoolExecutor
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Generator, Optional
@@ -30,7 +30,7 @@ from elroy.system.parameters import (CLI_USER_ID, DEFAULT_ASSISTANT_COLOR,
                                      DEFAULT_WARNING_COLOR,
                                      MIN_CONVO_AGE_FOR_GREETING)
 from elroy.system.utils import datetime_to_string
-from elroy.system_context import context_refresh_if_needed
+from elroy.system_context import context_refresh
 from elroy.tools.functions.user_preferences import (get_user_preferred_name,
                                                     set_user_preferred_name)
 from elroy.tools.messenger import process_message
@@ -85,6 +85,7 @@ def init_elroy_context(ctx: typer.Context, io: Optional[ElroyIO] = None) -> Gene
                 config=config,
                 io=io,
             )
+
     finally:
         if ctx.obj["use_docker_postgres"] and ctx.obj["stop_docker_postgres_on_exit"]:
             io.sys_message("Stopping Docker Postgres container...")
@@ -163,20 +164,53 @@ def process_and_deliver_msg(context: ElroyContext[CliIO], user_input: str, role=
     else:
         context.io.assistant_msg(process_message(context, user_input, role))
 
+    context.io.rule()
 
-async def async_context_refresh_if_needed(context):
-    loop = asyncio.get_event_loop()
-    with ThreadPoolExecutor() as pool:
-        await loop.run_in_executor(pool, context_refresh_if_needed, context)
+
+def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
+    """Run context refresh in a background thread"""
+    # Create new event loop for this thread
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    async def refresh_loop(context: ElroyContext):
+        while True:
+            try:
+                logging.info("Refreshing context")
+                await context_refresh(context)  # Keep this async
+                await asyncio.sleep(interval_seconds)
+            except Exception as e:
+                logging.error(f"Error in periodic context refresh: {e}")
+
+    try:
+        # hack to get a new session for the thread
+        with session_manager(context.config.postgres_url) as session:
+            loop.run_until_complete(
+                refresh_loop(
+                    ElroyContext(
+                        user_id=CLI_USER_ID,
+                        session=session,
+                        config=context.config,
+                        io=context.io,
+                    )
+                )
+            )
+    finally:
+        loop.close()
 
 
 async def main_chat(context: ElroyContext[CliIO]):
-
     init(autoreset=True)
-    context.io.print_title_ruler()
 
-    # Asynchronously refresh context, this will drop old message from context.
-    asyncio.create_task(async_context_refresh_if_needed(context))
+    # Start background refresh task
+    refresh_thread = threading.Thread(
+        target=periodic_context_refresh,
+        args=(context, context.config.context_refresh_interval_seconds),
+        daemon=True,  # Makes thread exit when main program exits
+    )
+    refresh_thread.start()
+
+    context.io.print_title_ruler()
 
     if not is_user_exists(context):
         context.io.notify_warning("Elroy is in alpha release")
@@ -200,7 +234,7 @@ async def main_chat(context: ElroyContext[CliIO]):
 
     while True:
         try:
-            context.io.rule()
+
             context.io.update_completer(get_goal_names(context), get_memory_names(context))
             pipe(context, get_relevant_memories, context.io.print_memory_panel)
 
@@ -209,7 +243,6 @@ async def main_chat(context: ElroyContext[CliIO]):
                 break
             elif user_input:
                 process_and_deliver_msg(context, user_input)
-                asyncio.create_task(async_context_refresh_if_needed(context))
         except EOFError:
             break
 

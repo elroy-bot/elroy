@@ -37,7 +37,7 @@ def get_config(
         context_refresh_token_trigger_limit=int(context_window_token_limit * 0.66),
         context_refresh_token_target=int(context_window_token_limit * 0.33),
         max_in_context_message_age_seconds=int(timedelta(hours=2).total_seconds()),
-        context_refresh_interval_seconds=int(timedelta(minutes=30).total_seconds()),
+        context_refresh_interval_seconds=int(timedelta(minutes=10).total_seconds()),
     )
 
 

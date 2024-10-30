@@ -28,6 +28,10 @@ def first_or_none(iterable: Iterator[T]) -> Optional[T]:
     return next(iterable, None)
 
 
+def last_or_none(iterable: Iterator[T]) -> Optional[T]:
+    return next(reversed(list(iterable)), None)
+
+
 def datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
     if dt:
         return dt.strftime("%A, %B %d, %Y %I:%M %p %Z")

@@ -109,13 +109,6 @@ def is_context_refresh_needed(context: ElroyContext) -> bool:
     return False
 
 
-@logged_exec_time
-def context_refresh_if_needed(context: ElroyContext):
-    if is_context_refresh_needed(context):
-        logging.info(f"Refreshing context for user id {context.user_id}")
-        context_refresh(context)
-
-
 def compress_context_messages(context: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     """Refreshes context, saving to archival memory and compressing the context window."""
 
@@ -156,7 +149,7 @@ def format_context_messages(user_preferred_name: str, context_messages: List[Con
         filter(lambda _: _.role == USER),
         map(lambda _: _.created_at),
         list,
-        lambda l: f"Messages from {datetime_to_string(min(l))} to {datetime_to_string(max(l))}",
+        lambda l: f"Messages from {datetime_to_string(min(l))} to {datetime_to_string(max(l))}" if l else "No messages in context",
     )
 
     return (
@@ -181,7 +174,7 @@ def replace_system_message(context_messages: List[ContextMessage], new_system_me
 
 
 @logged_exec_time
-def context_refresh(context: ElroyContext) -> None:
+async def context_refresh(context: ElroyContext) -> None:
     from elroy.memory import create_memory, formulate_memory
     from elroy.tools.functions.user_preferences import get_user_preferred_name
 
@@ -189,13 +182,11 @@ def context_refresh(context: ElroyContext) -> None:
     user_preferred_name = get_user_preferred_name(context)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
-    pipe(
-        formulate_memory(user_preferred_name, context_messages),
-        lambda response: create_memory(context, response[0], response[1]),
-    )
+    memory_title, memory_text = await formulate_memory(user_preferred_name, context_messages)
+    create_memory(context, memory_title, memory_text)
 
     for mem1, mem2 in find_redundant_pairs(context, Memory):
-        consolidate_memories(context, mem1, mem2)
+        await consolidate_memories(context, mem1, mem2)
 
     pipe(
         get_refreshed_system_message(user_preferred_name, context_messages),
