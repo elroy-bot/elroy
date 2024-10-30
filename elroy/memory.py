@@ -1,6 +1,5 @@
 import logging
 from datetime import timedelta
-from functools import partial
 from typing import List, Set, Tuple
 
 from sqlmodel import select
@@ -15,17 +14,17 @@ from elroy.system.constants import MEMORY_TITLE_EXAMPLES
 from elroy.system.parameters import CHAT_MODEL, MEMORY_WORD_COUNT_LIMIT
 
 
-def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
+async def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
     from elroy.llm.prompts import summarize_for_memory
     from elroy.system_context import format_context_messages
 
-    return pipe(
+    return await summarize_for_memory(
+        user_preferred_name,
         format_context_messages(user_preferred_name, context_messages),
-        partial(summarize_for_memory, user_preferred_name),
-    )  # type: ignore
+    )
 
 
-def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory):
+async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory):
     if memory1.text == memory2.text:
         logging.info(f"Memories are identical, marking memory with id {memory2.id} as inactive.")
         memory2.is_active = False
