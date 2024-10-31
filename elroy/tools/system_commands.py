@@ -1,3 +1,4 @@
+import logging
 import os
 import pty
 import subprocess
@@ -47,18 +48,28 @@ def invoke_system_command(context: ElroyContext, msg: str) -> str:
 
     try:
         func_args = []
+        required_args = len([p for p in params if p.default is p.empty and p.annotation != ElroyContext])
+
         for i, param in enumerate(params):
             if param.annotation == ElroyContext:
                 func_args.append(context)
-            elif param.annotation == str and i == len(params) - 1:
-                # If it's a string parameter and the last one, join remaining args
-                func_args.append(" ".join(args[i - 1 :]))
-                break
-            elif i - 1 < len(args):  # Check if there are still args left
-                func_args.append(args[i - 1])
+                continue
+
+            arg_index = i - 1  # Adjust for context parameter
+
+            if arg_index < len(args):  # We have an argument provided
+                if param.annotation == str and i == len(params) - 1:
+                    # Last string param gets remaining args
+                    func_args.append(" ".join(args[arg_index:]))
+                    break
+                else:
+                    func_args.append(args[arg_index])
+            elif param.default is not param.empty:
+                # Use default value for optional parameter
+                continue
             else:
-                # Not enough arguments provided
-                return f"Error: Not enough arguments for command {command}"
+                # Missing required argument
+                return f"Error: Missing required argument '{param.name}' for command {command}. Required args: {required_args}"
 
         return func(*func_args)
     except Exception as e:
@@ -207,6 +218,8 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
     """
     from elroy.llm.client import query_llm
     from elroy.llm.prompts import contemplate_prompt
+
+    logging.info("Contemplating...")
 
     user_preferred_name = get_user_preferred_name(context)
     context_messages = get_context_messages(context)
