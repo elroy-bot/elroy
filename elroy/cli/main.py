@@ -182,6 +182,7 @@ def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
                 await asyncio.sleep(interval_seconds)
             except Exception as e:
                 logging.error(f"Error in periodic context refresh: {e}")
+                context.session.rollback()
 
     try:
         # hack to get a new session for the thread

@@ -25,7 +25,6 @@ class CliIO(ElroyIO):
         warning_color: str,
     ) -> None:
         self.console = Console()
-        self.shown_memories: Set[str] = set()
         self.system_message_color = system_message_color
         self.assistant_message_color = assistant_message_color
         self.warning_color = warning_color
@@ -86,20 +85,9 @@ class CliIO(ElroyIO):
         self.console.print()
 
     def print_memory_panel(self, titles: List[str]):
-        if not titles:
-            return
-            
-        # If we haven't shown any memories yet, show the full panel
-        if not self.shown_memories:
+        if titles:
             panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
-            self.shown_memories.update(titles)
-        else:
-            # Check for new memories we haven't shown yet
-            new_titles = [t for t in titles if t not in self.shown_memories]
-            if new_titles:
-                self.console.print(f"[{self.system_message_color}]New context: {', '.join(new_titles)}[/]")
-                self.shown_memories.update(new_titles)
 
     @contextmanager
     def status(self, message: str) -> Generator[None, None, None]:
