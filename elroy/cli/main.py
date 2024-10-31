@@ -34,7 +34,8 @@ from elroy.system_context import context_refresh
 from elroy.tools.functions.user_preferences import (get_user_preferred_name,
                                                     set_user_preferred_name)
 from elroy.tools.messenger import process_message
-from elroy.tools.system_commands import SYSTEM_COMMANDS, invoke_system_command
+from elroy.tools.system_commands import (SYSTEM_COMMANDS, contemplate,
+                                         invoke_system_command)
 
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
@@ -199,16 +200,25 @@ def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
         loop.close()
 
 
+def run_in_background_thread(fn, context, *args):
+    # hack to get a new session for the thread
+    with session_manager(context.config.postgres_url) as session:
+        thread = threading.Thread(
+            target=fn,
+            args=(ElroyContext(user_id=CLI_USER_ID, session=session, config=context.config, io=context.io), *args),
+            daemon=True,
+        )
+        thread.start()
+
+
 async def main_chat(context: ElroyContext[CliIO]):
     init(autoreset=True)
 
-    # Start background refresh task
-    refresh_thread = threading.Thread(
-        target=periodic_context_refresh,
-        args=(context, context.config.context_refresh_interval_seconds),
-        daemon=True,  # Makes thread exit when main program exits
+    run_in_background_thread(
+        periodic_context_refresh,
+        context,
+        context.config.context_refresh_interval_seconds,
     )
-    refresh_thread.start()
 
     context.io.print_title_ruler()
 
@@ -243,6 +253,7 @@ async def main_chat(context: ElroyContext[CliIO]):
                 break
             elif user_input:
                 process_and_deliver_msg(context, user_input)
+                run_in_background_thread(contemplate, context)
         except EOFError:
             break
 
