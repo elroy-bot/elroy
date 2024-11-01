@@ -249,7 +249,7 @@ async def main_chat(context: ElroyContext[CliIO]):
             context.io.update_completer(get_goal_names(context), get_memory_names(context))
             pipe(context, get_relevant_memories, context.io.print_memory_panel)
 
-            user_input = await context.io.prompt_user()
+            user_input = await get_user_input(context)
             if user_input.lower().startswith("/exit") or user_input == "exit":
                 break
             elif user_input:
@@ -257,6 +257,19 @@ async def main_chat(context: ElroyContext[CliIO]):
                 run_in_background_thread(contemplate, context)
         except EOFError:
             break
+
+
+async def get_user_input(context: ElroyContext, keyboard_interupt_count=0) -> str:
+    try:
+        return await context.io.prompt_user()
+    except KeyboardInterrupt:
+        keyboard_interupt_count += 1
+        if keyboard_interupt_count == 3:
+            context.io.assistant_msg("To exit, type /exit, exit, or Ctrl-D")
+        if keyboard_interupt_count > 5:
+            raise EOFError
+        else:
+            return await get_user_input(context, keyboard_interupt_count)
 
 
 def main():
