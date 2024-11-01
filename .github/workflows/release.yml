@@ -1,0 +1,149 @@
+name: Create and Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+    services:
+      postgres:
+        image: ankane/pgvector:v0.5.1
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: elroy
+          POSTGRES_USER: elroy
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    environment:
+      name: release
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+
+    - name: Set ELROY_TEST_POSTGRES_URL
+      run: |
+        echo "ELROY_TEST_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Configure Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+    - name: Install bump2version
+      run: pip install bump2version
+
+    - name: Get new version
+      id: version
+      run: |
+        NEW_VERSION=$(bump2version --dry-run --list ${{ github.event.inputs.bump_type }} | grep new_version | sed -r s,"^.*=",,)
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Create Release Branch
+      run: git checkout -b release/v${{ steps.version.outputs.new_version }}
+
+    - name: Bump version
+      run: bump2version ${{ github.event.inputs.bump_type }}
+
+    - name: Install dependencies
+      run: |
+        poetry config virtualenvs.create false
+        poetry install --no-root
+
+    - name: Run Tests
+      run: |
+        pytest
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        PYTHONWARNINGS: "ignore::DeprecationWarning"
+
+    - name: Build package
+      run: poetry build
+
+    - name: Install pipx and Test built package
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        ELROY_POSTGRES_URL: postgresql://elroy:password@localhost:5432/elroy
+      run: |
+        python -m pip install --user pipx
+        python -m pipx ensurepath
+        pipx install ./dist/elroy-*.whl --python python3.11
+        elroy --version
+        echo "This is an installation test. Repeat the following text, and only the following text: 'Hello World!'" | elroy | grep -q "Hello World"
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        title: 'Release v${{ steps.version.outputs.new_version }}'
+        body: 'Automated version bump for release v${{ steps.version.outputs.new_version }}'
+        branch: 'release/v${{ steps.version.outputs.new_version }}'
+        base: 'main'
+        labels: 'release'
+        delete-branch: true
+
+    - name: Push tags
+      run: git push --tags
+
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD
+
+    - name: Log in to Container registry
+      uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract Docker metadata
+      id: meta
+      uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          ELROY_VERSION=v${{ steps.version.outputs.new_version }}
