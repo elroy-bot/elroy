@@ -61,7 +61,7 @@ jobs:
 
     - name: Configure Git
       run: |
-        git config --global user.name 'middle_aged_coder'
+        git config --global user.name 'elroy-bot'
         git config --global user.email 'noreply@elroy.bot'
 
     - name: Install bump2version
