@@ -4,9 +4,12 @@ on:
   push:
     tags:
       - 'v*.*.*'  # Triggers the workflow on new version tags
+    branches:
+      - main      # Only run on main branch
 
 jobs:
   test:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     services:
       postgres:
