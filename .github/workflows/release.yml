@@ -89,8 +89,11 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PYTHONWARNINGS: "ignore::DeprecationWarning"
 
-    - name: Build package
-      run: poetry build
+    - name: Build and test package
+      run: |
+        rm -rf dist/*  # Clean any existing builds
+        poetry build
+        ls -la dist/   # Verify build artifacts
 
     - name: Install pipx and Test built package
       env:
@@ -124,7 +127,9 @@ jobs:
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD
+      run: |
+        ls -la dist/   # Verify build artifacts are still present
+        poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD --no-interaction
 
     - name: Log in to Container registry
       uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
