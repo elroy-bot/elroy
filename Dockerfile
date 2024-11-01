@@ -1,5 +1,4 @@
-# Use the official Python image
-FROM python:3.11-slim
+FROM python:3.11.7-slim
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -11,17 +10,12 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file
-COPY ./cli/requirements.txt /app/
-
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of the application code
-COPY . /app
+# Install specific elroy version
+ARG ELROY_VERSION
+RUN pip install --no-cache-dir elroy==${ELROY_VERSION}
 
 # Set the PYTHONPATH
 ENV PYTHONPATH=/app

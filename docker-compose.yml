@@ -1,0 +1,39 @@
+services:
+  db:
+    image: ankane/pgvector:v0.5.1
+    container_name: elroy_psql
+    environment:
+      - POSTGRES_USER=elroy
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=elroy
+    volumes:
+      - elroy_postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=vector"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elroy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  elroy:
+    container_name: elroy
+    image: ghcr.io/elroy-bot/elroy:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ELROY_POSTGRES_URL=postgresql://elroy:password@db:5432/elroy
+      - PYTHONPATH=/app
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    stdin_open: true
+    tty: true
+    command: elroy
+
+volumes:
+  elroy_postgres-data:
+    name: elroy_postgres-data
