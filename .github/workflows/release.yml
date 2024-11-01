@@ -125,7 +125,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        ls -la dist/   # Verify build artifacts are still present
+        poetry build
         poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD --no-interaction
 
     - name: Push tags
