@@ -14,6 +14,7 @@ on:
 
 jobs:
   release:
+    if: github.ref == 'refs/heads/main'  # Double-check we're on main
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -41,7 +42,7 @@ jobs:
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
-    
+
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
@@ -102,6 +103,9 @@ jobs:
         elroy --version
         echo "This is an installation test. Repeat the following text, and only the following text: 'Hello World!'" | elroy | grep -q "Hello World"
 
+    - name: Push release branch
+      run: git push origin release/v${{ steps.version.outputs.new_version }}
+
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v5
       with:
@@ -111,6 +115,7 @@ jobs:
         base: 'main'
         labels: 'release'
         delete-branch: true
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Push tags
       run: git push --tags
