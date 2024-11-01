@@ -151,7 +151,7 @@ def chat(ctx: typer.Context):
         context.io.sys_message(f"Exiting...")
 
 
-def process_and_deliver_msg(context: ElroyContext[CliIO], user_input: str, role=USER):
+def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
     if user_input.startswith("/") and role == USER:
         cmd = user_input[1:].split()[0]
 
