@@ -15,9 +15,9 @@ from elroy.system.clock import get_utc_now, string_to_timedelta
 def create_goal(
     context: ElroyContext,
     goal_name: str,
-    strategy: str,
-    description: str,
-    end_condition: str,
+    strategy: Optional[str] = None,
+    description: Optional[str] = None,
+    end_condition: Optional[str] = None,
     time_to_completion: Optional[str] = None,
     priority: Optional[int] = None,
 ) -> None:
@@ -160,12 +160,12 @@ def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_
         str: Confirmation message
     """
     logging.info(f"Updating goal {goal_name} for user {context.user_id}")
-    _update_goal_status(context, goal_name, status_update_or_note, False)
+    _update_goal_status(context, goal_name, False, status_update_or_note)
 
     return f"Status update added to goal '{goal_name}'."
 
 
-def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments: str) -> str:
+def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments: Optional[str] = None) -> str:
     """Marks a goal as completed, with closing comments.
 
     Args:
@@ -179,8 +179,8 @@ def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments:
     _update_goal_status(
         context,
         goal_name,
-        closing_comments,
         True,
+        closing_comments,
     )
 
     return f"Goal '{goal_name}' has been marked as completed."
@@ -200,14 +200,14 @@ def delete_goal_permamently(context: ElroyContext, goal_name: str) -> str:
     _update_goal_status(
         context,
         goal_name,
-        "Goal has been deleted",
         True,
+        "Goal has been deleted",
     )
 
     return f"Goal '{goal_name}' has been deleted."
 
 
-def _update_goal_status(context: ElroyContext, goal_name: str, status: str, is_terminal: bool) -> None:
+def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
     goal = context.session.exec(
         select(Goal).where(
             Goal.user_id == context.user_id,
@@ -222,9 +222,10 @@ def _update_goal_status(context: ElroyContext, goal_name: str, status: str, is_t
     logging.info(f"Current status updates: {goal.status_updates}")
 
     # Append the new status update to the list
-    if goal.status_updates is None:
-        goal.status_updates = []
-    goal.status_updates.append(status)
+    if status:
+        if goal.status_updates is None:
+            goal.status_updates = []
+        goal.status_updates.append(status)
 
     logging.info(f"Updated status updates: {goal.status_updates}")
 

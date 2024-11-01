@@ -1,8 +1,9 @@
 import inspect
 import json
 from dataclasses import dataclass
-from types import FunctionType, ModuleType
-from typing import Dict, List, Optional, Type, Union, get_args, get_origin
+from types import FunctionType, ModuleType, NoneType
+from typing import (Any, Dict, Iterator, List, Optional, Type, Union, get_args,
+                    get_origin)
 
 from docstring_parser import parse
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
@@ -11,6 +12,7 @@ from toolz.curried import filter, map, remove
 
 from elroy.config import ElroyContext
 from elroy.store.data_models import FunctionCall
+from elroy.system.utils import first_or_none
 
 PY_TO_JSON_TYPE = {
     int: "integer",
@@ -106,19 +108,25 @@ def get_module_functions(module: ModuleType) -> List[FunctionType]:
     )  # type: ignore
 
 
-def get_function_schema(function: FunctionType) -> Dict:
-    @dataclass
-    class Parameter:
-        name: str
-        type: Type
-        docstring: Optional[str]
-        optional: bool
+@dataclass
+class Parameter:
+    name: str
+    type: Type
+    docstring: Optional[str]
+    optional: bool
+    default: Optional[Any]
 
+
+def get_function_schema(function: FunctionType) -> Dict:
     def validate_parameter(parameter: Parameter) -> Parameter:
         if not parameter.optional:
             assert (
                 parameter.type != inspect.Parameter.empty
             ), f"Required parameter {parameter.name} for function {function.__name__} has no type annotation"
+        else:
+            assert (
+                parameter.default != inspect.Parameter.empty
+            ), f"Optional parameter {parameter.name} for function {function.__name__} has no default value"
         assert parameter.name in docstring_dict, f"Parameter {parameter.name} for function {function.__name__} has no docstring"
         if parameter.type != inspect.Parameter.empty:
             assert (
@@ -127,6 +135,31 @@ def get_function_schema(function: FunctionType) -> Dict:
 
         return parameter
 
+    def validate_first_param_is_elroy_context(parameters: Iterator[Parameter]) -> Iterator[Parameter]:
+        """
+        If the function accepts parameters, the first parameter must be ElroyContext.
+
+        This is because we need to filter out ElroyContext from parameters surfaced to the assistant.
+        """
+        parameters = iter(parameters)
+        first_param = first_or_none(parameters)
+
+        if not first_param:
+            # if a function takes no params, we don't need it to be ElroyContext
+            yield from []
+        else:
+
+            assert isinstance(
+                first_param, Parameter
+            ), f"expected Parameter for first arg to function {function.__name__} but instead is {type(first_param)}"
+            assert (
+                first_param.type == ElroyContext
+            ), f"First parameter for function {function.__name__} must be ElroyContext, but is instead {first_param.type}"
+            assert (
+                first_param.name == "context"
+            ), f"First parameter for function {function.__name__} must be named 'context', but is instead {first_param.name}"
+            yield from concatv([first_param], parameters)
+
     assert function.__doc__ is not None, f"Function {function.__name__} has no docstring"
     docstring_dict = {p.arg_name: p.description for p in parse(function.__doc__).params}
 
@@ -134,16 +167,18 @@ def get_function_schema(function: FunctionType) -> Dict:
 
     return pipe(
         signature.parameters.items(),
-        list,
-        remove(lambda _: _[0] == "context"),
         map(
             lambda _: Parameter(
                 name=_[0],
                 type=_[1].annotation,
                 docstring=docstring_dict.get(_[0]),
-                optional=_[1].default != inspect.Parameter.empty or get_origin(_[1].annotation) is Union,
+                optional=_[1].default != inspect.Parameter.empty
+                or (get_origin(_[1].annotation) is Union and NoneType in get_args(_[1].annotation)),
+                default=_[1].default,
             )
         ),
+        validate_first_param_is_elroy_context,
+        remove(lambda _: _.type == ElroyContext),
         map(validate_parameter),
         map(
             lambda _: [

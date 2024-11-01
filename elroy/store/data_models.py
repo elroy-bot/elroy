@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
+from toolz import pipe
+from toolz.curried import filter
 
 from elroy.system.clock import get_utc_now
 from elroy.system.parameters import EMBEDDING_SIZE
@@ -94,14 +96,14 @@ class Goal(EmbeddableSqlModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user whose assistant is being reminded")
     name: str = Field(..., description="The name of the goal")
-    description: str = Field(..., description="The description of the goal")
     status_updates: List[str] = Field(
         sa_column=Column(JSON, nullable=False, server_default="[]"),
         default_factory=list,
         description="Status update reports from the goal",
     )
-    strategy: str = Field(..., description="The strategy to achieve the goal")
-    end_condition: str = Field(..., description="The condition that will end the goal")
+    description: Optional[str] = Field(..., description="The description of the goal")
+    strategy: Optional[str] = Field(..., description="The strategy to achieve the goal")
+    end_condition: Optional[str] = Field(..., description="The condition that will end the goal")
     is_active: Optional[bool] = Field(default=True, description="Whether the goal is complete")
     priority: Optional[int] = Field(4, description="The priority of the goal")
     target_completion_time: Optional[datetime] = Field(default=None, description="The datetime of the targeted completion for the goal.")
@@ -115,18 +117,20 @@ class Goal(EmbeddableSqlModel, table=True):
         from elroy.store.goals import (add_goal_status_update,
                                        mark_goal_completed)
 
-        return "\n\n".join(
+        return pipe(
             [
                 f"# {self.__class__.__name__}: {self.name}",
-                self.description,
-                f"## Strategy\n{self.strategy}",
-                f"## End Condition\n{self.end_condition}",
-                f"## Target Completion Time\n{self.target_completion_time}",
+                self.description if self.description else None,
+                f"## Strategy\n{self.strategy}" if self.strategy else None,
+                f"## End Condition\n{self.end_condition}" if self.end_condition else None,
+                f"## Target Completion Time\n{self.target_completion_time}" if self.target_completion_time else None,
                 "## Status Updates\n" + ("\n".join(self.status_updates) if self.status_updates else "No status updates"),
-                f"## Priority\n{self.priority}",
+                f"## Priority\n{self.priority}" if self.priority else None,
                 f"### Note for assistant:\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
-            ]
-        )
+            ],
+            filter(lambda x: x is not None),
+            "\n\n".join,
+        )  # type: ignore
 
 
 @dataclass

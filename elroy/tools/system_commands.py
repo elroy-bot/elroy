@@ -7,7 +7,7 @@ import termios
 import time
 import tty
 from inspect import signature
-from typing import Callable, Optional, Set
+from typing import Callable, List, Optional, Set
 
 from rich.pretty import Pretty
 from sqlmodel import select
@@ -33,6 +33,13 @@ from elroy.tools.functions.user_preferences import (get_user_full_name,
 
 
 def invoke_system_command(context: ElroyContext, msg: str) -> str:
+    """
+    Takes user input and executes a system command
+
+    Currently only works well for commands that take 1 non-context argument
+
+    In the future, the execute system command should surface a form
+    """
     if msg.startswith("/"):
         msg = msg[1:]
 
@@ -48,28 +55,28 @@ def invoke_system_command(context: ElroyContext, msg: str) -> str:
 
     try:
         func_args = []
-        required_args = len([p for p in params if p.default is p.empty and p.annotation != ElroyContext])
+        num_required_args = len([p for p in params if p.default is p.empty])
 
         for i, param in enumerate(params):
             if param.annotation == ElroyContext:
                 func_args.append(context)
                 continue
 
-            arg_index = i - 1  # Adjust for context parameter
-
-            if arg_index < len(args):  # We have an argument provided
-                if param.annotation == str and i == len(params) - 1:
-                    # Last string param gets remaining args
-                    func_args.append(" ".join(args[arg_index:]))
+            if i < len(args):  # We have an argument provided
+                if param.annotation == str and i == num_required_args - 1:
+                    # Last *required* string param gets remaining args
+                    func_args.append(
+                        " ".join(args[i - 1 :])
+                    )  # we append i - i because we have already included the context as the first argument.
                     break
                 else:
-                    func_args.append(args[arg_index])
+                    func_args.append(args[i])
             elif param.default is not param.empty:
                 # Use default value for optional parameter
                 continue
             else:
                 # Missing required argument
-                return f"Error: Missing required argument '{param.name}' for command {command}. Required args: {required_args}"
+                return f"Error: Missing required argument '{param.name}' for command {command}. Required args: {num_required_args}"
 
         return func(*func_args)
     except Exception as e:
@@ -181,6 +188,12 @@ def print_goal(context: ElroyContext, goal_name: str) -> str:
         return goal.to_fact()
     else:
         return f"Goal '{goal_name}' not found for the current user."
+
+
+def get_active_goal_names(context: ElroyContext) -> List[str]:
+    from elroy.store.goals import get_active_goals
+
+    return [goal.name for goal in get_active_goals(context)]
 
 
 def print_memory(context: ElroyContext, memory_name: str) -> str:
