@@ -34,6 +34,9 @@ class ElroyIO(ABC):
         logging.info(message)
         yield
 
+    def rule(self) -> None:
+        pass
+
 
 class StdIO(ElroyIO):
     """
