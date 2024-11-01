@@ -48,9 +48,11 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Set ELROY_TEST_POSTGRES_URL
+    - name: Set env variables
       run: |
         echo "ELROY_TEST_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
+        echo "ELROY_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
     - name: Install Poetry
       run: |
@@ -74,39 +76,34 @@ jobs:
     - name: Bump version
       run: bump2version ${{ github.event.inputs.bump_type }}
 
-    - name: Install dependencies
+    - name: Install dependencies and build
       run: |
         poetry config virtualenvs.create false
         poetry install --no-root
+        poetry build
 
     - name: Run Tests
       run: |
         pytest
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PYTHONWARNINGS: "ignore::DeprecationWarning"
-
-    - name: Build package
+    - name: Test built package
       run: |
-        rm -rf dist/*  # Clean any existing builds
-        poetry build
-        ls -la dist/   # Verify build artifacts
-
-    - name: Push version bump
-      run: |
-        git push origin main
-
-    - name: Test and Publish to PyPI
+        pip install ./dist/elroy-*.whl
+        elroy --version
+        echo "This is an installation test. Repeat the following text, and only the following text: 'Hello World!'" | elroy | grep -q "Hello World"
+    - name: Publish to PyPI
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        poetry build
         poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD --no-interaction
 
-    - name: Push tags
-      if: success()  # Only push tags if previous steps succeeded
-      run: git push --tags
+    - name: Push version bump and tags
+      if: success()
+      run: |
+        git push origin main
+        git push origin --tags
 
     - name: Log in to Container registry
       if: success()
