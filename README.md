@@ -7,34 +7,79 @@ Elroy is a CLI AI personal assistant with long term memory and goal tracking cap
 - **Memory Panel**: Shows relevant memories during conversations
 
 
-## Installation
+## Installation & Usage
 
-### Using pip (Recommended)
+### Option 1: Using Docker (Recommended)
+
+#### Prerequisites
+- Docker and Docker Compose
+- OpenAI key: Set the `OPENAI_API_KEY` environment variable
+
+This option automatically sets up everything you need, including the required PostgreSQL database with pgvector extension.
+
+1. Download the docker-compose.yml:
+```bash
+curl -O https://raw.githubusercontent.com/elroy-bot/elroy/main/docker-compose.yml
+```
+
+2. Run Elroy:
+```bash
+docker compose run --rm elroy
+```
+
+The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
+
+### Option 2: Using pip
 
 #### Prerequisites
 - Python 3.11 or higher
 - OpenAI key: Set the `OPENAI_API_KEY` environment variable
+- PostgreSQL database with pgvector extension
 
-#### Installation
-```
+```bash
 pip install elroy
 ```
 
-## Usage
+For the database, either:
+- Let Elroy manage PostgreSQL via Docker (default) (requires Docker)
+- Provide a PostgreSQL connection string, either by setting the `ELROY_POSTGRES_URL` environment variable, or by using the `--postgres_url` flag.
 
-To run:
+### Option 3: Installing from Source
+
+#### Prerequisites
+- Python 3.11 or higher
+- Poetry package manager
+- OpenAI key: Set the `OPENAI_API_KEY` environment variable
+- PostgreSQL database with pgvector extension
+
+```bash
+# Clone the repository
+git clone https://github.com/elroy-bot/elroy.git
+cd elroy
+
+# Install dependencies and the package
+poetry install
+
+# Run Elroy
+poetry run elroy
+```
+
+For the database, you have the same options as with pip installation:
+- Let Elroy manage PostgreSQL via Docker (default)
+- Provide your own PostgreSQL connection string
+
+### Basic Usage
+
+Once installed locally you can:
 ```bash
 # Start the chat interface
 elroy chat
 
 # Or just 'elroy' which defaults to chat mode
 elroy
-```
 
-```bash
 # Elroy also accepts stdin
-> echo "Say hello world | elroy"
-hello world
+echo "Say hello world" | elroy
 ```
 
 ## Available Commands
@@ -82,18 +127,6 @@ You can customize Elroy's appearance with these options:
 - `--assistant-color TEXT` - Color for assistant output
 - `--warning-color TEXT` - Color for warning messages
 
-
-### Database Requirement
-
-Elroy needs a PostgreSQL database. By default, it will use Docker to automatically manage a PostgreSQL instance for you. You have two options:
-
-1. Let Elroy manage PostgreSQL (Default):
-   - Requires Docker to be installed and running
-   - Elroy will automatically create and manage a PostgreSQL container
-
-2. Use your own PostgreSQL (Advanced):
-   - Set ELROY_POSTGRES_URL to your database connection string
-   - Docker is not required in this case
 
 
 ## Options
