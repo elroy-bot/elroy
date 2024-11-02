@@ -15,10 +15,11 @@ from elroy.cli.updater import (check_updates, ensure_current_db_migration,
                                version_callback)
 from elroy.config import ROOT_DIR, ElroyContext, get_config, session_manager
 from elroy.docker_postgres import is_docker_running, start_db, stop_db
-from elroy.io.base import ElroyIO, StdIO
+from elroy.io.base import StdIO
 from elroy.io.cli import CliIO
 from elroy.logging_config import setup_logging
-from elroy.memory import get_memory_names, get_relevant_memories
+from elroy.memory import (get_memory_names, get_relevant_memories,
+                          manually_record_user_memory)
 from elroy.onboard_user import onboard_user
 from elroy.store.data_models import SYSTEM, USER
 from elroy.store.goals import get_goal_names
@@ -41,16 +42,18 @@ app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
 
 @contextmanager
-def init_elroy_context(ctx: typer.Context, io: Optional[ElroyIO] = None) -> Generator[ElroyContext, None, None]:
+def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext as a context manager"""
 
-    if not io:
+    if ctx.obj["is_tty"]:
         io = CliIO(
             ctx.obj["system_message_color"],
             ctx.obj["assistant_color"],
             ctx.obj["user_input_color"],
             ctx.obj["warning_color"],
         )
+    else:
+        io = StdIO()
 
     try:
         setup_logging(ctx.obj["log_file_path"])
@@ -132,7 +135,54 @@ def common(
         "user_input_color": user_input_color,
         "assistant_color": assistant_color,
         "warning_color": warning_color,
+        "is_tty": sys.stdin.isatty(),
     }
+
+
+@app.command()
+def remember(
+    ctx: typer.Context,
+    file: Optional[str] = typer.Option(None, "--file", "-f", help="File to read memory text from"),
+):
+    """Create a new memory from stdin or interactively"""
+
+    with init_elroy_context(ctx) as context:
+        memory_name = None
+        if not sys.stdin.isatty():
+            memory_text = sys.stdin.read()
+            metadata = "Memory ingested from stdin\n" f"Ingested at: {datetime_to_string(datetime.now())}\n"
+            memory_text = f"{metadata}\n{memory_text}"
+            memory_name = f"Memory from stdin, ingested {datetime_to_string(datetime.now())}"
+        elif file:
+            try:
+                with open(file, "r") as f:
+                    memory_text = f.read()
+                # Add file metadata
+                file_stat = os.stat(file)
+                metadata = "Memory ingested from file"
+                "File: {file}"
+                f"Last modified: {datetime_to_string(datetime.fromtimestamp(file_stat.st_mtime))}\n"
+                f"Created at: {datetime_to_string(datetime.fromtimestamp(file_stat.st_ctime))}"
+                f"Size: {file_stat.st_size} bytes\n"
+                f"Ingested at: {datetime_to_string(datetime.now())}\n"
+                memory_text = f"{memory_text}\n{metadata}"
+                memory_name = f"Memory from file: {file}, ingested {datetime_to_string(datetime.now())}"
+            except Exception as e:
+                context.io.sys_message(f"Error reading file: {e}")
+                exit(1)
+        else:
+            # Get the memory text from user
+            memory_text = asyncio.run(context.io.prompt_user("Enter the memory text:"))
+            memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
+            # Optionally get memory name
+            memory_name = asyncio.run(context.io.prompt_user("Enter memory name (optional, press enter to skip):"))
+        try:
+            manually_record_user_memory(context, memory_text, memory_name)
+            context.io.sys_message(f"Memory created: {memory_name}")
+            exit(0)
+        except ValueError as e:
+            context.io.sys_message(f"Error creating memory: {e}")
+            exit(1)
 
 
 @app.command()
@@ -140,7 +190,7 @@ def chat(ctx: typer.Context):
     """Start the Elroy chat interface"""
 
     if not sys.stdin.isatty():
-        with init_elroy_context(ctx, StdIO()) as context:
+        with init_elroy_context(ctx) as context:
             for line in sys.stdin:
                 process_and_deliver_msg(context, line)
         return

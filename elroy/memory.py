@@ -1,17 +1,43 @@
 import logging
 from datetime import timedelta
-from typing import List, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from sqlmodel import select
 from toolz import concat, pipe
 from toolz.curried import filter, map, unique
 
 from elroy.config import ElroyContext
-from elroy.llm.client import query_llm_json
+from elroy.llm.client import query_llm, query_llm_json
 from elroy.store.data_models import ContextMessage, Memory
 from elroy.system.clock import get_utc_now
 from elroy.system.constants import MEMORY_TITLE_EXAMPLES
 from elroy.system.parameters import CHAT_MODEL, MEMORY_WORD_COUNT_LIMIT
+
+MAX_MEMORY_LENGTH = 4000  # Characters
+
+
+def manually_record_user_memory(context: ElroyContext, text: str, name: Optional[str] = None) -> None:
+    """Manually record a memory for the user.
+
+    Args:
+        context (ElroyContext): The context of the user.
+        name (str): The name of the memory. Should be specific and discuss one topic.
+        text (str): The text of the memory.
+    """
+
+    if not text:
+        raise ValueError("Memory text cannot be empty.")
+
+    if len(text) > MAX_MEMORY_LENGTH:
+        raise ValueError(f"Memory text exceeds maximum length of {MAX_MEMORY_LENGTH} characters.")
+
+    if not name:
+        name = query_llm(
+            system="Given text representing a memory, your task is to come up with a short title for a memory. "
+            "If the title mentions dates, it should be specific dates rather than relative ones.",
+            prompt=text,
+        )
+    create_memory(context, name, text)
 
 
 async def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
