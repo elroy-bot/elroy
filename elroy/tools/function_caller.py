@@ -1,7 +1,7 @@
 import inspect
 import json
 from dataclasses import dataclass
-from types import FunctionType, ModuleType, NoneType
+from types import FunctionType, ModuleType
 from typing import (Any, Dict, Iterator, List, Optional, Type, Union, get_args,
                     get_origin)
 
@@ -173,7 +173,7 @@ def get_function_schema(function: FunctionType) -> Dict:
                 type=_[1].annotation,
                 docstring=docstring_dict.get(_[0]),
                 optional=_[1].default != inspect.Parameter.empty
-                or (get_origin(_[1].annotation) is Union and NoneType in get_args(_[1].annotation)),
+                or (get_origin(_[1].annotation) is Union and type(None) in get_args(_[1].annotation)),
                 default=_[1].default,
             )
         ),

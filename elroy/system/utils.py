@@ -1,8 +1,10 @@
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import datetime
 from functools import partial
 from typing import Iterator, Optional, TypeVar
+
+from pytz import UTC
 
 T = TypeVar("T")
 
