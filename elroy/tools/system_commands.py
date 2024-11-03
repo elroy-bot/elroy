@@ -17,7 +17,7 @@ from toolz.curried import filter
 from elroy.config import ElroyContext
 from elroy.llm import client
 from elroy.memory import create_memory
-from elroy.store.data_models import ASSISTANT, ContextMessage, Goal, Memory
+from elroy.store.data_models import SYSTEM, ContextMessage, Goal, Memory
 from elroy.store.goals import (add_goal_status_update, create_goal,
                                delete_goal_permamently, mark_goal_completed,
                                rename_goal)
@@ -247,7 +247,9 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
         model=CHAT_MODEL,
     )
 
-    add_context_messages(context, [ContextMessage(role=ASSISTANT, content=response)])
+    add_context_messages(context, [ContextMessage(role=SYSTEM, content=response)])
+
+    context.io.internal_thought_msg(response)
 
     return response
 

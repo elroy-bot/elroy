@@ -27,6 +27,7 @@ from elroy.store.message import get_time_since_most_recent_user_message
 from elroy.store.user import is_user_exists
 from elroy.system.parameters import (CLI_USER_ID, DEFAULT_ASSISTANT_COLOR,
                                      DEFAULT_INPUT_COLOR,
+                                     DEFAULT_INTERNAL_THOUGHT_COLOR,
                                      DEFAULT_SYSTEM_MESSAGE_COLOR,
                                      DEFAULT_WARNING_COLOR,
                                      MIN_CONVO_AGE_FOR_GREETING)
@@ -51,6 +52,7 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
             ctx.obj["assistant_color"],
             ctx.obj["user_input_color"],
             ctx.obj["warning_color"],
+            ctx.obj["internal_thought_color"],
         )
     else:
         io = StdIO()
@@ -122,6 +124,7 @@ def common(
     user_input_color: str = typer.Option(DEFAULT_INPUT_COLOR, help="Color for user input."),
     assistant_color: str = typer.Option(DEFAULT_ASSISTANT_COLOR, help="Color for assistant output."),
     warning_color: str = typer.Option(DEFAULT_WARNING_COLOR, help="Color for warning messages."),
+    internal_thought_color: str = typer.Option(DEFAULT_INTERNAL_THOUGHT_COLOR, help="Color for internal thought messages."),
 ):
     """Common parameters."""
     ctx.obj = {
@@ -135,6 +138,7 @@ def common(
         "user_input_color": user_input_color,
         "assistant_color": assistant_color,
         "warning_color": warning_color,
+        "internal_thought_color": internal_thought_color,
         "is_tty": sys.stdin.isatty(),
     }
 
@@ -299,7 +303,7 @@ async def main_chat(context: ElroyContext[CliIO]):
             context.io.update_completer(get_goal_names(context), get_memory_names(context))
             pipe(context, get_relevant_memories, context.io.print_memory_panel)
 
-            user_input = await get_user_input(context)
+            user_input = await context.io.prompt_user()
             if user_input.lower().startswith("/exit") or user_input == "exit":
                 break
             elif user_input:
@@ -307,19 +311,6 @@ async def main_chat(context: ElroyContext[CliIO]):
                 run_in_background_thread(contemplate, context)
         except EOFError:
             break
-
-
-async def get_user_input(context: ElroyContext, keyboard_interupt_count=0) -> str:
-    try:
-        return await context.io.prompt_user()
-    except KeyboardInterrupt:
-        keyboard_interupt_count += 1
-        if keyboard_interupt_count == 3:
-            context.io.assistant_msg("To exit, type /exit, exit, or Ctrl-D")
-        if keyboard_interupt_count > 5:
-            raise EOFError
-        else:
-            return await get_user_input(context, keyboard_interupt_count)
 
 
 def main():

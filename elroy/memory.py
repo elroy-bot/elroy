@@ -58,7 +58,7 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
         context.session.commit()
     else:
 
-        logging.info("Consolidating memories '{}' and '{}'".format(memory1.name, memory2.name))
+        context.io.internal_thought_msg("Consolidating memories '{}' and '{}'".format(memory1.name, memory2.name))
         response = query_llm_json(
             system="Your task is to consolidate or reorganize two pieces of text."
             "Each pice of text has a title and a main body. You should either combine the titles and the main bodies into a single title and main body, or create multiple title/text combinations with distinct information."

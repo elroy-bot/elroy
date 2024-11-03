@@ -1,7 +1,10 @@
+import logging
 from contextlib import contextmanager
 from typing import Generator, Iterator, List, Set, Text, Union
 
-from prompt_toolkit import HTML, PromptSession
+from prompt_toolkit import (HTML, Application, PromptSession,
+                            print_formatted_text)
+from prompt_toolkit.application import get_app
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.lexers import PygmentsLexer
@@ -23,12 +26,14 @@ class CliIO(ElroyIO):
         assistant_message_color: str,
         user_input_color: str,
         warning_color: str,
+        internal_thought_color: str,
     ) -> None:
         self.console = Console()
         self.system_message_color = system_message_color
         self.assistant_message_color = assistant_message_color
         self.warning_color = warning_color
         self.user_input_color = user_input_color
+        self.internal_thought_color = internal_thought_color
         self.style = Style.from_dict(
             {
                 "prompt": "bold",
@@ -43,15 +48,26 @@ class CliIO(ElroyIO):
             style=self.style,
             lexer=PygmentsLexer(TextLexer),
         )
+        self.is_streaming_output = False
+
+    def internal_thought_msg(self, message):
+        if self.is_streaming_output:
+            logging.info(message)
+        else:
+            print_formatted_text(HTML(f'<style fg="{self.internal_thought_color}">{message}</style>'))
 
     def assistant_msg(self, message: Union[str, Pretty, Iterator[str], Generator[str, None, None]]) -> None:
+
         if isinstance(message, (Iterator, Generator)):
+            self.is_streaming_output = True
             try:
                 for chunk in message:
                     self.console.print(f"[{self.assistant_message_color}]{chunk}[/]", end="")
             except KeyboardInterrupt:
                 self.console.print()
                 return
+            finally:
+                self.is_streaming_output = False
 
         elif isinstance(message, Pretty):
             self.console.print(message)
@@ -60,11 +76,11 @@ class CliIO(ElroyIO):
         self.console.print()  # New line after complete response
 
     def sys_message(self, message: Union[str, Pretty]) -> None:
+
         if isinstance(message, Pretty):
-            self.console.print(message)
+            print_formatted_text(str(message))
         else:
-            self.console.print(f"[{self.system_message_color}]{message}[/]", end="")
-        self.console.print()  # New line after complete response
+            print_formatted_text(HTML(f'<style fg="{self.system_message_color}">{message}\n</style>'))
 
     def notify_function_call(self, function_call: FunctionCall) -> None:
         msg = f"[{self.system_message_color}]Executing function call: [bold]{function_call.function_name}[/bold]"
@@ -104,11 +120,47 @@ class CliIO(ElroyIO):
     def rule(self):
         self.console.rule(style=self.user_input_color)
 
-    async def prompt_user(self, prompt=">") -> str:
-        return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), style=self.style)
+    async def prompt_user(self, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0) -> str:
+        try:
+            return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), style=self.style)
+        except KeyboardInterrupt:
+            keyboard_interrupt_count += 1
+            if keyboard_interrupt_count == 3:
+                self.assistant_msg("To exit, type /exit, exit, or press Ctrl-D.")
+
+            elif keyboard_interrupt_count >= 5:
+                raise EOFError
+            return await self.prompt_user(prompt, prefill, keyboard_interrupt_count)
 
     def update_completer(self, goal_names: Set[str], memory_names: Set[str]) -> None:
         self.prompt_session.completer = SlashCompleter(goal_names, memory_names)
+
+    def get_current_input(self) -> str:
+        """Get the current content of the input buffer"""
+        # The current buffer is accessed through the app property
+        if hasattr(self.prompt_session, "app") and self.prompt_session.app:
+            return self.prompt_session.app.current_buffer.text
+        return ""
+
+    @contextmanager
+    def suspend_input(self) -> Generator[str, None, None]:
+        """
+        Temporarily suspend input, returning current input text.
+        If no input session is active, yields empty string.
+        """
+        try:
+            app = get_app()
+            if app.is_running:
+                assert isinstance(app, Application)
+                current_text = self.get_current_input()
+                with app.suspend_to_background():  # type: ignore
+                    yield current_text
+            else:
+                yield ""
+        except Exception as e:
+            # This catches cases where there's no active prompt_toolkit application
+            logging.debug(f"No active prompt session to suspend: {e}")
+            yield ""
 
 
 class SlashCompleter(WordCompleter):

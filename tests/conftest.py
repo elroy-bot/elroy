@@ -9,7 +9,7 @@ from alembic.config import Config
 from elroy import ROOT_DIR
 from elroy.config import ElroyContext, get_config, session_manager
 from elroy.docker_postgres import is_docker_running
-from elroy.io.base import ElroyIO, TestIO
+from elroy.io.base import ElroyIO, StdIO
 from elroy.store.data_models import (ASSISTANT, USER, ContextMessageSet, Goal,
                                      Memory, User, UserPreference)
 from elroy.store.goals import create_goal
@@ -79,7 +79,7 @@ def user_id(session, io, elroy_config) -> Generator[int, Any, None]:
 
 @pytest.fixture(scope="session")
 def io() -> Generator[ElroyIO, Any, None]:
-    yield TestIO()
+    yield StdIO()
 
 
 @pytest.fixture(scope="function")

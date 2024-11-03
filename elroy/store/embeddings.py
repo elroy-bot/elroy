@@ -64,7 +64,7 @@ def find_redundant_pairs(
     context: ElroyContext,
     table: Type[T],
     l2_distance_threshold: float = L2_MEMORY_CONSOLIDATION_DISTANCE_THRESHOLD,
-    limit: int = 3,
+    limit: int = 1,
 ) -> Iterable[Tuple[T, T]]:
     """
     Query an EmbeddableSqlModel using a self-join and return the closest pair of rows in similarity
