@@ -194,7 +194,7 @@ def remember(
             context.io.sys_message(f"Memory created: {memory_name}")
             exit(0)
         except ValueError as e:
-            context.io.sys_message(f"Error creating memory: {e}")
+            context.io.assistant_msg(f"Error creating memory: {e}")
             exit(1)
 
 

@@ -16,7 +16,7 @@ from ..llm.client import query_llm, query_llm_json
 from ..repository.data_models import ContextMessage, Memory
 from ..utils.clock import get_utc_now
 
-MAX_MEMORY_LENGTH = 4000  # Characters
+MAX_MEMORY_LENGTH = 12000  # Characters
 
 
 def memory_to_fact(memory: Memory) -> str:
@@ -44,6 +44,7 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
             "If the title mentions dates, it should be specific dates rather than relative ones.",
             prompt=text,
         )
+
     create_memory(context, name, text)
 
 

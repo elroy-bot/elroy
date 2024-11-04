@@ -6,6 +6,8 @@ Elroy is a CLI AI personal assistant with long term memory and goal tracking cap
 - **Goal Tracking**: Track and manage personal/professional goals
 - **Memory Panel**: Shows relevant memories during conversations
 
+![Goals Demo](images/goals_demo.gif)
+
 
 ## Installation & Usage
 
@@ -83,6 +85,7 @@ echo "Say hello world" | elroy
 ```
 
 ## Available Commands
+![Remember command](images/remember_command.gif)
 
 While chatting with Elroy, you can use the following commands. For the most part, these commands are available for Elroy to use autonomously:
 
