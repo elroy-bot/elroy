@@ -1,7 +1,7 @@
 import pytest
-
-from elroy.store.goals import get_active_goals_summary
 from tests.utils import ask_assistant_bool, process_test_message
+
+from elroy.repository.goals.queries import get_active_goals_summary
 
 
 @pytest.mark.skip(reason="flaky")

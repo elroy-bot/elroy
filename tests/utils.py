@@ -5,13 +5,13 @@ from typing import Optional, Tuple, Type
 from toolz import pipe
 from toolz.curried import do, map
 
-from elroy.config import ElroyContext
-from elroy.llm.client import query_llm
-from elroy.store.data_models import USER, EmbeddableSqlModel
-from elroy.store.embeddings import query_vector
-from elroy.store.message import get_context_messages, replace_context_messages
-from elroy.system.utils import first_or_none
-from elroy.tools.messenger import process_message
+from elroy.config.config import ElroyContext
+from elroy.llm.client import get_embedding, query_llm
+from elroy.messaging.messenger import process_message
+from elroy.repository.data_models import USER, EmbeddableSqlModel
+from elroy.repository.embeddings import query_vector
+from elroy.repository.message import get_context_messages, replace_context_messages
+from elroy.utils.utils import first_or_none
 
 
 def process_test_message(context: ElroyContext, msg: str) -> str:
@@ -26,7 +26,6 @@ def process_test_message(context: ElroyContext, msg: str) -> str:
 
 
 def vector_search_by_text(context: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
-    from elroy.llm.client import get_embedding
 
     return first_or_none(query_vector(context, get_embedding(query), table))  # type: ignore
 

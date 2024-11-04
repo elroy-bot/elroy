@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Generator, Iterator, Union
 
-from elroy.store.data_models import FunctionCall
+from ..repository.data_models import FunctionCall
 
 
 class ElroyIO(ABC):

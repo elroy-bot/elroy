@@ -1,17 +1,40 @@
+# Should have param for checking if a similar goal already exists
 import logging
-from typing import List, Optional, Set
+from typing import Optional
 
 from sqlmodel import select, update
 from toolz import pipe
-from toolz.curried import map
+from toolz.curried import filter
 
-from elroy.config import ElroyContext
-from elroy.store.data_models import ContextMessage, Goal
-from elroy.store.embeddings import upsert_embedding
-from elroy.system.clock import get_utc_now, string_to_timedelta
+from ...config.config import ElroyContext
+from ...messaging.context import (
+    drop_goal_from_current_context_only,
+    remove_from_context,
+)
+from ...utils.clock import get_utc_now, string_to_timedelta
+from ..data_models import ContextMessage, Goal
+from ..embeddings import upsert_embedding
+from ..message import add_context_messages
 
 
-# Should have param for checking if a similar goal already exists
+def goal_to_fact(goal: Goal) -> str:
+
+    return pipe(
+        [
+            f"# {goal.__class__.__name__}: {goal.name}",
+            goal.description if goal.description else None,
+            f"## Strategy\n{goal.strategy}" if goal.strategy else None,
+            f"## End Condition\n{goal.end_condition}" if goal.end_condition else None,
+            f"## Target Completion Time\n{goal.target_completion_time}" if goal.target_completion_time else None,
+            "## Status Updates\n" + ("\n".join(goal.status_updates) if goal.status_updates else "No status updates"),
+            f"## Priority\n{goal.priority}" if goal.priority else None,
+            f"### Note for assistant:\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
+        ],
+        filter(lambda x: x is not None),
+        "\n\n".join,
+    )  # type: ignore
+
+
 def create_goal(
     context: ElroyContext,
     goal_name: str,
@@ -58,14 +81,12 @@ def create_goal(
         context.session.commit()
         context.session.refresh(goal)
 
-        from elroy.store.message import add_context_messages
-
         add_context_messages(
             context,
             [
                 ContextMessage(
                     role="system",
-                    content=f"New goal created: {goal.to_fact()}",
+                    content=f"New goal created: {goal_to_fact(goal)}",
                     memory_metadata=[goal.to_memory_metadata()],
                 )
             ],
@@ -107,8 +128,6 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
     if existing_goal:
         raise Exception(f"Active goal '{new_goal_name}' already exists for user {context.user_id}")
 
-    from elroy.tools.system_commands import drop_goal_from_current_context_only
-
     # we need to drop the goal from context as the metadata includes the goal name.
     drop_goal_from_current_context_only(context, old_goal.name)
 
@@ -121,90 +140,16 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
 
     upsert_embedding(context.session, old_goal)
 
-    from elroy.store.message import add_context_messages
-
     add_context_messages(
         context,
         [
             ContextMessage(
                 role="system",
-                content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
+                content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {goal_to_fact(old_goal)}",
                 memory_metadata=[old_goal.to_memory_metadata()],
             )
         ],
     )
-
-
-def create_onboarding_goal(context: ElroyContext, preferred_name: str) -> None:
-
-    create_goal(
-        context=context,
-        goal_name=f"Introduce myself to {preferred_name}",
-        description="Introduce myself - a few things that make me unique are my ability to form long term memories, and the ability to set and track goals.",
-        strategy=f"After exchanging some pleasantries, tell {preferred_name} about my ability to form long term memories, including goals. Use function {add_goal_status_update.__name__} with any progress or learnings.",
-        end_condition=f"{preferred_name} has been informed about my ability to track goals",
-        priority=1,
-        time_to_completion="1 HOUR",
-    )
-
-
-def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_or_note: str) -> str:
-    """Captures either a progress update or note relevant to the goal.
-
-    Args:
-        session (Session): The database session.
-        user_id (int): The user id
-        goal_name (str): Name of the goal
-        status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
-    Returns:
-        str: Confirmation message
-    """
-    logging.info(f"Updating goal {goal_name} for user {context.user_id}")
-    _update_goal_status(context, goal_name, False, status_update_or_note)
-
-    return f"Status update added to goal '{goal_name}'."
-
-
-def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments: Optional[str] = None) -> str:
-    """Marks a goal as completed, with closing comments.
-
-    Args:
-        session (Session): The database session.
-        user_id (int): The user ID
-        goal_name (str): The name of the goal
-        closing_comments (str): Updated status with a short account of how the goal was completed and what was learned.
-    Returns:
-        str: Confirmation message
-    """
-    _update_goal_status(
-        context,
-        goal_name,
-        True,
-        closing_comments,
-    )
-
-    return f"Goal '{goal_name}' has been marked as completed."
-
-
-def delete_goal_permamently(context: ElroyContext, goal_name: str) -> str:
-    """Closes the goal.
-
-    Args:
-        session (Session): The database session.
-        user_id (int): The user ID
-        goal_name (str): The name of the goal
-    Returns:
-        str: Result of the deletion
-    """
-
-    _update_goal_status(
-        context,
-        goal_name,
-        True,
-        "Goal has been deleted",
-    )
-
-    return f"Goal '{goal_name}' has been deleted."
 
 
 def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
@@ -256,57 +201,77 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
     upsert_embedding(context.session, goal)
 
     if not goal.is_active:
-        from elroy.tools.messenger import remove_from_context
 
         remove_from_context(context, goal)
 
 
-def get_active_goals_summary(context: ElroyContext) -> str:
-    """
-    Retrieve a summary of active goals for a given user.
+def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_or_note: str) -> str:
+    """Captures either a progress update or note relevant to the goal.
 
     Args:
         session (Session): The database session.
-        user_id (int): The ID of the user.
-
+        user_id (int): The user id
+        goal_name (str): Name of the goal
+        status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
     Returns:
-        str: A formatted string summarizing the active goals.
+        str: Confirmation message
     """
-    return pipe(
-        get_active_goals(context),
-        map(lambda x: x.to_fact()),
-        list,
-        "\n\n".join,
-    )  # type: ignore
+    logging.info(f"Updating goal {goal_name} for user {context.user_id}")
+    _update_goal_status(context, goal_name, False, status_update_or_note)
+
+    return f"Status update added to goal '{goal_name}'."
 
 
-def get_active_goals(context: ElroyContext) -> List[Goal]:
-    """
-    Retrieve active goals for a given user.
+def create_onboarding_goal(context: ElroyContext, preferred_name: str) -> None:
+
+    create_goal(
+        context=context,
+        goal_name=f"Introduce myself to {preferred_name}",
+        description="Introduce myself - a few things that make me unique are my ability to form long term memories, and the ability to set and track goals.",
+        strategy=f"After exchanging some pleasantries, tell {preferred_name} about my ability to form long term memories, including goals. Use function {add_goal_status_update.__name__} with any progress or learnings.",
+        end_condition=f"{preferred_name} has been informed about my ability to track goals",
+        priority=1,
+        time_to_completion="1 HOUR",
+    )
+
+
+def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments: Optional[str] = None) -> str:
+    """Marks a goal as completed, with closing comments.
 
     Args:
         session (Session): The database session.
-        user_id (int): The ID of the user.
-
+        user_id (int): The user ID
+        goal_name (str): The name of the goal
+        closing_comments (str): Updated status with a short account of how the goal was completed and what was learned.
     Returns:
-        List[Goal]: A list of active goals.
+        str: Confirmation message
     """
-    return context.session.exec(
-        select(Goal)
-        .where(
-            Goal.user_id == context.user_id,
-            Goal.is_active == True,
-        )
-        .order_by(Goal.priority)  # type: ignore
-    ).all()
+    _update_goal_status(
+        context,
+        goal_name,
+        True,
+        closing_comments,
+    )
+
+    return f"Goal '{goal_name}' has been marked as completed."
 
 
-def get_goal_names(context: ElroyContext) -> Set[str]:
-    """Fetch all active goals for the user"""
-    goals = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.is_active == True,
-        )
-    ).all()
-    return {goal.name for goal in goals}
+def delete_goal_permamently(context: ElroyContext, goal_name: str) -> str:
+    """Closes the goal.
+
+    Args:
+        session (Session): The database session.
+        user_id (int): The user ID
+        goal_name (str): The name of the goal
+    Returns:
+        str: Result of the deletion
+    """
+
+    _update_goal_status(
+        context,
+        goal_name,
+        True,
+        "Goal has been deleted",
+    )
+
+    return f"Goal '{goal_name}' has been deleted."

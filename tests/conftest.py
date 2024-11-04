@@ -3,19 +3,25 @@ from typing import Any, Generator
 
 import pytest
 from sqlmodel import delete, text
+from tests.fixtures import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME, create_test_user
 
 from alembic.command import upgrade
 from alembic.config import Config
 from elroy import ROOT_DIR
-from elroy.config import ElroyContext, get_config, session_manager
+from elroy.config.config import ElroyContext, get_config, session_manager
 from elroy.docker_postgres import is_docker_running
 from elroy.io.base import ElroyIO, StdIO
-from elroy.store.data_models import (ASSISTANT, USER, ContextMessageSet, Goal,
-                                     Memory, User, UserPreference)
-from elroy.store.goals import create_goal
-from elroy.store.message import ContextMessage, Message, add_context_messages
-from tests.fixtures import (BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
-                            create_test_user)
+from elroy.repository.data_models import (
+    ASSISTANT,
+    USER,
+    ContextMessageSet,
+    Goal,
+    Memory,
+    User,
+    UserPreference,
+)
+from elroy.repository.goals.operations import create_goal
+from elroy.repository.message import ContextMessage, Message, add_context_messages
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 

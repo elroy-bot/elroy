@@ -11,34 +11,37 @@ import typer
 from colorama import init
 from toolz import pipe
 
-from elroy.cli.updater import (check_updates, ensure_current_db_migration,
-                               version_callback)
-from elroy.config import ROOT_DIR, ElroyContext, get_config, session_manager
-from elroy.docker_postgres import is_docker_running, start_db, stop_db
-from elroy.io.base import StdIO
-from elroy.io.cli import CliIO
-from elroy.logging_config import setup_logging
-from elroy.memory import (get_memory_names, get_relevant_memories,
-                          manually_record_user_memory)
-from elroy.onboard_user import onboard_user
-from elroy.store.data_models import SYSTEM, USER
-from elroy.store.goals import get_goal_names
-from elroy.store.message import get_time_since_most_recent_user_message
-from elroy.store.user import is_user_exists
-from elroy.system.parameters import (CLI_USER_ID, DEFAULT_ASSISTANT_COLOR,
-                                     DEFAULT_INPUT_COLOR,
-                                     DEFAULT_INTERNAL_THOUGHT_COLOR,
-                                     DEFAULT_SYSTEM_MESSAGE_COLOR,
-                                     DEFAULT_WARNING_COLOR,
-                                     INITIAL_REFRESH_WAIT_SECONDS,
-                                     MIN_CONVO_AGE_FOR_GREETING)
-from elroy.system.utils import datetime_to_string
-from elroy.system_context import context_refresh
-from elroy.tools.functions.user_preferences import (get_user_preferred_name,
-                                                    set_user_preferred_name)
-from elroy.tools.messenger import process_message
-from elroy.tools.system_commands import (SYSTEM_COMMANDS, contemplate,
-                                         invoke_system_command)
+from ..cli.updater import check_updates, ensure_current_db_migration, version_callback
+from ..config.config import ROOT_DIR, ElroyContext, get_config, session_manager
+from ..config.constants import (
+    CLI_USER_ID,
+    DEFAULT_ASSISTANT_COLOR,
+    DEFAULT_INPUT_COLOR,
+    DEFAULT_INTERNAL_THOUGHT_COLOR,
+    DEFAULT_SYSTEM_MESSAGE_COLOR,
+    DEFAULT_WARNING_COLOR,
+    INITIAL_REFRESH_WAIT_SECONDS,
+    MIN_CONVO_AGE_FOR_GREETING,
+)
+from ..docker_postgres import is_docker_running, start_db, stop_db
+from ..io.base import StdIO
+from ..io.cli import CliIO
+from ..logging_config import setup_logging
+from ..messaging.context import context_refresh
+from ..messaging.messenger import process_message
+from ..onboard_user import onboard_user
+from ..repository.data_models import SYSTEM, USER
+from ..repository.goals.queries import get_goal_names
+from ..repository.memory import (
+    get_memory_names,
+    get_relevant_memories,
+    manually_record_user_memory,
+)
+from ..repository.message import get_time_since_most_recent_user_message
+from ..repository.user import is_user_exists
+from ..system_commands import SYSTEM_COMMANDS, contemplate, invoke_system_command
+from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
+from ..utils.utils import datetime_to_string
 
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 

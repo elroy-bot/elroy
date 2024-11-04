@@ -6,14 +6,21 @@ from sqlmodel import select
 from toolz import concat, pipe
 from toolz.curried import filter, map, unique
 
-from elroy.config import ElroyContext
-from elroy.llm.client import query_llm, query_llm_json
-from elroy.store.data_models import ContextMessage, Memory
-from elroy.system.clock import get_utc_now
-from elroy.system.constants import MEMORY_TITLE_EXAMPLES
-from elroy.system.parameters import CHAT_MODEL, MEMORY_WORD_COUNT_LIMIT
+from ..config.config import ElroyContext
+from ..config.constants import (
+    CHAT_MODEL,
+    MEMORY_TITLE_EXAMPLES,
+    MEMORY_WORD_COUNT_LIMIT,
+)
+from ..llm.client import query_llm, query_llm_json
+from ..repository.data_models import ContextMessage, Memory
+from ..utils.clock import get_utc_now
 
 MAX_MEMORY_LENGTH = 4000  # Characters
+
+
+def memory_to_fact(memory: Memory) -> str:
+    return f"#{memory.name}\n{memory.text}"
 
 
 def manually_record_user_memory(context: ElroyContext, text: str, name: Optional[str] = None) -> None:
@@ -41,8 +48,8 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
 
 
 async def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
-    from elroy.llm.prompts import summarize_for_memory
-    from elroy.system_context import format_context_messages
+    from ..llm.prompts import summarize_for_memory
+    from ..messaging.context import format_context_messages
 
     return await summarize_for_memory(
         user_preferred_name,
@@ -115,7 +122,7 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
 
 
 def mark_memory_inactive(context: ElroyContext, memory: Memory):
-    from elroy.tools.messenger import remove_from_context
+    from ..messaging.context import remove_from_context
 
     memory.is_active = False
     context.session.add(memory)
@@ -156,13 +163,13 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     Returns:
         int: The database ID of the memory.
     """
-    from elroy.tools.messenger import add_to_context
+    from ..messaging.context import add_to_context
 
     memory = Memory(user_id=context.user_id, name=name, text=text)
     context.session.add(memory)
     context.session.commit()
     context.session.refresh(memory)
-    from elroy.store.embeddings import upsert_embedding
+    from ..repository.embeddings import upsert_embedding
 
     memory_id = memory.id
     assert memory_id
@@ -185,7 +192,7 @@ def get_memory_names(context: ElroyContext) -> Set[str]:
 
 
 def get_relevant_memories(context: ElroyContext) -> List[str]:
-    from elroy.store.message import get_context_messages
+    from ..repository.message import get_context_messages
 
     return pipe(
         get_context_messages(context),

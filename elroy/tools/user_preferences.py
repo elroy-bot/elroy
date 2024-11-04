@@ -1,6 +1,6 @@
-from elroy.config import ElroyContext
-from elroy.store.data_models import UserPreference
-from elroy.system.constants import UNKNOWN
+from ..config.config import ElroyContext
+from ..config.constants import UNKNOWN
+from ..repository.data_models import UserPreference
 
 
 def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> None:

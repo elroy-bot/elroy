@@ -2,8 +2,6 @@ import logging
 from functools import wraps
 from typing import Callable, TypeVar
 
-from elroy.io.cli import CliIO
-
 T = TypeVar("T")
 
 
@@ -16,6 +14,8 @@ def experimental(func: Callable) -> Callable:
 
         if context and hasattr(context, "io"):
             io = context.io
+            from ..io.cli import CliIO
+
             assert isinstance(io, CliIO)
             io.notify_warning("Warning: This is an experimental feature.")
         else:

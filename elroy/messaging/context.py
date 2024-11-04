@@ -5,22 +5,38 @@ from functools import partial, reduce
 from operator import add
 from typing import List, Optional
 
+from sqlmodel import select
 from tiktoken import encoding_for_model
-from toolz import pipe
+from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
-from elroy.config import ElroyContext
-from elroy.llm.prompts import persona, summarize_conversation
-from elroy.memory import consolidate_memories
-from elroy.store.data_models import (ASSISTANT, TOOL, USER, ContextMessage,
-                                     Memory)
-from elroy.store.embeddings import find_redundant_pairs
-from elroy.store.message import (get_context_messages,
-                                 get_time_since_context_message_creation,
-                                 replace_context_messages)
-from elroy.system.clock import get_utc_now
-from elroy.system.parameters import CHAT_MODEL
-from elroy.system.utils import datetime_to_string, logged_exec_time
+from ..config.config import ElroyContext
+from ..config.constants import CHAT_MODEL
+from ..llm.persona import persona
+from ..llm.prompts import summarize_conversation
+from ..repository.data_models import (
+    ASSISTANT,
+    TOOL,
+    USER,
+    ContextMessage,
+    EmbeddableSqlModel,
+    Goal,
+    Memory,
+)
+from ..repository.embeddings import find_redundant_pairs
+from ..repository.facts import to_fact
+from ..repository.memory import consolidate_memories
+from ..repository.message import (
+    ContextMessage,
+    MemoryMetadata,
+    add_context_messages,
+    get_context_messages,
+    get_time_since_context_message_creation,
+    remove_context_messages,
+    replace_context_messages,
+)
+from ..utils.clock import get_utc_now
+from ..utils.utils import datetime_to_string, logged_exec_time
 
 
 def get_refreshed_system_message(user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
@@ -175,8 +191,8 @@ def replace_system_message(context_messages: List[ContextMessage], new_system_me
 
 @logged_exec_time
 async def context_refresh(context: ElroyContext) -> None:
-    from elroy.memory import create_memory, formulate_memory
-    from elroy.tools.functions.user_preferences import get_user_preferred_name
+    from ..repository.memory import create_memory, formulate_memory
+    from ..tools.user_preferences import get_user_preferred_name
 
     context_messages = get_context_messages(context)
     user_preferred_name = get_user_preferred_name(context)
@@ -194,3 +210,101 @@ async def context_refresh(context: ElroyContext) -> None:
         partial(compress_context_messages, context),
         partial(replace_context_messages, context),
     )
+
+
+def remove_memory_from_context(memory_type: str, context: ElroyContext, memory_id: int) -> None:
+    def is_memory_in_context_message(msg: ContextMessage) -> bool:
+        if not msg.memory_metadata:
+            return False
+
+        return any(x.memory_type == memory_type and x.id == memory_id for x in msg.memory_metadata)
+
+    pipe(
+        get_context_messages(context),
+        filter(is_memory_in_context_message),
+        list,
+        partial(remove_context_messages, context),
+    )
+
+
+def remove_from_context(context: ElroyContext, memory: EmbeddableSqlModel):
+    id = memory.id
+    assert id
+    remove_memory_from_context(memory.__class__.__name__, context, id)
+
+
+def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
+    memory_id = memory.id
+    assert memory_id
+
+    add_context_messages(
+        context,
+        [
+            ContextMessage(
+                role="system",
+                memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
+                content=str(to_fact(memory)),
+            )
+        ],
+    )
+
+
+def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
+    """Adds goal with the given name to the current conversation context
+
+    Args:
+        context (ElroyContext): context obj
+        goal_name (str): The name of the goal to add
+
+    Returns:
+        str: _description_
+    """
+    goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == goal_name,
+        )
+    ).first()
+
+    if goal:
+        add_to_context(context, goal)
+        return f"Goal '{goal_name}' added to context."
+    else:
+        return f"Goal {goal_name} not found."
+
+
+def is_memory_in_context(context_messages: List[ContextMessage], memory: EmbeddableSqlModel) -> bool:
+    return pipe(
+        context_messages,
+        map(lambda x: x.memory_metadata),
+        filter(lambda x: x is not None),
+        concat,
+        filter(lambda x: x.memory_type == memory.__class__.__name__ and x.id == memory.id),
+        list,
+        lambda x: len(x) > 0,
+    )
+
+
+def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -> str:
+    """Drops the goal with the given name
+
+    Args:
+        context (ElroyContext): context obj
+        goal_name (str): Name of the goal
+
+    Returns:
+        str: Information for the goal with the given name
+    """
+
+    goal = context.session.exec(
+        select(Goal).where(
+            Goal.user_id == context.user_id,
+            Goal.name == goal_name,
+        )
+    ).first()
+    if goal:
+        remove_from_context(context, goal)
+        return f"Goal '{goal_name}' dropped from context."
+
+    else:
+        return f"Goal '{goal_name}' not found for the current user."

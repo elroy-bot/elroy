@@ -1,6 +1,6 @@
 import asyncio
 
-from elroy.system_context import context_refresh
+from elroy.messaging.context import context_refresh
 
 
 def test_context_refresh(george_context):

@@ -1,9 +1,9 @@
 from sqlmodel import Session
+from tests.utils import process_test_message
 
-from elroy.config import ElroyConfig, ElroyContext
+from elroy.config.config import ElroyConfig, ElroyContext
 from elroy.io.base import ElroyIO
 from elroy.onboard_user import onboard_user
-from tests.utils import process_test_message
 
 BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketball shots"
 

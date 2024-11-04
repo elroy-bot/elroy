@@ -1,7 +1,7 @@
 import pytest
 
-from elroy.store.data_models import User
-from elroy.system.clock import get_utc_now
+from elroy.repository.data_models import User
+from elroy.utils.clock import get_utc_now
 
 
 @pytest.fixture

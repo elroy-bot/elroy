@@ -14,8 +14,9 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from elroy import ROOT_DIR, __version__
-from elroy.config import ElroyContext
-from elroy.io.base import ElroyIO
+
+from ..config.config import ElroyContext
+from ..io.base import ElroyIO
 
 
 def check_updates(context: ElroyContext):

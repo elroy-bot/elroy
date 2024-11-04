@@ -1,13 +1,13 @@
 from typing import List
 
 from sqlmodel import select
+from tests.fixtures import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME
+from tests.utils import process_test_message, vector_search_by_text
 from toolz import pipe
 from toolz.curried import filter
 
-from elroy.store.data_models import Goal
-from elroy.store.message import ContextMessage, get_context_messages
-from tests.fixtures import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME
-from tests.utils import process_test_message, vector_search_by_text
+from elroy.repository.data_models import Goal
+from elroy.repository.message import ContextMessage, get_context_messages
 
 
 def test_goal_relevance(george_context):

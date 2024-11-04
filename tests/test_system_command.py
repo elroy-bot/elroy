@@ -1,5 +1,4 @@
-from elroy.tools.system_commands import (get_active_goal_names,
-                                         invoke_system_command)
+from elroy.system_commands import get_active_goal_names, invoke_system_command
 
 
 def test_create_and_mark_goal_complete(elroy_context):

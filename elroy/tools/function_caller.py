@@ -2,17 +2,26 @@ import inspect
 import json
 from dataclasses import dataclass
 from types import FunctionType, ModuleType
-from typing import (Any, Dict, Iterator, List, Optional, Type, Union, get_args,
-                    get_origin)
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Type,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from docstring_parser import parse
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
-from elroy.config import ElroyContext
-from elroy.store.data_models import FunctionCall
-from elroy.system.utils import first_or_none
+from ..config.config import ElroyContext
+from ..repository.data_models import FunctionCall
+from ..utils.utils import first_or_none
 
 PY_TO_JSON_TYPE = {
     int: "integer",
@@ -211,7 +220,7 @@ def get_function_schemas():
 
 
 def get_functions() -> Dict[str, FunctionType]:
-    from elroy.tools.system_commands import ASSISTANT_VISIBLE_COMMANDS
+    from ..system_commands import ASSISTANT_VISIBLE_COMMANDS
 
     return pipe(
         get_modules(),

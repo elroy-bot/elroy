@@ -3,22 +3,22 @@ from functools import partial
 from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
-from sqlmodel import select
-from toolz import concat, juxt, pipe
+from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
-from elroy.config import ElroyContext
-from elroy.llm.client import generate_chat_completion_message, get_embedding
-from elroy.store.data_models import (ASSISTANT, SYSTEM, TOOL, USER,
-                                     EmbeddableSqlModel, Goal)
-from elroy.store.embeddings import (get_most_relevant_goal,
-                                    get_most_relevant_memory)
-from elroy.store.message import (ContextMessage, MemoryMetadata,
-                                 add_context_messages, get_context_messages,
-                                 remove_context_messages)
-from elroy.system.utils import logged_exec_time
-from elroy.tools.function_caller import (FunctionCall, PartialToolCall,
-                                         exec_function_call)
+from ..config.config import ElroyContext
+from ..llm.client import generate_chat_completion_message, get_embedding
+from ..repository.data_models import ASSISTANT, SYSTEM, TOOL, USER
+from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
+from ..repository.facts import to_fact
+from ..repository.message import (
+    ContextMessage,
+    MemoryMetadata,
+    add_context_messages,
+    get_context_messages,
+)
+from ..tools.function_caller import FunctionCall, PartialToolCall, exec_function_call
+from ..utils.utils import logged_exec_time
 
 
 class ToolCallAccumulator:
@@ -89,81 +89,9 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
             new_messages += tool_context_messages
 
 
-def is_memory_in_context(context_messages: List[ContextMessage], memory: EmbeddableSqlModel) -> bool:
-    return pipe(
-        context_messages,
-        map(lambda x: x.memory_metadata),
-        filter(lambda x: x is not None),
-        concat,
-        filter(lambda x: x.memory_type == memory.__class__.__name__ and x.id == memory.id),
-        list,
-        lambda x: len(x) > 0,
-    )
-
-
-def remove_from_context(context: ElroyContext, memory: EmbeddableSqlModel):
-    id = memory.id
-    assert id
-    remove_memory_from_context(memory.__class__.__name__, context, id)
-
-
-def remove_memory_from_context(memory_type: str, context: ElroyContext, memory_id: int) -> None:
-    def is_memory_in_context_message(msg: ContextMessage) -> bool:
-        if not msg.memory_metadata:
-            return False
-
-        return any(x.memory_type == memory_type and x.id == memory_id for x in msg.memory_metadata)
-
-    pipe(
-        get_context_messages(context),
-        filter(is_memory_in_context_message),
-        list,
-        partial(remove_context_messages, context),
-    )
-
-
-def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
-    memory_id = memory.id
-    assert memory_id
-
-    add_context_messages(
-        context,
-        [
-            ContextMessage(
-                role="system",
-                memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
-                content=str(memory.to_fact()),
-            )
-        ],
-    )
-
-
-def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
-    """Adds goal with the given name to the current conversation context
-
-    Args:
-        context (ElroyContext): context obj
-        goal_name (str): The name of the goal to add
-
-    Returns:
-        str: _description_
-    """
-    goal = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.name == goal_name,
-        )
-    ).first()
-
-    if goal:
-        add_to_context(context, goal)
-        return f"Goal '{goal_name}' added to context."
-    else:
-        return f"Goal {goal_name} not found."
-
-
 @logged_exec_time
 def get_relevant_memories(context: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    from .context import is_memory_in_context
 
     message_content = pipe(
         context_messages,
@@ -190,7 +118,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
             lambda x: ContextMessage(
                 role="system",
                 memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
-                content=str(x.to_fact()),
+                content=to_fact(x),
             )
         ),
         list,

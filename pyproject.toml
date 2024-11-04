@@ -75,6 +75,9 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 
-
 [tool.poetry.scripts]
 elroy = "elroy.cli.main:main"
+
+[tool.isort]
+profile = "black"
+src_paths = ["elroy"]

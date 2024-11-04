@@ -1,13 +1,13 @@
 from sqlmodel import Session
 
-from elroy.config import ElroyConfig, ElroyContext
-from elroy.io.base import ElroyIO
-from elroy.llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
-from elroy.store.data_models import ContextMessage
-from elroy.store.goals import create_onboarding_goal
-from elroy.store.message import replace_context_messages
-from elroy.store.user import create_user
-from elroy.system_context import get_refreshed_system_message
+from .config.config import ElroyConfig, ElroyContext
+from .io.base import ElroyIO
+from .llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
+from .messaging.context import get_refreshed_system_message
+from .repository.data_models import ContextMessage
+from .repository.goals.operations import create_onboarding_goal
+from .repository.message import replace_context_messages
+from .repository.user import create_user
 
 
 def onboard_user(session: Session, io: ElroyIO, config: ElroyConfig, preferred_name: str) -> int:

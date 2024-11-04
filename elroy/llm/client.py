@@ -7,9 +7,9 @@ from litellm.exceptions import BadRequestError
 from toolz import pipe
 from toolz.curried import keyfilter, map
 
-from elroy.store.data_models import USER, ContextMessage
-from elroy.system.parameters import CHAT_MODEL, EMBEDDING_MODEL
-from elroy.system.utils import logged_exec_time
+from ..config.constants import CHAT_MODEL, EMBEDDING_MODEL
+from ..repository.data_models import USER, ContextMessage
+from ..utils.utils import logged_exec_time
 
 ZERO_TEMPERATURE = 0.0
 
@@ -20,7 +20,7 @@ class MissingToolCallIdError(Exception):
 
 @logged_exec_time
 def generate_chat_completion_message(context_messages: List[ContextMessage]) -> Iterator[Dict]:
-    from elroy.tools.function_caller import get_function_schemas
+    from ..tools.function_caller import get_function_schemas
 
     context_messages = pipe(
         context_messages,

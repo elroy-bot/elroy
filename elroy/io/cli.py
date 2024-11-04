@@ -2,8 +2,7 @@ import logging
 from contextlib import contextmanager
 from typing import Generator, Iterator, List, Set, Text, Union
 
-from prompt_toolkit import (HTML, Application, PromptSession,
-                            print_formatted_text)
+from prompt_toolkit import HTML, Application, PromptSession, print_formatted_text
 from prompt_toolkit.application import get_app
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import InMemoryHistory
@@ -15,8 +14,9 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.text import Text
 
-from elroy.io.base import ElroyIO
-from elroy.store.data_models import FunctionCall
+from ..io.base import ElroyIO
+from ..repository.data_models import FunctionCall
+from ..system_commands import GOAL_COMMANDS, MEMORY_COMMANDS, SYSTEM_COMMANDS
 
 
 class CliIO(ElroyIO):
@@ -175,9 +175,6 @@ class SlashCompleter(WordCompleter):
         super().__init__(self.get_words(), sentence=True, pattern=r"^/")  # type: ignore
 
     def get_words(self):
-        from elroy.tools.system_commands import (GOAL_COMMANDS,
-                                                 MEMORY_COMMANDS,
-                                                 SYSTEM_COMMANDS)
 
         words = [f"/{f.__name__}" for f in SYSTEM_COMMANDS - (GOAL_COMMANDS | MEMORY_COMMANDS)]
         words += [f"/{f.__name__} {goal}" for f in GOAL_COMMANDS for goal in self.goals]

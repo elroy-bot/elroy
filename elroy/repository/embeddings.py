@@ -8,12 +8,15 @@ from sqlmodel import Session, func, select
 from toolz import compose, pipe
 from toolz.curried import do, map
 
-from elroy.config import ElroyContext
-from elroy.store.data_models import EmbeddableSqlModel, Goal, Memory
-from elroy.system.parameters import (
+from ..config.config import ElroyContext
+from ..config.constants import (
     L2_MEMORY_CONSOLIDATION_DISTANCE_THRESHOLD,
-    L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD, RESULT_SET_LIMIT_COUNT)
-from elroy.system.utils import first_or_none
+    L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD,
+    RESULT_SET_LIMIT_COUNT,
+)
+from ..repository.data_models import EmbeddableSqlModel, Goal, Memory
+from ..repository.facts import to_fact
+from ..utils.utils import first_or_none
 
 T = TypeVar("T", bound=EmbeddableSqlModel)
 
@@ -107,9 +110,9 @@ def find_redundant_pairs(
 
 
 def upsert_embedding(session: Session, row: EmbeddableSqlModel) -> None:
-    from elroy.llm.client import get_embedding
+    from ..llm.client import get_embedding
 
-    new_text = row.to_fact()
+    new_text = to_fact(row)
     new_md5 = hashlib.md5(new_text.encode()).hexdigest()
 
     if row.embedding_text_md5 == new_md5:

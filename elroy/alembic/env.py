@@ -3,11 +3,12 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
-### Imports necessary to correctly load SQLModel subclasses and set env variables ###
-import elroy.store.data_models
 from alembic import context
 
-models = elroy.store.data_models
+### Imports necessary to correctly load SQLModel subclasses and set env variables ###
+from elroy.repository import data_models  # type: ignore
+
+models = data_models
 
 ### End ####
 

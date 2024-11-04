@@ -14,22 +14,40 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from elroy.config import ElroyContext
-from elroy.llm import client
-from elroy.memory import create_memory
-from elroy.store.data_models import SYSTEM, ContextMessage, Goal, Memory
-from elroy.store.goals import (add_goal_status_update, create_goal,
-                               delete_goal_permamently, mark_goal_completed,
-                               rename_goal)
-from elroy.store.message import (add_context_messages, get_context_messages,
-                                 get_current_system_message,
-                                 replace_context_messages)
-from elroy.system.ops import experimental
-from elroy.system.parameters import CHAT_MODEL
-from elroy.tools.functions.user_preferences import (get_user_full_name,
-                                                    get_user_preferred_name,
-                                                    set_user_full_name,
-                                                    set_user_preferred_name)
+from .config.config import ElroyContext
+from .config.constants import CHAT_MODEL
+from .llm import client
+from .llm.prompts import contemplate_prompt
+from .messaging.context import (
+    add_goal_to_current_context,
+    drop_goal_from_current_context_only,
+    format_context_messages,
+    get_refreshed_system_message,
+)
+from .repository.data_models import SYSTEM, ContextMessage, Goal, Memory
+from .repository.goals.operations import (
+    add_goal_status_update,
+    create_goal,
+    delete_goal_permamently,
+    goal_to_fact,
+    mark_goal_completed,
+    rename_goal,
+)
+from .repository.goals.queries import get_active_goals
+from .repository.memory import create_memory, memory_to_fact
+from .repository.message import (
+    add_context_messages,
+    get_context_messages,
+    get_current_system_message,
+    replace_context_messages,
+)
+from .tools.user_preferences import (
+    get_user_full_name,
+    get_user_preferred_name,
+    set_user_full_name,
+    set_user_preferred_name,
+)
+from .utils.ops import experimental
 
 
 def invoke_system_command(context: ElroyContext, msg: str) -> str:
@@ -92,9 +110,6 @@ def refresh_system_instructions(context: ElroyContext) -> str:
     Returns:
         str: The result of the system instruction refresh
     """
-
-    from elroy.store.message import get_context_messages
-    from elroy.system_context import get_refreshed_system_message
 
     context_messages = get_context_messages(context)
     context_messages[0] = get_refreshed_system_message(get_user_preferred_name(context), context_messages[1:])
@@ -162,8 +177,6 @@ def print_context_messages(context: ElroyContext) -> Pretty:
         user_id (int): _description_
     """
 
-    from elroy.store.message import get_context_messages
-
     return Pretty(get_context_messages(context))
 
 
@@ -185,13 +198,12 @@ def print_goal(context: ElroyContext, goal_name: str) -> str:
         )
     ).first()
     if goal:
-        return goal.to_fact()
+        return goal_to_fact(goal)
     else:
         return f"Goal '{goal_name}' not found for the current user."
 
 
 def get_active_goal_names(context: ElroyContext) -> List[str]:
-    from elroy.store.goals import get_active_goals
 
     return [goal.name for goal in get_active_goals(context)]
 
@@ -214,7 +226,7 @@ def print_memory(context: ElroyContext, memory_name: str) -> str:
         )
     ).first()
     if memory:
-        return memory.to_fact()
+        return memory_to_fact(memory)
     else:
         return f"Memory '{memory_name}' not found for the current user."
 
@@ -229,19 +241,15 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
     Returns:
         str: The response to the contemplation
     """
-    from elroy.llm.client import query_llm
-    from elroy.llm.prompts import contemplate_prompt
 
     logging.info("Contemplating...")
 
     user_preferred_name = get_user_preferred_name(context)
     context_messages = get_context_messages(context)
 
-    from elroy.system_context import format_context_messages
-
     msgs_input = format_context_messages(user_preferred_name, context_messages)
 
-    response = query_llm(
+    response = client.query_llm(
         prompt=msgs_input,
         system=contemplate_prompt(user_preferred_name, contemplation_prompt),
         model=CHAT_MODEL,
@@ -252,66 +260,6 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
     context.io.internal_thought_msg(response)
 
     return response
-
-
-def drop_goal_from_current_context_only(context: ElroyContext, goal_name: str) -> str:
-    """Drops the goal with the given name
-
-    Args:
-        context (ElroyContext): context obj
-        goal_name (str): Name of the goal
-
-    Returns:
-        str: Information for the goal with the given name
-    """
-    from elroy.tools.messenger import remove_from_context
-
-    goal = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.name == goal_name,
-        )
-    ).first()
-    if goal:
-        remove_from_context(context, goal)
-        return f"Goal '{goal_name}' dropped from context."
-
-    else:
-        return f"Goal '{goal_name}' not found for the current user."
-
-
-def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
-    """Adds goal with the given name to the current conversation context
-
-    Args:
-        context (ElroyContext): context obj
-        goal_name (str): The name of the goal to add
-
-    Returns:
-        str: _description_
-    """
-    goal = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.name == goal_name,
-        )
-    ).first()
-
-    if goal:
-
-        add_context_messages(
-            context,
-            [
-                ContextMessage(
-                    role="system",
-                    content=f"Goal '{goal_name}' has added to the conversation context.. {goal.description}. {goal.strategy}. {goal.end_condition}. Status updates: {goal.status_updates}",
-                    memory_metadata=[goal.to_memory_metadata()],
-                )
-            ],
-        )
-        return f"Goal '{goal_name}' added to context."
-    else:
-        return f"Goal {goal_name} not found."
 
 
 @experimental

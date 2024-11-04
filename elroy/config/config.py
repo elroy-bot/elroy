@@ -7,7 +7,7 @@ from typing import Generator, Generic, Optional, TypeVar
 from sqlalchemy import NullPool, create_engine
 from sqlmodel import Session
 
-from elroy.io.base import ElroyIO
+from ..io.base import ElroyIO
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

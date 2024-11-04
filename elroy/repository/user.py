@@ -2,8 +2,8 @@ from sqlmodel import Session, select
 from toolz import pipe
 from toolz.curried import do
 
-from elroy.config import ElroyContext
-from elroy.store.data_models import User
+from ..config.config import ElroyContext
+from ..repository.data_models import User
 
 
 def is_user_exists(context: ElroyContext) -> bool:
