@@ -30,6 +30,7 @@ from elroy.system.parameters import (CLI_USER_ID, DEFAULT_ASSISTANT_COLOR,
                                      DEFAULT_INTERNAL_THOUGHT_COLOR,
                                      DEFAULT_SYSTEM_MESSAGE_COLOR,
                                      DEFAULT_WARNING_COLOR,
+                                     INITIAL_REFRESH_WAIT_SECONDS,
                                      MIN_CONVO_AGE_FOR_GREETING)
 from elroy.system.utils import datetime_to_string
 from elroy.system_context import context_refresh
@@ -48,6 +49,7 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
 
     if ctx.obj["is_tty"]:
         io = CliIO(
+            ctx.obj["show_internal_thought_monologue"],
             ctx.obj["system_message_color"],
             ctx.obj["assistant_color"],
             ctx.obj["user_input_color"],
@@ -105,6 +107,9 @@ def common(
     postgres_url: Optional[str] = typer.Option(
         None, envvar="ELROY_POSTGRES_URL", help="Postgres URL to use for Elroy. If set, ovverrides use_docker_postgres."
     ),
+    show_internal_thought_monologue: bool = typer.Option(
+        False, help="Show the assistant's internal thought monologue like memory consolidation and internal reflection."
+    ),
     openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY", help="OpenAI API key, required."),
     context_window_token_limit: Optional[int] = typer.Option(
         None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT", help="How many tokens to keep in context before compressing."
@@ -129,6 +134,7 @@ def common(
     """Common parameters."""
     ctx.obj = {
         "postgres_url": postgres_url,
+        "show_internal_thought_monologue": show_internal_thought_monologue,
         "openai_api_key": openai_api_key,
         "context_window_token_limit": context_window_token_limit,
         "log_file_path": log_file_path,
@@ -219,8 +225,6 @@ def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
     else:
         context.io.assistant_msg(process_message(context, user_input, role))
 
-    context.io.rule()
-
 
 def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
     """Run context refresh in a background thread"""
@@ -229,6 +233,7 @@ def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
     asyncio.set_event_loop(loop)
 
     async def refresh_loop(context: ElroyContext):
+        await asyncio.sleep(INITIAL_REFRESH_WAIT_SECONDS)
         while True:
             try:
                 logging.info("Refreshing context")
@@ -284,12 +289,15 @@ async def main_chat(context: ElroyContext[CliIO]):
         assert isinstance(user_id, int)
 
         set_user_preferred_name(context, name)
+        pipe(context, get_relevant_memories, context.io.print_memory_panel)
         process_and_deliver_msg(context, "Elroy user {name} has been onboarded. Say hello and introduce yourself.", role=SYSTEM)
 
     elif (get_time_since_most_recent_user_message(context) or timedelta()) < MIN_CONVO_AGE_FOR_GREETING:
         logging.info("User has interacted recently, skipping greeting.")
+        pipe(context, get_relevant_memories, context.io.print_memory_panel)
     else:
         preferred_name = get_user_preferred_name(context)
+        pipe(context, get_relevant_memories, context.io.print_memory_panel)
 
         process_and_deliver_msg(
             context,
@@ -301,7 +309,6 @@ async def main_chat(context: ElroyContext[CliIO]):
         try:
 
             context.io.update_completer(get_goal_names(context), get_memory_names(context))
-            pipe(context, get_relevant_memories, context.io.print_memory_panel)
 
             user_input = await context.io.prompt_user()
             if user_input.lower().startswith("/exit") or user_input == "exit":
@@ -311,6 +318,9 @@ async def main_chat(context: ElroyContext[CliIO]):
                 run_in_background_thread(contemplate, context)
         except EOFError:
             break
+
+        context.io.rule()
+        pipe(context, get_relevant_memories, context.io.print_memory_panel)
 
 
 def main():

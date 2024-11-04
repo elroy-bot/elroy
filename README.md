@@ -132,12 +132,18 @@ You can customize Elroy's appearance with these options:
 ## Options
 
 * `--version`: Show version and exit.
-* `--postgres-url TEXT`: Postgres URL to use for Elroy. If set, ovverrides use_docker_postgres.  [env var: ELROY_POSTGRES_URL]
-* `--openai-api-key TEXT`: OpenAI API key, required.  [env var: OPENAI_API_KEY]
+* `--postgres-url TEXT`: Postgres URL to use for Elroy. If set, overrides use_docker_postgres. [env var: ELROY_POSTGRES_URL]
+* `--openai-api-key TEXT`: OpenAI API key, required. [env var: OPENAI_API_KEY]
 * `--context-window-token-limit INTEGER`: How many tokens to keep in context before compressing. Controls how much conversation history Elroy maintains before summarizing older content. [env var: ELROY_CONTEXT_WINDOW_TOKEN_LIMIT]
-* `--log-file-path TEXT`: Where to write logs.  [env var: ELROY_LOG_FILE_PATH; default: /Users/tombedor/development/elroy/logs/elroy.log]
-* `--use-docker-postgres / --no-use-docker-postgres`: If true and postgres_url is not set, will attempt to start a Docker container for Postgres.  [env var: USE_DOCKER_POSTGRES; default: use-docker-postgres]
-* `--stop-docker-postgres-on-exit / --no-stop-docker-postgres-on-exit`: Whether or not to stop the Postgres container on exit.  [env var: STOP_DOCKER_POSTGRES_ON_EXIT; default: no-stop-docker-postgres-on-exit]
+* `--log-file-path TEXT`: Where to write logs. [env var: ELROY_LOG_FILE_PATH; default: logs/elroy.log]
+* `--use-docker-postgres / --no-use-docker-postgres`: If true and postgres_url is not set, will attempt to start a Docker container for Postgres. [env var: USE_DOCKER_POSTGRES; default: True]
+* `--stop-docker-postgres-on-exit / --no-stop-docker-postgres-on-exit`: Whether or not to stop the Postgres container on exit. [env var: STOP_DOCKER_POSTGRES_ON_EXIT; default: False]
+* `--show-internal-thought-monologue`: Show the assistant's internal thought monologue like memory consolidation and internal reflection. [default: False]
+* `--system-message-color TEXT`: Color for system messages. [default: #9ACD32]
+* `--user-input-color TEXT`: Color for user input. [default: #FFE377]
+* `--assistant-color TEXT`: Color for assistant output. [default: #77DFD8]
+* `--warning-color TEXT`: Color for warning messages. [default: yellow]
+* `--internal-thought-color TEXT`: Color for internal thought messages. [default: #708090]
 * `--install-completion`: Install completion for the current shell.
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
 * `--help`: Show this message and exit.
