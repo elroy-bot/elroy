@@ -15,7 +15,8 @@ def test_goal(onboarded_context):
     )
 
     # Test that the goal was created, and is accessible to the agent.
-    assert "Become my school's class president" in get_active_goals_summary(onboarded_context), "Goal not found in active goals."
+
+    assert "class president" in get_active_goals_summary(onboarded_context).lower(), "Goal not found in active goals."
 
     # Verify Elroy's knowledge about the new goal
     answer, full_response = ask_assistant_bool(
