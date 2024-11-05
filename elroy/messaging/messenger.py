@@ -51,7 +51,9 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
 
     context_messages = get_context_messages(context)
 
-    new_messages = [ContextMessage(role=role, content=msg)] + get_relevant_memories(context, context_messages)
+    new_messages = [ContextMessage(role=role, content=msg)]
+    # ensuring that the new message is included in the search for relevant memories
+    new_messages += get_relevant_memories(context, context_messages + new_messages)
 
     full_content = ""
 

@@ -1,10 +1,8 @@
-import pytest
 from tests.utils import ask_assistant_bool, process_test_message
 
 from elroy.repository.goals.queries import get_active_goals_summary
 
 
-@pytest.mark.skip(reason="flaky")
 def test_goal(onboarded_context):
     answer, full_response = ask_assistant_bool(onboarded_context, "Do I have any goals about becoming president of the United States?")
     assert not answer, f"Returned True: {full_response}"
@@ -13,7 +11,7 @@ def test_goal(onboarded_context):
 
     process_test_message(
         onboarded_context,
-        "Create a new goal for me: 'Become my school's class president.'",
+        "Create a new goal for me: 'Become my school's class president.' I will get to my goal by being nice to everyone and making flyers.",
     )
 
     # Test that the goal was created, and is accessible to the agent.
