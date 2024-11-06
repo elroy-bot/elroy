@@ -1,20 +1,12 @@
 name: Create and Publish Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      bump_type:
-        description: 'Version bump type'
-        required: true
-        type: choice
-        options:
-        - patch
-        - minor
-        - major
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags
 
 jobs:
   release:
-    if: github.ref == 'refs/heads/main'  # Double-check we're on main
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -64,17 +56,9 @@ jobs:
         git config --global user.name 'elroy-bot'
         git config --global user.email 'noreply@elroy.bot'
 
-    - name: Install bump2version
-      run: pip install bump2version
-
-    - name: Get new version
+    - name: Get version from tag
       id: version
-      run: |
-        NEW_VERSION=$(bump2version --dry-run --list ${{ github.event.inputs.bump_type }} | grep new_version | sed -r s,"^.*=",,)
-        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-
-    - name: Bump version
-      run: bump2version ${{ github.event.inputs.bump_type }}
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
     - name: Install dependencies and build
       run: |
@@ -108,11 +92,6 @@ jobs:
       run: sleep 60
 
 
-    - name: Push version bump and tags
-      if: success()
-      run: |
-        git push origin main
-        git push origin --tags
 
     - name: Log in to Container registry
       if: success()
@@ -142,4 +121,4 @@ jobs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: |
-          ELROY_VERSION=v${{ steps.version.outputs.new_version }}
+          ELROY_VERSION=${{ steps.version.outputs.version }}
