@@ -25,7 +25,7 @@ def check_updates(context: ElroyContext):
         if typer.confirm(f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"):
             typer.echo("Upgrading elroy...")
             try:
-                os.system(f"{sys.executable} -m pip install --upgrade elroy=={latest_version}")
+                os.system(f"{sys.executable} -m pip install --upgrade --update-strategy only-if-needed elroy=={latest_version}")
                 os.execv(sys.executable, [sys.executable] + sys.argv)
             except Exception as e:
                 context.io.sys_message(f"Error during upgrade: {e}. Please try upgrading manually using: pipx upgrade elroy")
