@@ -104,6 +104,9 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD --no-interaction
+    - name: Delay to allow for pypi propogation
+      run: sleep 60
+
 
     - name: Push version bump and tags
       if: success()
