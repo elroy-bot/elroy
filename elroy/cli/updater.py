@@ -13,7 +13,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from elroy import ROOT_DIR, __version__
+from core import ROOT_DIR, __version__
 
 from ..config.config import ElroyContext
 from ..io.base import ElroyIO
