@@ -95,7 +95,7 @@ def query_llm_json(
 
 
 def query_llm_with_word_limit(
-    model: str, prompt: str, system: str, word_limit: int, temperature: float = ZERO_TEMPERATURE, use_weak_model: bool = False,
+    config: ElroyConfig, prompt: str, system: str, word_limit: int, temperature: float = ZERO_TEMPERATURE, model: Model = Model.STRONG,
 ) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
