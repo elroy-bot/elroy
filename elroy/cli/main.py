@@ -16,14 +16,18 @@ from ..config.config import ROOT_DIR, ElroyContext, get_config, session_manager
 from ..config.constants import (
     CLI_USER_ID,
     DEFAULT_ASSISTANT_COLOR,
+    DEFAULT_CHAT_MODEL_NAME,
+    DEFAULT_CONTEXT_WINDOW_LIMIT,
+    DEFAULT_EMBEDDING_MODEL_NAME,
     DEFAULT_INPUT_COLOR,
     DEFAULT_INTERNAL_THOUGHT_COLOR,
     DEFAULT_SYSTEM_MESSAGE_COLOR,
     DEFAULT_WARNING_COLOR,
+    EMBEDDING_SIZE,
     INITIAL_REFRESH_WAIT_SECONDS,
     MIN_CONVO_AGE_FOR_GREETING,
 )
-from ..docker_postgres import is_docker_running, start_db, stop_db
+from ..docker_postgres import DOCKER_DB_URL, is_docker_running, start_db, stop_db
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..logging_config import setup_logging
@@ -66,28 +70,18 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
         setup_logging(ctx.obj["log_file_path"])
 
         if ctx.obj["use_docker_postgres"]:
-            if ctx.obj["postgres_url"] is not None:
-                logging.info("postgres_url is set, ignoring use_docker_postgres set to True")
-
+            if is_docker_running():
+                start_db()
             else:
-                if not is_docker_running():
-                    io.sys_message(
-                        "Docker is not running, and elroy started with --use_docker_postgres. Please start Docker and try again."
-                    )
-                    exit(1)
-                ctx.obj["postgres_url"] = start_db()
+                raise typer.BadParameter(
+                    "Elroy was started with use_docker_postgres set to True, but no Docker container is running. Please either start a Docker container, provide a postgres_url parameter, or set the ELROY_POSTGRES_URL environment variable."
+                )
 
-        assert ctx.obj["postgres_url"], "Database URL is required"
-        assert ctx.obj["openai_api_key"], "OpenAI API key is required"
+        # TODO: validate necessary keys are set
 
         # Check if migrations need to be run
-        ensure_current_db_migration(io, ctx.obj["postgres_url"])
-
-        config = get_config(
-            postgres_url=ctx.obj["postgres_url"],
-            openai_api_key=ctx.obj["openai_api_key"],
-            context_window_token_limit=ctx.obj["context_window_token_limit"],
-        )
+        config = ctx.obj["elroy_config"]
+        ensure_current_db_migration(io, config.postgres_url)
 
         with session_manager(config.postgres_url) as session:
             yield ElroyContext(
@@ -106,19 +100,41 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
 @app.callback()
 def common(
     ctx: typer.Context,
-    version: bool = typer.Option(None, "--version", callback=version_callback, is_eager=True, help="Show version and exit."),
+    version: bool = typer.Option(
+        None,
+        "--version",
+        callback=version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    ),
     postgres_url: Optional[str] = typer.Option(
-        None, envvar="ELROY_POSTGRES_URL", help="Postgres URL to use for Elroy. If set, ovverrides use_docker_postgres."
+        None,
+        envvar="ELROY_POSTGRES_URL",
+        help="Postgres URL to use for Elroy. If set, ovverrides use_docker_postgres.",
     ),
     show_internal_thought_monologue: bool = typer.Option(
-        False, help="Show the assistant's internal thought monologue like memory consolidation and internal reflection."
+        False,
+        help="Show the assistant's internal thought monologue like memory consolidation and internal reflection.",
     ),
-    openai_api_key: Optional[str] = typer.Option(None, envvar="OPENAI_API_KEY", help="OpenAI API key, required."),
-    context_window_token_limit: Optional[int] = typer.Option(
-        None, envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT", help="How many tokens to keep in context before compressing."
+    openai_api_key: Optional[str] = typer.Option(
+        None,
+        envvar="OPENAI_API_KEY",
+        help="OpenAI API key, required for OpenAI models.",
+    ),
+    anthropic_api_key: Optional[str] = typer.Option(
+        None,
+        envvar="ANTHROPIC_API_KEY",
+        help="Anthropic API key, required for Anthropic models.",
+    ),
+    context_window_token_limit: int = typer.Option(
+        DEFAULT_CONTEXT_WINDOW_LIMIT,
+        envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT",
+        help="How many tokens to keep in context before compressing.",
     ),
     log_file_path: str = typer.Option(
-        os.path.join(ROOT_DIR, "logs", "elroy.log"), envvar="ELROY_LOG_FILE_PATH", help="Where to write logs."
+        os.path.join(ROOT_DIR, "logs", "elroy.log"),
+        envvar="ELROY_LOG_FILE_PATH",
+        help="Where to write logs.",
     ),
     use_docker_postgres: Optional[bool] = typer.Option(
         True,
@@ -126,20 +142,56 @@ def common(
         help="If true and postgres_url is not set, will attempt to start a Docker container for Postgres.",
     ),
     stop_docker_postgres_on_exit: Optional[bool] = typer.Option(
-        False, envvar="STOP_DOCKER_POSTGRES_ON_EXIT", help="Whether or not to stop the Postgres container on exit."
+        False,
+        envvar="STOP_DOCKER_POSTGRES_ON_EXIT",
+        help="Whether or not to stop the Postgres container on exit.",
     ),
-    system_message_color: str = typer.Option(DEFAULT_SYSTEM_MESSAGE_COLOR, help="Color for system messages."),
+    system_message_color: str = typer.Option(
+        DEFAULT_SYSTEM_MESSAGE_COLOR,
+        help="Color for system messages.",
+    ),
     user_input_color: str = typer.Option(DEFAULT_INPUT_COLOR, help="Color for user input."),
-    assistant_color: str = typer.Option(DEFAULT_ASSISTANT_COLOR, help="Color for assistant output."),
+    assistant_color: str = typer.Option(
+        DEFAULT_ASSISTANT_COLOR,
+        help="Color for assistant output.",
+    ),
     warning_color: str = typer.Option(DEFAULT_WARNING_COLOR, help="Color for warning messages."),
-    internal_thought_color: str = typer.Option(DEFAULT_INTERNAL_THOUGHT_COLOR, help="Color for internal thought messages."),
+    internal_thought_color: str = typer.Option(
+        DEFAULT_INTERNAL_THOUGHT_COLOR,
+        help="Color for internal thought messages.",
+    ),
+    chat_model: str = typer.Option(
+        DEFAULT_CHAT_MODEL_NAME,
+        help="The model to use for chat completions.",
+    ),
+    emedding_model: str = typer.Option(
+        DEFAULT_EMBEDDING_MODEL_NAME,
+        help="The model to use for text embeddings.",
+    ),
+    embedding_model_size: int = typer.Option(
+        EMBEDDING_SIZE,
+        help="The size of the embedding model.",
+    ),
 ):
     """Common parameters."""
+
+    if not postgres_url and not use_docker_postgres:
+        raise typer.BadParameter("If postgres_url parameter or ELROY_POSTGRES_URL env var is not set, use_docker_postgres must be True.")
+
+    if postgres_url and use_docker_postgres:
+        logging.info("postgres_url is set, ignoring use_docker_postgres set to True")
+
     ctx.obj = {
-        "postgres_url": postgres_url,
+        "elroy_config": get_config(
+            postgres_url=postgres_url or DOCKER_DB_URL,
+            chat_model_name=chat_model,
+            embedding_model_name=emedding_model,
+            embedding_model_size=embedding_model_size,
+            context_window_token_limit=context_window_token_limit,
+            openai_api_key=openai_api_key,
+            anthropic_api_key=anthropic_api_key,
+        ),
         "show_internal_thought_monologue": show_internal_thought_monologue,
-        "openai_api_key": openai_api_key,
-        "context_window_token_limit": context_window_token_limit,
         "log_file_path": log_file_path,
         "use_docker_postgres": use_docker_postgres,
         "stop_docker_postgres_on_exit": stop_docker_postgres_on_exit,

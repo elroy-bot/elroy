@@ -15,8 +15,11 @@ DB_PORT = "5432"
 CONTAINER_NAME = "elroy_postgres"
 VOLUME_NAME = "elroy_postgres-data"
 
+DOCKER_DB_URL = f"postgresql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
 
 def is_docker_running():
+
     try:
         client = docker.from_env()
         client.ping()

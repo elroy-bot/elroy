@@ -1,5 +1,6 @@
 import logging
 import re
+from functools import partial
 from typing import Optional, Tuple, Type
 
 from toolz import pipe
@@ -26,8 +27,11 @@ def process_test_message(context: ElroyContext, msg: str) -> str:
 
 
 def vector_search_by_text(context: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
-
-    return first_or_none(query_vector(context, get_embedding(query), table))  # type: ignore
+    return pipe(
+        get_embedding(context.config.embedding_model, query),
+        partial(query_vector, table, context),
+        first_or_none,
+    )  # type: ignore
 
 
 def ask_assistant_bool(context: ElroyContext, question: str) -> Tuple[bool, str]:

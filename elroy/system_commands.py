@@ -15,7 +15,6 @@ from toolz import pipe
 from toolz.curried import filter
 
 from .config.config import ElroyContext
-from .config.constants import CHAT_MODEL
 from .llm import client
 from .llm.prompts import contemplate_prompt
 from .messaging.context import (
@@ -112,7 +111,11 @@ def refresh_system_instructions(context: ElroyContext) -> str:
     """
 
     context_messages = get_context_messages(context)
-    context_messages[0] = get_refreshed_system_message(get_user_preferred_name(context), context_messages[1:])
+    context_messages[0] = get_refreshed_system_message(
+        context.config.chat_model,
+        get_user_preferred_name(context),
+        context_messages[1:],
+    )
     replace_context_messages(context, context_messages)
     return "System instruction refresh complete"
 
@@ -252,10 +255,19 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
     response = client.query_llm(
         prompt=msgs_input,
         system=contemplate_prompt(user_preferred_name, contemplation_prompt),
-        model=CHAT_MODEL,
+        model=context.config.chat_model,
     )
 
-    add_context_messages(context, [ContextMessage(role=SYSTEM, content=response)])
+    add_context_messages(
+        context,
+        [
+            ContextMessage(
+                role=SYSTEM,
+                content=response,
+                chat_model=context.config.chat_model.model,
+            )
+        ],
+    )
 
     context.io.internal_thought_msg(response)
 
