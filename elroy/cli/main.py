@@ -2,13 +2,13 @@ import asyncio
 import logging
 import os
 import sys
-import threading
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Generator, Optional
 
 import typer
 from colorama import init
+from litellm import anthropic_models, open_ai_chat_completion_models
 from toolz import pipe
 
 from ..cli.updater import check_updates, ensure_current_db_migration, version_callback
@@ -45,56 +45,9 @@ from ..repository.message import get_time_since_most_recent_user_message
 from ..repository.user import is_user_exists
 from ..system_commands import SYSTEM_COMMANDS, contemplate, invoke_system_command
 from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
-from ..utils.utils import datetime_to_string
+from ..utils.utils import datetime_to_string, run_in_background_thread
 
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
-
-
-@contextmanager
-def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]:
-    """Create an ElroyContext as a context manager"""
-
-    if ctx.obj["is_tty"]:
-        io = CliIO(
-            ctx.obj["show_internal_thought_monologue"],
-            ctx.obj["system_message_color"],
-            ctx.obj["assistant_color"],
-            ctx.obj["user_input_color"],
-            ctx.obj["warning_color"],
-            ctx.obj["internal_thought_color"],
-        )
-    else:
-        io = StdIO()
-
-    try:
-        setup_logging(ctx.obj["log_file_path"])
-
-        if ctx.obj["use_docker_postgres"]:
-            if is_docker_running():
-                start_db()
-            else:
-                raise typer.BadParameter(
-                    "Elroy was started with use_docker_postgres set to True, but no Docker container is running. Please either start a Docker container, provide a postgres_url parameter, or set the ELROY_POSTGRES_URL environment variable."
-                )
-
-        # TODO: validate necessary keys are set
-
-        # Check if migrations need to be run
-        config = ctx.obj["elroy_config"]
-        ensure_current_db_migration(io, config.postgres_url)
-
-        with session_manager(config.postgres_url) as session:
-            yield ElroyContext(
-                user_id=CLI_USER_ID,
-                session=session,
-                config=config,
-                io=io,
-            )
-
-    finally:
-        if ctx.obj["use_docker_postgres"] and ctx.obj["stop_docker_postgres_on_exit"]:
-            io.sys_message("Stopping Docker Postgres container...")
-            stop_db()
 
 
 @app.callback()
@@ -121,11 +74,11 @@ def common(
         envvar="OPENAI_API_KEY",
         help="OpenAI API key, required for OpenAI models.",
     ),
-    # anthropic_api_key: Optional[str] = typer.Option(
-    #     None,
-    #     envvar="ANTHROPIC_API_KEY",
-    #     help="Anthropic API key, required for Anthropic models.",
-    # ),
+    anthropic_api_key: Optional[str] = typer.Option(
+        None,
+        envvar="ANTHROPIC_API_KEY",
+        help="Anthropic API key, required for Anthropic models.",
+    ),
     context_window_token_limit: int = typer.Option(
         DEFAULT_CONTEXT_WINDOW_LIMIT,
         envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT",
@@ -185,9 +138,6 @@ def common(
     if postgres_url and use_docker_postgres:
         logging.info("postgres_url is set, ignoring use_docker_postgres set to True")
 
-    # TEMP
-    anthropic_api_key = None
-
     ctx.obj = {
         "elroy_config": get_config(
             postgres_url=postgres_url or DOCKER_DB_URL,
@@ -210,6 +160,22 @@ def common(
         "internal_thought_color": internal_thought_color,
         "is_tty": sys.stdin.isatty(),
     }
+
+
+@app.command()
+def chat(ctx: typer.Context):
+    """Start the Elroy chat interface"""
+
+    if not sys.stdin.isatty():
+        with init_elroy_context(ctx) as context:
+            for line in sys.stdin:
+                process_and_deliver_msg(context, line)
+        return
+
+    with init_elroy_context(ctx) as context:
+        check_updates(context)
+        asyncio.run(main_chat(context))
+        context.io.sys_message(f"Exiting...")
 
 
 @app.command()
@@ -259,19 +225,13 @@ def remember(
 
 
 @app.command()
-def chat(ctx: typer.Context):
-    """Start the Elroy chat interface"""
+def list_chat_models(ctx: typer.Context):
+    """Lists supported chat models"""
 
-    if not sys.stdin.isatty():
-        with init_elroy_context(ctx) as context:
-            for line in sys.stdin:
-                process_and_deliver_msg(context, line)
-        return
-
-    with init_elroy_context(ctx) as context:
-        check_updates(context)
-        asyncio.run(main_chat(context))
-        context.io.sys_message(f"Exiting...")
+    for m in open_ai_chat_completion_models:
+        print(f"{m} (OpenAI)")
+    for m in anthropic_models:
+        print(f"{m} (Anthropic)")
 
 
 def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
@@ -321,17 +281,6 @@ def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
             )
     finally:
         loop.close()
-
-
-def run_in_background_thread(fn, context, *args):
-    # hack to get a new session for the thread
-    with session_manager(context.config.postgres_url) as session:
-        thread = threading.Thread(
-            target=fn,
-            args=(ElroyContext(user_id=CLI_USER_ID, session=session, config=context.config, io=context.io), *args),
-            daemon=True,
-        )
-        thread.start()
 
 
 async def main_chat(context: ElroyContext[CliIO]):
@@ -384,6 +333,51 @@ async def main_chat(context: ElroyContext[CliIO]):
 
         context.io.rule()
         pipe(context, get_relevant_memories, context.io.print_memory_panel)
+
+
+@contextmanager
+def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]:
+    """Create an ElroyContext as a context manager"""
+
+    if ctx.obj["is_tty"]:
+        io = CliIO(
+            ctx.obj["show_internal_thought_monologue"],
+            ctx.obj["system_message_color"],
+            ctx.obj["assistant_color"],
+            ctx.obj["user_input_color"],
+            ctx.obj["warning_color"],
+            ctx.obj["internal_thought_color"],
+        )
+    else:
+        io = StdIO()
+
+    try:
+        setup_logging(ctx.obj["log_file_path"])
+
+        if ctx.obj["use_docker_postgres"]:
+            if is_docker_running():
+                start_db()
+            else:
+                raise typer.BadParameter(
+                    "Elroy was started with use_docker_postgres set to True, but no Docker container is running. Please either start a Docker container, provide a postgres_url parameter, or set the ELROY_POSTGRES_URL environment variable."
+                )
+
+        # Check if migrations need to be run
+        config = ctx.obj["elroy_config"]
+        ensure_current_db_migration(io, config.postgres_url)
+
+        with session_manager(config.postgres_url) as session:
+            yield ElroyContext(
+                user_id=CLI_USER_ID,
+                session=session,
+                config=config,
+                io=io,
+            )
+
+    finally:
+        if ctx.obj["use_docker_postgres"] and ctx.obj["stop_docker_postgres_on_exit"]:
+            io.sys_message("Stopping Docker Postgres container...")
+            stop_db()
 
 
 def main():

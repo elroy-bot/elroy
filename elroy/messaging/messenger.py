@@ -2,7 +2,7 @@ import logging
 from functools import partial
 from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
-from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
+from litellm.types.utils import ChatCompletionDeltaToolCall
 from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
@@ -19,19 +19,20 @@ from ..repository.facts import to_fact
 from ..repository.message import (
     ContextMessage,
     MemoryMetadata,
-    add_context_messages,
     get_context_messages,
+    replace_context_messages,
 )
 from ..tools.function_caller import FunctionCall, PartialToolCall, exec_function_call
-from ..utils.utils import logged_exec_time
+from ..utils.utils import last_or_none, logged_exec_time
 
 
 class ToolCallAccumulator:
-    def __init__(self):
+    def __init__(self, chat_model: ChatModel):
+        self.chat_model = chat_model
         self.tool_calls: Dict[int, PartialToolCall] = {}
         self.last_updated_index: Optional[int] = None
 
-    def update(self, delta_tool_calls: Optional[List[ChoiceDeltaToolCall]]) -> Iterator[FunctionCall]:
+    def update(self, delta_tool_calls: Optional[List[ChatCompletionDeltaToolCall]]) -> Iterator[FunctionCall]:
         for delta in delta_tool_calls or []:
             if delta.index not in self.tool_calls:
                 if (
@@ -41,7 +42,7 @@ class ToolCallAccumulator:
                 ):
                     raise ValueError("New tool call started, but old one is not yet complete")
                 assert delta.id
-                self.tool_calls[delta.index] = PartialToolCall(id=delta.id)
+                self.tool_calls[delta.index] = PartialToolCall(id=delta.id, model=self.chat_model.model)
 
             completed_tool_call = self.tool_calls[delta.index].update(delta)
             if completed_tool_call:
@@ -57,11 +58,11 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
     context_messages = pipe(
         get_context_messages(context),
         partial(validate_context_messages, context.config.debugging_mode),
+        list,
+        lambda x: x + [ContextMessage(role=role, content=msg, chat_model=None)],
+        lambda x: x + get_relevant_memories(context, x),
+        list,
     )
-
-    new_messages = [ContextMessage(role=role, content=msg, chat_model=None)]
-    # ensuring that the new message is included in the search for relevant memories
-    new_messages += get_relevant_memories(context, context_messages + new_messages)
 
     full_content = ""
 
@@ -69,7 +70,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        for stream_chunk in _generate_assistant_reply(context.config.chat_model, context_messages + new_messages):
+        for stream_chunk in _generate_assistant_reply(context.config.chat_model, context_messages):
             if isinstance(stream_chunk, ContentItem):
                 full_content += stream_chunk.content
                 yield stream_chunk.content
@@ -85,7 +86,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
                     ),
                     tool_context_messages.append,
                 )
-        new_messages.append(
+        context_messages.append(
             ContextMessage(
                 role=ASSISTANT,
                 content=full_content,
@@ -95,13 +96,24 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
         )
 
         if not tool_context_messages:
-            add_context_messages(context, new_messages)
+            replace_context_messages(context, context_messages)
             break
         else:
-            new_messages += tool_context_messages
+            context_messages += tool_context_messages
 
 
 def validate_context_messages(debugging_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    if not context_messages or context_messages[0].role != SYSTEM:
+        error_msg = (
+            f"First message must be a system message, but found: " + context_messages[0].role if context_messages else "No messages found"
+        )
+        if debugging_mode:
+            raise ValueError(error_msg)
+        else:
+            logging.error(error_msg)
+            logging.warning("Attempting to repair by adding a system message to the beginning of the context messages")
+            context_messages.insert(0, ContextMessage(role=SYSTEM, content="You are Elroy, a helpful assistant.", chat_model=None))
+
     for idx, message in enumerate(context_messages):
         if message.role == ASSISTANT and message.tool_calls is not None:
             if idx == len(context_messages) - 1 or context_messages[idx + 1].role != TOOL:
@@ -115,9 +127,7 @@ def validate_context_messages(debugging_mode: bool, context_messages: List[Conte
 
     validated_context_messages = []
     for idx, message in enumerate(context_messages):
-        if message.role == TOOL and (
-            idx == 0 or context_messages[idx - 1].role != ASSISTANT or context_messages[idx - 1].tool_calls is None
-        ):
+        if message.role == TOOL and not _has_assistant_tool_call(message.tool_call_id, context_messages[:idx]):
             error_msg = f"Tool message without preceding assistant message with tool_calls: ID = {message.id}"
             if debugging_mode:
                 raise MissingAssistantToolCallError(error_msg)
@@ -128,6 +138,23 @@ def validate_context_messages(debugging_mode: bool, context_messages: List[Conte
         validated_context_messages.append(message)
 
     return validated_context_messages
+
+
+def _has_assistant_tool_call(tool_call_id: Optional[str], context_messages: List[ContextMessage]) -> bool:
+    if not tool_call_id:
+        logging.warning("Tool call ID is None")
+        return False
+
+    return pipe(
+        context_messages,
+        filter(lambda x: x.role == ASSISTANT),
+        last_or_none,
+        lambda msg: msg.tool_calls or [] if msg else [],
+        map(lambda x: x.id),
+        filter(lambda x: x == tool_call_id),
+        list,
+        lambda x: len(x) > 0,
+    )
 
 
 @logged_exec_time
@@ -187,7 +214,7 @@ def _generate_assistant_reply(
     if context_messages[-1].role == ASSISTANT:
         raise ValueError("Assistant message already the most recent message")
 
-    tool_call_accumulator = ToolCallAccumulator()
+    tool_call_accumulator = ToolCallAccumulator(chat_model)
     for chunk in generate_chat_completion_message(chat_model, context_messages):
         if chunk.choices[0].delta.content:  # type: ignore
             yield ContentItem(content=chunk.choices[0].delta.content)  # type: ignore

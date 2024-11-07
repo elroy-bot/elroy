@@ -1,10 +1,13 @@
 import logging
+import threading
 import time
 from datetime import datetime
 from functools import partial
 from typing import Iterator, Optional, TypeVar
 
 from pytz import UTC
+
+from ..config.config import ElroyContext, session_manager
 
 T = TypeVar("T")
 
@@ -40,3 +43,14 @@ def datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
 
 
 utc_epoch_to_datetime_string = lambda epoch: datetime_to_string(datetime.fromtimestamp(epoch, UTC))
+
+
+def run_in_background_thread(fn, context, *args):
+    # hack to get a new session for the thread
+    with session_manager(context.config.postgres_url) as session:
+        thread = threading.Thread(
+            target=fn,
+            args=(ElroyContext(user_id=context.user_id, session=session, config=context.config, io=context.io), *args),
+            daemon=True,
+        )
+        thread.start()

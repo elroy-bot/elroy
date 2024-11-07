@@ -1,5 +1,7 @@
 import json
+import re
 from dataclasses import asdict
+from functools import partial
 from typing import Dict, Iterator, List, Union
 
 from litellm import completion, embedding
@@ -8,7 +10,7 @@ from toolz import pipe
 from toolz.curried import keyfilter, map
 
 from ..config.config import ChatModel, EmbeddingModel
-from ..repository.data_models import USER, ContextMessage
+from ..repository.data_models import SYSTEM, USER, ContextMessage
 from ..utils.utils import logged_exec_time
 
 
@@ -27,9 +29,21 @@ def generate_chat_completion_message(chat_model: ChatModel, context_messages: Li
     context_messages = pipe(
         context_messages,
         map(asdict),
-        map(keyfilter(lambda k: k not in ("id", "created_at"))),
+        map(keyfilter(lambda k: k not in ("id", "created_at", "memory_metadata", "chat_model"))),
         list,
     )
+
+    if chat_model.ensure_alternating_roles:
+        USER_HIDDEN_PREFIX = "[This is a system message, representing internal thought process of the assistant]"
+        for idx, message in enumerate(context_messages):
+            assert isinstance(message, Dict)
+
+            if idx == 0:
+                assert message["role"] == SYSTEM, f"First message must be a system message, but found: " + message["role"]
+
+            if idx != 0 and message["role"] == SYSTEM:
+                message["role"] = USER
+                message["content"] = f"{USER_HIDDEN_PREFIX} {message['content']}"
 
     try:
         return completion(
@@ -37,7 +51,7 @@ def generate_chat_completion_message(chat_model: ChatModel, context_messages: Li
             model=chat_model.model,
             api_key=chat_model.api_key,
             tool_choice="auto",
-            tools=get_function_schemas(),  # type: ignore
+            tools=get_function_schemas(),
             stream=True,
         )  # type: ignore
     except BadRequestError as e:
@@ -47,29 +61,28 @@ def generate_chat_completion_message(chat_model: ChatModel, context_messages: Li
             raise e
 
 
-def _query_llm(model: ChatModel, prompt: str, system: str, json_mode: bool) -> str:
+def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
     messages = [{"role": "system", "content": system}, {"role": USER, "content": prompt}]
     request = {"model": model.model, "messages": messages}
     if model.api_key:
         request["api_key"] = model.api_key
 
-    if json_mode:
-        request["response_format"] = {"type": "json_object"}
-
-    response = completion(**request)
-    return response.choices[0].message.content  # type: ignore
+    return completion(**request).choices[0].message.content  # type: ignore
 
 
 def query_llm(model: ChatModel, prompt: str, system: str) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
-    return _query_llm(model=model, prompt=prompt, system=system, json_mode=False)
+    return _query_llm(model=model, prompt=prompt, system=system)
 
 
 def query_llm_json(model: ChatModel, prompt: str, system: str) -> Union[dict, list]:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
-    return json.loads(_query_llm(model=model, prompt=prompt, system=system, json_mode=True))
+    return pipe(
+        _query_llm(model=model, prompt=prompt, system=system),
+        partial(parse_json, model),
+    )  # type: ignore
 
 
 def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
@@ -102,3 +115,31 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
         raise ValueError("Text cannot be empty")
     response = embedding(model=model.model, input=[text], caching=True)
     return response.data[0]["embedding"]
+
+
+def parse_json(chat_model: ChatModel, json_str: str, attempt: int = 0) -> Union[Dict, List]:
+    cleaned_str = pipe(
+        json_str,
+        str.strip,
+        partial(re.sub, r"^```json", ""),
+        str.strip,
+        partial(re.sub, r"```$", ""),
+        str.strip,
+    )
+
+    try:
+        return json.loads(cleaned_str.strip())
+    except json.JSONDecodeError as e:
+        if attempt > 3:
+            raise e
+        else:
+            return pipe(
+                query_llm(
+                    chat_model,
+                    system=f"You will be given a text that is malformed JSON. An attempt to parse it has failed with error: {str(e)}."
+                    "Repair the json and return it. Respond with nothing but the repaired JSON."
+                    "If at all possible maintain the original structure of the JSON, in your repairs bias towards the smallest edit you can make to form valid JSON",
+                    prompt=cleaned_str,
+                ),
+                lambda x: parse_json(chat_model, x, attempt + 1),
+            )  # type: ignore

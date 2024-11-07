@@ -72,6 +72,7 @@ class CliIO(ElroyIO):
                 self.console.print()
                 return
             finally:
+                self.console.print()
                 self.is_streaming_output = False
 
         elif isinstance(message, Pretty):
