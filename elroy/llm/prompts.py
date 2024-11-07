@@ -34,9 +34,8 @@ Only output the summary, do NOT include anything else in your output.
 )
 
 
-async def summarize_for_memory(user_preferred_name: str, conversation_summary: str, model: str = CHAT_MODEL) -> Tuple[str, str]:
+async def summarize_for_memory(user_preferred_name: str, conversation_summary: str, use_weak_model: bool = False) -> Tuple[str, str]:
     response = query_llm_json(
-        model=model,
         prompt=conversation_summary,
         system=f"""
 You are the internal thought monologue of an AI personal assistant, forming a memory from a conversation.
