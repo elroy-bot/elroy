@@ -1,4 +1,3 @@
-import os
 from datetime import timedelta
 
 INNER_THOUGHT_TAG = "inner_thought_monologue"
@@ -32,10 +31,12 @@ CLI_USER_ID = 1
 
 ### Model parameters ###
 
-CHAT_MODEL = os.getenv("ELROY_CHAT_MODEL", "gpt-4o")
-
-EMBEDDING_MODEL = "text-embedding-3-small"
+# TODO: make this dynamic
 EMBEDDING_SIZE = 1536
+
+DEFAULT_CHAT_MODEL_NAME = "gpt-4o"
+DEFAULT_CONTEXT_WINDOW_LIMIT = 16384
+DEFAULT_EMBEDDING_MODEL_NAME = "text-embedding-3-small"
 
 MIN_CONVO_AGE_FOR_GREETING = timedelta(minutes=10)
 

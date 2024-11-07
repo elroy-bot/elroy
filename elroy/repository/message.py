@@ -7,7 +7,6 @@ from toolz import first, pipe
 from toolz.curried import filter, map, pipe
 
 from ..config.config import ElroyContext
-from ..config.constants import CHAT_MODEL
 from ..repository.data_models import (
     USER,
     ContextMessage,
@@ -26,7 +25,7 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
         user_id=user_id,
         content=context_message.content,
         role=context_message.role,
-        model=CHAT_MODEL,
+        model=context_message.chat_model,
         tool_calls=[asdict(t) for t in context_message.tool_calls] if context_message.tool_calls else None,
         tool_call_id=context_message.tool_call_id,
         memory_metadata=[asdict(m) for m in context_message.memory_metadata],
@@ -41,6 +40,7 @@ def db_message_to_context_message_dict(db_message: Message) -> Dict:
         "created_at": ensure_utc(db_message.created_at),
         "tool_calls": db_message.tool_calls,
         "tool_call_id": db_message.tool_call_id,
+        "chat_model": db_message.model,
         "memory_metadata": [MemoryMetadata(**m) for m in db_message.memory_metadata] if db_message.memory_metadata else [],
     }
 
@@ -62,17 +62,13 @@ def get_time_since_context_message_creation(context: ElroyContext) -> Optional[t
 
 
 def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage]:
-    # TODO: Cache this
-    def get_message_dict(id: int) -> Dict:
-        msg = context.session.exec(select(Message).where(Message.id == id)).first()
-        assert msg
-        return db_message_to_context_message_dict(msg)
-
-    agent_context = get_current_context_message_set_db(context)
 
     return pipe(
-        [] if not agent_context else agent_context.message_ids,
-        map(get_message_dict),
+        context,
+        get_current_context_message_set_db,
+        lambda context_message_set: [] if not context_message_set else context_message_set.message_ids,
+        lambda ids: context.session.exec(select(Message).where(Message.id.in_(ids))) if ids else [],  # type: ignore
+        map(db_message_to_context_message_dict),
         map(lambda d: ContextMessage(**d)),
         list,
     )  # type: ignore

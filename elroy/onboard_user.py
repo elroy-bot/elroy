@@ -22,8 +22,12 @@ def onboard_user(session: Session, io: ElroyIO, config: ElroyConfig, preferred_n
     replace_context_messages(
         context,
         [
-            get_refreshed_system_message(preferred_name, []),
-            ContextMessage(role="system", content=ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name)),
+            get_refreshed_system_message(config.chat_model, preferred_name, []),
+            ContextMessage(
+                role="system",
+                content=ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name),
+                chat_model=None,
+            ),
         ],
     )
 

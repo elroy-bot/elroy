@@ -7,11 +7,9 @@ from litellm.exceptions import BadRequestError
 from toolz import pipe
 from toolz.curried import keyfilter, map
 
-from ..config.constants import CHAT_MODEL, EMBEDDING_MODEL
+from ..config.config import ChatModel, EmbeddingModel
 from ..repository.data_models import USER, ContextMessage
 from ..utils.utils import logged_exec_time
-
-ZERO_TEMPERATURE = 0.0
 
 
 class MissingToolCallIdError(Exception):
@@ -19,7 +17,7 @@ class MissingToolCallIdError(Exception):
 
 
 @logged_exec_time
-def generate_chat_completion_message(context_messages: List[ContextMessage]) -> Iterator[Dict]:
+def generate_chat_completion_message(chat_model: ChatModel, context_messages: List[ContextMessage]) -> Iterator[Dict]:
     from ..tools.function_caller import get_function_schemas
 
     context_messages = pipe(
@@ -32,7 +30,8 @@ def generate_chat_completion_message(context_messages: List[ContextMessage]) -> 
     try:
         return completion(
             messages=context_messages,
-            model=CHAT_MODEL,
+            model=chat_model.model,
+            api_key=chat_model.api_key,
             tool_choice="auto",
             tools=get_function_schemas(),  # type: ignore
             stream=True,
@@ -44,9 +43,12 @@ def generate_chat_completion_message(context_messages: List[ContextMessage]) -> 
             raise e
 
 
-def _query_llm(prompt: str, system: str, model: str, temperature: float, json_mode: bool) -> str:
+def _query_llm(model: ChatModel, prompt: str, system: str, json_mode: bool) -> str:
     messages = [{"role": "system", "content": system}, {"role": USER, "content": prompt}]
-    request = {"model": model, "messages": messages, "temperature": temperature}
+    request = {"model": model.model, "messages": messages}
+    if model.api_key:
+        request["api_key"] = model.api_key
+
     if json_mode:
         request["response_format"] = {"type": "json_object"}
 
@@ -54,19 +56,19 @@ def _query_llm(prompt: str, system: str, model: str, temperature: float, json_mo
     return response.choices[0].message.content  # type: ignore
 
 
-def query_llm(prompt: str, system: str, model=CHAT_MODEL, temperature: float = ZERO_TEMPERATURE) -> str:
+def query_llm(model: ChatModel, prompt: str, system: str) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
-    return _query_llm(prompt=prompt, system=system, model=model, temperature=temperature, json_mode=False)
+    return _query_llm(model=model, prompt=prompt, system=system, json_mode=False)
 
 
-def query_llm_json(prompt: str, system: str, model=CHAT_MODEL, temperature: float = ZERO_TEMPERATURE) -> Union[dict, list]:
+def query_llm_json(model: ChatModel, prompt: str, system: str) -> Union[dict, list]:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
-    return json.loads(_query_llm(prompt=prompt, system=system, model=model, temperature=temperature, json_mode=True))
+    return json.loads(_query_llm(model=model, prompt=prompt, system=system, json_mode=True))
 
 
-def query_llm_with_word_limit(prompt: str, system: str, word_limit: int, model=CHAT_MODEL, temperature: float = ZERO_TEMPERATURE) -> str:
+def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return query_llm(
@@ -78,22 +80,21 @@ def query_llm_with_word_limit(prompt: str, system: str, word_limit: int, model=C
         ),
         model=model,
         system=system,
-        temperature=temperature,
     )
 
 
-def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> List[float]:
+def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     """
     Generate an embedding for the given text using the specified model.
 
     Args:
         text (str): The input text to generate an embedding for.
-        model (str): The name of the embedding model to use. Defaults to EMBEDDING_MODEL.
+        model (str): The name of the embedding model to use.
 
     Returns:
         List[float]: The generated embedding as a list of floats.
     """
     if not text:
         raise ValueError("Text cannot be empty")
-    response = embedding(model=model, input=[text], caching=True)
+    response = embedding(model=model.model, input=[text], caching=True)
     return response.data[0]["embedding"]

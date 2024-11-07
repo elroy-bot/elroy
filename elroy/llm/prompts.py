@@ -1,11 +1,9 @@
 from functools import partial
 from typing import Optional, Tuple
 
-from ..config.constants import CHAT_MODEL, INNER_THOUGHT_TAG, MEMORY_WORD_COUNT_LIMIT
+from ..config.config import ChatModel
+from ..config.constants import INNER_THOUGHT_TAG, MEMORY_WORD_COUNT_LIMIT
 from ..llm.client import query_llm_json, query_llm_with_word_limit
-
-query_llm_short_limit = partial(query_llm_with_word_limit, word_limit=MEMORY_WORD_COUNT_LIMIT)
-
 
 ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT = (
     lambda preferred_name: f"""
@@ -20,8 +18,8 @@ However, avoid asking too many questions at once. Be sure to engage in a natural
 )
 
 summarize_conversation = partial(
-    query_llm_short_limit,
-    model=CHAT_MODEL,
+    query_llm_with_word_limit,
+    word_limit=MEMORY_WORD_COUNT_LIMIT,
     system="""
 Your job is to summarize a history of previous messages in a conversation between an AI persona and a human.
 The conversation you are given is a from a fixed context window and may not be complete.
@@ -34,7 +32,7 @@ Only output the summary, do NOT include anything else in your output.
 )
 
 
-async def summarize_for_memory(user_preferred_name: str, conversation_summary: str, model: str = CHAT_MODEL) -> Tuple[str, str]:
+async def summarize_for_memory(model: ChatModel, user_preferred_name: str, conversation_summary: str) -> Tuple[str, str]:
     response = query_llm_json(
         model=model,
         prompt=conversation_summary,

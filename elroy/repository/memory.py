@@ -6,12 +6,8 @@ from sqlmodel import select
 from toolz import concat, pipe
 from toolz.curried import filter, map, unique
 
-from ..config.config import ElroyContext
-from ..config.constants import (
-    CHAT_MODEL,
-    MEMORY_TITLE_EXAMPLES,
-    MEMORY_WORD_COUNT_LIMIT,
-)
+from ..config.config import ChatModel, ElroyContext
+from ..config.constants import MEMORY_TITLE_EXAMPLES, MEMORY_WORD_COUNT_LIMIT
 from ..llm.client import query_llm, query_llm_json
 from ..repository.data_models import ContextMessage, Memory
 from ..utils.clock import get_utc_now
@@ -40,6 +36,7 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
 
     if not name:
         name = query_llm(
+            context.config.chat_model,
             system="Given text representing a memory, your task is to come up with a short title for a memory. "
             "If the title mentions dates, it should be specific dates rather than relative ones.",
             prompt=text,
@@ -48,11 +45,12 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
     create_memory(context, name, text)
 
 
-async def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
+async def formulate_memory(chat_model: ChatModel, user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
     from ..llm.prompts import summarize_for_memory
     from ..messaging.context import format_context_messages
 
     return await summarize_for_memory(
+        chat_model,
         user_preferred_name,
         format_context_messages(user_preferred_name, context_messages),
     )
@@ -93,7 +91,7 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
                     f"Text 2: {memory2.text}",
                 ],
             ),
-            model=CHAT_MODEL,
+            model=context.config.chat_model,
         )
         assert isinstance(response, dict)
 
@@ -175,7 +173,7 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     memory_id = memory.id
     assert memory_id
 
-    upsert_embedding(context.session, memory)
+    upsert_embedding(context, memory)
     add_to_context(context, memory)
 
     return memory_id

@@ -3,15 +3,14 @@ from collections import deque
 from datetime import datetime, timedelta
 from functools import partial, reduce
 from operator import add
-from typing import List, Optional
+from typing import List, Optional, Union
 
+from litellm.utils import token_counter
 from sqlmodel import select
-from tiktoken import encoding_for_model
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
-from ..config.config import ElroyContext
-from ..config.constants import CHAT_MODEL
+from ..config.config import ChatModel, ElroyContext
 from ..llm.persona import persona
 from ..llm.prompts import summarize_conversation
 from ..repository.data_models import (
@@ -39,7 +38,7 @@ from ..utils.clock import get_utc_now
 from ..utils.utils import datetime_to_string, logged_exec_time
 
 
-def get_refreshed_system_message(user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
+def get_refreshed_system_message(chat_model: ChatModel, user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
     assert isinstance(context_messages, list)
     if len(context_messages) > 0 and context_messages[0].role == "system":
         # skip existing system message if it is still in context.
@@ -51,7 +50,7 @@ def get_refreshed_system_message(user_preferred_name: str, context_messages: Lis
         conversation_summary = pipe(
             context_messages,
             lambda msgs: format_context_messages(user_preferred_name, msgs),
-            summarize_conversation,
+            partial(summarize_conversation, chat_model),
             lambda _: f"<conversational_summary>{_}</conversational_summary>",
             str,
         )
@@ -64,7 +63,7 @@ def get_refreshed_system_message(user_preferred_name: str, context_messages: Lis
         ],  # type: ignore
         remove(lambda _: _ is None),
         "".join,
-        lambda x: ContextMessage(role="system", content=x),
+        lambda x: ContextMessage(role="system", content=x, chat_model=None),
     )
 
 
@@ -84,12 +83,19 @@ def format_message(user_preferred_name: str, message: ContextMessage) -> Optiona
 
 
 # passing message content is an approximation, tool calls may not be accounted for.
-def count_tokens(s: Optional[str]) -> int:
-    if not s or s == "":
+def count_tokens(chat_model_name: str, context_messages: Union[List[ContextMessage], ContextMessage]) -> int:
+    if isinstance(context_messages, ContextMessage):
+        context_messages = [context_messages]
+
+    if not context_messages:
         return 0
     else:
-        encoding = encoding_for_model(CHAT_MODEL)
-        return len(encoding.encode(s))
+        return pipe(
+            context_messages,
+            map(lambda x: {"role": x.role, "content": x.content}),
+            list,
+            lambda x: token_counter(chat_model_name, messages=x),
+        )  # type: ignore
 
 
 def is_context_refresh_needed(context: ElroyContext) -> bool:
@@ -131,7 +137,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
     system_message, prev_messages = context_messages[0], context_messages[1:]
 
     new_messages = deque()
-    current_token_count = count_tokens(system_message.content)
+    current_token_count = count_tokens(context.config.chat_model.model, system_message)
     most_recent_kept_message = None  # we will keep track of what message we last decided to keep
 
     # iterate through non-system context messages in reverse order
@@ -140,9 +146,11 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
         msg_created_at = msg.created_at
         assert isinstance(msg_created_at, datetime)
 
+        candidate_message_count = count_tokens(context.config.chat_model.model, msg)
+
         if most_recent_kept_message and most_recent_kept_message.role == TOOL:
             new_messages.appendleft(msg)
-            current_token_count += count_tokens(msg.content)
+            current_token_count += candidate_message_count
             most_recent_kept_message = msg
             continue
         if current_token_count > context.config.context_refresh_token_target:
@@ -152,7 +160,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
             continue
         else:
             new_messages.appendleft(msg)
-            current_token_count += count_tokens(msg.content)
+            current_token_count += candidate_message_count
             most_recent_kept_message = msg
     new_messages.appendleft(system_message)
 
@@ -198,14 +206,14 @@ async def context_refresh(context: ElroyContext) -> None:
     user_preferred_name = get_user_preferred_name(context)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
-    memory_title, memory_text = await formulate_memory(user_preferred_name, context_messages)
+    memory_title, memory_text = await formulate_memory(context.config.chat_model, user_preferred_name, context_messages)
     create_memory(context, memory_title, memory_text)
 
     for mem1, mem2 in find_redundant_pairs(context, Memory):
         await consolidate_memories(context, mem1, mem2)
 
     pipe(
-        get_refreshed_system_message(user_preferred_name, context_messages),
+        get_refreshed_system_message(context.config.chat_model, user_preferred_name, context_messages),
         partial(replace_system_message, context_messages),
         partial(compress_context_messages, context),
         partial(replace_context_messages, context),
@@ -244,6 +252,7 @@ def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
                 role="system",
                 memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
                 content=str(to_fact(memory)),
+                chat_model=None,
             )
         ],
     )

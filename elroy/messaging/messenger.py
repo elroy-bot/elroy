@@ -6,7 +6,7 @@ from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
-from ..config.config import ElroyContext
+from ..config.config import ChatModel, ElroyContext
 from ..llm.client import generate_chat_completion_message, get_embedding
 from ..repository.data_models import ASSISTANT, SYSTEM, TOOL, USER
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
@@ -51,7 +51,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
 
     context_messages = get_context_messages(context)
 
-    new_messages = [ContextMessage(role=role, content=msg)]
+    new_messages = [ContextMessage(role=role, content=msg, chat_model=None)]
     # ensuring that the new message is included in the search for relevant memories
     new_messages += get_relevant_memories(context, context_messages + new_messages)
 
@@ -61,7 +61,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        for stream_chunk in _generate_assistant_reply(context_messages + new_messages):
+        for stream_chunk in _generate_assistant_reply(context.config.chat_model, context_messages + new_messages):
             if isinstance(stream_chunk, ContentItem):
                 full_content += stream_chunk.content
                 yield stream_chunk.content
@@ -73,6 +73,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
                         role=TOOL,
                         tool_call_id=x.id,
                         content=exec_function_call(context, x),
+                        chat_model=context.config.chat_model.model,
                     ),
                     tool_context_messages.append,
                 )
@@ -81,6 +82,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
                 role=ASSISTANT,
                 content=full_content,
                 tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
+                chat_model=context.config.chat_model.model,
             )
         )
 
@@ -112,7 +114,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
 
     new_memory_messages = pipe(
         message_content,
-        get_embedding,
+        partial(get_embedding, context.config.embedding_model),
         lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(context, x),
         filter(lambda x: x is not None),
         remove(partial(is_memory_in_context, context_messages)),
@@ -121,6 +123,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
                 role="system",
                 memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
                 content=to_fact(x),
+                chat_model=None,
             )
         ),
         list,
@@ -140,6 +143,7 @@ StreamItem = Union[ContentItem, FunctionCall]
 
 
 def _generate_assistant_reply(
+    chat_model: ChatModel,
     context_messages: List[ContextMessage],
     recursion_count: int = 0,
 ) -> Iterator[StreamItem]:
@@ -152,7 +156,7 @@ def _generate_assistant_reply(
         raise ValueError("Assistant message already the most recent message")
 
     tool_call_accumulator = ToolCallAccumulator()
-    for chunk in generate_chat_completion_message(context_messages):
+    for chunk in generate_chat_completion_message(chat_model, context_messages):
         if chunk.choices[0].delta.content:  # type: ignore
             yield ContentItem(content=chunk.choices[0].delta.content)  # type: ignore
         if chunk.choices[0].delta.tool_calls:  # type: ignore
