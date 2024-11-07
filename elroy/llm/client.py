@@ -19,7 +19,7 @@ class MissingToolCallIdError(Exception):
 
 
 @logged_exec_time
-def generate_chat_completion_message(context_messages: List[ContextMessage]) -> Iterator[Dict]:
+def generate_chat_completion_message(config: ElroyConfig, context_messages: List[ContextMessage]) -> Iterator[Dict]:
     from ..tools.function_caller import get_function_schemas
 
     context_messages = pipe(
@@ -44,7 +44,7 @@ def generate_chat_completion_message(context_messages: List[ContextMessage]) -> 
             raise e
 
 
-def _query_llm(prompt: str, system: str, model: str, temperature: float, json_mode: bool) -> str:
+def _query_llm(config: ElroyConfig, prompt: str, system: str, model: str, temperature: float, json_mode: bool) -> str:
     messages = [{"role": "system", "content": system}, {"role": USER, "content": prompt}]
     request = {"model": model, "messages": messages, "temperature": temperature}
     if json_mode:
@@ -54,19 +54,19 @@ def _query_llm(prompt: str, system: str, model: str, temperature: float, json_mo
     return response.choices[0].message.content  # type: ignore
 
 
-def query_llm(prompt: str, system: str, model=CHAT_MODEL, temperature: float = ZERO_TEMPERATURE) -> str:
+def query_llm(config: ElroyConfig, prompt: str, system: str, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return _query_llm(prompt=prompt, system=system, model=model, temperature=temperature, json_mode=False)
 
 
-def query_llm_json(prompt: str, system: str, model=CHAT_MODEL, temperature: float = ZERO_TEMPERATURE) -> Union[dict, list]:
+def query_llm_json(config: ElroyConfig, prompt: str, system: str, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE) -> Union[dict, list]:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return json.loads(_query_llm(prompt=prompt, system=system, model=model, temperature=temperature, json_mode=True))
 
 
-def query_llm_with_word_limit(prompt: str, system: str, word_limit: int, model=CHAT_MODEL, temperature: float = ZERO_TEMPERATURE) -> str:
+def query_llm_with_word_limit(config: ElroyConfig, prompt: str, system: str, word_limit: int, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return query_llm(
@@ -82,7 +82,7 @@ def query_llm_with_word_limit(prompt: str, system: str, word_limit: int, model=C
     )
 
 
-def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> List[float]:
+def get_embedding(config: ElroyConfig, text: str, model: Optional[str] = None) -> List[float]:
     """
     Generate an embedding for the given text using the specified model.
 
