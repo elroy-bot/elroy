@@ -2,6 +2,8 @@ import json
 from dataclasses import asdict
 from typing import Dict, Iterator, List, Union
 
+from .models import Model
+
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
 from toolz import pipe
@@ -45,13 +47,13 @@ def generate_chat_completion_message(config: ElroyConfig, context_messages: List
             raise e
 
 
-def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float, json_mode: bool, use_weak_model: bool) -> str:
+def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float, json_mode: bool, model: Model) -> str:
     messages = [
         {"role": "system", "content": system},
         {"role": USER, "content": prompt},
     ]
     request = {
-        "model": config.weak_model if use_weak_model else config.strong_model,
+        "model": config.weak_model if model == Model.WEAK else config.strong_model,
         "messages": messages,
         "temperature": temperature,
     }
