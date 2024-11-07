@@ -81,15 +81,19 @@ def get_config(
 
 @contextmanager
 def session_manager(postgres_url: str) -> Generator[Session, None, None]:
-    session = Session(create_engine(postgres_url, poolclass=NullPool))
+    engine = create_engine(postgres_url, poolclass=NullPool)
+    session = Session(engine)
     try:
         yield session
-        session.commit()
+        if session.is_active:  # Only commit if the session is still active
+            session.commit()
     except Exception:
-        session.rollback()
+        if session.is_active:  # Only rollback if the session is still active
+            session.rollback()
         raise
     finally:
-        session.close()
+        if session.is_active:  # Only close if not already closed
+            session.close()
 
 
 T = TypeVar("T", bound=ElroyIO)
