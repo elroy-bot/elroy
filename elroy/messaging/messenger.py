@@ -112,7 +112,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
 
     new_memory_messages = pipe(
         message_content,
-        get_embedding,
+        partial(get_embedding, context.config),
         lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(context, x),
         filter(lambda x: x is not None),
         remove(partial(is_memory_in_context, context_messages)),

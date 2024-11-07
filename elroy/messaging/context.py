@@ -10,7 +10,7 @@ from tiktoken import encoding_for_model
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
-from ..config.config import ElroyContext
+from ..config.config import ElroyConfig, ElroyContext
 from ..config.constants import CHAT_MODEL
 from ..llm.persona import persona
 from ..llm.prompts import summarize_conversation
@@ -39,7 +39,7 @@ from ..utils.clock import get_utc_now
 from ..utils.utils import datetime_to_string, logged_exec_time
 
 
-def get_refreshed_system_message(user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
+def get_refreshed_system_message(config: ElroyConfig, user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
     assert isinstance(context_messages, list)
     if len(context_messages) > 0 and context_messages[0].role == "system":
         # skip existing system message if it is still in context.
@@ -51,7 +51,7 @@ def get_refreshed_system_message(user_preferred_name: str, context_messages: Lis
         conversation_summary = pipe(
             context_messages,
             lambda msgs: format_context_messages(user_preferred_name, msgs),
-            summarize_conversation,
+            partial(summarize_conversation, config),
             lambda _: f"<conversational_summary>{_}</conversational_summary>",
             str,
         )
@@ -64,7 +64,7 @@ def get_refreshed_system_message(user_preferred_name: str, context_messages: Lis
         ],  # type: ignore
         remove(lambda _: _ is None),
         "".join,
-        lambda x: ContextMessage(role="system", content=x),
+        lambda x: ContextMessage(role="system", content=x, model=config.strong_model),
     )
 
 

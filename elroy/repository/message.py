@@ -7,7 +7,6 @@ from toolz import first, pipe
 from toolz.curried import filter, map, pipe
 
 from ..config.config import ElroyContext
-from ..config.constants import CHAT_MODEL
 from ..repository.data_models import (
     USER,
     ContextMessage,
@@ -26,7 +25,7 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
         user_id=user_id,
         content=context_message.content,
         role=context_message.role,
-        model=CHAT_MODEL,
+        model=context_message.model,
         tool_calls=[asdict(t) for t in context_message.tool_calls] if context_message.tool_calls else None,
         tool_call_id=context_message.tool_call_id,
         memory_metadata=[asdict(m) for m in context_message.memory_metadata],

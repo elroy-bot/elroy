@@ -109,6 +109,7 @@ class Goal(EmbeddableSqlModel, table=True):
 class ContextMessage:
     content: Optional[str]
     role: str
+    model: str
     id: Optional[int] = None
     created_at: Optional[datetime] = None
     tool_calls: Optional[List[ToolCall]] = None

@@ -2,8 +2,6 @@ import json
 from dataclasses import asdict
 from typing import Dict, Iterator, List, Union
 
-from .models import ChatModel, EmbeddingModel
-
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
 from toolz import pipe
@@ -13,6 +11,7 @@ from ..config.config import ElroyConfig
 from ..config.constants import CHAT_MODEL
 from ..repository.data_models import USER, ContextMessage
 from ..utils.utils import logged_exec_time
+from .models import ChatModel, EmbeddingModel
 
 ZERO_TEMPERATURE = 0.0
 
@@ -47,7 +46,9 @@ def generate_chat_completion_message(config: ElroyConfig, context_messages: List
             raise e
 
 
-def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float, json_mode: bool, model: ChatModel = ChatModel.GPT4) -> str:
+def _query_llm(
+    config: ElroyConfig, prompt: str, system: str, temperature: float, json_mode: bool, model: ChatModel = ChatModel.GPT4
+) -> str:
     messages = [
         {"role": "system", "content": system},
         {"role": USER, "content": prompt},
@@ -64,7 +65,9 @@ def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float
     return response.choices[0].message.content  # type: ignore
 
 
-def query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float = ZERO_TEMPERATURE, model: ChatModel = ChatModel.GPT4) -> str:
+def query_llm(
+    config: ElroyConfig, prompt: str, system: str, temperature: float = ZERO_TEMPERATURE, model: ChatModel = ChatModel.GPT4
+) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return _query_llm(
@@ -95,7 +98,11 @@ def query_llm_json(
 
 
 def query_llm_with_word_limit(
-    config: ElroyConfig, prompt: str, system: str, word_limit: int, temperature: float = ZERO_TEMPERATURE, model: ChatModel = ChatModel.GPT4,
+    model: ChatModel,
+    prompt: str,
+    system: str,
+    word_limit: int,
+    temperature: float = ZERO_TEMPERATURE,
 ) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
