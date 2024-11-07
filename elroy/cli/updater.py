@@ -13,9 +13,9 @@ from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from elroy import ROOT_DIR, __version__
 
-from ..config.config import ElroyContext
+from .. import __version__
+from ..config.config import ROOT_DIR, ElroyContext
 from ..io.base import ElroyIO
 
 

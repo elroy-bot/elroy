@@ -121,11 +121,11 @@ def common(
         envvar="OPENAI_API_KEY",
         help="OpenAI API key, required for OpenAI models.",
     ),
-    anthropic_api_key: Optional[str] = typer.Option(
-        None,
-        envvar="ANTHROPIC_API_KEY",
-        help="Anthropic API key, required for Anthropic models.",
-    ),
+    # anthropic_api_key: Optional[str] = typer.Option(
+    #     None,
+    #     envvar="ANTHROPIC_API_KEY",
+    #     help="Anthropic API key, required for Anthropic models.",
+    # ),
     context_window_token_limit: int = typer.Option(
         DEFAULT_CONTEXT_WINDOW_LIMIT,
         envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT",
@@ -180,6 +180,9 @@ def common(
 
     if postgres_url and use_docker_postgres:
         logging.info("postgres_url is set, ignoring use_docker_postgres set to True")
+
+    # TEMP
+    anthropic_api_key = None
 
     ctx.obj = {
         "elroy_config": get_config(
