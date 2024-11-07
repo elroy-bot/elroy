@@ -88,9 +88,9 @@ def query_llm_json(
             config=config,
             prompt=prompt,
             system=system,
-            model=model,
             temperature=temperature,
             json_mode=True,
+            use_weak_model=use_weak_model,
         )
     )
 
@@ -108,9 +108,9 @@ def query_llm_with_word_limit(
                 f"Your word limit is {word_limit}. DO NOT EXCEED IT.",
             ]
         ),
-        model=model,
         system=system,
         temperature=temperature,
+        use_weak_model=use_weak_model,
     )
 
 
