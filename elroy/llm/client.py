@@ -65,21 +65,21 @@ def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float
     return response.choices[0].message.content  # type: ignore
 
 
-def query_llm(config: ElroyConfig, prompt: str, system: str, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE) -> str:
+def query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float = ZERO_TEMPERATURE, use_weak_model: bool = False) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return _query_llm(
         config=config,
         prompt=prompt,
         system=system,
-        model=model,
+        use_weak_model=use_weak_model,
         temperature=temperature,
         json_mode=False,
     )
 
 
 def query_llm_json(
-    config: ElroyConfig, prompt: str, system: str, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE
+    config: ElroyConfig, prompt: str, system: str, temperature: float = ZERO_TEMPERATURE, use_weak_model: bool = False
 ) -> Union[dict, list]:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
@@ -96,7 +96,7 @@ def query_llm_json(
 
 
 def query_llm_with_word_limit(
-    config: ElroyConfig, prompt: str, system: str, word_limit: int, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE
+    config: ElroyConfig, prompt: str, system: str, word_limit: int, temperature: float = ZERO_TEMPERATURE, use_weak_model: bool = False
 ) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
@@ -114,7 +114,7 @@ def query_llm_with_word_limit(
     )
 
 
-def get_embedding(config: ElroyConfig, text: str, model: Optional[str] = None) -> List[float]:
+def get_embedding(config: ElroyConfig, text: str) -> List[float]:
     """
     Generate an embedding for the given text using the specified model.
 
@@ -127,5 +127,5 @@ def get_embedding(config: ElroyConfig, text: str, model: Optional[str] = None) -
     """
     if not text:
         raise ValueError("Text cannot be empty")
-    response = embedding(model=model, input=[text], caching=True)
+    response = embedding(model="text-embedding-ada-002", input=[text], caching=True)
     return response.data[0]["embedding"]
