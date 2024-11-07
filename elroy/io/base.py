@@ -39,6 +39,30 @@ class ElroyIO(ABC):
         yield
 
 
+class BaseIO(ElroyIO):
+    def sys_message(self, message: str) -> None:
+        pass
+
+    def assistant_msg(self, message: Union[str, Iterator[str], Generator[str, None, None]]) -> None:
+        pass
+
+    def notify_function_call(self, function_call: FunctionCall) -> None:
+        pass
+
+    def notify_function_call_error(self, function_call: FunctionCall, error: Exception) -> None:
+        pass
+
+    def notify_warning(self, message: str) -> None:
+        pass
+
+    def internal_thought_msg(self, message: str) -> None:
+        pass
+
+    @contextmanager
+    def status(self, message: str) -> Generator[None, None, None]:
+        yield
+
+
 class StdIO(ElroyIO):
     """
     IO which emits plain text to stdin and stdout.

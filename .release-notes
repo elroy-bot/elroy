@@ -1,0 +1,19 @@
+# Release v0.0.35
+
+## What's Changed
+
+### Commits
+- feat: Add script to generate release notes from git commits and diffs
+- feat: Add version validation for .release-notes in release workflow
+- feat: Add GitHub release creation with release notes before PyPI publish
+- ci: Update release workflow to trigger on version tag push
+- use only-if-needed update strategy
+- delay to attempt to alloy pypi to update before attmepting to publish docker image
+
+### Files Changed
+- .bumpversion.cfg                  |  1 -
+-  .github/workflows/release.yml     | 63 ++++++++++++++++++--------------
+-  .release-notes                    | 11 ++++++
+-  elroy/cli/updater.py              |  2 +-
+-  scripts/generate_release_notes.py | 75 +++++++++++++++++++++++++++++++++++++++
+-  5 files changed, 123 insertions(+), 29 deletions(-)
