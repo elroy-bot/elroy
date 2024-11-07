@@ -1,10 +1,12 @@
 from enum import Enum
+from litellm.models import ModelResponse, OpenAIModels, AnthropicModels
 
 class ChatModel(Enum):
-    GPT4O = "gpt-4o"                     # Base GPT-4 model
-    GPT35_TURBO = "gpt-3.5-turbo"      # GPT-3.5 model
-    SONNET = "claude-3-sonnet"   # Claude 3 Sonnet model
-    HAIKU = "claude-3-haiku"     # Claude 3 Haiku model
+    GPT4_TURBO = OpenAIModels.GPT4_TURBO_PREVIEW  # Latest GPT-4 model
+    GPT4 = OpenAIModels.GPT4  # Base GPT-4 model
+    GPT35_TURBO = OpenAIModels.GPT35_TURBO  # GPT-3.5 model
+    CLAUDE_SONNET = AnthropicModels.CLAUDE_3_SONNET  # Claude 3 Sonnet model
+    CLAUDE_HAIKU = AnthropicModels.CLAUDE_3_HAIKU  # Claude 3 Haiku model
 
 class EmbeddingModel(Enum):
-    ADA = "text-embedding-ada-002"
+    ADA = OpenAIModels.ADA_EMBEDDING_V2  # text-embedding-ada-002
