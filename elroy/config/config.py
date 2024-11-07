@@ -17,7 +17,7 @@ class ElroyConfig:
     postgres_url: str
     openai_api_key: str
     strong_model: str  # Model to use for complex reasoning tasks
-    weak_model: str   # Model to use for simpler tasks
+    weak_model: str  # Model to use for simpler tasks
     context_window_token_limit: int
     context_refresh_token_trigger_limit: int  # how many tokens we reach before triggering refresh
     context_refresh_token_target: int  # how many tokens we aim to have after refresh

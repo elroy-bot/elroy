@@ -45,9 +45,19 @@ def generate_chat_completion_message(config: ElroyConfig, context_messages: List
             raise e
 
 
-def _query_llm(config: ElroyConfig, prompt: str, system: str, model: str, temperature: float, json_mode: bool) -> str:
-    messages = [{"role": "system", "content": system}, {"role": USER, "content": prompt}]
-    request = {"model": model, "messages": messages, "temperature": temperature}
+def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float, json_mode: bool, use_weak_model: bool) -> str:
+    messages = [
+        {"role": "system", "content": system},
+        {
+            "role": USER,
+            "content": prompt,
+        },
+    ]
+    request = {
+        "model": config.weak_model if use_weak_model else config.strong_model,
+        "messages": messages,
+        "temperature": temperature,
+    }
     if json_mode:
         request["response_format"] = {"type": "json_object"}
 
