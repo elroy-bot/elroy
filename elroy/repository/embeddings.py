@@ -4,7 +4,7 @@ from functools import partial
 from typing import Iterable, List, Tuple, Type, TypeVar
 
 from sqlalchemy.orm import aliased
-from sqlmodel import Session, func, select
+from sqlmodel import func, select
 from toolz import compose, pipe
 from toolz.curried import do, map
 
@@ -109,7 +109,7 @@ def find_redundant_pairs(
     )
 
 
-def upsert_embedding(session: Session, row: EmbeddableSqlModel) -> None:
+def upsert_embedding(context: ElroyContext, row: EmbeddableSqlModel) -> None:
     from ..llm.client import get_embedding
 
     new_text = to_fact(row)
@@ -119,10 +119,10 @@ def upsert_embedding(session: Session, row: EmbeddableSqlModel) -> None:
         logging.info("Old and new text matches md5, skipping")
         return
     else:
-        embedding = get_embedding(new_text)
+        embedding = get_embedding(context.config, new_text)
 
         row.embedding = embedding
         row.embedding_text_md5 = new_md5
 
-        session.add(row)
-        session.commit()
+        context.session.add(row)
+        context.session.commit()

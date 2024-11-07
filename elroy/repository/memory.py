@@ -6,12 +6,8 @@ from sqlmodel import select
 from toolz import concat, pipe
 from toolz.curried import filter, map, unique
 
-from ..config.config import ElroyContext
-from ..config.constants import (
-    CHAT_MODEL,
-    MEMORY_TITLE_EXAMPLES,
-    MEMORY_WORD_COUNT_LIMIT,
-)
+from ..config.config import ElroyConfig, ElroyContext
+from ..config.constants import MEMORY_TITLE_EXAMPLES, MEMORY_WORD_COUNT_LIMIT
 from ..llm.client import query_llm, query_llm_json
 from ..repository.data_models import ContextMessage, Memory
 from ..utils.clock import get_utc_now
@@ -40,6 +36,7 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
 
     if not name:
         name = query_llm(
+            config=context.config,
             system="Given text representing a memory, your task is to come up with a short title for a memory. "
             "If the title mentions dates, it should be specific dates rather than relative ones.",
             prompt=text,
@@ -48,11 +45,12 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
     create_memory(context, name, text)
 
 
-async def formulate_memory(user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
+async def formulate_memory(config: ElroyConfig, user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
     from ..llm.prompts import summarize_for_memory
     from ..messaging.context import format_context_messages
 
     return await summarize_for_memory(
+        config,
         user_preferred_name,
         format_context_messages(user_preferred_name, context_messages),
     )
@@ -68,6 +66,7 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
 
         context.io.internal_thought_msg("Consolidating memories '{}' and '{}'".format(memory1.name, memory2.name))
         response = query_llm_json(
+            config=context.config,
             system="Your task is to consolidate or reorganize two pieces of text."
             "Each pice of text has a title and a main body. You should either combine the titles and the main bodies into a single title and main body, or create multiple title/text combinations with distinct information."
             f"The new bodies should not exceed {MEMORY_WORD_COUNT_LIMIT} words."
@@ -93,7 +92,6 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
                     f"Text 2: {memory2.text}",
                 ],
             ),
-            model=CHAT_MODEL,
         )
         assert isinstance(response, dict)
 
@@ -108,6 +106,8 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
         for new_text in new_texts:
             new_name = new_text["TITLE"]
             new_text = new_text["TEXT"]
+
+            context.io.internal_thought_msg(f"New memory title: {new_name}")
 
             assert new_name
             assert new_text
@@ -175,7 +175,7 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     memory_id = memory.id
     assert memory_id
 
-    upsert_embedding(context.session, memory)
+    upsert_embedding(context, memory)
     add_to_context(context, memory)
 
     return memory_id

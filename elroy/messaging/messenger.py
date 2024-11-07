@@ -6,7 +6,7 @@ from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
-from ..config.config import ElroyContext
+from ..config.config import ElroyConfig, ElroyContext
 from ..llm.client import generate_chat_completion_message, get_embedding
 from ..repository.data_models import ASSISTANT, SYSTEM, TOOL, USER
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
@@ -61,7 +61,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        for stream_chunk in _generate_assistant_reply(context_messages + new_messages):
+        for stream_chunk in _generate_assistant_reply(context.config, context_messages + new_messages):
             if isinstance(stream_chunk, ContentItem):
                 full_content += stream_chunk.content
                 yield stream_chunk.content
@@ -140,6 +140,7 @@ StreamItem = Union[ContentItem, FunctionCall]
 
 
 def _generate_assistant_reply(
+    config: ElroyConfig,
     context_messages: List[ContextMessage],
     recursion_count: int = 0,
 ) -> Iterator[StreamItem]:
@@ -152,7 +153,7 @@ def _generate_assistant_reply(
         raise ValueError("Assistant message already the most recent message")
 
     tool_call_accumulator = ToolCallAccumulator()
-    for chunk in generate_chat_completion_message(context_messages):
+    for chunk in generate_chat_completion_message(config, context_messages):
         if chunk.choices[0].delta.content:  # type: ignore
             yield ContentItem(content=chunk.choices[0].delta.content)  # type: ignore
         if chunk.choices[0].delta.tool_calls:  # type: ignore

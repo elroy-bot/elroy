@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Optional, Tuple
 
+from ..config.config import ElroyConfig
 from ..config.constants import CHAT_MODEL, INNER_THOUGHT_TAG, MEMORY_WORD_COUNT_LIMIT
 from ..llm.client import query_llm_json, query_llm_with_word_limit
 
@@ -34,8 +35,9 @@ Only output the summary, do NOT include anything else in your output.
 )
 
 
-async def summarize_for_memory(user_preferred_name: str, conversation_summary: str, use_weak_model: bool = False) -> Tuple[str, str]:
+async def summarize_for_memory(elroy_config: ElroyConfig, user_preferred_name: str, conversation_summary: str) -> Tuple[str, str]:
     response = query_llm_json(
+        elroy_config,
         prompt=conversation_summary,
         system=f"""
 You are the internal thought monologue of an AI personal assistant, forming a memory from a conversation.

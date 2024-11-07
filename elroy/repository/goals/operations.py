@@ -92,7 +92,7 @@ def create_goal(
             ],
         )
 
-        upsert_embedding(context.session, goal)
+        upsert_embedding(context, goal)
 
 
 def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -> None:
@@ -138,7 +138,7 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
     context.session.commit()
     context.session.refresh(old_goal)
 
-    upsert_embedding(context.session, old_goal)
+    upsert_embedding(context, old_goal)
 
     add_context_messages(
         context,
@@ -198,7 +198,7 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
 
     assert goal.id
 
-    upsert_embedding(context.session, goal)
+    upsert_embedding(context, goal)
 
     if not goal.is_active:
 

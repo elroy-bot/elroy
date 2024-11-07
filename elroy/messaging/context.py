@@ -198,7 +198,7 @@ async def context_refresh(context: ElroyContext) -> None:
     user_preferred_name = get_user_preferred_name(context)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
-    memory_title, memory_text = await formulate_memory(user_preferred_name, context_messages)
+    memory_title, memory_text = await formulate_memory(context.config, user_preferred_name, context_messages)
     create_memory(context, memory_title, memory_text)
 
     for mem1, mem2 in find_redundant_pairs(context, Memory):

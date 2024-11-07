@@ -15,7 +15,6 @@ from toolz import pipe
 from toolz.curried import filter
 
 from .config.config import ElroyContext
-from .config.constants import CHAT_MODEL
 from .llm import client
 from .llm.prompts import contemplate_prompt
 from .messaging.context import (
@@ -250,9 +249,9 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
     msgs_input = format_context_messages(user_preferred_name, context_messages)
 
     response = client.query_llm(
+        config=context.config,
         prompt=msgs_input,
         system=contemplate_prompt(user_preferred_name, contemplation_prompt),
-        model=CHAT_MODEL,
     )
 
     add_context_messages(context, [ContextMessage(role=SYSTEM, content=response)])

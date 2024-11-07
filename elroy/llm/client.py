@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict
-from typing import Dict, Iterator, List, Optional, Union
+from typing import Dict, Iterator, List, Union
 
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
@@ -48,10 +48,7 @@ def generate_chat_completion_message(config: ElroyConfig, context_messages: List
 def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float, json_mode: bool, use_weak_model: bool) -> str:
     messages = [
         {"role": "system", "content": system},
-        {
-            "role": USER,
-            "content": prompt
-        },
+        {"role": USER, "content": prompt},
     ]
     request = {
         "model": config.weak_model if use_weak_model else config.strong_model,
