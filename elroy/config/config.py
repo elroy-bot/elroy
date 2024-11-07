@@ -28,7 +28,7 @@ class ElroyConfig:
 def get_config(
     postgres_url: str,
     openai_api_key: str,
-    strong_model: str = "gpt-4-1106-preview",
+    strong_model: str = "gpt-4-turbo",
     weak_model: str = "gpt-3.5-turbo",
     context_window_token_limit: Optional[int] = None,
 ) -> ElroyConfig:
