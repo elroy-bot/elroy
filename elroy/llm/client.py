@@ -2,7 +2,7 @@ import json
 from dataclasses import asdict
 from typing import Dict, Iterator, List, Union
 
-from .models import Model
+from .models import ChatModel, EmbeddingModel
 
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
@@ -47,13 +47,13 @@ def generate_chat_completion_message(config: ElroyConfig, context_messages: List
             raise e
 
 
-def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float, json_mode: bool, model: Model) -> str:
+def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float, json_mode: bool, model: ChatModel = ChatModel.GPT4) -> str:
     messages = [
         {"role": "system", "content": system},
         {"role": USER, "content": prompt},
     ]
     request = {
-        "model": config.weak_model if model == Model.WEAK else config.strong_model,
+        "model": model.value,
         "messages": messages,
         "temperature": temperature,
     }
@@ -64,7 +64,7 @@ def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float
     return response.choices[0].message.content  # type: ignore
 
 
-def query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float = ZERO_TEMPERATURE, use_weak_model: bool = False) -> str:
+def query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float = ZERO_TEMPERATURE, model: ChatModel = ChatModel.GPT4) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return _query_llm(
@@ -78,7 +78,7 @@ def query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float 
 
 
 def query_llm_json(
-    config: ElroyConfig, prompt: str, system: str, temperature: float = ZERO_TEMPERATURE, use_weak_model: bool = False
+    config: ElroyConfig, prompt: str, system: str, temperature: float = ZERO_TEMPERATURE, model: ChatModel = ChatModel.GPT4
 ) -> Union[dict, list]:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
@@ -95,7 +95,7 @@ def query_llm_json(
 
 
 def query_llm_with_word_limit(
-    config: ElroyConfig, prompt: str, system: str, word_limit: int, temperature: float = ZERO_TEMPERATURE, model: Model = Model.STRONG,
+    config: ElroyConfig, prompt: str, system: str, word_limit: int, temperature: float = ZERO_TEMPERATURE, model: ChatModel = ChatModel.GPT4,
 ) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
@@ -126,5 +126,5 @@ def get_embedding(config: ElroyConfig, text: str) -> List[float]:
     """
     if not text:
         raise ValueError("Text cannot be empty")
-    response = embedding(model="text-embedding-ada-002", input=[text], caching=True)
+    response = embedding(model=EmbeddingModel.ADA.value, input=[text], caching=True)
     return response.data[0]["embedding"]
