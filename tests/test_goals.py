@@ -1,11 +1,10 @@
-from tests.utils import ask_assistant_bool, process_test_message
+from tests.utils import assert_false, assert_true, process_test_message
 
 from elroy.repository.goals.queries import get_active_goals_summary
 
 
 def test_goal(onboarded_context):
-    answer, full_response = ask_assistant_bool(onboarded_context, "Do I have any goals about becoming president of the United States?")
-    assert not answer, f"Returned True: {full_response}"
+    assert_false(onboarded_context, "Do I have any goals about becoming president of the United States?")
 
     # Simulate user asking elroy to create a new goal
 
@@ -19,11 +18,10 @@ def test_goal(onboarded_context):
     assert "class president" in get_active_goals_summary(onboarded_context).lower(), "Goal not found in active goals."
 
     # Verify Elroy's knowledge about the new goal
-    answer, full_response = ask_assistant_bool(
+    assert_true(
         onboarded_context,
-        "Do I have any goals about going to running for an election?",
+        "Do I have any goals about going to running for a position in student government?",
     )
-    assert answer, f"Expected True but got False: {full_response}"
 
     # Test updating a goal.
     process_test_message(
@@ -32,11 +30,10 @@ def test_goal(onboarded_context):
     )
 
     # Verify that the goal's new status is recorded and reachable.
-    answer, full_response = ask_assistant_bool(
+    assert_true(
         onboarded_context,
-        "Is the status up my update similar to: I've put up flyers around the school?",
+        "Does the status update convey similar information to: I've put up flyers around the school?",
     )
-    assert answer, f"Returned False: {full_response}"
 
     # Test completing a goal.
     process_test_message(
@@ -44,8 +41,7 @@ def test_goal(onboarded_context):
         "Great news, I won my election! My goal is now done.",
     )
 
-    answer, full_response = ask_assistant_bool(
+    assert_false(
         onboarded_context,
         "Do I have any active goals about running for class president?",
     )
-    assert not answer, f"Returned True: {full_response}"

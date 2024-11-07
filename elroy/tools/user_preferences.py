@@ -3,7 +3,7 @@ from ..config.constants import UNKNOWN
 from ..repository.data_models import UserPreference
 
 
-def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> None:
+def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> str:
     """
     Set the user's preferred name.
 
@@ -16,6 +16,7 @@ def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> None:
 
     user_preference.preferred_name = preferred_name
     context.session.commit()
+    return f"Set user preferred name to {preferred_name}"
 
 
 def get_user_preferred_name(context: ElroyContext) -> str:

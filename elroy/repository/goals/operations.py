@@ -43,7 +43,7 @@ def create_goal(
     end_condition: Optional[str] = None,
     time_to_completion: Optional[str] = None,
     priority: Optional[int] = None,
-) -> None:
+) -> str:
     """Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.
     Goals should be *specific* and *measurable*. They should be based on the user's needs and desires, and should
     be achievable within a reasonable timeframe.
@@ -94,6 +94,8 @@ def create_goal(
         )
 
         upsert_embedding(context, goal)
+
+        return f"Goal '{goal_name}' has been created."
 
 
 def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -> None:

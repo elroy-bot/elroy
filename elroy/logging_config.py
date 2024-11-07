@@ -14,10 +14,11 @@ def setup_logging(log_file_path: str):
         logging.root.removeHandler(handler)
 
     # Configure the root logger
+    file_handler = RotatingFileHandler(log_file_path, maxBytes=10 * 1024 * 1024, backupCount=5)  # 10MB
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[RotatingFileHandler(log_file_path, maxBytes=10 * 1024 * 1024, backupCount=5)],  # 10MB
+        handlers=[file_handler],  # 10MB
     )
 
     # Silence some noisy loggers
@@ -26,11 +27,13 @@ def setup_logging(log_file_path: str):
 
     # Disable liteLLM's default logging
     litellm.set_verbose = False  # type: ignore
+    litellm.suppress_debug_info = True
 
     # Silence liteLLM's verbose logger
     litellm.verbose_logger.setLevel(logging.INFO)  # type: ignore
     for handler in litellm.verbose_logger.handlers[:]:  # type: ignore
         litellm.verbose_logger.removeHandler(handler)  # type: ignore
+        litellm.verbose_logger.addHandler(file_handler)  # type: ignore
 
     # Disable propagation to the root logger for all loggers
     for name in logging.root.manager.loggerDict:

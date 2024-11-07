@@ -15,7 +15,7 @@ from typing import (
 )
 
 from docstring_parser import parse
-from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
+from litellm.types.utils import ChatCompletionDeltaToolCall
 from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
@@ -54,18 +54,18 @@ def get_modules():
 @dataclass
 class PartialToolCall:
     id: str
+    model: str  # Add model parameter to determine format
     function_name: str = ""
     arguments: str = ""
     type: str = "function"
     is_complete: bool = False
 
-    def update(self, delta: ChoiceDeltaToolCall) -> Optional[FunctionCall]:
+    def update(self, delta: ChatCompletionDeltaToolCall) -> Optional[FunctionCall]:
         if self.is_complete:
             raise ValueError("PartialToolCall is already complete")
 
+        assert isinstance(delta, ChatCompletionDeltaToolCall), f"Expected ChoiceDeltaToolCall, got {type(delta)}"
         assert delta.function
-        if self.is_complete:
-            raise ValueError("PartialToolCall is already complete")
         if delta.function.name:
             self.function_name += delta.function.name
         if delta.function.arguments:
@@ -78,7 +78,6 @@ class PartialToolCall:
                 function_name=self.function_name,
                 arguments=json.loads(self.arguments),
             )
-
             self.is_complete = True
             return function_call
         except json.JSONDecodeError:
@@ -210,7 +209,7 @@ def get_function_schema(function: FunctionType) -> Dict:
     )  # type: ignore
 
 
-def get_function_schemas():
+def get_function_schemas() -> List[Dict[str, Any]]:
     return pipe(
         get_functions().values(),
         map(get_function_schema),

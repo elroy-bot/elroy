@@ -1,7 +1,7 @@
 import logging
 import re
 from functools import partial
-from typing import Optional, Tuple, Type
+from typing import Optional, Type
 
 from toolz import pipe
 from toolz.curried import do, map
@@ -34,38 +34,41 @@ def vector_search_by_text(context: ElroyContext, query: str, table: Type[Embedda
     )  # type: ignore
 
 
-def ask_assistant_bool(context: ElroyContext, question: str) -> Tuple[bool, str]:
+def assert_assistant_bool(expected_answer: bool, context: ElroyContext, question: str) -> None:
     def get_boolean(response: str, attempt: int = 1) -> bool:
         if attempt > 3:
             raise ValueError("Too many attempts")
 
-        first_word = pipe(
-            response,
-            lambda _: re.match(r"\w+", _),
-            lambda _: _.group(0).lower() if _ else None,
-        )
-
-        if first_word in ["true", "yes"]:
-            return True
-        elif first_word in ["false", "no"]:
-            return False
-        else:
-            logging.info("Attempting to parse response")
-            return get_boolean(
-                query_llm(
-                    system="You are an AI assistant, who converts text responses to boolean. "
-                    "Given a piece of text, respond with TRUE if intention of the answer is to be affirmative, "
-                    "and FALSE if the intention of the answer is to be in the negative."
-                    "The first word of you response MUST be TRUE or FALSE."
-                    "Your should follow this with an explanation of your reasoning.",
-                    prompt=response,
-                ),  # type: ignore
-                attempt + 1,
+        for line in response.split("\n"):
+            first_word = pipe(
+                line,
+                lambda _: re.match(r"\w+", _),
+                lambda _: _.group(0).lower() if _ else None,
             )
+
+            if first_word in ["true", "yes"]:
+                return True
+            elif first_word in ["false", "no"]:
+                return False
+        logging.info("Retrying boolean answer parsing")
+        return get_boolean(
+            query_llm(
+                model=context.config.chat_model,
+                system="You are an AI assistant, who converts text responses to boolean. "
+                "Given a piece of text, respond with TRUE if intention of the answer is to be affirmative, "
+                "and FALSE if the intention of the answer is to be in the negative."
+                "The first word of you response MUST be TRUE or FALSE."
+                "Your should follow this with an explanation of your reasoning."
+                "For example, if the question is, is the 1 greater than 0, your answer could be:"
+                "TRUE: 1 is greater than 0 as per basic math.",
+                prompt=response,
+            ),  # type: ignore
+            attempt + 1,
+        )
 
     question += " Your response to this question is being evaluated as part of an automated test. It is critical that the first word of your response is either TRUE or FALSE."
 
-    response = "".join(process_test_message(context, question))
+    full_response = "".join(process_test_message(context, question))
 
     # evict question and answer from context
     context_messages = get_context_messages(context)
@@ -86,4 +89,14 @@ def ask_assistant_bool(context: ElroyContext, question: str) -> Tuple[bool, str]
         lambda _: replace_context_messages(context, _),
     )
 
-    return (get_boolean(response), response)
+    bool_answer = get_boolean(full_response)
+
+    assert bool_answer == expected_answer, f"Expected {expected_answer}, got {bool_answer}. Full response: {full_response}"
+
+
+def assert_true(context: ElroyContext, question: str) -> None:
+    assert_assistant_bool(True, context, question)
+
+
+def assert_false(context: ElroyContext, question: str) -> None:
+    assert_assistant_bool(False, context, question)

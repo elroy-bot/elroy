@@ -5,7 +5,14 @@ from tests.utils import process_test_message
 
 from elroy.config.config import ElroyContext
 from elroy.llm.client import MissingAssistantToolCallError, MissingToolCallMessageError
-from elroy.repository.data_models import ASSISTANT, TOOL, USER, ContextMessage, ToolCall
+from elroy.repository.data_models import (
+    ASSISTANT,
+    SYSTEM,
+    TOOL,
+    USER,
+    ContextMessage,
+    ToolCall,
+)
 from elroy.repository.message import add_context_messages
 
 
@@ -84,6 +91,11 @@ def _missing_tool_message(elroy_context: ElroyContext):
 
 def _missing_tool_call(elroy_context: ElroyContext):
     return [
+        ContextMessage(
+            role=SYSTEM,
+            content="You are a helpful assistant",
+            chat_model=None,
+        ),
         ContextMessage(
             role=USER,
             content="Hello! My name is George. I'm curious about the history of Minnesota. Can you tell me about it?",

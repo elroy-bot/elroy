@@ -20,7 +20,10 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 @dataclass
 class ChatModel:
     model: str
-    api_key: Optional[str] = None
+    api_key: Optional[str]
+    ensure_alternating_roles: (
+        bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
+    )
 
 
 @dataclass
@@ -56,12 +59,14 @@ def get_config(
 
     if chat_model_name in open_ai_chat_completion_models:  # in from litellm import open_ai_chat_completion_models, anthropic_models
         assert openai_api_key is not None, "OpenAI API key is required for OpenAI chat models"
-        chat_model = ChatModel(model=chat_model_name, api_key=openai_api_key)
+        chat_model = ChatModel(model=chat_model_name, api_key=openai_api_key, ensure_alternating_roles=False)
     elif chat_model_name in anthropic_models:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
-        chat_model = ChatModel(model=chat_model_name, api_key=anthropic_api_key)
+        chat_model = ChatModel(model=chat_model_name, api_key=anthropic_api_key, ensure_alternating_roles=True)
     else:
-        chat_model = ChatModel(model=chat_model_name)
+        chat_model = ChatModel(
+            model=chat_model_name, api_key=None, ensure_alternating_roles=False
+        )  # TODO: verify what should be the default value for ensuring alternating roles
 
     if embedding_model_name in open_ai_embedding_models:
         assert openai_api_key is not None, "OpenAI API key is required for OpenAI embedding models"

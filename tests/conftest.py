@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import Any, Generator
 
@@ -10,7 +11,6 @@ from alembic.config import Config
 from elroy import ROOT_DIR
 from elroy.config.config import ElroyContext, get_config, session_manager
 from elroy.config.constants import (
-    DEFAULT_CHAT_MODEL_NAME,
     DEFAULT_CONTEXT_WINDOW_LIMIT,
     DEFAULT_EMBEDDING_MODEL_NAME,
     EMBEDDING_SIZE,
@@ -34,6 +34,19 @@ ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
 def pytest_addoption(parser):
     parser.addoption("--postgres-url", action="store", default=None, help="Database URL from either environment or command line")
+    parser.addoption("--chat-models", action="store", default="gpt-4o", help="Comma-separated list of chat models to test")
+    # TODO: Add multiple models once users have tokens associated with them (test isolation breaks, currently).
+    # parser.addoption(
+    # "--chat-models", action="store", default="gpt-4o,claude-3-5-sonnet-20241022", help="Comma-separated list of chat models to test"
+    # )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def event_loop():
+    """Create an instance of the default event loop for each test case."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest.fixture(scope="session")
@@ -57,16 +70,22 @@ def postgres_url(request):
             yield f"postgresql://test:test@{postgres_host}:{postgres_port}/test"
 
 
+def pytest_generate_tests(metafunc):
+    if "chat_model_name" in metafunc.fixturenames:
+        models = metafunc.config.getoption("--chat-models").split(",")
+        metafunc.parametrize("chat_model_name", models, scope="session")
+
+
 @pytest.fixture(scope="session")
-def elroy_config(postgres_url):
+def elroy_config(postgres_url, chat_model_name):
     # Get the PostgreSQL host and port
     yield get_config(
-        chat_model_name=DEFAULT_CHAT_MODEL_NAME,
+        chat_model_name=chat_model_name,
         embedding_model_name=DEFAULT_EMBEDDING_MODEL_NAME,
         embedding_model_size=EMBEDDING_SIZE,
         context_window_token_limit=DEFAULT_CONTEXT_WINDOW_LIMIT,
-        anthropic_api_key=None,
         postgres_url=postgres_url,
+        anthropic_api_key=os.environ["ANTHROPIC_API_KEY"],
         openai_api_key=os.environ["OPENAI_API_KEY"],
         debugging_mode=True,
     )
