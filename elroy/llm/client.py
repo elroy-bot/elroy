@@ -50,7 +50,7 @@ def _query_llm(config: ElroyConfig, prompt: str, system: str, temperature: float
         {"role": "system", "content": system},
         {
             "role": USER,
-            "content": prompt,
+            "content": prompt
         },
     ]
     request = {
