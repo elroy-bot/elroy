@@ -1,13 +1,14 @@
 import json
 from dataclasses import asdict
-from typing import Dict, Iterator, List, Union
+from typing import Dict, Iterator, List, Optional, Union
 
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
 from toolz import pipe
 from toolz.curried import keyfilter, map
 
-from ..config.constants import CHAT_MODEL, EMBEDDING_MODEL
+from ..config.config import ElroyConfig
+from ..config.constants import CHAT_MODEL
 from ..repository.data_models import USER, ContextMessage
 from ..utils.utils import logged_exec_time
 
@@ -57,19 +58,40 @@ def _query_llm(config: ElroyConfig, prompt: str, system: str, model: str, temper
 def query_llm(config: ElroyConfig, prompt: str, system: str, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
-    return _query_llm(prompt=prompt, system=system, model=model, temperature=temperature, json_mode=False)
+    return _query_llm(
+        config=config,
+        prompt=prompt,
+        system=system,
+        model=model,
+        temperature=temperature,
+        json_mode=False,
+    )
 
 
-def query_llm_json(config: ElroyConfig, prompt: str, system: str, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE) -> Union[dict, list]:
+def query_llm_json(
+    config: ElroyConfig, prompt: str, system: str, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE
+) -> Union[dict, list]:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
-    return json.loads(_query_llm(prompt=prompt, system=system, model=model, temperature=temperature, json_mode=True))
+    return json.loads(
+        _query_llm(
+            config=config,
+            prompt=prompt,
+            system=system,
+            model=model,
+            temperature=temperature,
+            json_mode=True,
+        )
+    )
 
 
-def query_llm_with_word_limit(config: ElroyConfig, prompt: str, system: str, word_limit: int, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE) -> str:
+def query_llm_with_word_limit(
+    config: ElroyConfig, prompt: str, system: str, word_limit: int, model: Optional[str] = None, temperature: float = ZERO_TEMPERATURE
+) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return query_llm(
+        config=config,
         prompt="\n".join(
             [
                 prompt,
