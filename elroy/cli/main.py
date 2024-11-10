@@ -172,6 +172,10 @@ def common(
         EMBEDDING_SIZE,
         help="The size of the embedding model.",
     ),
+    debugging_mode: bool = typer.Option(
+        False,
+        help="Whether to emit more verbose logging and fail faster on errors. Primarily a dev option.",
+    ),
 ):
     """Common parameters."""
 
@@ -188,6 +192,7 @@ def common(
         "elroy_config": get_config(
             postgres_url=postgres_url or DOCKER_DB_URL,
             chat_model_name=chat_model,
+            debugging_mode=debugging_mode,
             embedding_model_name=emedding_model,
             embedding_model_size=embedding_model_size,
             context_window_token_limit=context_window_token_limit,
