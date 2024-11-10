@@ -12,7 +12,11 @@ from ..repository.data_models import USER, ContextMessage
 from ..utils.utils import logged_exec_time
 
 
-class MissingToolCallIdError(Exception):
+class MissingAssistantToolCallError(Exception):
+    pass
+
+
+class MissingToolCallMessageError(Exception):
     pass
 
 
@@ -38,7 +42,7 @@ def generate_chat_completion_message(chat_model: ChatModel, context_messages: Li
         )  # type: ignore
     except BadRequestError as e:
         if "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
-            raise MissingToolCallIdError
+            raise MissingToolCallMessageError
         else:
             raise e
 

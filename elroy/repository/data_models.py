@@ -16,7 +16,10 @@ USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
 
 @dataclass
 class ToolCall:
-    # formatted for openai
+    """
+    OpenAI formatting for tool calls
+    """
+
     id: str
     function: Dict[str, Any]
     type: str = "function"
@@ -24,6 +27,10 @@ class ToolCall:
 
 @dataclass
 class FunctionCall:
+    """
+    Internal representation of a tool call, formatted for simpler execution logic
+    """
+
     # Formatted for ease of execution
     id: str
     function_name: str

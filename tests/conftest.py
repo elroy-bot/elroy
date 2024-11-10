@@ -68,6 +68,7 @@ def elroy_config(postgres_url):
         anthropic_api_key=None,
         postgres_url=postgres_url,
         openai_api_key=os.environ["OPENAI_API_KEY"],
+        debugging_mode=True,
     )
 
 

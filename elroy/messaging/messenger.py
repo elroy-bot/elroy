@@ -7,7 +7,12 @@ from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
 from ..config.config import ChatModel, ElroyContext
-from ..llm.client import generate_chat_completion_message, get_embedding
+from ..llm.client import (
+    MissingAssistantToolCallError,
+    MissingToolCallMessageError,
+    generate_chat_completion_message,
+    get_embedding,
+)
 from ..repository.data_models import ASSISTANT, SYSTEM, TOOL, USER
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
 from ..repository.facts import to_fact
@@ -49,7 +54,10 @@ class ToolCallAccumulator:
 def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterator[str]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
-    context_messages = get_context_messages(context)
+    context_messages = pipe(
+        get_context_messages(context),
+        partial(validate_context_messages, context.config.debugging_mode),
+    )
 
     new_messages = [ContextMessage(role=role, content=msg, chat_model=None)]
     # ensuring that the new message is included in the search for relevant memories
@@ -93,6 +101,35 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
             new_messages += tool_context_messages
 
 
+def validate_context_messages(debugging_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    for idx, message in enumerate(context_messages):
+        if message.role == ASSISTANT and message.tool_calls is not None:
+            if idx == len(context_messages) - 1 or context_messages[idx + 1].role != TOOL:
+                error_msg = f"Assistant message with tool_calls not followed by tool message: ID = {message.id}"
+                if debugging_mode:
+                    raise MissingToolCallMessageError(error_msg)
+                else:
+                    logging.error(error_msg)
+                    logging.warning(f"Attempting to repair by removing tool_calls from message {message.id}")
+                    message.tool_calls = None
+
+    validated_context_messages = []
+    for idx, message in enumerate(context_messages):
+        if message.role == TOOL and (
+            idx == 0 or context_messages[idx - 1].role != ASSISTANT or context_messages[idx - 1].tool_calls is None
+        ):
+            error_msg = f"Tool message without preceding assistant message with tool_calls: ID = {message.id}"
+            if debugging_mode:
+                raise MissingAssistantToolCallError(error_msg)
+            else:
+                logging.error(error_msg)
+                logging.warning(f"Attempting to repair by removing tool message {message.id}")
+                continue
+        validated_context_messages.append(message)
+
+    return validated_context_messages
+
+
 @logged_exec_time
 def get_relevant_memories(context: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     from .context import is_memory_in_context
@@ -122,7 +159,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
             lambda x: ContextMessage(
                 role="system",
                 memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
-                content=to_fact(x),
+                content="Information recalled from assistant memory: " + to_fact(x),
                 chat_model=None,
             )
         ),
@@ -145,12 +182,7 @@ StreamItem = Union[ContentItem, FunctionCall]
 def _generate_assistant_reply(
     chat_model: ChatModel,
     context_messages: List[ContextMessage],
-    recursion_count: int = 0,
 ) -> Iterator[StreamItem]:
-    if recursion_count >= 10:
-        raise ValueError("Exceeded maximum number of chat completion attempts")
-    elif recursion_count > 0:
-        logging.info(f"Recursion count: {recursion_count}")
 
     if context_messages[-1].role == ASSISTANT:
         raise ValueError("Assistant message already the most recent message")
