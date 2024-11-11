@@ -85,8 +85,8 @@ def elroy_config(postgres_url, chat_model_name):
         embedding_model_size=EMBEDDING_SIZE,
         context_window_token_limit=DEFAULT_CONTEXT_WINDOW_LIMIT,
         postgres_url=postgres_url,
-        anthropic_api_key=os.environ["ANTHROPIC_API_KEY"],
-        openai_api_key=os.environ["OPENAI_API_KEY"],
+        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
         debugging_mode=True,
     )
 
