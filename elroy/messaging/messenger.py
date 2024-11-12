@@ -135,7 +135,8 @@ def validate_context_messages(debugging_mode: bool, context_messages: List[Conte
                 logging.error(error_msg)
                 logging.warning(f"Attempting to repair by removing tool message {message.id}")
                 continue
-        validated_context_messages.append(message)
+        else:
+            validated_context_messages.append(message)
 
     return validated_context_messages
 
