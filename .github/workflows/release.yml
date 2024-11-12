@@ -12,6 +12,7 @@ jobs:
       contents: write
       pull-requests: write
       packages: write
+      id-token: write
     services:
       postgres:
         image: ankane/pgvector:v0.5.1
@@ -95,10 +96,10 @@ jobs:
 
     - name: Log in to Container registry
       if: success()
-      uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+      uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }}
+        username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Extract Docker metadata
