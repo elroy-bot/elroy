@@ -132,39 +132,40 @@ def is_context_refresh_needed(context: ElroyContext) -> bool:
 
 
 def compress_context_messages(context: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
-    """Refreshes context, saving to archival memory and compressing the context window."""
-
+    """
+    Compresses messages in the context window by summarizing old messages, while keeping new messages intact.
+    """
     system_message, prev_messages = context_messages[0], context_messages[1:]
 
-    new_messages = deque()
     current_token_count = count_tokens(context.config.chat_model.model, system_message)
-    most_recent_kept_message = None  # we will keep track of what message we last decided to keep
+
+    kept_messages = deque()
 
     # iterate through non-system context messages in reverse order
     # we keep the most current messages that are fresh enough to be relevant
-    for msg in reversed(prev_messages):  # iterate in reverse order,
+    for msg in reversed(prev_messages):  # iterate in reverse order
         msg_created_at = msg.created_at
         assert isinstance(msg_created_at, datetime)
 
         candidate_message_count = count_tokens(context.config.chat_model.model, msg)
 
-        if most_recent_kept_message and most_recent_kept_message.role == TOOL:
-            new_messages.appendleft(msg)
+        if len(kept_messages) > 0 and kept_messages[0].role == TOOL:
+            # if the last message kept was a tool call, we must keep the corresponding assistant message that came before it.
+            kept_messages.appendleft(msg)
             current_token_count += candidate_message_count
-            most_recent_kept_message = msg
             continue
+
         if current_token_count > context.config.context_refresh_token_target:
             break
         elif msg_created_at < get_utc_now() - timedelta(seconds=context.config.max_in_context_message_age_seconds):
             logging.info(f"Dropping old message {msg.id}")
             continue
         else:
-            new_messages.appendleft(msg)
+            kept_messages.appendleft(msg)
             current_token_count += candidate_message_count
-            most_recent_kept_message = msg
-    new_messages.appendleft(system_message)
 
-    return list(new_messages)
+    # Keep system message first, but reverse the rest to maintain chronological order
+    return [system_message] + list(kept_messages)
 
 
 def format_context_messages(user_preferred_name: str, context_messages: List[ContextMessage]) -> str:

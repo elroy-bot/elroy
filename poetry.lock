@@ -1133,6 +1133,20 @@ extra-proxy = ["azure-identity (>=1.15.0,<2.0.0)", "azure-keyvault-secrets (>=4.
 proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "cryptography (>=42.0.5,<43.0.0)", "fastapi (>=0.111.0,<0.112.0)", "fastapi-sso (>=0.10.0,<0.11.0)", "gunicorn (>=22.0.0,<23.0.0)", "orjson (>=3.9.7,<4.0.0)", "pynacl (>=1.5.0,<2.0.0)", "python-multipart (>=0.0.9,<0.0.10)", "pyyaml (>=6.0.1,<7.0.0)", "rq", "uvicorn (>=0.22.0,<0.23.0)"]
 
 [[package]]
+name = "lorem-text"
+version = "2.1"
+description = "Dummy lorem ipsum text generator"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "lorem_text-2.1-py2.py3-none-any.whl", hash = "sha256:b512779addd08dcc221460ce428f7911b198f66c5763410f3de6d788eb62ceb3"},
+    {file = "lorem_text-2.1.tar.gz", hash = "sha256:b984b5570295084012f5a9385672bab3470965c943b73d8d71a6efcd7a62b5c3"},
+]
+
+[package.dependencies]
+Click = ">=7.0"
+
+[[package]]
 name = "mako"
 version = "1.3.6"
 description = "A super-fast templating language that borrows the best ideas from the existing templating languages."
@@ -3058,4 +3072,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "ce02edd27341cf82d446c9f36e877cdf882e5dae0efd7778727eca62adb5628d"
+content-hash = "d283e13a00bf0405a7522919b45efaa72ac49e872121b40626392778df6b1d54"
