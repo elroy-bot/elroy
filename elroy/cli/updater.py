@@ -16,6 +16,7 @@ from alembic.script import ScriptDirectory
 
 from .. import __version__
 from ..config.config import ROOT_DIR, ElroyContext
+from ..config.constants import REPO_LINK
 from ..io.base import ElroyIO
 
 
@@ -24,11 +25,21 @@ def check_updates(context: ElroyContext):
     if latest_version > current_version:
         if typer.confirm(f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"):
             typer.echo("Upgrading elroy...")
-            try:
-                os.system(f"{sys.executable} -m pip install --upgrade --update-strategy only-if-needed elroy=={latest_version}")
-                os.execv(sys.executable, [sys.executable] + sys.argv)
-            except Exception as e:
-                context.io.sys_message(f"Error during upgrade: {e}. Please try upgrading manually using: pipx upgrade elroy")
+            upgrade_exit_code = os.system(
+                f"{sys.executable} -m pip install --upgrade --upgrade-strategy only-if-needed elroy=={latest_version}"
+            )
+
+            if upgrade_exit_code == 0:
+                try:
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                except Exception as e:
+                    context.io.sys_message(
+                        f"Error during restart: {e}. Please restart manually and consider filing a bug report at {REPO_LINK}"
+                    )
+            else:
+                context.io.sys_message(
+                    f"Upgrade return nonzero exit. Please try upgrading manually. Please consider filing a bug report at {REPO_LINK}"
+                )
 
 
 def ensure_current_db_migration(io: ElroyIO, postgres_url: str) -> None:
