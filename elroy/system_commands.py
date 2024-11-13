@@ -38,6 +38,7 @@ from .repository.message import (
     add_context_messages,
     get_context_messages,
     get_current_system_message,
+    is_system_instruction,
     replace_context_messages,
 )
 from .tools.user_preferences import (
@@ -159,15 +160,22 @@ def reset_system_context(context: ElroyContext) -> str:
 
     current_sys_message = get_current_system_message(context)
 
-    if not current_sys_message:
-        raise ValueError("No system message found")
-    else:
-        current_sys_message_id = current_sys_message.id
-        assert current_sys_message_id
-        replace_context_messages(
-            context,
-            [current_sys_message],
+    if not is_system_instruction(current_sys_message):
+        logging.warning(
+            f"Current first message is not a system message: " + f"has role {current_sys_message.role}"
+            if current_sys_message
+            else "No first message found"
         )
+        current_sys_message = get_refreshed_system_message(
+            context.config.chat_model,
+            get_user_preferred_name(context),
+            get_context_messages(context),
+        )
+
+    replace_context_messages(
+        context,
+        [current_sys_message],  # type: ignore
+    )
 
     return "Context reset complete"
 

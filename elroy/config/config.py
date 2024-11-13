@@ -24,6 +24,8 @@ class ChatModel:
     ensure_alternating_roles: (
         bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
     )
+    api_base: Optional[str] = None
+    organization: Optional[str] = None
 
 
 @dataclass
@@ -31,6 +33,8 @@ class EmbeddingModel:
     model: str
     embedding_size: int
     api_key: Optional[str] = None
+    api_base: Optional[str] = None
+    organization: Optional[str] = None
 
 
 @dataclass
@@ -43,7 +47,7 @@ class ElroyConfig:
     context_refresh_interval_seconds: int  # how often to refresh system message and compress context messages
     chat_model: ChatModel
     embedding_model: EmbeddingModel
-    debugging_mode: bool  # Whether to emit more verbose logging and fail faster on errors rather than attempting to recover
+    fail_fast: bool  # Whether to emit more verbose logging and fail faster on errors rather than attempting to recover
 
 
 def get_config(
@@ -52,33 +56,46 @@ def get_config(
     embedding_model_name: str,
     embedding_model_size: int,
     context_window_token_limit: int,
-    debugging_mode: bool,
+    fail_fast: bool,
     openai_api_key: Optional[str],
     anthropic_api_key: Optional[str],
+    openai_api_base: Optional[str],
+    openai_embedding_api_base: Optional[str],
+    openai_organization: Optional[str],
 ) -> ElroyConfig:
-
-    if chat_model_name in open_ai_chat_completion_models:  # in from litellm import open_ai_chat_completion_models, anthropic_models
-        assert openai_api_key is not None, "OpenAI API key is required for OpenAI chat models"
-        chat_model = ChatModel(model=chat_model_name, api_key=openai_api_key, ensure_alternating_roles=False)
-    elif chat_model_name in anthropic_models:
+    if chat_model_name in anthropic_models:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
-        chat_model = ChatModel(model=chat_model_name, api_key=anthropic_api_key, ensure_alternating_roles=True)
-    else:
         chat_model = ChatModel(
-            model=chat_model_name, api_key=None, ensure_alternating_roles=False
-        )  # TODO: verify what should be the default value for ensuring alternating roles
-
+            model=chat_model_name,
+            api_key=anthropic_api_key,
+            ensure_alternating_roles=True,
+        )
+    else:
+        if chat_model_name in open_ai_chat_completion_models:
+            assert openai_api_key is not None, "OpenAI API key is required for OpenAI chat models"
+        chat_model = ChatModel(
+            model=chat_model_name,
+            api_key=openai_api_key,
+            ensure_alternating_roles=False,
+            api_base=openai_api_base,
+            organization=openai_organization,
+        )
     if embedding_model_name in open_ai_embedding_models:
         assert openai_api_key is not None, "OpenAI API key is required for OpenAI embedding models"
-        embedding_model = EmbeddingModel(model=embedding_model_name, embedding_size=embedding_model_size, api_key=openai_api_key)
-    else:
-        embedding_model = EmbeddingModel(model=embedding_model_name, embedding_size=embedding_model_size)
+
+    embedding_model = EmbeddingModel(
+        model=embedding_model_name,
+        embedding_size=embedding_model_size,
+        api_key=openai_api_key,
+        api_base=openai_embedding_api_base,
+        organization=openai_organization,
+    )
 
     return ElroyConfig(
         postgres_url=postgres_url,
         chat_model=chat_model,
         embedding_model=embedding_model,
-        debugging_mode=debugging_mode,
+        fail_fast=fail_fast,
         context_window_token_limit=context_window_token_limit,
         context_refresh_token_trigger_limit=int(context_window_token_limit * 0.66),
         context_refresh_token_target=int(context_window_token_limit * 0.33),

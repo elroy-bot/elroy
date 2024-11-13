@@ -1,5 +1,5 @@
 from elroy.config.config import ElroyContext
-from elroy.llm.client import parse_json, query_llm, query_llm_json
+from elroy.llm.client import _parse_json, query_llm, query_llm_json
 
 
 def test_query_json_llm(elroy_context: ElroyContext):
@@ -25,7 +25,7 @@ def test_query_hello_world(elroy_context: ElroyContext):
 
 
 def test_parse_json(elroy_context: ElroyContext):
-    response = parse_json(
+    response = _parse_json(
         elroy_context.config.chat_model,
         """
                           {

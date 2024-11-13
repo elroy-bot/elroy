@@ -11,10 +11,12 @@ from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
 from ..config.config import ChatModel, ElroyContext
+from ..config.constants import SYSTEM_INSTRUCTION_LABEL
 from ..llm.persona import persona
 from ..llm.prompts import summarize_conversation
 from ..repository.data_models import (
     ASSISTANT,
+    SYSTEM,
     TOOL,
     USER,
     ContextMessage,
@@ -31,6 +33,7 @@ from ..repository.message import (
     add_context_messages,
     get_context_messages,
     get_time_since_context_message_creation,
+    is_system_instruction,
     remove_context_messages,
     replace_context_messages,
 )
@@ -40,7 +43,7 @@ from ..utils.utils import datetime_to_string, logged_exec_time
 
 def get_refreshed_system_message(chat_model: ChatModel, user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
     assert isinstance(context_messages, list)
-    if len(context_messages) > 0 and context_messages[0].role == "system":
+    if len(context_messages) > 0 and context_messages[0].role == SYSTEM:
         # skip existing system message if it is still in context.
         context_messages = context_messages[1:]
 
@@ -57,19 +60,20 @@ def get_refreshed_system_message(chat_model: ChatModel, user_preferred_name: str
 
     return pipe(
         [
+            SYSTEM_INSTRUCTION_LABEL,
             f"<persona>{persona(user_preferred_name)}</persona>",
             conversation_summary,
             "From now on, converse as your persona.",
         ],  # type: ignore
         remove(lambda _: _ is None),
-        "".join,
-        lambda x: ContextMessage(role="system", content=x, chat_model=None),
+        "\n".join,
+        lambda x: ContextMessage(role=SYSTEM, content=x, chat_model=None),
     )
 
 
 def format_message(user_preferred_name: str, message: ContextMessage) -> Optional[str]:
     datetime_str = datetime_to_string(message.created_at)
-    if message.role == "system":
+    if message.role == SYSTEM:
         return f"SYSTEM ({datetime_str}): {message.content}"
     elif message.role == USER:
         return f"{user_preferred_name.upper()} ({datetime_str}): {message.content}"
@@ -137,6 +141,9 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
     """
     system_message, prev_messages = context_messages[0], context_messages[1:]
 
+    assert is_system_instruction(system_message)
+    assert not any(is_system_instruction(msg) for msg in prev_messages)
+
     current_token_count = count_tokens(context.config.chat_model.model, system_message)
 
     kept_messages = deque()
@@ -190,12 +197,16 @@ def format_context_messages(user_preferred_name: str, context_messages: List[Con
     )  # type: ignore
 
 
-def replace_system_message(context_messages: List[ContextMessage], new_system_message: ContextMessage) -> List[ContextMessage]:
-    if not context_messages[0].role == "system":
-        logging.warning(f"Expected system message to be first in context messages, but first message role is {context_messages[0].role}")
-        return [new_system_message] + context_messages
-    else:
-        return [new_system_message] + context_messages[1:]
+def replace_system_instruction(context_messages: List[ContextMessage], new_system_message: ContextMessage) -> List[ContextMessage]:
+    """
+    Note that this removes any prior system instruction messages, even if they are not in first position
+    """
+    return pipe(
+        context_messages,
+        remove(is_system_instruction),
+        list,
+        lambda x: [new_system_message] + x,
+    )
 
 
 @logged_exec_time
@@ -215,7 +226,7 @@ async def context_refresh(context: ElroyContext) -> None:
 
     pipe(
         get_refreshed_system_message(context.config.chat_model, user_preferred_name, context_messages),
-        partial(replace_system_message, context_messages),
+        partial(replace_system_instruction, context_messages),
         partial(compress_context_messages, context),
         partial(replace_context_messages, context),
     )
@@ -250,7 +261,7 @@ def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
         context,
         [
             ContextMessage(
-                role="system",
+                role=SYSTEM,
                 memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
                 content=str(to_fact(memory)),
                 chat_model=None,

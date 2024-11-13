@@ -78,16 +78,18 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="session")
 def elroy_config(postgres_url, chat_model_name):
-    # Get the PostgreSQL host and port
     yield get_config(
         chat_model_name=chat_model_name,
         embedding_model_name=DEFAULT_EMBEDDING_MODEL_NAME,
         embedding_model_size=EMBEDDING_SIZE,
         context_window_token_limit=DEFAULT_CONTEXT_WINDOW_LIMIT,
+        openai_api_base=os.environ.get("OPENAI_API_BASE"),
+        openai_embedding_api_base=os.environ.get("OPENAI_EMBEDDING_API_BASE"),
+        openai_organization=os.environ.get("OPENAI_ORGANIZATION"),
         postgres_url=postgres_url,
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
         openai_api_key=os.environ.get("OPENAI_API_KEY"),
-        debugging_mode=True,
+        fail_fast=True,
     )
 
 
@@ -135,7 +137,7 @@ def onboarded_user_id(session, io, elroy_config) -> Generator[int, None, None]:
         session,
         io,
         elroy_config,
-        initial_messages=["Hello! My name is George. I work as a air traffic controller."],
+        initial_messages=["Hello! My name is George. I work as a air traffic controller, and am interested in politics."],
     )
 
 
