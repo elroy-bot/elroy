@@ -15,7 +15,7 @@ WORKDIR /app
 
 # Install specific elroy version
 ARG ELROY_VERSION
-RUN pip install --no-cache-dir elroy==${ELROY_VERSION}
+RUN pip install --no-cache-dir elroy
 
 # Set the PYTHONPATH
 ENV PYTHONPATH=/app

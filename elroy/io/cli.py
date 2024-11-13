@@ -83,19 +83,19 @@ class CliIO(ElroyIO):
         self.console.print()  # New line after complete response
 
     def sys_message(self, message: Union[str, Pretty]) -> None:
-
         if isinstance(message, Pretty):
-            print_formatted_text(str(message))
+            self.console.print(message)
         else:
             print_formatted_text(HTML(f'<style fg="{self.system_message_color}">{message}\n</style>'))
 
     def notify_function_call(self, function_call: FunctionCall) -> None:
+        self.console.print()
         msg = f"[{self.system_message_color}]Executing function call: [bold]{function_call.function_name}[/bold]"
+
         if function_call.arguments:
             self.console.print(msg + f" with arguments:[/]", Pretty(function_call.arguments))
         else:
             self.console.print(msg + "[/]")
-        self.console.print()
 
     def notify_function_call_error(self, function_call: FunctionCall, error: Exception) -> None:
         self.console.print(f"[{self.system_message_color}]Error executing function call: [bold]{function_call.function_name}[/bold][/]")

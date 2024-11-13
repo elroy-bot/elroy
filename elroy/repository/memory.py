@@ -1,16 +1,12 @@
 import logging
-from datetime import timedelta
 from typing import List, Optional, Set, Tuple
 
 from sqlmodel import select
-from toolz import concat, pipe
-from toolz.curried import filter, map, unique
 
 from ..config.config import ChatModel, ElroyContext
 from ..config.constants import MEMORY_TITLE_EXAMPLES, MEMORY_WORD_COUNT_LIMIT
 from ..llm.client import query_llm, query_llm_json
 from ..repository.data_models import ContextMessage, Memory
-from ..utils.clock import get_utc_now
 
 MAX_MEMORY_LENGTH = 12000  # Characters
 
@@ -188,19 +184,3 @@ def get_memory_names(context: ElroyContext) -> Set[str]:
         )
     ).all()
     return {memory.name for memory in memories}
-
-
-def get_relevant_memories(context: ElroyContext) -> List[str]:
-    from ..repository.message import get_context_messages
-
-    return pipe(
-        get_context_messages(context),
-        filter(lambda m: m.created_at > get_utc_now() - timedelta(seconds=context.config.max_in_context_message_age_seconds)),
-        map(lambda m: m.memory_metadata),
-        filter(lambda m: m is not None),
-        concat,
-        map(lambda m: f"{m.memory_type}: {m.name}"),
-        unique,
-        list,
-        sorted,
-    )  # type: ignore

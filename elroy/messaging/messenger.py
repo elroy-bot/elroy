@@ -6,13 +6,15 @@ from litellm.types.utils import ChatCompletionDeltaToolCall
 from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
-from ..config.config import ChatModel, ElroyContext
-from ..llm.client import (
+from ..config.config import ChatModel, ElroyConfig, ElroyContext
+from ..config.constants import (
+    SYSTEM_INSTRUCTION_LABEL,
+    MisplacedSystemInstructError,
     MissingAssistantToolCallError,
+    MissingSystemInstructError,
     MissingToolCallMessageError,
-    generate_chat_completion_message,
-    get_embedding,
 )
+from ..llm.client import generate_chat_completion_message, get_embedding
 from ..repository.data_models import ASSISTANT, SYSTEM, TOOL, USER
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
 from ..repository.facts import to_fact
@@ -20,6 +22,7 @@ from ..repository.message import (
     ContextMessage,
     MemoryMetadata,
     get_context_messages,
+    is_system_instruction,
     replace_context_messages,
 )
 from ..tools.function_caller import FunctionCall, PartialToolCall, exec_function_call
@@ -57,7 +60,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
 
     context_messages = pipe(
         get_context_messages(context),
-        partial(validate_context_messages, context.config.debugging_mode),
+        partial(validate, context.config),
         list,
         lambda x: x + [ContextMessage(role=role, content=msg, chat_model=None)],
         lambda x: x + get_relevant_memories(context, x),
@@ -102,38 +105,92 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
             context_messages += tool_context_messages
 
 
-def validate_context_messages(debugging_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
-    if not context_messages or context_messages[0].role != SYSTEM:
-        error_msg = (
-            f"First message must be a system message, but found: " + context_messages[0].role if context_messages else "No messages found"
-        )
-        if debugging_mode:
-            raise ValueError(error_msg)
+def validate(config: ElroyConfig, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    return pipe(
+        context_messages,
+        partial(_validate_system_instruction_correctly_placed, config.fail_fast),
+        partial(_validate_assistant_tool_calls_followed_by_tool, config.fail_fast),
+        partial(_validate_tool_messages_have_assistant_tool_call, config.fail_fast),
+        lambda msgs: (
+            msgs if not config.chat_model.ensure_alternating_roles else validate_first_user_precedes_first_assistant(config.fail_fast, msgs)
+        ),
+        list,
+    )
+
+
+def validate_first_user_precedes_first_assistant(fail_fast: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    user_and_assistant_messages = [m for m in context_messages if m.role in [USER, ASSISTANT]]
+
+    if user_and_assistant_messages and user_and_assistant_messages[0].role != USER:
+        if fail_fast:
+            raise ValueError("First non-system message must be USER role for this model")
         else:
-            logging.error(error_msg)
-            logging.warning("Attempting to repair by adding a system message to the beginning of the context messages")
-            context_messages.insert(0, ContextMessage(role=SYSTEM, content="You are Elroy, a helpful assistant.", chat_model=None))
+            context_messages = [
+                context_messages[0],
+                ContextMessage(role=USER, content="The user has begun the converstaion", chat_model=None),
+            ] + context_messages[1:]
+    return context_messages
+
+
+def _validate_system_instruction_correctly_placed(fail_fast: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    validated_messages = []
 
     for idx, message in enumerate(context_messages):
-        if message.role == ASSISTANT and message.tool_calls is not None:
-            if idx == len(context_messages) - 1 or context_messages[idx + 1].role != TOOL:
-                error_msg = f"Assistant message with tool_calls not followed by tool message: ID = {message.id}"
-                if debugging_mode:
-                    raise MissingToolCallMessageError(error_msg)
-                else:
-                    logging.error(error_msg)
-                    logging.warning(f"Attempting to repair by removing tool_calls from message {message.id}")
-                    message.tool_calls = None
+        if idx == 0 and not is_system_instruction(message):
+            if fail_fast:
+                raise MissingSystemInstructError()
+            else:
+                logging.error(f"First message is not system instruction, repairing by inserting system instruction")
+                validated_messages += [
+                    ContextMessage(
+                        role=SYSTEM, content=f"{SYSTEM_INSTRUCTION_LABEL}\nYou are Elroy, a helpful assistant.", chat_model=None
+                    ),
+                    message,
+                ]
+        elif idx != 0 and is_system_instruction(message):
+            if fail_fast:
+                raise MisplacedSystemInstructError()
+            else:
+                logging.error("Found system message in non-first position, repairing by dropping message")
+                continue
+        else:
+            validated_messages.append(message)
+    return validated_messages
+
+
+def _validate_assistant_tool_calls_followed_by_tool(fail_fast: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    """
+    Validates that any assistant message with non-empty tool_calls is followed by corresponding tool messages.
+    """
+
+    for idx, message in enumerate(context_messages):
+        if (message.role == ASSISTANT and message.tool_calls is not None) and (
+            idx == len(context_messages) - 1 or context_messages[idx + 1].role != TOOL
+        ):
+            if fail_fast:
+                raise MissingToolCallMessageError()
+            else:
+                logging.error(
+                    f"Assistant message with tool_calls not followed by tool message: ID = {message.id}, repairing by removing tool_calls"
+                )
+                message.tool_calls = None
+    return context_messages
+
+
+def _validate_tool_messages_have_assistant_tool_call(fail_fast: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    """
+    Validates that all tool messages have a preceding assistant message with the corresponding tool_calls.
+    """
 
     validated_context_messages = []
     for idx, message in enumerate(context_messages):
         if message.role == TOOL and not _has_assistant_tool_call(message.tool_call_id, context_messages[:idx]):
-            error_msg = f"Tool message without preceding assistant message with tool_calls: ID = {message.id}"
-            if debugging_mode:
-                raise MissingAssistantToolCallError(error_msg)
+            if fail_fast:
+                raise MissingAssistantToolCallError(f"Message id: {message.id}")
             else:
-                logging.error(error_msg)
-                logging.warning(f"Attempting to repair by removing tool message {message.id}")
+                logging.warning(
+                    f"Tool message without preceding assistant message with tool_calls: ID = {message.id}. Repairing by removing tool message"
+                )
                 continue
         else:
             validated_context_messages.append(message)
@@ -142,6 +199,9 @@ def validate_context_messages(debugging_mode: bool, context_messages: List[Conte
 
 
 def _has_assistant_tool_call(tool_call_id: Optional[str], context_messages: List[ContextMessage]) -> bool:
+    """
+    Assistant tool call message must be in the most recent assistant message
+    """
     if not tool_call_id:
         logging.warning("Tool call ID is None")
         return False
@@ -153,8 +213,7 @@ def _has_assistant_tool_call(tool_call_id: Optional[str], context_messages: List
         lambda msg: msg.tool_calls or [] if msg else [],
         map(lambda x: x.id),
         filter(lambda x: x == tool_call_id),
-        list,
-        lambda x: len(x) > 0,
+        any,
     )
 
 
@@ -164,7 +223,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
 
     message_content = pipe(
         context_messages,
-        remove(lambda x: x.role == "system"),
+        remove(lambda x: x.role == SYSTEM),
         tail(4),
         map(lambda x: f"{x.role}: {x.content}" if x.content else None),
         remove(lambda x: x is None),
@@ -185,7 +244,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
         remove(partial(is_memory_in_context, context_messages)),
         map(
             lambda x: ContextMessage(
-                role="system",
+                role=SYSTEM,
                 memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
                 content="Information recalled from assistant memory: " + to_fact(x),
                 chat_model=None,

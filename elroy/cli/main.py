@@ -4,12 +4,13 @@ import os
 import sys
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Generator, Optional
+from typing import Generator, Iterable, Optional
 
 import typer
 from colorama import init
 from litellm import anthropic_models, open_ai_chat_completion_models
-from toolz import pipe
+from toolz import concat, pipe, unique
+from toolz.curried import filter, map
 
 from ..cli.updater import check_updates, ensure_current_db_migration, version_callback
 from ..config.config import ROOT_DIR, ElroyContext, get_config, session_manager
@@ -32,19 +33,20 @@ from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..logging_config import setup_logging
 from ..messaging.context import context_refresh
-from ..messaging.messenger import process_message
+from ..messaging.messenger import process_message, validate
 from ..onboard_user import onboard_user
-from ..repository.data_models import SYSTEM, USER
+from ..repository.data_models import SYSTEM, USER, ContextMessage
 from ..repository.goals.queries import get_goal_names
-from ..repository.memory import (
-    get_memory_names,
-    get_relevant_memories,
-    manually_record_user_memory,
+from ..repository.memory import get_memory_names, manually_record_user_memory
+from ..repository.message import (
+    get_context_messages,
+    get_time_since_most_recent_user_message,
+    replace_context_messages,
 )
-from ..repository.message import get_time_since_most_recent_user_message
 from ..repository.user import is_user_exists
 from ..system_commands import SYSTEM_COMMANDS, contemplate, invoke_system_command
 from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
+from ..utils.clock import get_utc_now
 from ..utils.utils import datetime_to_string, run_in_background_thread
 
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
@@ -72,7 +74,22 @@ def common(
     openai_api_key: Optional[str] = typer.Option(
         None,
         envvar="OPENAI_API_KEY",
-        help="OpenAI API key, required for OpenAI models.",
+        help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
+    ),
+    openai_api_base: Optional[str] = typer.Option(
+        None,
+        envvar="OPENAI_API_BASE",
+        help="OpenAI API (or OpenAI compatible) base URL.",
+    ),
+    openai_embedding_api_base: Optional[str] = typer.Option(
+        None,
+        envvar="OPENAI_API_BASE",
+        help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
+    ),
+    openai_organization: Optional[str] = typer.Option(
+        None,
+        envvar="OPENAI_ORGANIZATION",
+        help="OpenAI (or OpenAI compatible) organization ID.",
     ),
     anthropic_api_key: Optional[str] = typer.Option(
         None,
@@ -125,9 +142,9 @@ def common(
         EMBEDDING_SIZE,
         help="The size of the embedding model.",
     ),
-    debugging_mode: bool = typer.Option(
+    fail_fast: bool = typer.Option(
         False,
-        help="Whether to emit more verbose logging and fail faster on errors. Primarily a dev option.",
+        help="Whether to fail when errors occur rather than attempting repair. Intended as a debugging aid.",
     ),
 ):
     """Common parameters."""
@@ -142,12 +159,15 @@ def common(
         "elroy_config": get_config(
             postgres_url=postgres_url or DOCKER_DB_URL,
             chat_model_name=chat_model,
-            debugging_mode=debugging_mode,
+            fail_fast=fail_fast,
             embedding_model_name=emedding_model,
             embedding_model_size=embedding_model_size,
             context_window_token_limit=context_window_token_limit,
             openai_api_key=openai_api_key,
             anthropic_api_key=anthropic_api_key,
+            openai_api_base=openai_api_base,
+            openai_embedding_api_base=openai_embedding_api_base,
+            openai_organization=openai_organization,
         ),
         "show_internal_thought_monologue": show_internal_thought_monologue,
         "log_file_path": log_file_path,
@@ -301,21 +321,33 @@ async def main_chat(context: ElroyContext[CliIO]):
         assert isinstance(user_id, int)
 
         set_user_preferred_name(context, name)
-        pipe(context, get_relevant_memories, context.io.print_memory_panel)
+        _print_memory_panel(context, get_context_messages(context))
         process_and_deliver_msg(context, "Elroy user {name} has been onboarded. Say hello and introduce yourself.", role=SYSTEM)
 
-    elif (get_time_since_most_recent_user_message(context) or timedelta()) < MIN_CONVO_AGE_FOR_GREETING:
-        logging.info("User has interacted recently, skipping greeting.")
-        pipe(context, get_relevant_memories, context.io.print_memory_panel)
     else:
-        preferred_name = get_user_preferred_name(context)
-        pipe(context, get_relevant_memories, context.io.print_memory_panel)
+        context_messages = get_context_messages(context)
 
-        process_and_deliver_msg(
-            context,
-            f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now())}. I should offer a brief greeting.",
-            SYSTEM,
-        )
+        validated_messages = validate(context.config, context_messages)
+
+        if context_messages != validated_messages:
+            replace_context_messages(context, validated_messages)
+            logging.warning("Context messages were repaired")
+            context_messages = get_context_messages(context)
+
+        _print_memory_panel(context, context_messages)
+
+        if (get_time_since_most_recent_user_message(context_messages) or timedelta()) < MIN_CONVO_AGE_FOR_GREETING:
+            logging.info("User has interacted recently, skipping greeting.")
+
+        else:
+            preferred_name = get_user_preferred_name(context)
+
+            # TODO: should include some information about how long the user has been talking to Elroy
+            process_and_deliver_msg(
+                context,
+                f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now())}. I should offer a brief greeting.",
+                SYSTEM,
+            )
 
     while True:
         try:
@@ -332,7 +364,7 @@ async def main_chat(context: ElroyContext[CliIO]):
             break
 
         context.io.rule()
-        pipe(context, get_relevant_memories, context.io.print_memory_panel)
+        _print_memory_panel(context, get_context_messages(context))
 
 
 @contextmanager
@@ -378,6 +410,24 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
         if ctx.obj["use_docker_postgres"] and ctx.obj["stop_docker_postgres_on_exit"]:
             io.sys_message("Stopping Docker Postgres container...")
             stop_db()
+
+
+def _print_memory_panel(context: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
+    pipe(
+        context_messages,
+        filter(
+            lambda m: not m.created_at
+            or m.created_at > get_utc_now() - timedelta(seconds=context.config.max_in_context_message_age_seconds)
+        ),
+        map(lambda m: m.memory_metadata),
+        filter(lambda m: m is not None),
+        concat,
+        map(lambda m: f"{m.memory_type}: {m.name}"),
+        unique,
+        list,
+        sorted,
+        context.io.print_memory_panel,
+    )
 
 
 def main():

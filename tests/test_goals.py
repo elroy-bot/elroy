@@ -10,29 +10,29 @@ def test_goal(onboarded_context):
 
     process_test_message(
         onboarded_context,
-        "Create a new goal for me: 'Become my school's class president.' I will get to my goal by being nice to everyone and making flyers.",
+        "Create a new goal for me: 'Become mayor of my town.' I will get to my goal by being nice to everyone and making flyers.",
     )
 
     # Test that the goal was created, and is accessible to the agent.
 
-    assert "class president" in get_active_goals_summary(onboarded_context).lower(), "Goal not found in active goals."
+    assert "mayor" in get_active_goals_summary(onboarded_context).lower(), "Goal not found in active goals."
 
     # Verify Elroy's knowledge about the new goal
     assert_true(
         onboarded_context,
-        "Do I have any goals about going to running for a position in student government?",
+        "Do I have any goals about going to running for a political office?",
     )
 
     # Test updating a goal.
     process_test_message(
         onboarded_context,
-        "I have an update about my campaign. I've put up flyers around the school.",
+        "I have an update about my campaign. I've put up flyers around my town.",
     )
 
     # Verify that the goal's new status is recorded and reachable.
     assert_true(
         onboarded_context,
-        "Does the status update convey similar information to: I've put up flyers around the school?",
+        "Does the status update convey similar information to: I've put up flyers around my town?",
     )
 
     # Test completing a goal.
@@ -43,5 +43,5 @@ def test_goal(onboarded_context):
 
     assert_false(
         onboarded_context,
-        "Do I have any active goals about running for class president?",
+        "Do I have any active goals about running for mayor of my town?",
     )

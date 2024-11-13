@@ -2,7 +2,7 @@ import json
 import re
 from dataclasses import asdict
 from functools import partial
-from typing import Dict, Iterator, List, Union
+from typing import Any, Dict, Iterator, List, Union
 
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
@@ -10,22 +10,13 @@ from toolz import pipe
 from toolz.curried import keyfilter, map
 
 from ..config.config import ChatModel, EmbeddingModel
+from ..config.constants import MissingToolCallMessageError
 from ..repository.data_models import SYSTEM, USER, ContextMessage
 from ..utils.utils import logged_exec_time
 
 
-class MissingAssistantToolCallError(Exception):
-    pass
-
-
-class MissingToolCallMessageError(Exception):
-    pass
-
-
 @logged_exec_time
 def generate_chat_completion_message(chat_model: ChatModel, context_messages: List[ContextMessage]) -> Iterator[Dict]:
-    from ..tools.function_caller import get_function_schemas
-
     context_messages = pipe(
         context_messages,
         map(asdict),
@@ -46,28 +37,15 @@ def generate_chat_completion_message(chat_model: ChatModel, context_messages: Li
                 message["content"] = f"{USER_HIDDEN_PREFIX} {message['content']}"
 
     try:
-        return completion(
-            messages=context_messages,
-            model=chat_model.model,
-            api_key=chat_model.api_key,
-            tool_choice="auto",
-            tools=get_function_schemas(),
-            stream=True,
-        )  # type: ignore
+        completion_kwargs = _build_completion_kwargs(
+            chat_model=chat_model, messages=context_messages, stream=True, use_tools=True  # type: ignore
+        )
+        return completion(**completion_kwargs)  # type: ignore
     except BadRequestError as e:
         if "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
             raise MissingToolCallMessageError
         else:
             raise e
-
-
-def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
-    messages = [{"role": "system", "content": system}, {"role": USER, "content": prompt}]
-    request = {"model": model.model, "messages": messages}
-    if model.api_key:
-        request["api_key"] = model.api_key
-
-    return completion(**request).choices[0].message.content  # type: ignore
 
 
 def query_llm(model: ChatModel, prompt: str, system: str) -> str:
@@ -81,7 +59,7 @@ def query_llm_json(model: ChatModel, prompt: str, system: str) -> Union[dict, li
         raise ValueError("Prompt cannot be empty")
     return pipe(
         _query_llm(model=model, prompt=prompt, system=system),
-        partial(parse_json, model),
+        partial(_parse_json, model),
     )  # type: ignore
 
 
@@ -113,11 +91,63 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     """
     if not text:
         raise ValueError("Text cannot be empty")
-    response = embedding(model=model.model, input=[text], caching=True)
+    embedding_kwargs = {
+        "model": model.model,
+        "input": [text],
+        "caching": True,
+        "api_key": model.api_key,
+    }
+
+    if model.api_base:
+        embedding_kwargs["api_base"] = model.api_base
+    if model.organization:
+        embedding_kwargs["organization"] = model.organization
+
+    response = embedding(**embedding_kwargs)
     return response.data[0]["embedding"]
 
 
-def parse_json(chat_model: ChatModel, json_str: str, attempt: int = 0) -> Union[Dict, List]:
+def _build_completion_kwargs(
+    chat_model: ChatModel,
+    messages: List[Dict[str, str]],
+    stream: bool = False,
+    use_tools: bool = False,
+) -> Dict[str, Any]:
+    """Centralized configuration for LLM requests"""
+    kwargs = {
+        "messages": messages,
+        "model": chat_model.model,
+        "api_key": chat_model.api_key,
+    }
+
+    if chat_model.api_base:
+        kwargs["api_base"] = chat_model.api_base
+    if chat_model.organization:
+        kwargs["organization"] = chat_model.organization
+
+    if use_tools:
+        from ..tools.function_caller import get_function_schemas
+
+        kwargs.update(
+            {
+                "tool_choice": "auto",
+                "tools": get_function_schemas(),
+            }
+        )
+
+    if stream:
+        kwargs["stream"] = True
+
+    return kwargs
+
+
+def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
+    messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
+    completion_kwargs = _build_completion_kwargs(chat_model=model, messages=messages, stream=False, use_tools=False)
+    return completion(**completion_kwargs).choices[0].message.content  # type: ignore
+
+
+def _parse_json(chat_model: ChatModel, json_str: str, attempt: int = 0) -> Union[Dict, List]:
     cleaned_str = pipe(
         json_str,
         str.strip,
@@ -141,5 +171,5 @@ def parse_json(chat_model: ChatModel, json_str: str, attempt: int = 0) -> Union[
                     "If at all possible maintain the original structure of the JSON, in your repairs bias towards the smallest edit you can make to form valid JSON",
                     prompt=cleaned_str,
                 ),
-                lambda x: parse_json(chat_model, x, attempt + 1),
+                lambda x: _parse_json(chat_model, x, attempt + 1),
             )  # type: ignore

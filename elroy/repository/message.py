@@ -1,21 +1,34 @@
 from dataclasses import asdict
 from datetime import timedelta
-from typing import Dict, Iterable, List, Optional
+from typing import Iterable, List, Optional
 
 from sqlmodel import select
 from toolz import first, pipe
 from toolz.curried import filter, map, pipe
 
 from ..config.config import ElroyContext
+from ..config.constants import SYSTEM_INSTRUCTION_LABEL
 from ..repository.data_models import (
+    SYSTEM,
     USER,
     ContextMessage,
     ContextMessageSet,
     MemoryMetadata,
     Message,
+    ToolCall,
 )
 from ..utils.clock import ensure_utc, get_utc_now
 from ..utils.utils import last_or_none, logged_exec_time
+
+
+# This is hacky, should add arbitrary metadata
+def is_system_instruction(message: Optional[ContextMessage]) -> bool:
+    return (
+        message is not None
+        and message.content is not None
+        and message.content.startswith(SYSTEM_INSTRUCTION_LABEL)
+        and message.role == SYSTEM
+    )
 
 
 def context_message_to_db_message(user_id: int, context_message: ContextMessage):
@@ -32,17 +45,17 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
     )
 
 
-def db_message_to_context_message_dict(db_message: Message) -> Dict:
-    return {
-        "id": db_message.id,
-        "content": db_message.content,
-        "role": db_message.role,
-        "created_at": ensure_utc(db_message.created_at),
-        "tool_calls": db_message.tool_calls,
-        "tool_call_id": db_message.tool_call_id,
-        "chat_model": db_message.model,
-        "memory_metadata": [MemoryMetadata(**m) for m in db_message.memory_metadata] if db_message.memory_metadata else [],
-    }
+def db_message_to_context_message(db_message: Message) -> ContextMessage:
+    return ContextMessage(
+        id=db_message.id,
+        content=db_message.content,
+        role=db_message.role,
+        created_at=ensure_utc(db_message.created_at),
+        tool_calls=[ToolCall(**t) for t in db_message.tool_calls] if db_message.tool_calls else None,
+        tool_call_id=db_message.tool_call_id,
+        chat_model=db_message.model,
+        memory_metadata=[MemoryMetadata(**m) for m in db_message.memory_metadata] if db_message.memory_metadata else [],
+    )
 
 
 def get_current_context_message_set_db(context: ElroyContext) -> Optional[ContextMessageSet]:
@@ -62,15 +75,21 @@ def get_time_since_context_message_creation(context: ElroyContext) -> Optional[t
 
 
 def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage]:
+    """
+    Gets context messages from db, in order of their position in ContextMessageSet
+    """
+
+    message_ids = pipe(
+        get_current_context_message_set_db(context),
+        lambda x: x.message_ids if x else [],
+    )
+
+    assert isinstance(message_ids, list)
 
     return pipe(
-        context,
-        get_current_context_message_set_db,
-        lambda context_message_set: [] if not context_message_set else context_message_set.message_ids,
-        lambda ids: context.session.exec(select(Message).where(Message.id.in_(ids))) if ids else [],  # type: ignore
-        map(db_message_to_context_message_dict),
-        map(lambda d: ContextMessage(**d)),
-        list,
+        context.session.exec(select(Message).where(Message.id.in_(message_ids))),  # type: ignore
+        lambda messages: sorted(messages, key=lambda m: message_ids.index(m.id)),
+        map(db_message_to_context_message),
     )  # type: ignore
 
 
@@ -82,9 +101,9 @@ def get_current_system_message(context: ElroyContext) -> Optional[ContextMessage
 
 
 @logged_exec_time
-def get_time_since_most_recent_user_message(context: ElroyContext) -> Optional[timedelta]:
+def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMessage]) -> Optional[timedelta]:
     return pipe(
-        _get_context_messages_iter(context),
+        context_messages,
         filter(lambda x: x.role == USER),
         last_or_none,
         lambda x: get_utc_now() - x.created_at if x else None,

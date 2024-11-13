@@ -12,7 +12,7 @@ from ...messaging.context import (
     remove_from_context,
 )
 from ...utils.clock import get_utc_now, string_to_timedelta
-from ..data_models import ContextMessage, Goal
+from ..data_models import SYSTEM, ContextMessage, Goal
 from ..embeddings import upsert_embedding
 from ..message import add_context_messages
 
@@ -85,7 +85,7 @@ def create_goal(
             context,
             [
                 ContextMessage(
-                    role="system",
+                    role=SYSTEM,
                     content=f"New goal created: {goal_to_fact(goal)}",
                     memory_metadata=[goal.to_memory_metadata()],
                     chat_model=context.config.chat_model.model,
@@ -147,7 +147,7 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
         context,
         [
             ContextMessage(
-                role="system",
+                role=SYSTEM,
                 content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {goal_to_fact(old_goal)}",
                 memory_metadata=[old_goal.to_memory_metadata()],
                 chat_model=context.config.chat_model.model,

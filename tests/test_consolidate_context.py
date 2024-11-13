@@ -3,13 +3,14 @@ from datetime import datetime
 from lorem_text import lorem
 from pytz import UTC
 
+from elroy.config.constants import SYSTEM_INSTRUCTION_LABEL
 from elroy.messaging.context import compress_context_messages, count_tokens
 from elroy.repository.data_models import ASSISTANT, SYSTEM, USER, ContextMessage
 
 
 def test_compress_context_messages(george_context):
     # create a very long context to test consolidation
-    system_message = ContextMessage(role=SYSTEM, content="System message", chat_model=None)
+    system_message = ContextMessage(role=SYSTEM, content=f"{SYSTEM_INSTRUCTION_LABEL}\nSystem message", chat_model=None)
     original_messages = [system_message]
 
     for i in range(50):

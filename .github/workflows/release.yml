@@ -67,11 +67,11 @@ jobs:
         poetry install --no-root
         poetry build
 
-    # - name: Run Tests # TMP: until better test isolation
-    #   run: |
-    #     pytest
-    #   env:
-    #     PYTHONWARNINGS: "ignore::DeprecationWarning"
+    - name: Run Tests # TMP: until better test isolation
+      run: |
+        pytest
+      env:
+        PYTHONWARNINGS: "ignore::DeprecationWarning"
     - name: Test built package
       run: |
         pip install ./dist/elroy-*.whl
@@ -89,37 +89,5 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD --no-interaction
-    - name: Delay to allow for pypi propogation
-      run: sleep 60
 
 
-
-    - name: Log in to Container registry
-      if: success()
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract Docker metadata
-      if: success()
-      id: meta
-      uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-      with:
-        images: ghcr.io/${{ github.repository }}
-        tags: |
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=latest
-
-    - name: Build and push Docker image
-      if: success()
-      uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        build-args: |
-          ELROY_VERSION=${{ steps.version.outputs.version }}

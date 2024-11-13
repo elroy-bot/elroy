@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 INNER_THOUGHT_TAG = "inner_thought_monologue"
+SYSTEM_INSTRUCTION_LABEL = "*Elroy System Instruction*"
 
 UNKNOWN = "Unknown"
 MEMORY_TITLE_EXAMPLES = """
@@ -57,3 +58,19 @@ DEFAULT_WARNING_COLOR = "yellow"
 DEFAULT_INTERNAL_THOUGHT_COLOR = "#708090"
 
 REPO_LINK = "https://github.com/elroy-bot/elroy/issues"
+
+
+class MissingAssistantToolCallError(Exception):
+    pass
+
+
+class MissingToolCallMessageError(Exception):
+    pass
+
+
+class MissingSystemInstructError(Exception):
+    pass
+
+
+class MisplacedSystemInstructError(Exception):
+    pass
