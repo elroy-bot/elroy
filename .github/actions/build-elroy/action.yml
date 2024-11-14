@@ -1,0 +1,11 @@
+name: 'Build Elroy Package'
+description: 'Builds Elroy package using Poetry'
+runs:
+  using: "composite"
+  steps:
+    - name: Build package
+      shell: bash
+      run: |
+        poetry config virtualenvs.create false
+        poetry install --no-root
+        poetry build

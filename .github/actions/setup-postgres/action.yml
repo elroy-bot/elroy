@@ -1,0 +1,29 @@
+name: 'Setup PostgreSQL Environment'
+description: 'Sets up PostgreSQL environment variables and configuration for Elroy'
+runs:
+  using: "composite"
+  steps:
+    - name: Set PostgreSQL environment variables
+      shell: bash
+      run: |
+        echo "ELROY_TEST_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
+        echo "ELROY_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
+        echo "POSTGRES_DB=elroy" >> $GITHUB_ENV
+        echo "POSTGRES_USER=elroy" >> $GITHUB_ENV
+        echo "POSTGRES_PASSWORD=password" >> $GITHUB_ENV
+
+    - name: Wait for PostgreSQL
+      shell: bash
+      run: |
+        # Wait for PostgreSQL to be ready
+        timeout=30
+        until pg_isready -h localhost -p 5432 -U elroy || [ $timeout -eq 0 ]; do
+          echo "Waiting for PostgreSQL to be ready..."
+          sleep 1
+          ((timeout--))
+        done
+
+        if [ $timeout -eq 0 ]; then
+          echo "Timeout waiting for PostgreSQL"
+          exit 1
+        fi
