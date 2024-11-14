@@ -5,14 +5,12 @@ on:
     tags:
       - 'v*'  # Trigger on version tags
 
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
 jobs:
-  release:
+  pytest:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      packages: write
-      id-token: write
     services:
       postgres:
         image: ankane/pgvector:v0.5.1
@@ -27,51 +25,42 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    environment:
-      name: release
-
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: ./.github/actions/setup-elroy-env
+    - uses: ./.github/actions/setup-postgres
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.11'
-
-    - name: Set env variables
-      run: |
-        echo "ELROY_TEST_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
-        echo "ELROY_POSTGRES_URL=postgresql://elroy:password@localhost:5432/elroy" >> $GITHUB_ENV
-        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
-
-    - name: Install Poetry
-      run: |
-        curl -sSL https://install.python-poetry.org | python3 -
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-    - name: Configure Git
-      run: |
-        git config --global user.name 'elroy-bot'
-        git config --global user.email 'noreply@elroy.bot'
-
-    - name: Get version from tag
-      id: version
-      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-    - name: Install dependencies and build
+    - name: Install dependencies
       run: |
         poetry config virtualenvs.create false
         poetry install --no-root
-        poetry build
 
-    - name: Run Tests # TMP: until better test isolation
+    - name: Run Tests
       run: |
         pytest
       env:
         PYTHONWARNINGS: "ignore::DeprecationWarning"
+
+  test-install:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:v0.5.1
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: elroy
+          POSTGRES_USER: elroy
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+    - uses: ./.github/actions/setup-elroy-env
+    - uses: ./.github/actions/setup-postgres
+    - uses: ./.github/actions/build-elroy
+
     - name: Test built package
       run: |
         pip install ./dist/elroy-*.whl
@@ -83,6 +72,21 @@ jobs:
         elroy remember < test.txt
         echo "This is an installation test. What is the secret number? Respond with the secret number and only the secret number" > prompt.txt
         elroy < prompt.txt | grep -q "2931"
+
+  publish-pypi:
+    needs: [pytest, test-install]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    environment:
+      name: release
+
+    steps:
+    - uses: ./.github/actions/setup-elroy-env
+    - uses: ./.github/actions/build-elroy
+
     - name: Publish to PyPI
       env:
         TWINE_USERNAME: __token__
@@ -90,4 +94,57 @@ jobs:
       run: |
         poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD --no-interaction
 
+  create-release:
+    needs: [pytest, test-install]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        body_path: CHANGELOG.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-docker:
+    needs: [pytest, test-install, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Get version from tag
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GH_PUBLISHING_TOKEN}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        build-args: |
+          ELROY_VERSION=${{ steps.version.outputs.version }}
+        tags: |
+          ghcr.io/elroy-bot/elroy:latest
+          ghcr.io/elroy-bot/elroy:${{ steps.version.outputs.version }}
 
