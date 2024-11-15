@@ -1,6 +1,8 @@
 from tests.utils import assert_false, assert_true, process_test_message
 
+from elroy.repository.goals.operations import create_goal
 from elroy.repository.goals.queries import get_active_goals_summary
+from elroy.system_commands import reset_system_context
 
 
 def test_goal(onboarded_context):
@@ -45,3 +47,15 @@ def test_goal(onboarded_context):
         onboarded_context,
         "Do I have any active goals about running for mayor of my town?",
     )
+
+
+def test_goal_update_goal_slight_difference(onboarded_context):
+    create_goal(onboarded_context, "Run 100 miles this year")
+    reset_system_context(onboarded_context)
+
+    reply = process_test_message(
+        onboarded_context,
+        "I am testing function update. My goal: 'Run 100 miles in the next 365 days' has an update: I ran 4 miles today. The goal already exists. Please process a goal update.",
+    )
+
+    assert "4 miles" in get_active_goals_summary(onboarded_context)

@@ -1,6 +1,7 @@
 from dataclasses import asdict
 from datetime import timedelta
-from typing import Iterable, List, Optional
+from functools import partial
+from typing import Iterable, List, Optional, Union
 
 from sqlmodel import select
 from toolz import first, pipe
@@ -137,10 +138,12 @@ def remove_context_messages(context: ElroyContext, messages: List[ContextMessage
     replace_context_messages(context, [m for m in get_context_messages(context) if m.id not in msg_ids])
 
 
-def add_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
-    replace_context_messages(
-        context,
-        get_context_messages(context) + messages,
+def add_context_messages(context: ElroyContext, messages: Union[ContextMessage, List[ContextMessage]]) -> None:
+    pipe(
+        messages,
+        lambda x: x if isinstance(x, List) else [x],
+        lambda x: get_context_messages(context) + x,
+        partial(replace_context_messages, context),
     )
 
 
