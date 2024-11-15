@@ -128,10 +128,27 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  wait-for-pypi:
+    environment:
+      name: release
+    needs: [publish-pypi]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Wait for PyPI package
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "Waiting for elroy version $VERSION to appear on PyPI..."
+        while ! pip index versions elroy | grep -q "^elroy ($VERSION)$"; do
+          echo "Package not found yet, waiting 15 seconds..."
+          sleep 15
+        done
+        echo "Package found on PyPI!"
+      timeout-minutes: 10
+
   publish-docker:
     environment:
       name: release
-    needs: [pytest, test-install, publish-pypi]
+    needs: [pytest, test-install, wait-for-pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: read
