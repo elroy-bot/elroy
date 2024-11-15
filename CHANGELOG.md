@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.41] - 2024-11-14
+
+Updates to package publishing
+
 ## [0.0.40] - 2024-11-14
 ### Added
 - Initial release of Elroy, a CLI AI personal assistant with long-term memory and goal tracking capabilities.
