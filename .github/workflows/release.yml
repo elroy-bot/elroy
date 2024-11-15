@@ -7,6 +7,8 @@ on:
 
 jobs:
   pytest:
+    environment:
+      name: release
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -42,6 +44,8 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
   test-install:
+    environment:
+      name: release
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -80,14 +84,14 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
   publish-pypi:
+    environment:
+      name: release
     needs: [pytest, test-install]
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
       id-token: write
-    environment:
-      name: release
 
     steps:
     - uses: actions/checkout@v3
@@ -104,6 +108,8 @@ jobs:
         poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD --no-interaction
 
   create-release:
+    environment:
+      name: release
     needs: [pytest, test-install]
     runs-on: ubuntu-latest
     steps:
@@ -123,6 +129,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-docker:
+    environment:
+      name: release
     needs: [pytest, test-install, publish-pypi]
     runs-on: ubuntu-latest
     permissions:
