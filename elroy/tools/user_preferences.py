@@ -1,22 +1,31 @@
+from typing import Optional
+
 from ..config.config import ElroyContext
 from ..config.constants import UNKNOWN
 from ..repository.data_models import UserPreference
 
 
-def set_user_preferred_name(context: ElroyContext, preferred_name: str) -> str:
+def set_user_preferred_name(context: ElroyContext, preferred_name: str, override_existing: Optional[bool] = False) -> str:
     """
-    Set the user's preferred name.
+    Set the user's preferred name. Should predominantly be used relatively early in first conversations, and relatively rarely afterward.
 
     Args:
         user_id: The user's ID.
         preferred_name: The user's preferred name.
+        override_existing: Whether to override the an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect.
     """
 
     user_preference = _get_user_preference(context)
 
-    user_preference.preferred_name = preferred_name
-    context.session.commit()
-    return f"Set user preferred name to {preferred_name}"
+    old_preferred_name = user_preference.preferred_name or UNKNOWN
+
+    if old_preferred_name != UNKNOWN and not override_existing:
+        return f"Preferred name already set to {user_preference.preferred_name}. If this should be changed, use override_existing=True."
+    else:
+        user_preference.preferred_name = preferred_name
+
+        context.session.commit()
+        return f"Set user preferred name to {preferred_name}. Was {old_preferred_name}."
 
 
 def get_user_preferred_name(context: ElroyContext) -> str:
@@ -34,12 +43,14 @@ def get_user_preferred_name(context: ElroyContext) -> str:
     return user_preference.preferred_name or UNKNOWN
 
 
-def set_user_full_name(context: ElroyContext, full_name: str) -> str:
-    """Sets the user's full name.
+def set_user_full_name(context: ElroyContext, full_name: str, override_existing: Optional[bool] = False) -> str:
+    """Sets the user's full name. Should predominantly be used relatively
+    early in first conversations, and relatively rarely afterward.
 
     Args:
         user_id (int): user id
         full_name (str): The full name of the user
+        override_existing (bool): Whether to override the an existing full name, if it is already set. Override existing should only be used if a known full name has been found to be incorrect.
 
     Returns:
         str: result of the attempt to set the user's full name
@@ -48,10 +59,13 @@ def set_user_full_name(context: ElroyContext, full_name: str) -> str:
     user_preference = _get_user_preference(context)
 
     old_full_name = user_preference.full_name or UNKNOWN
-    user_preference.full_name = full_name
-    context.session.commit()
+    if old_full_name != UNKNOWN and not override_existing:
+        return f"Full name already set to {user_preference.full_name}. If this should be changed, set override_existing=True."
+    else:
+        user_preference.full_name = full_name
+        context.session.commit()
 
-    return f"Full name set to {full_name}. Previous value was {old_full_name}."
+        return f"Full name set to {full_name}. Previous value was {old_full_name}."
 
 
 def get_user_full_name(context: ElroyContext) -> str:

@@ -34,7 +34,7 @@ The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 ### Option 2: Using pip
 
 #### Prerequisites
-- Python 3.11 or higher
+- Python 3.9 or higher
 - OpenAI key: Set the `OPENAI_API_KEY` environment variable
 - PostgreSQL database with pgvector extension
 

@@ -2,9 +2,8 @@ import asyncio
 import logging
 import os
 import sys
-from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Generator, Iterable, Optional
+from typing import Iterable, Optional
 
 import typer
 from colorama import init
@@ -12,10 +11,9 @@ from litellm import anthropic_models, open_ai_chat_completion_models
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
-from ..cli.updater import check_updates, ensure_current_db_migration, version_callback
-from ..config.config import ROOT_DIR, ElroyContext, get_config, session_manager
+from ..cli.updater import check_updates, version_callback
+from ..config.config import ROOT_DIR, ElroyContext, get_config
 from ..config.constants import (
-    CLI_USER_ID,
     DEFAULT_ASSISTANT_COLOR,
     DEFAULT_CHAT_MODEL_NAME,
     DEFAULT_CONTEXT_WINDOW_LIMIT,
@@ -25,14 +23,10 @@ from ..config.constants import (
     DEFAULT_SYSTEM_MESSAGE_COLOR,
     DEFAULT_WARNING_COLOR,
     EMBEDDING_SIZE,
-    INITIAL_REFRESH_WAIT_SECONDS,
     MIN_CONVO_AGE_FOR_GREETING,
 )
-from ..docker_postgres import DOCKER_DB_URL, is_docker_running, start_db, stop_db
-from ..io.base import StdIO
+from ..docker_postgres import DOCKER_DB_URL
 from ..io.cli import CliIO
-from ..logging_config import setup_logging
-from ..messaging.context import context_refresh
 from ..messaging.messenger import process_message, validate
 from ..onboard_user import onboard_user
 from ..repository.data_models import SYSTEM, USER, ContextMessage
@@ -48,6 +42,11 @@ from ..system_commands import SYSTEM_COMMANDS, contemplate, invoke_system_comman
 from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
 from ..utils.clock import get_utc_now
 from ..utils.utils import datetime_to_string, run_in_background_thread
+from .context import (
+    get_user_logged_in_message,
+    init_elroy_context,
+    periodic_context_refresh,
+)
 
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
@@ -269,40 +268,6 @@ def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
         context.io.assistant_msg(process_message(context, user_input, role))
 
 
-def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
-    """Run context refresh in a background thread"""
-    # Create new event loop for this thread
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    async def refresh_loop(context: ElroyContext):
-        await asyncio.sleep(INITIAL_REFRESH_WAIT_SECONDS)
-        while True:
-            try:
-                logging.info("Refreshing context")
-                await context_refresh(context)  # Keep this async
-                await asyncio.sleep(interval_seconds)
-            except Exception as e:
-                logging.error(f"Error in periodic context refresh: {e}")
-                context.session.rollback()
-
-    try:
-        # hack to get a new session for the thread
-        with session_manager(context.config.postgres_url) as session:
-            loop.run_until_complete(
-                refresh_loop(
-                    ElroyContext(
-                        user_id=CLI_USER_ID,
-                        session=session,
-                        config=context.config,
-                        io=context.io,
-                    )
-                )
-            )
-    finally:
-        loop.close()
-
-
 async def main_chat(context: ElroyContext[CliIO]):
     init(autoreset=True)
 
@@ -340,12 +305,12 @@ async def main_chat(context: ElroyContext[CliIO]):
             logging.info("User has interacted recently, skipping greeting.")
 
         else:
-            preferred_name = get_user_preferred_name(context)
+            get_user_preferred_name(context)
 
             # TODO: should include some information about how long the user has been talking to Elroy
             process_and_deliver_msg(
                 context,
-                f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now())}. I should offer a brief greeting.",
+                get_user_logged_in_message(context),
                 SYSTEM,
             )
 
@@ -365,51 +330,6 @@ async def main_chat(context: ElroyContext[CliIO]):
 
         context.io.rule()
         _print_memory_panel(context, get_context_messages(context))
-
-
-@contextmanager
-def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None]:
-    """Create an ElroyContext as a context manager"""
-
-    if ctx.obj["is_tty"]:
-        io = CliIO(
-            ctx.obj["show_internal_thought_monologue"],
-            ctx.obj["system_message_color"],
-            ctx.obj["assistant_color"],
-            ctx.obj["user_input_color"],
-            ctx.obj["warning_color"],
-            ctx.obj["internal_thought_color"],
-        )
-    else:
-        io = StdIO()
-
-    try:
-        setup_logging(ctx.obj["log_file_path"])
-
-        if ctx.obj["use_docker_postgres"]:
-            if is_docker_running():
-                start_db()
-            else:
-                raise typer.BadParameter(
-                    "Elroy was started with use_docker_postgres set to True, but no Docker container is running. Please either start a Docker container, provide a postgres_url parameter, or set the ELROY_POSTGRES_URL environment variable."
-                )
-
-        # Check if migrations need to be run
-        config = ctx.obj["elroy_config"]
-        ensure_current_db_migration(io, config.postgres_url)
-
-        with session_manager(config.postgres_url) as session:
-            yield ElroyContext(
-                user_id=CLI_USER_ID,
-                session=session,
-                config=config,
-                io=io,
-            )
-
-    finally:
-        if ctx.obj["use_docker_postgres"] and ctx.obj["stop_docker_postgres_on_exit"]:
-            io.sys_message("Stopping Docker Postgres container...")
-            stop_db()
 
 
 def _print_memory_panel(context: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:

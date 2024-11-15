@@ -12,9 +12,11 @@ from ...messaging.context import (
     remove_from_context,
 )
 from ...utils.clock import get_utc_now, string_to_timedelta
+from ...utils.utils import first_or_none
 from ..data_models import SYSTEM, ContextMessage, Goal
 from ..embeddings import upsert_embedding
 from ..message import add_context_messages
+from .queries import get_active_goals
 
 
 def goal_to_fact(goal: Goal) -> str:
@@ -98,7 +100,7 @@ def create_goal(
         return f"Goal '{goal_name}' has been created."
 
 
-def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -> None:
+def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -> str:
     """Renames an existing active goal.
 
     Args:
@@ -110,25 +112,28 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
         Exception: If the goal with old_goal_name doesn't exist or if a goal with new_goal_name already exists.
     """
     # Check if the old goal exists and is active
-    old_goal = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.name == old_goal_name,
-            Goal.is_active == True,
-        )
-    ).first()
-    if not old_goal:
-        raise Exception(f"Active goal '{old_goal_name}' not found for user {context.user_id}")
+    active_goals = get_active_goals(context)
+    old_goal = pipe(
+        active_goals,
+        filter(lambda g: g.name == old_goal_name),
+        first_or_none,
+    )
 
-    # Check if a goal with the new name already exists
-    existing_goal = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.name == new_goal_name,
-            Goal.is_active == True,
+    if not old_goal:
+        raise Exception(
+            f"Active goal '{old_goal_name}' not found for user {context.user_id}. Active goals: "
+            + ", ".join([g.name for g in active_goals])
         )
-    ).first()
-    if existing_goal:
+
+    existing_goal_with_new_name = pipe(
+        active_goals,
+        filter(lambda g: g.name == new_goal_name),
+        first_or_none,
+    )
+
+    assert isinstance(old_goal, Goal)
+
+    if existing_goal_with_new_name:
         raise Exception(f"Active goal '{new_goal_name}' already exists for user {context.user_id}")
 
     # we need to drop the goal from context as the metadata includes the goal name.
@@ -154,18 +159,21 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
             )
         ],
     )
+    return f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}'."
 
 
 def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
-    goal = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.name == goal_name,
-            Goal.is_active == True,
-        )
-    ).first()
+    active_goals = get_active_goals(context)
+
+    goal = pipe(
+        active_goals,
+        filter(lambda g: g.name == goal_name),
+        first_or_none,
+    )
+
     if not goal:
-        raise Exception(f"Active goal {goal_name} not found for user {context.user_id}")
+        raise Exception(f"Active goal {goal_name} not found for user. Active goals: " + ", ".join([g.name for g in active_goals]))
+    assert isinstance(goal, Goal)
 
     logging.info(f"Updating goal {goal_name} for user {context.user_id}")
     logging.info(f"Current status updates: {goal.status_updates}")
