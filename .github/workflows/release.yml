@@ -27,8 +27,8 @@ jobs:
           --health-retries 5
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/checkout@v3
-    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - uses: ./.github/actions/setup-elroy-env
     - uses: ./.github/actions/setup-postgres
 
@@ -60,6 +60,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - uses: ./.github/actions/setup-elroy-env
     - uses: ./.github/actions/setup-postgres
     - uses: ./.github/actions/build-elroy
@@ -87,6 +90,9 @@ jobs:
       name: release
 
     steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - uses: ./.github/actions/setup-elroy-env
     - uses: ./.github/actions/build-elroy
 
@@ -125,7 +131,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-
+      with:
+        fetch-depth: 0
     - name: Get version from tag
       id: version
       run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
