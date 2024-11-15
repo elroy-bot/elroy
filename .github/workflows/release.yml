@@ -5,9 +5,6 @@ on:
     tags:
       - 'v*'  # Trigger on version tags
 
-env:
-  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
 jobs:
   pytest:
     runs-on: ubuntu-latest
@@ -42,6 +39,7 @@ jobs:
         pytest
       env:
         PYTHONWARNINGS: "ignore::DeprecationWarning"
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
   test-install:
     runs-on: ubuntu-latest
@@ -78,6 +76,8 @@ jobs:
         elroy remember < test.txt
         echo "This is an installation test. What is the secret number? Respond with the secret number and only the secret number" > prompt.txt
         elroy < prompt.txt | grep -q "2931"
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
   publish-pypi:
     needs: [pytest, test-install]
