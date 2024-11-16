@@ -19,7 +19,9 @@ from .llm import client
 from .llm.prompts import contemplate_prompt
 from .messaging.context import (
     add_goal_to_current_context,
-    drop_goal_from_current_context_only,
+    add_memory_to_current_context,
+    drop_goal_from_current_context,
+    drop_memory_from_current_context,
     format_context_messages,
     get_refreshed_system_message,
 )
@@ -27,7 +29,7 @@ from .repository.data_models import SYSTEM, ContextMessage, Goal, Memory
 from .repository.goals.operations import (
     add_goal_status_update,
     create_goal,
-    delete_goal_permamently,
+    delete_goal_permanently,
     goal_to_fact,
     mark_goal_completed,
     rename_goal,
@@ -73,28 +75,28 @@ def invoke_system_command(context: ElroyContext, msg: str) -> str:
 
     try:
         func_args = []
-        num_required_args = len([p for p in params if p.default is p.empty])
+        num_required_non_context_args = len([p for p in params if p.default is p.empty and p.annotation != ElroyContext])
 
-        for i, param in enumerate(params):
+        arg_index = 0
+        for param in params:
             if param.annotation == ElroyContext:
                 func_args.append(context)
                 continue
 
-            if i < len(args):  # We have an argument provided
-                if param.annotation == str and i == num_required_args - 1:
+            if arg_index < len(args) and args[arg_index] not in [None, ""]:  # We have an argument provided
+                if param.annotation == str and arg_index == num_required_non_context_args - 1:
                     # Last *required* string param gets remaining args
-                    func_args.append(
-                        " ".join(args[i - 1 :])
-                    )  # we append i - i because we have already included the context as the first argument.
+                    func_args.append(" ".join(args[arg_index:]))
                     break
                 else:
-                    func_args.append(args[i])
+                    func_args.append(args[arg_index])
+                    arg_index += 1
             elif param.default is not param.empty:
                 # Use default value for optional parameter
                 continue
             else:
                 # Missing required argument
-                return f"Error: Missing required argument '{param.name}' for command {command}. Required args: {num_required_args}"
+                return f"Error: Missing required argument '{param.name}' for command {command}."
 
         return func(*func_args)
     except Exception as e:
@@ -145,6 +147,31 @@ def print_available_commands(context: ElroyContext) -> str:
     """
 
     return "Available commands: " + "\n".join([f.__name__ for f in SYSTEM_COMMANDS])
+
+
+def add_internal_thought(context: ElroyContext, thought: str) -> str:
+    """Inserts internal thought for the assistant. Useful for guiding the assistant's thoughts in a specific direction.
+
+    Args:
+        context (ElroyContext): context obj
+        thought (str): The thought to add
+
+    Returns:
+        str: The result of the internal thought addition
+    """
+
+    add_context_messages(
+        context,
+        [
+            ContextMessage(
+                role=SYSTEM,
+                content=thought,
+                chat_model=context.config.chat_model.model,
+            )
+        ],
+    )
+
+    return f"Internal thought added: {thought}"
 
 
 def reset_system_context(context: ElroyContext) -> str:
@@ -383,38 +410,58 @@ def start_aider_session(context: ElroyContext, file_location: str = ".", comment
         return f"Failed to start aider session: {str(error)}"
 
 
-GOAL_COMMANDS: Set[Callable] = {
-    create_goal,
+IN_CONTEXT_GOAL_COMMANDS: Set[Callable] = {
+    drop_goal_from_current_context,
+}
+
+NON_CONTEXT_GOAL_COMMANDS: Set[Callable] = {
+    add_goal_to_current_context,
+}
+
+ALL_ACTIVE_GOAL_COMMANDS: Set[Callable] = {
     rename_goal,
     print_goal,
-    add_goal_to_current_context,
-    drop_goal_from_current_context_only,
     add_goal_status_update,
     mark_goal_completed,
-    delete_goal_permamently,
+    delete_goal_permanently,
 }
 
-MEMORY_COMMANDS = {
+IN_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
+    drop_memory_from_current_context,
+}
+
+NON_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
+    add_memory_to_current_context,
+}
+
+ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
-    create_memory,
 }
 
+NON_ARG_PREFILL_COMMANDS = {
+    create_goal,
+    create_memory,
+    contemplate,
+    start_aider_session,
+    get_user_full_name,
+    set_user_full_name,
+    get_user_preferred_name,
+    set_user_preferred_name,
+}
 
 ASSISTANT_VISIBLE_COMMANDS = (
-    {
-        contemplate,
-        start_aider_session,
-        get_user_full_name,
-        set_user_full_name,
-        get_user_preferred_name,
-        set_user_preferred_name,
-        start_aider_session,
-    }
-    | GOAL_COMMANDS
-    | MEMORY_COMMANDS
+    NON_ARG_PREFILL_COMMANDS
+    | IN_CONTEXT_GOAL_COMMANDS
+    | NON_CONTEXT_GOAL_COMMANDS
+    | ALL_ACTIVE_GOAL_COMMANDS
+    | IN_CONTEXT_MEMORY_COMMANDS
+    | NON_CONTEXT_MEMORY_COMMANDS
+    | ALL_ACTIVE_MEMORY_COMMANDS
+    | NON_ARG_PREFILL_COMMANDS
 )
 
 USER_ONLY_COMMANDS = {
+    add_internal_thought,
     reset_system_context,
     print_context_messages,
     print_system_instruction,
@@ -423,4 +470,4 @@ USER_ONLY_COMMANDS = {
 }
 
 
-SYSTEM_COMMANDS = ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS | MEMORY_COMMANDS | GOAL_COMMANDS
+SYSTEM_COMMANDS = ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS

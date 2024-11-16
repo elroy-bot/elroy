@@ -30,8 +30,7 @@ from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
 from ..onboard_user import onboard_user
 from ..repository.data_models import SYSTEM, USER, ContextMessage
-from ..repository.goals.queries import get_goal_names
-from ..repository.memory import get_memory_names, manually_record_user_memory
+from ..repository.memory import manually_record_user_memory
 from ..repository.message import (
     get_context_messages,
     get_time_since_most_recent_user_message,
@@ -43,6 +42,7 @@ from ..tools.user_preferences import get_user_preferred_name, set_user_preferred
 from ..utils.clock import get_utc_now
 from ..utils.utils import datetime_to_string, run_in_background_thread
 from .context import (
+    get_completer,
     get_user_logged_in_message,
     init_elroy_context,
     periodic_context_refresh,
@@ -288,6 +288,7 @@ async def main_chat(context: ElroyContext[CliIO]):
         set_user_preferred_name(context, name)
         _print_memory_panel(context, get_context_messages(context))
         process_and_deliver_msg(context, "Elroy user {name} has been onboarded. Say hello and introduce yourself.", role=SYSTEM)
+        context_messages = get_context_messages(context)
 
     else:
         context_messages = get_context_messages(context)
@@ -316,8 +317,7 @@ async def main_chat(context: ElroyContext[CliIO]):
 
     while True:
         try:
-
-            context.io.update_completer(get_goal_names(context), get_memory_names(context))
+            context.io.update_completer(get_completer(context, context_messages))
 
             user_input = await context.io.prompt_user()
             if user_input.lower().startswith("/exit") or user_input == "exit":
@@ -329,7 +329,8 @@ async def main_chat(context: ElroyContext[CliIO]):
             break
 
         context.io.rule()
-        _print_memory_panel(context, get_context_messages(context))
+        context_messages = get_context_messages(context)
+        _print_memory_panel(context, context_messages)
 
 
 def _print_memory_panel(context: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:

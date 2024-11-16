@@ -1,4 +1,4 @@
-from typing import List, Set
+from typing import List
 
 from sqlmodel import select
 from toolz import pipe
@@ -47,14 +47,3 @@ def get_active_goals(context: ElroyContext) -> List[Goal]:
         )
         .order_by(Goal.priority)  # type: ignore
     ).all()
-
-
-def get_goal_names(context: ElroyContext) -> Set[str]:
-    """Fetch all active goals for the user"""
-    goals = context.session.exec(
-        select(Goal).where(
-            Goal.user_id == context.user_id,
-            Goal.is_active == True,
-        )
-    ).all()
-    return {goal.name for goal in goals}

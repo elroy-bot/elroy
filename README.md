@@ -101,10 +101,10 @@ While chatting with Elroy, you can use the following commands. For the most part
 - `/rename_goal` - Rename an existing goal
 - `/print_goal` - View details of a specific goal
 - `/add_goal_to_current_context` - Add a goal to current conversation
-- `/drop_goal_from_current_context_only` - Remove goal from current conversation
+- `/drop_goal_from_current_context` - Remove goal from current conversation
 - `/add_goal_status_update` - Update goal progress
 - `/mark_goal_completed` - Mark a goal as complete
-- `/delete_goal_permamently` - Delete a goal
+- `/delete_goal_permanently` - Delete a goal
 
 ### Memory Management
 - `/print_memory` - View a specific memory
