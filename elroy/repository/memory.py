@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Set, Tuple
+from typing import List, Optional, Tuple
 
 from sqlmodel import select
 
@@ -175,12 +175,13 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     return memory_id
 
 
-def get_memory_names(context: ElroyContext) -> Set[str]:
+def get_active_memories(context: ElroyContext) -> List[Memory]:
     """Fetch all active memories for the user"""
-    memories = context.session.exec(
-        select(Memory).where(
-            Memory.user_id == context.user_id,
-            Memory.is_active == True,
-        )
-    ).all()
-    return {memory.name for memory in memories}
+    return list(
+        context.session.exec(
+            select(Memory).where(
+                Memory.user_id == context.user_id,
+                Memory.is_active == True,
+            )
+        ).all()
+    )

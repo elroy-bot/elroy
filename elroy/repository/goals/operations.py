@@ -7,10 +7,7 @@ from toolz import pipe
 from toolz.curried import filter
 
 from ...config.config import ElroyContext
-from ...messaging.context import (
-    drop_goal_from_current_context_only,
-    remove_from_context,
-)
+from ...messaging.context import drop_goal_from_current_context, remove_from_context
 from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import first_or_none
 from ..data_models import SYSTEM, ContextMessage, Goal
@@ -60,6 +57,9 @@ def create_goal(
         time_to_completion (str): The amount of time from now until the goal can be completed. Should be in the form of NUMBER TIME_UNIT, where TIME_UNIT is one of HOURS, DAYS, WEEKS, MONTHS. For example, "1 DAYS" would be a goal that should be completed within 1 day.
         priority (int): The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest.
     """
+    if goal_name in [None, ""]:
+        raise ValueError("Goal name cannot be empty")
+
     existing_goal = context.session.exec(
         select(Goal).where(
             Goal.user_id == context.user_id,
@@ -137,7 +137,7 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
         raise Exception(f"Active goal '{new_goal_name}' already exists for user {context.user_id}")
 
     # we need to drop the goal from context as the metadata includes the goal name.
-    drop_goal_from_current_context_only(context, old_goal.name)
+    drop_goal_from_current_context(context, old_goal.name)
 
     # Rename the goal
     old_goal.name = new_goal_name
@@ -268,7 +268,7 @@ def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments:
     return f"Goal '{goal_name}' has been marked as completed."
 
 
-def delete_goal_permamently(context: ElroyContext, goal_name: str) -> str:
+def delete_goal_permanently(context: ElroyContext, goal_name: str) -> str:
     """Closes the goal.
 
     Args:

@@ -1,6 +1,6 @@
 import logging
 from contextlib import contextmanager
-from typing import Generator, Iterator, List, Set, Text, Union
+from typing import Generator, Iterator, List, Text, Union
 
 from prompt_toolkit import HTML, Application, PromptSession, print_formatted_text
 from prompt_toolkit.application import get_app
@@ -17,7 +17,6 @@ from rich.text import Text
 from ..config.constants import REPO_LINK
 from ..io.base import ElroyIO
 from ..repository.data_models import FunctionCall
-from ..system_commands import GOAL_COMMANDS, MEMORY_COMMANDS, SYSTEM_COMMANDS
 
 
 class CliIO(ElroyIO):
@@ -139,8 +138,8 @@ class CliIO(ElroyIO):
                 raise EOFError
             return await self.prompt_user(prompt, prefill, keyboard_interrupt_count)
 
-    def update_completer(self, goal_names: Set[str], memory_names: Set[str]) -> None:
-        self.prompt_session.completer = SlashCompleter(goal_names, memory_names)
+    def update_completer(self, completer: WordCompleter) -> None:
+        self.prompt_session.completer = completer
 
     def get_current_input(self) -> str:
         """Get the current content of the input buffer"""
@@ -168,17 +167,3 @@ class CliIO(ElroyIO):
             # This catches cases where there's no active prompt_toolkit application
             logging.debug(f"No active prompt session to suspend: {e}")
             yield ""
-
-
-class SlashCompleter(WordCompleter):
-    def __init__(self, goals: Set[str], memories: Set[str]):
-        self.goals = goals
-        self.memories = memories
-        super().__init__(self.get_words(), sentence=True, pattern=r"^/")  # type: ignore
-
-    def get_words(self):
-
-        words = [f"/{f.__name__}" for f in SYSTEM_COMMANDS - (GOAL_COMMANDS | MEMORY_COMMANDS)]
-        words += [f"/{f.__name__} {goal}" for f in GOAL_COMMANDS for goal in self.goals]
-        words += [f"/{f.__name__} {memory}" for f in MEMORY_COMMANDS for memory in self.memories]
-        return words
