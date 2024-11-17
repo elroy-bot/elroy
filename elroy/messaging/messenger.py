@@ -108,11 +108,13 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
 def validate(config: ElroyConfig, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     return pipe(
         context_messages,
-        partial(_validate_system_instruction_correctly_placed, config.fail_fast),
-        partial(_validate_assistant_tool_calls_followed_by_tool, config.fail_fast),
-        partial(_validate_tool_messages_have_assistant_tool_call, config.fail_fast),
+        partial(_validate_system_instruction_correctly_placed, config.debug_mode),
+        partial(_validate_assistant_tool_calls_followed_by_tool, config.debug_mode),
+        partial(_validate_tool_messages_have_assistant_tool_call, config.debug_mode),
         lambda msgs: (
-            msgs if not config.chat_model.ensure_alternating_roles else validate_first_user_precedes_first_assistant(config.fail_fast, msgs)
+            msgs
+            if not config.chat_model.ensure_alternating_roles
+            else validate_first_user_precedes_first_assistant(config.debug_mode, msgs)
         ),
         list,
     )

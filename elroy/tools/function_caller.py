@@ -1,5 +1,6 @@
 import inspect
 import json
+import traceback
 from dataclasses import dataclass
 from types import FunctionType, ModuleType
 from typing import (
@@ -103,8 +104,13 @@ def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> st
         )  # type: ignore
 
     except Exception as e:
-        context.io.notify_function_call_error(function_call, e)
-        return f"{ERROR_PREFIX}{e}"
+        verbose_error = f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__))
+
+        if context.config.debug_mode:
+            context.io.notify_function_call_error(function_call, verbose_error)
+        else:
+            context.io.notify_function_call_error(function_call, e)
+        return f"{ERROR_PREFIX}{verbose_error}"
 
 
 def get_module_functions(module: ModuleType) -> List[FunctionType]:
