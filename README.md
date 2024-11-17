@@ -15,7 +15,7 @@ Elroy is a CLI AI personal assistant with long term memory and goal tracking cap
 
 #### Prerequisites
 - Docker and Docker Compose
-- OpenAI key: Set the `OPENAI_API_KEY` environment variable
+- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 
 This option automatically sets up everything you need, including the required PostgreSQL database with pgvector extension.
 
@@ -35,7 +35,7 @@ The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 
 #### Prerequisites
 - Python 3.9 or higher
-- OpenAI key: Set the `OPENAI_API_KEY` environment variable
+- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 - PostgreSQL database with pgvector extension
 
 ```bash
@@ -51,7 +51,7 @@ For the database, either:
 #### Prerequisites
 - Python 3.11 or higher
 - Poetry package manager
-- OpenAI key: Set the `OPENAI_API_KEY` environment variable
+- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 - PostgreSQL database with pgvector extension
 
 ```bash
@@ -90,11 +90,15 @@ echo "Say hello world" | elroy
 While chatting with Elroy, you can use the following commands. For the most part, these commands are available for Elroy to use autonomously:
 
 ### System Commands
+
 - `/print_available_commands` - Show all available commands
 - `/print_system_instruction` - View current system instructions
 - `/refresh_system_instructions` - Refresh system instructions
 - `/reset_system_context` - Reset conversation context
 - `/print_context_messages` - View current conversation context
+- `/add_internal_thought` - Insert an internal thought for the assistant to guide its thinking.
+- `/contemplate` - Ask Elroy to reflect on the conversation
+- `/exit` - Exit the chat
 
 ### Goal Management
 - `/create_goal` - Create a new goal
@@ -136,7 +140,10 @@ You can customize Elroy's appearance with these options:
 
 * `--version`: Show version and exit.
 * `--postgres-url TEXT`: Postgres URL to use for Elroy. If set, overrides use_docker_postgres. [env var: ELROY_POSTGRES_URL]
-* `--openai-api-key TEXT`: OpenAI API key, required. [env var: OPENAI_API_KEY]
+* `--openai-api-key TEXT`: OpenAI API (or OpenAI compatible) key. [env var: OPENAI_API_KEY]
+* `--openai-api-base TEXT`: OpenAI API (or OpenAI compatible) base URL. [env var: OPENAI_API_BASE]
+* `--openai-organization TEXT`: OpenAI (or OpenAI compatible) organization ID. [env var: OPENAI_ORGANIZATION]
+* `--anthropic-api-key TEXT`: Anthropic API key, required for Anthropic models. [env var: ANTHROPIC_API_KEY]
 * `--context-window-token-limit INTEGER`: How many tokens to keep in context before compressing. Controls how much conversation history Elroy maintains before summarizing older content. [env var: ELROY_CONTEXT_WINDOW_TOKEN_LIMIT]
 * `--log-file-path TEXT`: Where to write logs. [env var: ELROY_LOG_FILE_PATH; default: logs/elroy.log]
 * `--use-docker-postgres / --no-use-docker-postgres`: If true and postgres_url is not set, will attempt to start a Docker container for Postgres. [env var: USE_DOCKER_POSTGRES; default: True]
