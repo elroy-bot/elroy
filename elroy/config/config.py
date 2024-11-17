@@ -47,7 +47,7 @@ class ElroyConfig:
     context_refresh_interval_seconds: int  # how often to refresh system message and compress context messages
     chat_model: ChatModel
     embedding_model: EmbeddingModel
-    fail_fast: bool  # Whether to emit more verbose logging and fail faster on errors rather than attempting to recover
+    debug_mode: bool  # Whether to emit more verbose logging and fail faster on errors rather than attempting to recover
 
 
 def get_config(
@@ -56,7 +56,7 @@ def get_config(
     embedding_model_name: str,
     embedding_model_size: int,
     context_window_token_limit: int,
-    fail_fast: bool,
+    debug_mode: bool,
     openai_api_key: Optional[str],
     anthropic_api_key: Optional[str],
     openai_api_base: Optional[str],
@@ -95,7 +95,7 @@ def get_config(
         postgres_url=postgres_url,
         chat_model=chat_model,
         embedding_model=embedding_model,
-        fail_fast=fail_fast,
+        debug_mode=debug_mode,
         context_window_token_limit=context_window_token_limit,
         context_refresh_token_trigger_limit=int(context_window_token_limit * 0.66),
         context_refresh_token_target=int(context_window_token_limit * 0.33),
