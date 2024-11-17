@@ -120,11 +120,11 @@ def validate(config: ElroyConfig, context_messages: List[ContextMessage]) -> Lis
     )
 
 
-def validate_first_user_precedes_first_assistant(fail_fast: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def validate_first_user_precedes_first_assistant(debug_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     user_and_assistant_messages = [m for m in context_messages if m.role in [USER, ASSISTANT]]
 
     if user_and_assistant_messages and user_and_assistant_messages[0].role != USER:
-        if fail_fast:
+        if debug_mode:
             raise ValueError("First non-system message must be USER role for this model")
         else:
             context_messages = [
@@ -134,12 +134,12 @@ def validate_first_user_precedes_first_assistant(fail_fast: bool, context_messag
     return context_messages
 
 
-def _validate_system_instruction_correctly_placed(fail_fast: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def _validate_system_instruction_correctly_placed(debug_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     validated_messages = []
 
     for idx, message in enumerate(context_messages):
         if idx == 0 and not is_system_instruction(message):
-            if fail_fast:
+            if debug_mode:
                 raise MissingSystemInstructError()
             else:
                 logging.error(f"First message is not system instruction, repairing by inserting system instruction")
@@ -150,7 +150,7 @@ def _validate_system_instruction_correctly_placed(fail_fast: bool, context_messa
                     message,
                 ]
         elif idx != 0 and is_system_instruction(message):
-            if fail_fast:
+            if debug_mode:
                 raise MisplacedSystemInstructError()
             else:
                 logging.error("Found system message in non-first position, repairing by dropping message")
@@ -160,7 +160,7 @@ def _validate_system_instruction_correctly_placed(fail_fast: bool, context_messa
     return validated_messages
 
 
-def _validate_assistant_tool_calls_followed_by_tool(fail_fast: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def _validate_assistant_tool_calls_followed_by_tool(debug_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     """
     Validates that any assistant message with non-empty tool_calls is followed by corresponding tool messages.
     """
@@ -169,7 +169,7 @@ def _validate_assistant_tool_calls_followed_by_tool(fail_fast: bool, context_mes
         if (message.role == ASSISTANT and message.tool_calls is not None) and (
             idx == len(context_messages) - 1 or context_messages[idx + 1].role != TOOL
         ):
-            if fail_fast:
+            if debug_mode:
                 raise MissingToolCallMessageError()
             else:
                 logging.error(
@@ -179,7 +179,7 @@ def _validate_assistant_tool_calls_followed_by_tool(fail_fast: bool, context_mes
     return context_messages
 
 
-def _validate_tool_messages_have_assistant_tool_call(fail_fast: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def _validate_tool_messages_have_assistant_tool_call(debug_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     """
     Validates that all tool messages have a preceding assistant message with the corresponding tool_calls.
     """
@@ -187,7 +187,7 @@ def _validate_tool_messages_have_assistant_tool_call(fail_fast: bool, context_me
     validated_context_messages = []
     for idx, message in enumerate(context_messages):
         if message.role == TOOL and not _has_assistant_tool_call(message.tool_call_id, context_messages[:idx]):
-            if fail_fast:
+            if debug_mode:
                 raise MissingAssistantToolCallError(f"Message id: {message.id}")
             else:
                 logging.warning(
