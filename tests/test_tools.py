@@ -24,7 +24,7 @@ def test_missing_tool_message_recovers(elroy_context: ElroyContext):
     Tests recovery when an assistant message is included without the corresponding subsequent tool message.
     """
 
-    elroy_context.config.fail_fast = False
+    elroy_context.config.debug_mode = False
 
     add_context_messages(elroy_context, _missing_tool_message(elroy_context))
 
@@ -37,7 +37,7 @@ def test_missing_tool_message_throws(elroy_context: ElroyContext):
     Tests that an error is raised when an assistant message is included without the corresponding subsequent tool message.
     """
 
-    elroy_context.config.fail_fast = True
+    elroy_context.config.debug_mode = True
 
     add_context_messages(elroy_context, _missing_tool_message(elroy_context))
 
@@ -50,7 +50,7 @@ def test_missing_tool_call_recovers(elroy_context: ElroyContext):
     Tests recovery when a tool message is included without the corresponding assistant message with tool_calls.
     """
 
-    elroy_context.config.fail_fast = False
+    elroy_context.config.debug_mode = False
 
     add_context_messages(elroy_context, _missing_tool_call(elroy_context))
 
@@ -63,7 +63,7 @@ def test_missing_tool_call_throws(elroy_context: ElroyContext):
     Tests that an error is raised when a tool message is included without the corresponding assistant message with tool_calls.
     """
 
-    elroy_context.config.fail_fast = True
+    elroy_context.config.debug_mode = True
 
     add_context_messages(elroy_context, _missing_tool_call(elroy_context))
 

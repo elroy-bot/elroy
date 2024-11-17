@@ -89,7 +89,7 @@ def elroy_config(postgres_url, chat_model_name):
         postgres_url=postgres_url,
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
         openai_api_key=os.environ.get("OPENAI_API_KEY"),
-        fail_fast=True,
+        debug_mode=True,
     )
 
 
