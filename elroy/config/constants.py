@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-INNER_THOUGHT_TAG = "inner_thought_monologue"
+INNER_THOUGHT_TAG = "INNER_THOUGHT_MONOLOGUE"
 SYSTEM_INSTRUCTION_LABEL = "*Elroy System Instruction*"
 
 UNKNOWN = "Unknown"

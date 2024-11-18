@@ -56,6 +56,13 @@ Don't say things like "finally, we talked about", or "in conclusion", as this is
 Return your response in JSON format, with the following structure:
 - TITLE: the title of the archival memory
 - {INNER_THOUGHT_TAG}: the internal thought monologue
+
+An example valid response might look like:
+{{
+    "TITLE": "Meeting with George",
+    "{INNER_THOUGHT_TAG}": "George is a 35 year"
+}}
+
 """,
     )
 
