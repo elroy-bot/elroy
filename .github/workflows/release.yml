@@ -183,3 +183,24 @@ jobs:
           ghcr.io/elroy-bot/elroy:latest
           ghcr.io/elroy-bot/elroy:${{ steps.version.outputs.version }}
 
+  announce-discord:
+    environment:
+      name: release
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: ./.github/actions/setup-elroy-env
+      
+    - name: Install discord.py
+      run: pip install discord.py
+      
+    - name: Announce on Discord
+      env:
+        ELROY_DISCORD_TOKEN: ${{ secrets.ELROY_DISCORD_TOKEN }}
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        python scripts/announce_release_on_discord.py $VERSION
+

@@ -246,12 +246,9 @@ if __name__ == "__main__":
         print("Local git state is not clean. Aborting release")
         sys.exit(1)
 
-    # add local tag to HEAD
-    subprocess.run(["git", "tag", f"v{NEXT_PATCH}"], check=True)
-
     # open pr with gh cli
     print("Creating PR...")
-    subprocess.run(["gh", "pr", "create", "--title", f"Release {NEXT_PATCH}"], check=True)
+    subprocess.run(["gh", "pr", "create", "--fill"], check=True)
 
     # check with user before merging
     print("Press Enter to merge the PR")
@@ -259,8 +256,14 @@ if __name__ == "__main__":
 
     # merge pr
     print("Merging PR...")
-    subprocess.run(["gh", "pr", "merge", "--auto"], check=True)
+    subprocess.run(["gh", "pr", "merge", "--rebase", "-d"], check=True)
 
-    # push changes / tags to remote
-    print("Pushing tags...")
-    subprocess.run(["git", "push", "--tags"], check=True)
+    # switch back to main and pull latest
+    print("Switching to main branch...")
+    subprocess.run(["git", "checkout", "main"], check=True)
+    subprocess.run(["git", "pull", "origin", "main"], check=True)
+
+    # create and push tag on main
+    print("Creating and pushing tag...")
+    subprocess.run(["git", "tag", f"v{NEXT_PATCH}"], check=True)
+    subprocess.run(["git", "push", "origin", f"v{NEXT_PATCH}"], check=True)
