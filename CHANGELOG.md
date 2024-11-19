@@ -1,6 +1,8 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [0.0.43] - 2024-11-18
+
+Minor fixes
 
 ## [0.0.42] - 2024-11-17
 

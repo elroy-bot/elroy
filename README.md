@@ -87,20 +87,44 @@ echo "Say hello world" | elroy
 ## Available Commands
 ![Remember command](images/remember_command.gif)
 
-While chatting with Elroy, you can use the following commands. For the most part, these commands are available for Elroy to use autonomously:
+Elroy provides both CLI commands and in-chat commands (which can be used by both users and the assistant). For full schema information, see [tools schema reference](docs/tools_schema.md).
 
-### System Commands
+### Model Support
+
+Elroy supports both OpenAI, OpenAI compatible, and Anthropic language models:
+
+- OpenAI Models: All chat completion models (gpt-3.5-turbo, gpt-4, etc.)
+- Anthropic Models: All Claude models (claude-2, claude-instant, etc.)
+- Compatible API providers: Any provider with an OpenAI-compatible API
+
+Use `elroy list-chat-models` to see all supported models.
+
+### CLI Commands
+These commands can be run directly from your terminal:
+
+- `elroy chat` - Start the interactive chat interface (default command)
+- `elroy remember` - Create a new memory from stdin or interactively
+- `elroy list-chat-models` - List all supported chat models
+- `elroy --help` - Show help information and all available options
+
+### In-Chat Commands
+While chatting with Elroy, commands can be used by typing a forward slash (/) followed by the command name. Commands are divided into two categories:
+
+#### User-Only Commands
+These commands can only be used by human users:
 
 - `/print_available_commands` - Show all available commands
 - `/print_system_instruction` - View current system instructions
 - `/refresh_system_instructions` - Refresh system instructions
 - `/reset_system_context` - Reset conversation context
 - `/print_context_messages` - View current conversation context
-- `/add_internal_thought` - Insert an internal thought for the assistant to guide its thinking.
-- `/contemplate` - Ask Elroy to reflect on the conversation
+- `/add_internal_thought` - Insert an internal thought for the assistant
 - `/exit` - Exit the chat
 
-### Goal Management
+#### Assistant and User Commands
+These commands can be used by both users and Elroy:
+
+##### Goal Management
 - `/create_goal` - Create a new goal
 - `/rename_goal` - Rename an existing goal
 - `/print_goal` - View details of a specific goal
@@ -109,20 +133,23 @@ While chatting with Elroy, you can use the following commands. For the most part
 - `/add_goal_status_update` - Update goal progress
 - `/mark_goal_completed` - Mark a goal as complete
 - `/delete_goal_permanently` - Delete a goal
+- `/get_active_goal_names` - List all active goals
 
-### Memory Management
+##### Memory Management
 - `/print_memory` - View a specific memory
 - `/create_memory` - Create a new memory
+- `/add_memory_to_current_context` - Add a memory to current conversation
+- `/drop_memory_from_current_context` - Remove memory from current conversation
 
-### User Preferences
+##### User Preferences
 - `/get_user_full_name` - Get your full name
 - `/set_user_full_name` - Set your full name
 - `/get_user_preferred_name` - Get your preferred name
 - `/set_user_preferred_name` - Set your preferred name
 
-### Conversation
+##### Reflection and Development
 - `/contemplate` - Ask Elroy to reflect on the conversation
-- `/exit` - Exit the chat
+- `/start_aider_session` - Start an aider coding session (experimental)
 
 
 ## Customization
