@@ -93,10 +93,14 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 
 Elroy supports both OpenAI and Anthropic language models:
 
+#### Chat Models
 - OpenAI Models: All chat completion models (gpt-3.5-turbo, gpt-4, etc.)
-- Anthropic Models: All Claude models (claude-2, claude-instant, etc.)
+- Anthropic Models: All Claude models (claude-2, claude-instant-1, etc.)
 - OpenAI-Compatible APIs: Any provider offering an OpenAI-compatible API endpoint (via --openai-api-base)
-- Embedding Models: OpenAI (or OpenAI compatible) text-embedding models for memory and context management
+
+#### Embedding Models 
+- OpenAI Models: text-embedding-ada-002
+- OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
 
 Use `elroy list-chat-models` to see all supported chat models.
 
@@ -107,6 +111,8 @@ These commands can be run directly from your terminal:
 - `elroy remember [--file FILE]` - Create a new memory from stdin, file, or interactively
 - `elroy list-chat-models` - List all supported chat models
 - `elroy --help` - Show help information and all available options
+
+Note: Running just `elroy` without any command will default to `elroy chat`.
 
 ### In-Chat Commands
 While chatting with Elroy, commands can be used by typing a forward slash (/) followed by the command name. Commands are divided into two categories:
@@ -149,8 +155,8 @@ These commands can be used by both users and Elroy:
 - `/set_user_preferred_name` - Set your preferred name
 
 ##### Reflection and Development
-- `/contemplate` - Ask Elroy to reflect on the conversation
-- `/start_aider_session` - Start an aider coding session (experimental)
+- `/contemplate [prompt]` - Ask Elroy to reflect on the conversation or a specific topic
+- `/start_aider_session [file_location] [comment]` - Start an aider coding session (experimental)
 
 
 ## Customization
