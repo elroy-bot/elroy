@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'  # Trigger on version tags
+    branches-ignore:
+      - '**'  # Ignore branch pushes, only trigger on tags
 
 jobs:
   pytest:
