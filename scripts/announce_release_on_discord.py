@@ -14,7 +14,7 @@ GENERAL_CHANNEL_ID = 1307066378053877841
 TEST_CHANNEL_ID = 1308566429779492874
 
 # parent dir of script is the root of the project
-CHANGELOG_LOCATION = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "CHANGELOG.md")
+CHANGELOG_LOCATION = os.path.join(os.path.dirname(os.path.dirname(__file__)), "CHANGELOG.md")
 
 
 class ReleaseBot:
@@ -67,6 +67,10 @@ class ReleaseBot:
         """Extract release notes from CHANGELOG.md for the given version"""
         if version.startswith("v"):
             version = version[1:]
+
+        if not os.path.exists(CHANGELOG_LOCATION):
+            print(f"Warning: CHANGELOG.md not found at {CHANGELOG_LOCATION}", file=sys.stderr)
+            return "No release notes available."
 
         try:
             with open(CHANGELOG_LOCATION, "r") as f:
