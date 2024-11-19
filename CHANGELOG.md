@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.44] - 2024-11-19
+
+### Improved
+- Enhanced release process with streaming subprocess output and progress logging
+- Updated documentation for clarity and completeness
+
+### Legal
+- Changed project license to Apache 2.0
+
 ## [0.0.43] - 2024-11-18
 
 Minor fixes
