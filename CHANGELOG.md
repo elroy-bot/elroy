@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.45] - 2024-11-19
+
+### Added
+- Added automated Discord announcements for new releases
+
+### Infrastructure
+- Improved CI workflow to prevent duplicate runs on branch pushes
+
 ## [0.0.44] - 2024-11-19
 
 ### Improved
