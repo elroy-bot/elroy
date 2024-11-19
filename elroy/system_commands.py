@@ -449,6 +449,7 @@ NON_ARG_PREFILL_COMMANDS = {
     set_user_preferred_name,
 }
 
+# These are commands that are visible to the assistant to be executed as tools.
 ASSISTANT_VISIBLE_COMMANDS = (
     NON_ARG_PREFILL_COMMANDS
     | IN_CONTEXT_GOAL_COMMANDS
@@ -460,6 +461,8 @@ ASSISTANT_VISIBLE_COMMANDS = (
     | NON_ARG_PREFILL_COMMANDS
 )
 
+
+# User only commands are commands that are only available to the user, via CLI.
 USER_ONLY_COMMANDS = {
     add_internal_thought,
     reset_system_context,

@@ -44,8 +44,11 @@ def get_user_preferred_name(context: ElroyContext) -> str:
 
 
 def set_user_full_name(context: ElroyContext, full_name: str, override_existing: Optional[bool] = False) -> str:
-    """Sets the user's full name. Should predominantly be used relatively
-    early in first conversations, and relatively rarely afterward.
+    """Sets the user's full name.
+
+    Guidance for usage:
+    - Should predominantly be used relatively in the user journey. However, ensure to not be pushy in getting personal information early.
+    - For existing users, this should be used relatively rarely.
 
     Args:
         user_id (int): user id
