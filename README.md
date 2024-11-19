@@ -91,19 +91,20 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 
 ### Model Support
 
-Elroy supports both OpenAI, OpenAI compatible, and Anthropic language models:
+Elroy supports both OpenAI and Anthropic language models:
 
 - OpenAI Models: All chat completion models (gpt-3.5-turbo, gpt-4, etc.)
 - Anthropic Models: All Claude models (claude-2, claude-instant, etc.)
-- Compatible API providers: Any provider with an OpenAI-compatible API
+- OpenAI-Compatible APIs: Any provider offering an OpenAI-compatible API endpoint (via --openai-api-base)
+- Embedding Models: OpenAI (or OpenAI compatible) text-embedding models for memory and context management
 
-Use `elroy list-chat-models` to see all supported models.
+Use `elroy list-chat-models` to see all supported chat models.
 
 ### CLI Commands
 These commands can be run directly from your terminal:
 
 - `elroy chat` - Start the interactive chat interface (default command)
-- `elroy remember` - Create a new memory from stdin or interactively
+- `elroy remember [--file FILE]` - Create a new memory from stdin, file, or interactively
 - `elroy list-chat-models` - List all supported chat models
 - `elroy --help` - Show help information and all available options
 
