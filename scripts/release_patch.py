@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import re
@@ -110,7 +111,7 @@ def run_tests(errors: Errors):
 
     try:
         # Run pytest with specified chat models
-        subprocess.run(["pytest", "--chat-models=gpt-4,claude-3-sonnet-20240229"], check=True, capture_output=True, text=True)
+        subprocess.run(["pytest", "--chat-models=gpt-4,claude-3-sonnet-20240229", "-n", "auto"], check=True)
 
         # If tests pass, create cache file
         with open(cache_file, "w") as f:
@@ -200,6 +201,10 @@ def _get_version_from_pyproject() -> str:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Release a new patch version")
+    parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
+    args = parser.parse_args()
+
     errors = Errors([])
     print("Ensuring tags are consistent and up to date...")
     check_on_main_branch(errors)
@@ -210,7 +215,10 @@ if __name__ == "__main__":
     check_remote_tag_consistent(errors)
     check_most_recent_changelog_consistent(errors)
 
-    run_tests(errors)
+    if args.skip_tests:
+        print("Skipping tests")
+    else:
+        run_tests(errors)
 
     if errors.messages:
         for message in errors.messages:
@@ -222,9 +230,10 @@ if __name__ == "__main__":
     # checkout branch for new release
     subprocess.run(["git", "checkout", "-b", f"release-{NEXT_PATCH}"], check=True)
 
+    print("Running bumpversion...")
     subprocess.run(["bumpversion", "--new-version", NEXT_PATCH, "patch"], check=True)
 
-    print("Updating docs")
+    print("Updating docs...")
     update_schema_doc()
     subprocess.run([os.path.join(REPO_ROOT, "scripts", "prepare-docs-for-release.sh"), NEXT_PATCH], check=True)
 
@@ -241,6 +250,7 @@ if __name__ == "__main__":
     subprocess.run(["git", "tag", f"v{NEXT_PATCH}"], check=True)
 
     # open pr with gh cli
+    print("Creating PR...")
     subprocess.run(["gh", "pr", "create", "--title", f"Release {NEXT_PATCH}"], check=True)
 
     # check with user before merging
@@ -248,7 +258,9 @@ if __name__ == "__main__":
     input()
 
     # merge pr
+    print("Merging PR...")
     subprocess.run(["gh", "pr", "merge", "--auto"], check=True)
 
     # push changes / tags to remote
+    print("Pushing tags...")
     subprocess.run(["git", "push", "--tags"], check=True)

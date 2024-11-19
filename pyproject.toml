@@ -65,6 +65,7 @@ vulture = "^2.11"
 testcontainers = "^3.7.1"
 pylint = "^3.3.1"
 lorem-text = "^2.1"
+pytest-xdist = "^3.6.1"
 
 [tool.pytest.ini_options]
     filterwarnings = [
