@@ -1,20 +1,18 @@
 import asyncio
+import inspect
 import os
 from typing import Any, Generator
 
 import pytest
 from sqlmodel import delete, text
 from tests.fixtures import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME, create_test_user
+from toolz import keyfilter, merge, pipe
+from toolz.curried import valfilter
 
 from alembic.command import upgrade
 from alembic.config import Config
 from elroy import ROOT_DIR
-from elroy.config.config import ElroyContext, get_config, session_manager
-from elroy.config.constants import (
-    DEFAULT_CONTEXT_WINDOW_LIMIT,
-    DEFAULT_EMBEDDING_MODEL_NAME,
-    EMBEDDING_SIZE,
-)
+from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager
 from elroy.docker_postgres import is_docker_running
 from elroy.io.base import ElroyIO, StdIO
 from elroy.repository.data_models import (
@@ -78,18 +76,22 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="session")
 def elroy_config(postgres_url, chat_model_name):
-    yield get_config(
-        chat_model_name=chat_model_name,
-        embedding_model_name=DEFAULT_EMBEDDING_MODEL_NAME,
-        embedding_model_size=EMBEDDING_SIZE,
-        context_window_token_limit=DEFAULT_CONTEXT_WINDOW_LIMIT,
-        openai_api_base=os.environ.get("OPENAI_API_BASE"),
-        openai_embedding_api_base=os.environ.get("OPENAI_EMBEDDING_API_BASE"),
-        openai_organization=os.environ.get("OPENAI_ORGANIZATION"),
-        postgres_url=postgres_url,
-        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
-        openai_api_key=os.environ.get("OPENAI_API_KEY"),
-        debug_mode=True,
+    env_vars_dict = pipe(
+        {
+            "openai_api_key": os.environ.get("OPENAI_API_KEY"),
+            "openai_organization": os.environ.get("OPENAI_ORGANIZATION"),
+            "openai_api_base": os.environ.get("OPENAI_API_BASE"),
+            "openai_embedding_api_base": os.environ.get("OPENAI_EMBEDDING_API_BASE"),
+            "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY"),
+        },
+        valfilter(lambda x: x is not None),
+    )
+
+    yield pipe(
+        load_defaults(),
+        lambda x: merge(x, env_vars_dict, {"postgres_url": postgres_url, "chat_model_name": chat_model_name}),
+        lambda x: keyfilter(lambda k: k in inspect.signature(get_config).parameters, x),
+        lambda x: get_config(**x),
     )
 
 

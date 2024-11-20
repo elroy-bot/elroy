@@ -9,11 +9,7 @@ from toolz import compose, pipe
 from toolz.curried import do, map
 
 from ..config.config import ElroyContext
-from ..config.constants import (
-    L2_MEMORY_CONSOLIDATION_DISTANCE_THRESHOLD,
-    L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD,
-    RESULT_SET_LIMIT_COUNT,
-)
+from ..config.constants import RESULT_SET_LIMIT_COUNT
 from ..repository.data_models import EmbeddableSqlModel, Goal, Memory
 from ..repository.facts import to_fact
 from ..utils.utils import first_or_none
@@ -25,7 +21,6 @@ def query_vector(
     table: Type[EmbeddableSqlModel],
     context: ElroyContext,
     query: List[float],
-    l2_distance_threshold: float = L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD,
 ) -> Iterable[EmbeddableSqlModel]:
     """
     Perform a vector search on the specified table using the given query.
@@ -46,7 +41,7 @@ def query_vector(
             .where(
                 table.user_id == context.user_id,
                 table.is_active == True,
-                distance_exp < l2_distance_threshold,  # type: ignore
+                distance_exp < context.config.l2_memory_relevance_distance_threshold,  # type: ignore
                 table.embedding != None,
             )
             .order_by(distance_exp)
@@ -66,7 +61,6 @@ T = TypeVar("T", bound=EmbeddableSqlModel)
 def find_redundant_pairs(
     context: ElroyContext,
     table: Type[T],
-    l2_distance_threshold: float = L2_MEMORY_CONSOLIDATION_DISTANCE_THRESHOLD,
     limit: int = 1,
 ) -> Iterable[Tuple[T, T]]:
     """
@@ -97,7 +91,7 @@ def find_redundant_pairs(
                 t2.user_id == context.user_id,
                 t1.is_active == True,
                 t2.is_active == True,
-                distance_exp < l2_distance_threshold,  # type: ignore
+                distance_exp < context.config.l2_memory_consolidation_distance_threshold,  # type: ignore
                 t1.embedding.is_not(None),  # type: ignore
                 t2.embedding.is_not(None),  # type: ignore
             )

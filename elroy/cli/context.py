@@ -13,7 +13,7 @@ from toolz import concatv, pipe
 from toolz.curried import map
 
 from ..config.config import ElroyContext, session_manager
-from ..config.constants import CLI_USER_ID, INITIAL_REFRESH_WAIT_SECONDS
+from ..config.constants import CLI_USER_ID
 from ..docker_postgres import is_docker_running, start_db, stop_db
 from ..io.base import StdIO
 from ..io.cli import CliIO
@@ -44,7 +44,7 @@ def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
     asyncio.set_event_loop(loop)
 
     async def refresh_loop(context: ElroyContext):
-        await asyncio.sleep(INITIAL_REFRESH_WAIT_SECONDS)
+        await asyncio.sleep(context.config.initial_refresh_wait.total_seconds())
         while True:
             try:
                 logging.info("Refreshing context")
