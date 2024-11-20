@@ -3,28 +3,18 @@ import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import typer
+from click import get_current_context
 from colorama import init
 from litellm import anthropic_models, open_ai_chat_completion_models
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
+from typer import Option
 
 from ..cli.updater import check_updates, version_callback
-from ..config.config import ROOT_DIR, ElroyContext, get_config
-from ..config.constants import (
-    DEFAULT_ASSISTANT_COLOR,
-    DEFAULT_CHAT_MODEL_NAME,
-    DEFAULT_CONTEXT_WINDOW_LIMIT,
-    DEFAULT_EMBEDDING_MODEL_NAME,
-    DEFAULT_INPUT_COLOR,
-    DEFAULT_INTERNAL_THOUGHT_COLOR,
-    DEFAULT_SYSTEM_MESSAGE_COLOR,
-    DEFAULT_WARNING_COLOR,
-    EMBEDDING_SIZE,
-    MIN_CONVO_AGE_FOR_GREETING,
-)
+from ..config.config import ElroyContext, get_config, load_defaults
 from ..docker_postgres import DOCKER_DB_URL
 from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
@@ -51,99 +41,193 @@ from .context import (
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
 
+def CliOption(yaml_key: str, *args: Any, **kwargs: Any):
+    """
+    Creates a typer Option with value priority:
+    1. CLI provided value (handled by typer)
+    2. User config file value (if provided)
+    3. defaults.yml value
+    """
+
+    def get_default():
+        ctx = get_current_context()
+        config_file = ctx.params.get("config_file")
+        defaults = load_defaults(config_file)
+        return defaults.get(yaml_key)
+
+    return Option(*args, default_factory=get_default, **kwargs)
+
+
 @app.callback()
 def common(
+    # Basic Configuration
     ctx: typer.Context,
+    config_file: Optional[str] = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.",
+        rich_help_panel="Basic Configuration",
+    ),
     version: bool = typer.Option(
         None,
         "--version",
         callback=version_callback,
         is_eager=True,
         help="Show version and exit.",
+        rich_help_panel="Basic Configuration",
     ),
-    postgres_url: Optional[str] = typer.Option(
-        None,
+    debug: bool = CliOption(
+        "debug",
+        help="Whether to fail fast when errors occur, and emit more verbose logging.",
+        rich_help_panel="Basic Configuration",
+    ),
+    # Database Configuration
+    postgres_url: Optional[str] = CliOption(
+        "postgres_url",
         envvar="ELROY_POSTGRES_URL",
-        help="Postgres URL to use for Elroy. If set, ovverrides use_docker_postgres.",
+        help="Postgres URL to use for Elroy. If set, overrides use_docker_postgres.",
+        rich_help_panel="Database Configuration",
     ),
-    show_internal_thought_monologue: bool = typer.Option(
-        False,
-        help="Show the assistant's internal thought monologue like memory consolidation and internal reflection.",
-    ),
-    openai_api_key: Optional[str] = typer.Option(
-        None,
-        envvar="OPENAI_API_KEY",
-        help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
-    ),
-    openai_api_base: Optional[str] = typer.Option(
-        None,
-        envvar="OPENAI_API_BASE",
-        help="OpenAI API (or OpenAI compatible) base URL.",
-    ),
-    openai_embedding_api_base: Optional[str] = typer.Option(
-        None,
-        envvar="OPENAI_API_BASE",
-        help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
-    ),
-    openai_organization: Optional[str] = typer.Option(
-        None,
-        envvar="OPENAI_ORGANIZATION",
-        help="OpenAI (or OpenAI compatible) organization ID.",
-    ),
-    anthropic_api_key: Optional[str] = typer.Option(
-        None,
-        envvar="ANTHROPIC_API_KEY",
-        help="Anthropic API key, required for Anthropic models.",
-    ),
-    context_window_token_limit: int = typer.Option(
-        DEFAULT_CONTEXT_WINDOW_LIMIT,
-        envvar="ELROY_CONTEXT_WINDOW_TOKEN_LIMIT",
-        help="How many tokens to keep in context before compressing.",
-    ),
-    log_file_path: str = typer.Option(
-        os.path.join(ROOT_DIR, "logs", "elroy.log"),
-        envvar="ELROY_LOG_FILE_PATH",
-        help="Where to write logs.",
-    ),
-    use_docker_postgres: Optional[bool] = typer.Option(
-        True,
+    use_docker_postgres: Optional[bool] = CliOption(
+        "use_docker_postgres",
         envvar="USE_DOCKER_POSTGRES",
         help="If true and postgres_url is not set, will attempt to start a Docker container for Postgres.",
+        rich_help_panel="Database Configuration",
     ),
-    stop_docker_postgres_on_exit: Optional[bool] = typer.Option(
-        False,
+    stop_docker_postgres_on_exit: Optional[bool] = CliOption(
+        "stop_docker_postgres_on_exit",
         envvar="STOP_DOCKER_POSTGRES_ON_EXIT",
         help="Whether or not to stop the Postgres container on exit.",
+        rich_help_panel="Database Configuration",
     ),
-    system_message_color: str = typer.Option(
-        DEFAULT_SYSTEM_MESSAGE_COLOR,
-        help="Color for system messages.",
+    # API Configuration
+    openai_api_key: Optional[str] = CliOption(
+        "openai_api_key",
+        envvar="OPENAI_API_KEY",
+        help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
+        rich_help_panel="API Configuration",
     ),
-    user_input_color: str = typer.Option(DEFAULT_INPUT_COLOR, help="Color for user input."),
-    assistant_color: str = typer.Option(
-        DEFAULT_ASSISTANT_COLOR,
-        help="Color for assistant output.",
+    openai_api_base: Optional[str] = CliOption(
+        "openai_api_base",
+        envvar="OPENAI_API_BASE",
+        help="OpenAI API (or OpenAI compatible) base URL.",
+        rich_help_panel="API Configuration",
     ),
-    warning_color: str = typer.Option(DEFAULT_WARNING_COLOR, help="Color for warning messages."),
-    internal_thought_color: str = typer.Option(
-        DEFAULT_INTERNAL_THOUGHT_COLOR,
-        help="Color for internal thought messages.",
+    openai_embedding_api_base: Optional[str] = CliOption(
+        "openai_embedding_api_base",
+        envvar="OPENAI_API_BASE",
+        help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
+        rich_help_panel="API Configuration",
     ),
-    chat_model: str = typer.Option(
-        DEFAULT_CHAT_MODEL_NAME,
+    openai_organization: Optional[str] = CliOption(
+        "openai_organization",
+        envvar="OPENAI_ORGANIZATION",
+        help="OpenAI (or OpenAI compatible) organization ID.",
+        rich_help_panel="API Configuration",
+    ),
+    anthropic_api_key: Optional[str] = CliOption(
+        "anthropic_api_key",
+        envvar="ANTHROPIC_API_KEY",
+        help="Anthropic API key, required for Anthropic models.",
+        rich_help_panel="API Configuration",
+    ),
+    # Model Configuration
+    chat_model: str = CliOption(
+        "chat_model",
+        envvar="ELROY_CHAT_MODEL",
         help="The model to use for chat completions.",
+        rich_help_panel="Model Configuration",
     ),
-    emedding_model: str = typer.Option(
-        DEFAULT_EMBEDDING_MODEL_NAME,
+    emedding_model: str = CliOption(
+        "embedding_model",
         help="The model to use for text embeddings.",
+        rich_help_panel="Model Configuration",
     ),
-    embedding_model_size: int = typer.Option(
-        EMBEDDING_SIZE,
+    embedding_model_size: int = CliOption(
+        "embedding_model_size",
         help="The size of the embedding model.",
+        rich_help_panel="Model Configuration",
     ),
-    debug: bool = typer.Option(
-        False,
-        help="Whether to fail fast when errors occur, and emit more verbose logging. Intended as a dev aid.",
+    # Context Management
+    context_refresh_trigger_tokens: int = CliOption(
+        "context_refresh_trigger_tokens",
+        help="Number of tokens that triggers a context refresh and compresion of messages in the context window.",
+        rich_help_panel="Context Management",
+    ),
+    context_refresh_target_tokens: int = CliOption(
+        "context_refresh_target_tokens",
+        help="Target number of tokens after context refresh / context compression, how many tokens to aim to keep in context.",
+        rich_help_panel="Context Management",
+    ),
+    max_context_age_minutes: float = CliOption(
+        "max_context_age_minutes",
+        help="Maximum age in minutes to keep. Messages older tha this will be dropped from context, regardless of token limits",
+        rich_help_panel="Context Management",
+    ),
+    context_refresh_interval_minutes: float = CliOption(
+        "context_refresh_interval_minutes",
+        help="How often in minutes to refresh system message and compress context.",
+        rich_help_panel="Context Management",
+    ),
+    min_convo_age_for_greeting_minutes: float = CliOption(
+        "min_convo_age_for_greeting_minutes",
+        help="Minimum age in minutes of conversation before the assistant will offer a greeting on login.",
+        rich_help_panel="Context Management",
+    ),
+    # Memory Management
+    l2_memory_relevance_distance_threshold: float = CliOption(
+        "l2_memory_relevance_distance_threshold",
+        help="L2 distance threshold for memory relevance.",
+        rich_help_panel="Memory Management",
+    ),
+    l2_memory_consolidation_distance_threshold: float = CliOption(
+        "l2_memory_consolidation_distance_threshold",
+        help="L2 distance threshold for memory consolidation.",
+        rich_help_panel="Memory Management",
+    ),
+    initial_context_refresh_wait_seconds: int = CliOption(
+        "initial_context_refresh_wait_seconds",
+        help="Initial wait time in seconds after login before the initial context refresh and compression.",
+        rich_help_panel="Memory Management",
+    ),
+    # UI Configuration
+    show_internal_thought_monologue: bool = CliOption(
+        "show_internal_thought_monologue",
+        help="Show the assistant's internal thought monologue like memory consolidation and internal reflection.",
+        rich_help_panel="UI Configuration",
+    ),
+    system_message_color: str = CliOption(
+        "system_message_color",
+        help="Color for system messages.",
+        rich_help_panel="UI Configuration",
+    ),
+    user_input_color: str = CliOption(
+        "user_input_color",
+        help="Color for user input.",
+        rich_help_panel="UI Configuration",
+    ),
+    assistant_color: str = CliOption(
+        "assistant_color",
+        help="Color for assistant output.",
+        rich_help_panel="UI Configuration",
+    ),
+    warning_color: str = CliOption(
+        "warning_color",
+        help="Color for warning messages.",
+        rich_help_panel="UI Configuration",
+    ),
+    internal_thought_color: str = CliOption(
+        "internal_thought_color",
+        help="Color for internal thought messages.",
+        rich_help_panel="UI Configuration",
+    ),
+    # Logging
+    log_file_path: str = CliOption(
+        "log_file_path",
+        envvar="ELROY_LOG_FILE_PATH",
+        help="Where to write logs.",
+        rich_help_panel="Logging",
     ),
 ):
     """Common parameters."""
@@ -158,10 +242,17 @@ def common(
         "elroy_config": get_config(
             postgres_url=postgres_url or DOCKER_DB_URL,
             chat_model_name=chat_model,
-            debug_mode=debug,
-            embedding_model_name=emedding_model,
+            debug=debug,
+            embedding_model=emedding_model,
             embedding_model_size=embedding_model_size,
-            context_window_token_limit=context_window_token_limit,
+            context_refresh_trigger_tokens=context_refresh_trigger_tokens,
+            context_refresh_target_tokens=context_refresh_target_tokens,
+            max_context_age_minutes=max_context_age_minutes,
+            context_refresh_interval_minutes=context_refresh_interval_minutes,
+            min_convo_age_for_greeting_minutes=min_convo_age_for_greeting_minutes,
+            l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold,
+            l2_memory_consolidation_distance_threshold=l2_memory_consolidation_distance_threshold,
+            initial_context_refresh_wait_seconds=initial_context_refresh_wait_seconds,
             openai_api_key=openai_api_key,
             anthropic_api_key=anthropic_api_key,
             openai_api_base=openai_api_base,
@@ -253,6 +344,14 @@ def list_chat_models(ctx: typer.Context):
         print(f"{m} (Anthropic)")
 
 
+@app.command()
+def show_config(ctx: typer.Context):
+    """Shows current configuration (for testing)"""
+    config = ctx.obj["elroy_config"]
+    for key, value in config.__dict__.items():
+        print(f"{key}={value}")
+
+
 def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
     if user_input.startswith("/") and role == USER:
         cmd = user_input[1:].split()[0]
@@ -274,7 +373,7 @@ async def main_chat(context: ElroyContext[CliIO]):
     run_in_background_thread(
         periodic_context_refresh,
         context,
-        context.config.context_refresh_interval_seconds,
+        context.config.context_refresh_interval,
     )
 
     context.io.print_title_ruler()
@@ -302,7 +401,7 @@ async def main_chat(context: ElroyContext[CliIO]):
 
         _print_memory_panel(context, context_messages)
 
-        if (get_time_since_most_recent_user_message(context_messages) or timedelta()) < MIN_CONVO_AGE_FOR_GREETING:
+        if (get_time_since_most_recent_user_message(context_messages) or timedelta()) < context.config.min_convo_age_for_greeting:
             logging.info("User has interacted recently, skipping greeting.")
 
         else:
@@ -336,10 +435,7 @@ async def main_chat(context: ElroyContext[CliIO]):
 def _print_memory_panel(context: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
     pipe(
         context_messages,
-        filter(
-            lambda m: not m.created_at
-            or m.created_at > get_utc_now() - timedelta(seconds=context.config.max_in_context_message_age_seconds)
-        ),
+        filter(lambda m: not m.created_at or m.created_at > get_utc_now() - context.config.max_in_context_message_age),
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,

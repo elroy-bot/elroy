@@ -1,0 +1,43 @@
+# Database settings
+postgres_url: null  # Must be provided or use Docker
+use_docker_postgres: true
+stop_docker_postgres_on_exit: false
+
+# Model settings
+chat_model: "gpt-4o"
+embedding_model: "text-embedding-3-small"
+embedding_model_size: 1536
+
+# Context management
+context_refresh_trigger_tokens: 3300
+context_refresh_target_tokens: 1650
+max_context_age_minutes: 120.0
+context_refresh_interval_minutes: 10.0
+min_convo_age_for_greeting_minutes: 10.0
+initial_context_refresh_wait_seconds: 30
+
+# Memory thresholds
+l2_memory_relevance_distance_threshold: 1.24
+l2_memory_consolidation_distance_threshold: 0.65
+memory_word_count_limit: 300
+
+# UI colors
+system_message_color: "#9ACD32"
+user_input_color: "#FFE377"
+assistant_color: "#77DFD8"
+warning_color: "yellow"
+internal_thought_color: "#708090"
+
+# API settings
+openai_api_key: null
+openai_api_base: null
+openai_embedding_api_base: null
+openai_organization: null
+anthropic_api_key: null
+
+# Debug settings
+debug: false
+show_internal_thought_monologue: false
+
+# Logging
+log_file_path: "logs/elroy.log"

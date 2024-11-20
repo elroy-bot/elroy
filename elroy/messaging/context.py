@@ -1,6 +1,6 @@
 import logging
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import partial, reduce
 from operator import add
 from typing import List, Optional, Type, Union
@@ -125,7 +125,7 @@ def is_context_refresh_needed(context: ElroyContext) -> bool:
         logging.info(f"Token count {token_count} does not exceed threshold {context.config.context_refresh_token_trigger_limit}")
 
     elapsed_time = get_time_since_context_message_creation(context)
-    threshold = timedelta(seconds=context.config.context_refresh_interval_seconds)
+    threshold = context.config.context_refresh_interval
     if not elapsed_time or elapsed_time > threshold:
         logging.info(f"Context watermark age {elapsed_time} exceeds threshold {threshold}")
         return True
@@ -164,7 +164,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
 
         if current_token_count > context.config.context_refresh_token_target:
             break
-        elif msg_created_at < get_utc_now() - timedelta(seconds=context.config.max_in_context_message_age_seconds):
+        elif msg_created_at < get_utc_now() - context.config.max_in_context_message_age:
             logging.info(f"Dropping old message {msg.id}")
             continue
         else:
