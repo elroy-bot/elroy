@@ -54,7 +54,7 @@ target-version = ['py39', 'py310', 'py311']
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"
-pydantic = "^2.8.2"
+pydantic = "<2.10" # 2.10 seems to have some bugs around default value handling
 black = "^24.4.2"
 autoflake = "^2.3.0"
 pyright = "^1.1.350"
