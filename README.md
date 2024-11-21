@@ -98,9 +98,11 @@ Elroy supports both OpenAI and Anthropic language models:
 - Anthropic Models: All Claude models (claude-2, claude-instant-1, etc.)
 - OpenAI-Compatible APIs: Any provider offering an OpenAI-compatible API endpoint (via --openai-api-base)
 
-#### Embedding Models 
-- OpenAI Models: text-embedding-ada-002
+#### Embedding Models
+- OpenAI Models: text-embedding-ada-002 (default)
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
+
+Note: For OpenAI models, you'll need an OpenAI API key. For Anthropic models, you'll need an Anthropic API key. You can use compatible API providers by configuring the appropriate base URLs.
 
 Use `elroy list-chat-models` to see all supported chat models.
 
@@ -110,6 +112,7 @@ These commands can be run directly from your terminal:
 - `elroy chat` - Start the interactive chat interface (default command)
 - `elroy remember [--file FILE]` - Create a new memory from stdin, file, or interactively
 - `elroy list-chat-models` - List all supported chat models
+- `elroy show-config` - Display current configuration settings
 - `elroy --help` - Show help information and all available options
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
@@ -143,8 +146,8 @@ These commands can be used by both users and Elroy:
 - `/get_active_goal_names` - List all active goals
 
 ##### Memory Management
-- `/print_memory` - View a specific memory
 - `/create_memory` - Create a new memory
+- `/print_memory` - View a specific memory
 - `/add_memory_to_current_context` - Add a memory to current conversation
 - `/drop_memory_from_current_context` - Remove memory from current conversation
 
@@ -158,6 +161,8 @@ These commands can be used by both users and Elroy:
 - `/contemplate [prompt]` - Ask Elroy to reflect on the conversation or a specific topic
 - `/start_aider_session [file_location] [comment]` - Start an aider coding session (experimental)
 
+Note: All these commands can be used with a leading slash (/) in the chat interface. The assistant uses these commands without the slash when helping you.
+
 
 ## Customization
 
@@ -170,24 +175,54 @@ You can customize Elroy's appearance with these options:
 
 
 
-## Options
+## Configuration Options
 
+### Basic Configuration
+* `--config TEXT`: Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.
 * `--version`: Show version and exit.
+* `--debug`: Whether to fail fast when errors occur, and emit more verbose logging.
+
+### Database Configuration
 * `--postgres-url TEXT`: Postgres URL to use for Elroy. If set, overrides use_docker_postgres. [env var: ELROY_POSTGRES_URL]
-* `--openai-api-key TEXT`: OpenAI API (or OpenAI compatible) key. [env var: OPENAI_API_KEY]
+* `--use-docker-postgres / --no-use-docker-postgres`: If true and postgres_url is not set, will attempt to start a Docker container for Postgres. [env var: USE_DOCKER_POSTGRES]
+* `--stop-docker-postgres-on-exit / --no-stop-docker-postgres-on-exit`: Whether to stop the Postgres container on exit. [env var: STOP_DOCKER_POSTGRES_ON_EXIT]
+
+### API Configuration
+* `--openai-api-key TEXT`: OpenAI API key, required for OpenAI (or OpenAI compatible) models. [env var: OPENAI_API_KEY]
 * `--openai-api-base TEXT`: OpenAI API (or OpenAI compatible) base URL. [env var: OPENAI_API_BASE]
+* `--openai-embedding-api-base TEXT`: OpenAI API (or OpenAI compatible) base URL for embeddings. [env var: OPENAI_API_BASE]
 * `--openai-organization TEXT`: OpenAI (or OpenAI compatible) organization ID. [env var: OPENAI_ORGANIZATION]
 * `--anthropic-api-key TEXT`: Anthropic API key, required for Anthropic models. [env var: ANTHROPIC_API_KEY]
-* `--context-window-token-limit INTEGER`: How many tokens to keep in context before compressing. Controls how much conversation history Elroy maintains before summarizing older content. [env var: ELROY_CONTEXT_WINDOW_TOKEN_LIMIT]
-* `--log-file-path TEXT`: Where to write logs. [env var: ELROY_LOG_FILE_PATH; default: logs/elroy.log]
-* `--use-docker-postgres / --no-use-docker-postgres`: If true and postgres_url is not set, will attempt to start a Docker container for Postgres. [env var: USE_DOCKER_POSTGRES; default: True]
-* `--stop-docker-postgres-on-exit / --no-stop-docker-postgres-on-exit`: Whether or not to stop the Postgres container on exit. [env var: STOP_DOCKER_POSTGRES_ON_EXIT; default: False]
-* `--show-internal-thought-monologue`: Show the assistant's internal thought monologue like memory consolidation and internal reflection. [default: False]
+
+### Model Configuration
+* `--chat-model TEXT`: The model to use for chat completions. [env var: ELROY_CHAT_MODEL]
+* `--embedding-model TEXT`: The model to use for text embeddings.
+* `--embedding-model-size INTEGER`: The size of the embedding model.
+
+### Context Management
+* `--context-refresh-trigger-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages.
+* `--context-refresh-target-tokens INTEGER`: Target number of tokens after context refresh / compression.
+* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages in context.
+* `--context-refresh-interval-minutes FLOAT`: How often in minutes to refresh system message and compress context.
+* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum conversation age in minutes before offering a greeting on login.
+
+### Memory Management
+* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance.
+* `--l2-memory-consolidation-distance-threshold FLOAT`: L2 distance threshold for memory consolidation.
+* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds before the first context refresh.
+
+### UI Configuration
+* `--show-internal-thought-monologue`: Show the assistant's internal thought monologue. [default: False]
 * `--system-message-color TEXT`: Color for system messages. [default: #9ACD32]
 * `--user-input-color TEXT`: Color for user input. [default: #FFE377]
 * `--assistant-color TEXT`: Color for assistant output. [default: #77DFD8]
 * `--warning-color TEXT`: Color for warning messages. [default: yellow]
 * `--internal-thought-color TEXT`: Color for internal thought messages. [default: #708090]
+
+### Logging
+* `--log-file-path TEXT`: Where to write logs. [env var: ELROY_LOG_FILE_PATH]
+
+### Shell Integration
 * `--install-completion`: Install completion for the current shell.
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
 * `--help`: Show this message and exit.
