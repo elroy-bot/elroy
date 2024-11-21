@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.46] - 2024-11-20
+
+### Added
+- Added expanded configuration options for better customization
+
+### Fixed
+- Improved CHANGELOG.md handling with better path resolution and error management
+
 ## [0.0.45] - 2024-11-19
 
 ### Added
