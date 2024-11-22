@@ -8,6 +8,8 @@ import urllib.parse
 import webbrowser
 from datetime import datetime
 
+from ..utils.utils import obscure_sensitive_info
+
 from ..config.config import ElroyContext
 from ..config.constants import REPO_ISSUES_URL
 from ..io.cli import CliIO
@@ -61,8 +63,8 @@ def create_bug_report(
     report.append("\n## Elroy Configuration")
     try:
         report.append("```")
-        # Convert to dict and pretty print, excluding api keys
-        config_dict = {k:v for k,v in asdict(context.config).items() if 'api_key' not in k}
+        # Convert to dict and recursively obscure sensitive info
+        config_dict = obscure_sensitive_info(asdict(context.config))
         report.append(pformat(config_dict, indent=2, width=80))
         report.append("```")
     except Exception as e:
