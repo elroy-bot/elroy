@@ -382,7 +382,6 @@ def create_bug_report(
         ]
     )
 
-    # Add configuration if requested
     report.append("\n## Elroy Configuration")
     try:
         report.append("```")
@@ -393,7 +392,6 @@ def create_bug_report(
     except Exception as e:
         report.append(f"Error fetching config: {str(e)}")
 
-    # Add logs if requested
     report.append(f"\n## Recent Logs (last {BUG_REPORT_LOG_LINES} lines)")
     try:
         logs = tail_elroy_logs(context, BUG_REPORT_LOG_LINES)
@@ -406,7 +404,6 @@ def create_bug_report(
     # Combine the report
     full_report = scrubadub.clean("\n".join(report))
 
-    # Handle GitHub issue creation if requested
     github_url = None
     base_url = os.path.join(REPO_ISSUES_URL, "new")
     params = {"title": title, "body": full_report}
