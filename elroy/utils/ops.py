@@ -5,6 +5,18 @@ from typing import Callable, TypeVar
 T = TypeVar("T")
 
 
+def debug_mode_only(func: Callable) -> Callable:
+    """
+    decorator which does nothing but pass through the function
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def experimental(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(*args, **kwargs):
