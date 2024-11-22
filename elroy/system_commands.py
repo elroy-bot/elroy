@@ -23,7 +23,6 @@ from toolz import pipe
 from toolz.curried import filter
 
 from . import __version__
-from .cli.bug_report import create_bug_report
 from .config.config import ElroyContext
 from .config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL
 from .llm import client
@@ -355,7 +354,7 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
 def create_bug_report(
     context: ElroyContext,
     title: str,
-    description: str,
+    description: Optional[str],
 ) -> None:
     """
     Generate a bug report and open it as a GitHub issue.
@@ -370,7 +369,7 @@ def create_bug_report(
         f"# Bug Report: {title}",
         f"\nCreated: {datetime.now().isoformat()}",
         "\n## Description",
-        description,
+        description if description else "",
     ]
 
     # Add system information
