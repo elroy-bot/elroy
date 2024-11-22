@@ -2,18 +2,19 @@ import os
 import platform
 import sys
 import traceback
-from dataclasses import asdict
-from pprint import pformat
 import urllib.parse
 import webbrowser
+from dataclasses import asdict
 from datetime import datetime
+from pprint import pformat
 
-from ..utils.utils import obscure_sensitive_info
+import scrubadub
 
 from ..config.config import ElroyContext
 from ..config.constants import REPO_ISSUES_URL
 from ..io.cli import CliIO
 from ..system_commands import tail_elroy_logs
+from ..utils.utils import obscure_sensitive_info
 
 LOG_LINES = 15
 
@@ -81,7 +82,7 @@ def create_bug_report(
         report.append(f"Error fetching logs: {str(e)}")
 
     # Combine the report
-    full_report = "\n".join(report)
+    full_report = scrubadub.clean("\n".join(report))
 
     # Handle GitHub issue creation if requested
     github_url = None

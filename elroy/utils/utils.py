@@ -3,7 +3,7 @@ import threading
 import time
 from datetime import datetime
 from functools import partial
-from typing import Any, Dict, Iterator, Optional, TypeVar, Union
+from typing import Any, Dict, Iterator, Optional, TypeVar
 
 from pytz import UTC
 
@@ -48,10 +48,10 @@ utc_epoch_to_datetime_string = lambda epoch: datetime_to_string(datetime.fromtim
 def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
     """
     Recursively process dictionary to obscure sensitive information.
-    
+
     Args:
         d: Dictionary to process
-        
+
     Returns:
         Dictionary with sensitive values replaced with '[REDACTED]'
     """
@@ -61,8 +61,8 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
             result[k] = obscure_sensitive_info(v)
         elif isinstance(v, (list, tuple)):
             result[k] = [obscure_sensitive_info(i) if isinstance(i, dict) else i for i in v]
-        elif any(sensitive in k.lower() for sensitive in ('api_key', 'password', 'secret', 'token')):
-            result[k] = '[REDACTED]' if v else None
+        elif any(sensitive in k.lower() for sensitive in ("api_key", "password", "secret", "token")):
+            result[k] = "[REDACTED]" if v else None
         else:
             result[k] = v
     return result

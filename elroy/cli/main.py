@@ -375,8 +375,6 @@ def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
 async def main_chat(context: ElroyContext[CliIO]):
     init(autoreset=True)
 
-    raise NotImplementedError("This function is not implemented yet.")
-
     run_in_background_thread(
         periodic_context_refresh,
         context,
