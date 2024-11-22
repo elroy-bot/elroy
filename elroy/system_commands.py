@@ -120,6 +120,20 @@ def tail_elroy_logs(context: ElroyContext, lines: int = 10) -> str:
         return "".join(f.readlines()[-lines:])
 
 
+def print_elroy_config(context: ElroyContext) -> str:
+    """
+    Prints the current Elroy configuration.
+    Useful for troubleshooting and verifying the current configuration.
+
+    Args:
+        context (ElroyContext): context obj
+
+    Returns:
+        str: The current Elroy configuration
+    """
+    return str(context.config)
+
+
 def refresh_system_instructions(context: ElroyContext) -> str:
     """Refreshes the system instructions
 
@@ -465,6 +479,7 @@ NON_ARG_PREFILL_COMMANDS = {
     get_user_preferred_name,
     set_user_preferred_name,
     tail_elroy_logs,
+    print_elroy_config,
 }
 
 # These are commands that are visible to the assistant to be executed as tools.
