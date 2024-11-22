@@ -103,6 +103,22 @@ def invoke_system_command(context: ElroyContext, msg: str) -> str:
         return f"Error invoking system command: {e}"
 
 
+@experimental
+def tail_elroy_logs(context: ElroyContext, lines: int = 10) -> str:
+    """
+    Returns the last `lines` of the Elroy logs
+
+    Args:
+        context (ElroyContext): context obj
+        lines (int, optional): Number of lines to return. Defaults to 10.
+
+    Returns:
+        str: The last `lines` of the Elroy logs
+    """
+    with open(context.config.log_file_path, "r") as f:
+        return "".join(f.readlines()[-lines:])
+
+
 def refresh_system_instructions(context: ElroyContext) -> str:
     """Refreshes the system instructions
 
@@ -447,6 +463,7 @@ NON_ARG_PREFILL_COMMANDS = {
     set_user_full_name,
     get_user_preferred_name,
     set_user_preferred_name,
+    tail_elroy_logs,
 }
 
 # These are commands that are visible to the assistant to be executed as tools.
@@ -458,7 +475,6 @@ ASSISTANT_VISIBLE_COMMANDS = (
     | IN_CONTEXT_MEMORY_COMMANDS
     | NON_CONTEXT_MEMORY_COMMANDS
     | ALL_ACTIVE_MEMORY_COMMANDS
-    | NON_ARG_PREFILL_COMMANDS
 )
 
 
