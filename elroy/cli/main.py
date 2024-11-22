@@ -289,7 +289,7 @@ def chat(ctx: typer.Context):
             check_updates(context)
             asyncio.run(main_chat(context))
         except Exception as e:
-            asyncio.run(create_bug_report_from_exception_if_confirmed(context, e))
+            create_bug_report_from_exception_if_confirmed(context, e)
         context.io.sys_message(f"Exiting...")
 
 
