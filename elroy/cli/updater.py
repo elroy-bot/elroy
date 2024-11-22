@@ -16,7 +16,7 @@ from alembic.script import ScriptDirectory
 
 from .. import __version__
 from ..config.config import ROOT_DIR, ElroyContext
-from ..config.constants import REPO_LINK
+from ..config.constants import REPO_ISSUES_URL
 from ..io.base import ElroyIO
 
 
@@ -34,11 +34,11 @@ def check_updates(context: ElroyContext):
                     os.execv(sys.executable, [sys.executable] + sys.argv)
                 except Exception as e:
                     context.io.sys_message(
-                        f"Error during restart: {e}. Please restart manually and consider filing a bug report at {REPO_LINK}"
+                        f"Error during restart: {e}. Please restart manually and consider filing a bug report at {REPO_ISSUES_URL}"
                     )
             else:
                 context.io.sys_message(
-                    f"Upgrade return nonzero exit. Please try upgrading manually. Please consider filing a bug report at {REPO_LINK}"
+                    f"Upgrade return nonzero exit. Please try upgrading manually. Please consider filing a bug report at {REPO_ISSUES_URL}"
                 )
 
 

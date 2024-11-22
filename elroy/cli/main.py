@@ -31,6 +31,7 @@ from ..system_commands import SYSTEM_COMMANDS, contemplate, invoke_system_comman
 from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
 from ..utils.clock import get_utc_now
 from ..utils.utils import datetime_to_string, run_in_background_thread
+from .bug_report import create_bug_report_from_exception_if_confirmed
 from .context import (
     get_completer,
     get_user_logged_in_message,
@@ -284,8 +285,11 @@ def chat(ctx: typer.Context):
         return
 
     with init_elroy_context(ctx) as context:
-        check_updates(context)
-        asyncio.run(main_chat(context))
+        try:
+            check_updates(context)
+            asyncio.run(main_chat(context))
+        except Exception as e:
+            asyncio.run(create_bug_report_from_exception_if_confirmed(context, e))
         context.io.sys_message(f"Exiting...")
 
 
@@ -370,6 +374,8 @@ def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
 
 async def main_chat(context: ElroyContext[CliIO]):
     init(autoreset=True)
+
+    raise NotImplementedError("This function is not implemented yet.")
 
     run_in_background_thread(
         periodic_context_refresh,

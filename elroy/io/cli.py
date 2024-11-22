@@ -14,7 +14,7 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.text import Text
 
-from ..config.constants import REPO_LINK
+from ..config.constants import REPO_ISSUES_URL
 from ..io.base import ElroyIO
 from ..repository.data_models import FunctionCall
 
@@ -103,7 +103,7 @@ class CliIO(ElroyIO):
 
     def notify_warning(self, message: str) -> None:
         self.console.print(Text(message, justify="center", style=self.warning_color))  # type: ignore
-        self.console.print(f"[{self.warning_color}]Please provide feedback at {REPO_LINK}[/]")
+        self.console.print(f"[{self.warning_color}]Please provide feedback at {REPO_ISSUES_URL}[/]")
         self.console.print()
 
     def print_memory_panel(self, titles: List[str]):
