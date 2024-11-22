@@ -82,6 +82,7 @@ class ElroyConfig:
     chat_model: ChatModel
     embedding_model: EmbeddingModel
     debug_mode: bool  # Whether to emit more verbose logging and fail faster on errors rather than attempting to recover
+    log_file_path: str
 
 
 def get_config(
@@ -103,6 +104,7 @@ def get_config(
     openai_api_base: Optional[str],
     openai_embedding_api_base: Optional[str],
     openai_organization: Optional[str],
+    log_file_path: str,
 ) -> ElroyConfig:
     if chat_model_name in anthropic_models:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
@@ -145,6 +147,7 @@ def get_config(
         l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold,
         l2_memory_consolidation_distance_threshold=l2_memory_consolidation_distance_threshold,
         initial_refresh_wait=timedelta(seconds=initial_context_refresh_wait_seconds),
+        log_file_path=log_file_path,
     )
 
 
