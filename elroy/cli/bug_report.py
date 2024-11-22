@@ -2,6 +2,8 @@ import os
 import platform
 import sys
 import traceback
+from dataclasses import asdict
+from pprint import pformat
 import urllib.parse
 import webbrowser
 from datetime import datetime
