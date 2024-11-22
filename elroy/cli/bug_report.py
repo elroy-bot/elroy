@@ -9,50 +9,25 @@ from typing import Optional, Union, List
 
 
 def create_bug_report(
-    error: Optional[Exception] = None,
-    title: Optional[str] = None,
-    description: Optional[str] = None, 
-    steps_to_reproduce: Optional[List[str]] = None,
+    error: Exception,
     include_config: bool = True,
     include_logs: bool = True,
     log_lines: int = 50,
     create_github_issue: bool = False,
 ) -> dict:
     """
-    Bug report generator that can work from an exception or manual input.
+    Bug report generator that works from an exception.
     
     Args:
-        error: Optional exception that triggered the bug report
-        title: Bug report title (auto-generated from exception if not provided)
-        description: Bug description (auto-generated from exception if not provided)
-        steps_to_reproduce: List of steps to reproduce the bug
+        error: Exception that triggered the bug report
         include_config: Whether to include Elroy config
         include_logs: Whether to include recent logs
         log_lines: Number of log lines to include
         create_github_issue: Whether to open a GitHub issue
     """
-    # If we have an error, use it to populate title/description
-    if error:
-        if not title:
-            title = f"Error: {error.__class__.__name__}"
-        if not description:
-            description = f"Exception occurred: {str(error)}\n\nTraceback:\n{''.join(traceback.format_tb(error.__traceback__))}"
-    
-    # Only prompt for input if we don't have error details
-    if not error:
-        if not title:
-            title = input("Bug Title: ")
-        if not description:
-            description = input("Description:\n")
-        if not steps_to_reproduce:
-            steps = []
-            print("Steps to reproduce (enter empty line when done):")
-            while True:
-                step = input(f"Step {len(steps) + 1}: ")
-                if not step:
-                    break
-                steps.append(step)
-            steps_to_reproduce = steps
+    # Generate title and description from the exception
+    title = f"Error: {error.__class__.__name__}"
+    description = f"Exception occurred: {str(error)}\n\nTraceback:\n{''.join(traceback.format_tb(error.__traceback__))}"
 
     # Start building the report
     report = [
@@ -61,11 +36,6 @@ def create_bug_report(
         "\n## Description",
         description,
     ]
-    # Add steps if provided
-    if steps_to_reproduce:
-        report.append("\n## Steps to Reproduce")
-        for i, step in enumerate(steps_to_reproduce, 1):
-            report.append(f"{i}. {step}")
 
     # Add system information
     report.extend([
