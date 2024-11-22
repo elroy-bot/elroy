@@ -20,6 +20,19 @@ LOG_LINES = 15
 
 
 async def create_bug_report_from_exception_if_confirmed(context: ElroyContext[CliIO], error: Exception) -> dict:
+    """
+    Prompt user to create a bug report from an exception and create it if confirmed.
+
+    Args:
+        context: The Elroy context
+        error: The exception that triggered this prompt
+
+    Returns:
+        dict: The bug report data if created, containing:
+            - report: The full report text
+            - github_url: URL to the created GitHub issue
+            - success: Whether report creation succeeded
+    """
     if await context.io.prompt_user("An error occurred, would you like to open a pre-filled bug report? (y/n)") == "y":
         return create_bug_report(
             context,
@@ -34,14 +47,18 @@ def create_bug_report(
     description: str,
 ) -> dict:
     """
-    Bug report generator that works from an exception.
+    Generate a bug report and open it as a GitHub issue.
 
     Args:
-        error: Exception that triggered the bug report
-        include_config: Whether to include Elroy config
-        include_logs: Whether to include recent logs
-        log_lines: Number of log lines to include
-        create_github_issue: Whether to open a GitHub issue
+        context: The Elroy context
+        title: The title for the bug report
+        description: Detailed description of the issue
+
+    Returns:
+        dict containing:
+            - report: The full report text with PII scrubbed
+            - github_url: URL to the created GitHub issue
+            - success: Whether report creation succeeded
     """
     # Start building the report
     report = [
