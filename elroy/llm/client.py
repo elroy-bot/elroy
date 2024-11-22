@@ -118,6 +118,7 @@ def _build_completion_kwargs(
         "messages": messages,
         "model": chat_model.model,
         "api_key": chat_model.api_key,
+        "caching": True,
     }
 
     if chat_model.api_base:
