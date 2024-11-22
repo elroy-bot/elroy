@@ -16,8 +16,8 @@ from alembic.script import ScriptDirectory
 
 from .. import __version__
 from ..config.config import ROOT_DIR, ElroyContext
-from ..config.constants import REPO_LINK
 from ..io.base import ElroyIO
+from .bug_report import create_bug_report_from_exception_if_confirmed
 
 
 def check_updates(context: ElroyContext):
@@ -33,13 +33,13 @@ def check_updates(context: ElroyContext):
                 try:
                     os.execv(sys.executable, [sys.executable] + sys.argv)
                 except Exception as e:
-                    context.io.sys_message(
-                        f"Error during restart: {e}. Please restart manually and consider filing a bug report at {REPO_LINK}"
-                    )
+                    create_bug_report_from_exception_if_confirmed(context, e, "An error occurred during restart after upgrade.")
+                    context.io.sys_message("Please restart manually")
             else:
-                context.io.sys_message(
-                    f"Upgrade return nonzero exit. Please try upgrading manually. Please consider filing a bug report at {REPO_LINK}"
+                create_bug_report_from_exception_if_confirmed(
+                    context, Exception("Upgrade return nonzero exit."), "An error occurred during upgrade."
                 )
+                context.io.sys_message("Please try upgrading manually.")
 
 
 def ensure_current_db_migration(io: ElroyIO, postgres_url: str) -> None:

@@ -38,7 +38,9 @@ EMBEDDING_SIZE = 1536
 
 RESULT_SET_LIMIT_COUNT = 5
 
-REPO_LINK = "https://github.com/elroy-bot/elroy/issues"
+REPO_ISSUES_URL = "https://github.com/elroy-bot/elroy/issues"
+
+BUG_REPORT_LOG_LINES = 15
 
 
 class MissingAssistantToolCallError(Exception):

@@ -29,6 +29,7 @@ typer = "^0.12.5"
 docker = "^7.1.0"
 semantic-version = "^2.10.0"
 discord-py = "^2.4.0"
+scrubadub = "^2.0.1"
 
 
 [tool.pyright]
