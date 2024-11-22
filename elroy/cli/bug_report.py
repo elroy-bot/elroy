@@ -23,6 +23,7 @@ def create_bug_report_from_exception_if_confirmed(
             f"Error: {error.__class__.__name__}",
             f"Exception occurred: {str(error)}\n\nTraceback:\n{''.join(traceback.format_tb(error.__traceback__))}",
         )
+    raise error
 
 
 async def get_confirm(io: CliIO, prompt: str) -> bool:

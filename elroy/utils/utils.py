@@ -44,6 +44,8 @@ def datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
 
 utc_epoch_to_datetime_string = lambda epoch: datetime_to_string(datetime.fromtimestamp(epoch, UTC))
 
+REDACT_KEYWORDS = ("api_key", "password", "secret", "token", "url")
+
 
 def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -61,7 +63,9 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
             result[k] = obscure_sensitive_info(v)
         elif isinstance(v, (list, tuple)):
             result[k] = [obscure_sensitive_info(i) if isinstance(i, dict) else i for i in v]
-        elif any(sensitive in k.lower() for sensitive in ("api_key", "password", "secret", "token")):
+        elif any(sensitive in k.lower() for sensitive in REDACT_KEYWORDS):
+            result[k] = "[REDACTED]" if v else None
+        elif any(sensitive in str(v).lower() for sensitive in REDACT_KEYWORDS):
             result[k] = "[REDACTED]" if v else None
         else:
             result[k] = v
