@@ -258,6 +258,7 @@ def common(
             openai_api_base=openai_api_base,
             openai_embedding_api_base=openai_embedding_api_base,
             openai_organization=openai_organization,
+            log_file_path=log_file_path,
         ),
         "show_internal_thought_monologue": show_internal_thought_monologue,
         "log_file_path": log_file_path,
