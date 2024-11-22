@@ -1,20 +1,31 @@
 import logging
 import os
+import platform
 import pty
 import subprocess
 import sys
 import termios
 import time
 import tty
+import urllib
+import urllib.parse
+import webbrowser
+from dataclasses import asdict
+from datetime import datetime
 from inspect import signature
+from pprint import pformat
 from typing import Callable, List, Optional, Set
 
+import scrubadub
 from rich.pretty import Pretty
 from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
+from . import __version__
+from .cli.bug_report import create_bug_report
 from .config.config import ElroyContext
+from .config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL
 from .llm import client
 from .llm.prompts import contemplate_prompt
 from .messaging.context import (
@@ -50,6 +61,7 @@ from .tools.user_preferences import (
     set_user_preferred_name,
 )
 from .utils.ops import experimental
+from .utils.utils import obscure_sensitive_info
 
 
 def invoke_system_command(context: ElroyContext, msg: str) -> str:
@@ -340,6 +352,69 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
     return response
 
 
+def create_bug_report(
+    context: ElroyContext,
+    title: str,
+    description: str,
+) -> None:
+    """
+    Generate a bug report and open it as a GitHub issue.
+
+    Args:
+        context: The Elroy context
+        title: The title for the bug report
+        description: Detailed description of the issue
+    """
+    # Start building the report
+    report = [
+        f"# Bug Report: {title}",
+        f"\nCreated: {datetime.now().isoformat()}",
+        "\n## Description",
+        description,
+    ]
+
+    # Add system information
+    report.extend(
+        [
+            "\n## System Information",
+            f"OS: {platform.system()} {platform.release()}",
+            f"Python: {sys.version}",
+            f"Elroy Version: {__version__}",
+        ]
+    )
+
+    # Add configuration if requested
+    report.append("\n## Elroy Configuration")
+    try:
+        report.append("```")
+        # Convert to dict and recursively obscure sensitive info
+        config_dict = obscure_sensitive_info(asdict(context.config))
+        report.append(pformat(config_dict, indent=2, width=80))
+        report.append("```")
+    except Exception as e:
+        report.append(f"Error fetching config: {str(e)}")
+
+    # Add logs if requested
+    report.append(f"\n## Recent Logs (last {BUG_REPORT_LOG_LINES} lines)")
+    try:
+        logs = tail_elroy_logs(context, BUG_REPORT_LOG_LINES)
+        report.append("```")
+        report.append(logs)
+        report.append("```")
+    except Exception as e:
+        report.append(f"Error fetching logs: {str(e)}")
+
+    # Combine the report
+    full_report = scrubadub.clean("\n".join(report))
+
+    # Handle GitHub issue creation if requested
+    github_url = None
+    base_url = os.path.join(REPO_ISSUES_URL, "new")
+    params = {"title": title, "body": full_report}
+    github_url = f"{base_url}?{urllib.parse.urlencode(params)}"
+    webbrowser.open(github_url)
+
+
 @experimental
 def start_aider_session(context: ElroyContext, file_location: str = ".", comment: str = "") -> str:
     """
@@ -502,6 +577,7 @@ USER_ONLY_COMMANDS = {
     print_system_instruction,
     refresh_system_instructions,
     print_available_commands,
+    create_bug_report,
 }
 
 
