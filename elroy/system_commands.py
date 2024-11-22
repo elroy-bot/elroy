@@ -1,18 +1,10 @@
 import logging
-import os
-import pty
-import subprocess
-import sys
-import termios
-import time
-import tty
 from inspect import signature
 from typing import Callable, List, Optional, Set
 
 from rich.pretty import Pretty
 from sqlmodel import select
 from toolz import pipe
-from toolz.curried import filter
 
 from .config.config import ElroyContext
 from .llm import client
@@ -43,13 +35,18 @@ from .repository.message import (
     is_system_instruction,
     replace_context_messages,
 )
+from .tools.developer import (
+    create_bug_report,
+    print_elroy_config,
+    start_aider_session,
+    tail_elroy_logs,
+)
 from .tools.user_preferences import (
     get_user_full_name,
     get_user_preferred_name,
     set_user_full_name,
     set_user_preferred_name,
 )
-from .utils.ops import experimental
 
 
 def invoke_system_command(context: ElroyContext, msg: str) -> str:
@@ -101,37 +98,6 @@ def invoke_system_command(context: ElroyContext, msg: str) -> str:
         return func(*func_args)
     except Exception as e:
         return f"Error invoking system command: {e}"
-
-
-@experimental
-def tail_elroy_logs(context: ElroyContext, lines: int = 10) -> str:
-    """
-    Returns the last `lines` of the Elroy logs.
-    Useful for troubleshooting in cases where errors occur (especially with tool calling).
-
-    Args:
-        context (ElroyContext): context obj
-        lines (int, optional): Number of lines to return. Defaults to 10.
-
-    Returns:
-        str: The last `lines` of the Elroy logs
-    """
-    with open(context.config.log_file_path, "r") as f:
-        return "".join(f.readlines()[-lines:])
-
-
-def print_elroy_config(context: ElroyContext) -> str:
-    """
-    Prints the current Elroy configuration.
-    Useful for troubleshooting and verifying the current configuration.
-
-    Args:
-        context (ElroyContext): context obj
-
-    Returns:
-        str: The current Elroy configuration
-    """
-    return str(context.config)
 
 
 def refresh_system_instructions(context: ElroyContext) -> str:
@@ -340,107 +306,6 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
     return response
 
 
-@experimental
-def start_aider_session(context: ElroyContext, file_location: str = ".", comment: str = "") -> str:
-    """
-    Starts an aider session using a pseudo-terminal, taking over the screen.
-
-    Args:
-        context (ElroyContext): The Elroy context object.
-        file_location (str): The file or directory location to start aider with. Defaults to current directory.
-        comment (str): Initial text to be processed by aider as if it was typed. Defaults to empty string.
-
-    Returns:
-        str: A message indicating the result of the aider session start attempt.
-    """
-
-    try:
-        # Ensure the file_location is an absolute path
-        abs_file_location = os.path.abspath(file_location)
-
-        # Determine the directory to change to
-        if os.path.isfile(abs_file_location):
-            change_dir = os.path.dirname(abs_file_location)
-        else:
-            change_dir = abs_file_location
-
-        # Prepend /ask so the AI does not immediately start writing code.
-        aider_context = (
-            "{\n/ask "
-            + client.query_llm(
-                system="Your task is to provide context to a coding assistant AI. "
-                "Given information about a conversation, return information about what the goal is, what the user needs help with, and/or any approaches that have been discussed. "
-                "Focus your prompt specifically on what the coding Assistant needs to know. Do not include information about Elroy, personal information about the user, "
-                "or anything that isn't relevant to what code the coding assistant will need to write.",
-                prompt=pipe(
-                    [
-                        f"# Aider session file location: {abs_file_location}",
-                        "# Comment: {comment}" if comment else None,
-                        f"# Chat transcript: {print_context_messages(context)}",
-                    ],
-                    filter(lambda x: x is not None),
-                    list,
-                    "\n\n".join,
-                ),  # type: ignore
-            )
-            + "\n}"
-        )
-
-        # Print debug information
-        print(f"Starting aider session for location: {abs_file_location}")
-        print(f"Current working directory: {os.getcwd()}")
-        print(f"Changing directory to: {change_dir}")
-
-        # Save the current terminal settings
-        old_tty = termios.tcgetattr(sys.stdin)
-
-        try:
-            # Create a pseudo-terminal
-            master_fd, slave_fd = pty.openpty()
-
-            # Change the working directory
-            os.chdir(change_dir)
-
-            # Start the aider session
-            process = subprocess.Popen(["aider"], stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, preexec_fn=os.setsid)
-
-            # Set the terminal to raw mode
-            tty.setraw(sys.stdin.fileno())
-
-            # Write the initial text to the master file descriptor
-            if aider_context:
-                os.write(master_fd, aider_context.encode())
-                os.write(master_fd, b"\n")  # Add a newline to "send" the command
-                time.sleep(0.5)  # Add a small delay to allow processing
-
-            # Main loop to handle I/O
-            while process.poll() is None:
-                import select as os_select
-
-                r, w, e = os_select.select([sys.stdin, master_fd], [], [], 0.1)
-                if sys.stdin in r:
-                    data = os.read(sys.stdin.fileno(), 1024)
-                    os.write(master_fd, data)
-                if master_fd in r:
-                    data = os.read(master_fd, 1024)
-                    if data:
-                        os.write(sys.stdout.fileno(), data)
-                    else:
-                        break
-
-            return_code = process.wait()
-
-            if return_code == 0:
-                return f"Aider session completed for location: {abs_file_location}"
-            else:
-                return f"Aider session exited with return code: {return_code}"
-        finally:
-            # Restore the original terminal settings
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
-    except Exception as error:
-        return f"Failed to start aider session: {str(error)}"
-
-
 IN_CONTEXT_GOAL_COMMANDS: Set[Callable] = {
     drop_goal_from_current_context,
 }
@@ -502,6 +367,7 @@ USER_ONLY_COMMANDS = {
     print_system_instruction,
     refresh_system_instructions,
     print_available_commands,
+    create_bug_report,
 }
 
 

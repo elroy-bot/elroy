@@ -3,7 +3,7 @@ import threading
 import time
 from datetime import datetime
 from functools import partial
-from typing import Iterator, Optional, TypeVar
+from typing import Any, Dict, Iterator, Optional, TypeVar
 
 from pytz import UTC
 
@@ -43,6 +43,33 @@ def datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
 
 
 utc_epoch_to_datetime_string = lambda epoch: datetime_to_string(datetime.fromtimestamp(epoch, UTC))
+
+REDACT_KEYWORDS = ("api_key", "password", "secret", "token", "url")
+
+
+def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively process dictionary to obscure sensitive information.
+
+    Args:
+        d: Dictionary to process
+
+    Returns:
+        Dictionary with sensitive values replaced with '[REDACTED]'
+    """
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            result[k] = obscure_sensitive_info(v)
+        elif isinstance(v, (list, tuple)):
+            result[k] = [obscure_sensitive_info(i) if isinstance(i, dict) else i for i in v]
+        elif any(sensitive in k.lower() for sensitive in REDACT_KEYWORDS):
+            result[k] = "[REDACTED]" if v else None
+        elif any(sensitive in str(v).lower() for sensitive in REDACT_KEYWORDS):
+            result[k] = "[REDACTED]" if v else None
+        else:
+            result[k] = v
+    return result
 
 
 def run_in_background_thread(fn, context, *args):
