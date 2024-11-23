@@ -38,7 +38,7 @@ def generate_chat_completion_message(chat_model: ChatModel, context_messages: Li
 
     try:
         completion_kwargs = _build_completion_kwargs(
-            chat_model=chat_model, messages=context_messages, stream=True, use_tools=True  # type: ignore
+            model=chat_model, messages=context_messages, stream=True, use_tools=True  # type: ignore
         )
         return completion(**completion_kwargs)  # type: ignore
     except BadRequestError as e:
@@ -94,7 +94,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     embedding_kwargs = {
         "model": model.model,
         "input": [text],
-        "caching": True,
+        "caching": model.enable_caching,
         "api_key": model.api_key,
     }
 
@@ -108,7 +108,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
 
 
 def _build_completion_kwargs(
-    chat_model: ChatModel,
+    model: ChatModel,
     messages: List[Dict[str, str]],
     stream: bool = False,
     use_tools: bool = False,
@@ -116,15 +116,15 @@ def _build_completion_kwargs(
     """Centralized configuration for LLM requests"""
     kwargs = {
         "messages": messages,
-        "model": chat_model.model,
-        "api_key": chat_model.api_key,
-        "caching": True,
+        "model": model.model,
+        "api_key": model.api_key,
+        "caching": model.enable_caching,
     }
 
-    if chat_model.api_base:
-        kwargs["api_base"] = chat_model.api_base
-    if chat_model.organization:
-        kwargs["organization"] = chat_model.organization
+    if model.api_base:
+        kwargs["api_base"] = model.api_base
+    if model.organization:
+        kwargs["organization"] = model.organization
 
     if use_tools:
         from ..tools.function_caller import get_function_schemas
@@ -144,7 +144,7 @@ def _build_completion_kwargs(
 
 def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
     messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
-    completion_kwargs = _build_completion_kwargs(chat_model=model, messages=messages, stream=False, use_tools=False)
+    completion_kwargs = _build_completion_kwargs(model=model, messages=messages, stream=False, use_tools=False)
     return completion(**completion_kwargs).choices[0].message.content  # type: ignore
 
 
