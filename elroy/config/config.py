@@ -51,6 +51,7 @@ def load_defaults(user_config_path: Optional[str] = None) -> dict:
 @dataclass
 class ChatModel:
     model: str
+    enable_caching: bool
     api_key: Optional[str]
     ensure_alternating_roles: (
         bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
@@ -63,6 +64,7 @@ class ChatModel:
 class EmbeddingModel:
     model: str
     embedding_size: int
+    enable_caching: bool
     api_key: Optional[str] = None
     api_base: Optional[str] = None
     organization: Optional[str] = None
@@ -105,13 +107,12 @@ def get_config(
     openai_embedding_api_base: Optional[str],
     openai_organization: Optional[str],
     log_file_path: str,
+    enable_caching: bool,
 ) -> ElroyConfig:
     if chat_model_name in anthropic_models:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
         chat_model = ChatModel(
-            model=chat_model_name,
-            api_key=anthropic_api_key,
-            ensure_alternating_roles=True,
+            model=chat_model_name, api_key=anthropic_api_key, ensure_alternating_roles=True, enable_caching=enable_caching
         )
     else:
         if chat_model_name in open_ai_chat_completion_models:
@@ -122,6 +123,7 @@ def get_config(
             ensure_alternating_roles=False,
             api_base=openai_api_base,
             organization=openai_organization,
+            enable_caching=enable_caching,
         )
     if embedding_model in open_ai_embedding_models:
         assert openai_api_key is not None, "OpenAI API key is required for OpenAI embedding models"
@@ -132,6 +134,7 @@ def get_config(
         api_key=openai_api_key,
         api_base=openai_embedding_api_base,
         organization=openai_organization,
+        enable_caching=enable_caching,
     )
 
     return ElroyConfig(

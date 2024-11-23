@@ -150,6 +150,11 @@ def common(
         help="The size of the embedding model.",
         rich_help_panel="Model Configuration",
     ),
+    enable_caching: bool = CliOption(
+        "enable_caching",
+        help="Whether to enable caching for the LLM, both for embeddings and completions.",
+        rich_help_panel="Model Configuration",
+    ),
     # Context Management
     context_refresh_trigger_tokens: int = CliOption(
         "context_refresh_trigger_tokens",
@@ -260,6 +265,7 @@ def common(
             openai_embedding_api_base=openai_embedding_api_base,
             openai_organization=openai_organization,
             log_file_path=log_file_path,
+            enable_caching=enable_caching,
         ),
         "show_internal_thought_monologue": show_internal_thought_monologue,
         "log_file_path": log_file_path,
