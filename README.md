@@ -102,6 +102,8 @@ Elroy supports both OpenAI and Anthropic language models:
 - OpenAI Models: text-embedding-ada-002 (default)
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
 
+Note: The embedding model size can be configured using the --embedding-model-size flag (default is 1536 for OpenAI models).
+
 Note: For OpenAI models, you'll need an OpenAI API key. For Anthropic models, you'll need an Anthropic API key. You can use compatible API providers by configuring the appropriate base URLs.
 
 Use `elroy list-chat-models` to see all supported chat models.
@@ -113,6 +115,7 @@ These commands can be run directly from your terminal:
 - `elroy remember [--file FILE]` - Create a new memory from stdin, file, or interactively
 - `elroy list-chat-models` - List all supported chat models
 - `elroy show-config` - Display current configuration settings
+- `elroy --version` - Show version information and exit
 - `elroy --help` - Show help information and all available options
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
@@ -150,6 +153,7 @@ These commands can be used by both users and Elroy:
 - `/print_memory` - View a specific memory
 - `/add_memory_to_current_context` - Add a memory to current conversation
 - `/drop_memory_from_current_context` - Remove memory from current conversation
+- `/contemplate [prompt]` - Ask Elroy to reflect on the conversation or a specific topic
 
 ##### User Preferences
 - `/get_user_full_name` - Get your full name
@@ -157,9 +161,11 @@ These commands can be used by both users and Elroy:
 - `/get_user_preferred_name` - Get your preferred name
 - `/set_user_preferred_name` - Set your preferred name
 
-##### Reflection and Development
-- `/contemplate [prompt]` - Ask Elroy to reflect on the conversation or a specific topic
+##### Development Tools
 - `/start_aider_session [file_location] [comment]` - Start an aider coding session (experimental)
+- `/tail_elroy_logs` - View Elroy's log output
+- `/print_elroy_config` - Display current configuration
+- `/create_bug_report` - Create a bug report with current context
 
 Note: All these commands can be used with a leading slash (/) in the chat interface. The assistant uses these commands without the slash when helping you.
 

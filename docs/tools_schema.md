@@ -257,6 +257,19 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
+      "name": "print_elroy_config",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "required": [
+        "context"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "print_goal",
       "parameters": {
         "type": "object",
@@ -376,6 +389,24 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
           "comment": {
             "type": "string",
             "description": "Initial text to be processed by aider as if it was typed. Defaults to empty string."
+          }
+        }
+      },
+      "required": [
+        "context"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tail_elroy_logs",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "integer",
+            "description": "Number of lines to return. Defaults to 10."
           }
         }
       },
