@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.48] - 2024-11-22
+
+### Fixed
+- Fixed type mismatch in context refresh wait timing
+
+### Infrastructure
+- Updated Discord release announcements to use announcements channel
+
 ## [0.0.47] - 2024-11-22
 
 ### Added
