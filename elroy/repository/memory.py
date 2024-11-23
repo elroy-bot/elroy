@@ -118,7 +118,7 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
         )
         assert isinstance(response, dict), f"Memory consolidation function expected a dict, but received: {response}"
 
-        new_texts = response["NEW_TEXTS"]  # type: ignore
+        new_texts = response["NEW_TEXTS"]
 
         if isinstance(new_texts, dict):
             new_texts = [new_texts]
@@ -128,16 +128,16 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
         new_ids = []
         for new_text in new_texts:
             new_name = new_text.get("TITLE")
-            new_text = new_text.get("TEXT")
+            new_body = new_text.get("TEXT")
 
-            assert new_name, "New memory title is empty, expected non empty string under key TITLE"
-            assert new_text, "New memory text is empty, expected non empty string under key TEXT"
-            new_ids.append(create_memory(context, new_name, new_text))
+            assert new_name, "New memory title is empty, expected non-empty string under key TITLE"
+            assert new_body, "New memory text is empty, expected non-empty string under key TEXT"
+            new_ids.append(create_memory(context, new_name, new_body))
 
-        logging.info(f"New memory id's = {new_ids}")
+        logging.info(f"New memory ids: {new_ids}")
 
         logging.info(f"Consolidating into {len(new_texts)} new memories")
-        logging.info(f"marked memory with id {memory1.id} and {memory2.id} as inactive.")
+        logging.info(f"Marked memory with id {memory1.id} and {memory2.id} as inactive.")
 
         mark_memory_inactive(context, memory1)
         mark_memory_inactive(context, memory2)
