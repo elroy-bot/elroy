@@ -264,11 +264,10 @@ def common(
             openai_api_base=openai_api_base,
             openai_embedding_api_base=openai_embedding_api_base,
             openai_organization=openai_organization,
-            log_file_path=log_file_path,
+            log_file_path=os.path.abspath(log_file_path),
             enable_caching=enable_caching,
         ),
         "show_internal_thought_monologue": show_internal_thought_monologue,
-        "log_file_path": log_file_path,
         "use_docker_postgres": use_docker_postgres,
         "stop_docker_postgres_on_exit": stop_docker_postgres_on_exit,
         "system_message_color": system_message_color,
@@ -381,11 +380,7 @@ def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
 async def main_chat(context: ElroyContext[CliIO]):
     init(autoreset=True)
 
-    run_in_background_thread(
-        periodic_context_refresh,
-        context,
-        context.config.context_refresh_interval,
-    )
+    run_in_background_thread(periodic_context_refresh, context)
 
     context.io.print_title_ruler()
 
