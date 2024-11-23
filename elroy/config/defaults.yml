@@ -7,6 +7,7 @@ stop_docker_postgres_on_exit: false
 chat_model: "gpt-4o"
 embedding_model: "text-embedding-3-small"
 embedding_model_size: 1536
+enable_caching: true
 
 # Context management
 context_refresh_trigger_tokens: 3300
