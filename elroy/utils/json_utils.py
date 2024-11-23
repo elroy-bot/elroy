@@ -87,6 +87,7 @@ def extract_schema_structure(schema: Dict[str, Any], path: str = "") -> List[str
         else:
             structure.append(f"{current_path}: {type(value).__name__}")
     return structure
+def compare_schemas_with_difflib(generated_schema: Dict[str, Any], expected_schema: Dict[str, Any]) -> List[str]:
     """
     Compare two JSON schemas using difflib and return a list of differences.
 
