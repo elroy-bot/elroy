@@ -10,7 +10,7 @@ from typing import Optional
 import discord
 from discord.ext import commands
 
-GENERAL_CHANNEL_ID = 1307066378053877841
+ANNOUNCEMENTS_CHANNEL_ID = 1309680926745169930
 TEST_CHANNEL_ID = 1308566429779492874
 
 # parent dir of script is the root of the project
@@ -119,7 +119,7 @@ def main():
     parser.add_argument("--test", action="store_true", help="Use test channel instead of general")
     args = parser.parse_args()
 
-    channel_id = TEST_CHANNEL_ID if args.test else GENERAL_CHANNEL_ID
+    channel_id = TEST_CHANNEL_ID if args.test else ANNOUNCEMENTS_CHANNEL_ID
     bot = ReleaseBot(channel_id, os.environ["ELROY_DISCORD_TOKEN"], args.version)
     bot.run()
 
