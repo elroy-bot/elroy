@@ -1,3 +1,4 @@
+import difflib
 import json
 import re
 from functools import partial
@@ -62,3 +63,31 @@ def parse_json(chat_model: ChatModel, json_str: str, attempt: int = 0) -> Union[
                 ),
                 lambda x: parse_json(chat_model, x, attempt + 1),
             )  # type: ignore
+
+
+def compare_schemas_with_difflib(generated_schema: Dict[str, Any], expected_schema: Dict[str, Any]) -> List[str]:
+    """
+    Compare two JSON schemas using difflib and return a list of differences.
+
+    Args:
+        generated_schema (Dict[str, Any]): The schema generated from the JSON object.
+        expected_schema (Dict[str, Any]): The expected schema to compare against.
+
+    Returns:
+        List[str]: A list of differences found between the schemas.
+    """
+    # Convert JSON schemas to pretty-printed strings
+    generated_schema_str = json.dumps(generated_schema, indent=2, sort_keys=True)
+    expected_schema_str = json.dumps(expected_schema, indent=2, sort_keys=True)
+
+    # Use difflib to compare the strings
+    diff = difflib.unified_diff(
+        expected_schema_str.splitlines(),
+        generated_schema_str.splitlines(),
+        fromfile="expected_schema",
+        tofile="generated_schema",
+        lineterm="",
+    )
+
+    # Return the diff as a list of strings
+    return list(diff)
