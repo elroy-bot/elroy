@@ -104,6 +104,8 @@ Elroy supports both OpenAI and Anthropic language models:
 
 Note: The embedding model size can be configured using the --embedding-model-size flag (default is 1536 for OpenAI models).
 
+Note: For full model compatibility and configuration options, use `elroy list-chat-models` to see all supported chat models and `elroy show-config` to view your current model settings.
+
 Note: For OpenAI models, you'll need an OpenAI API key. For Anthropic models, you'll need an Anthropic API key. You can use compatible API providers by configuring the appropriate base URLs.
 
 Use `elroy list-chat-models` to see all supported chat models.
@@ -119,6 +121,11 @@ These commands can be run directly from your terminal:
 - `elroy --help` - Show help information and all available options
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
+
+The chat interface accepts input from stdin, so you can pipe text to Elroy:
+```bash
+echo "What is 2+2?" | elroy chat
+```
 
 ### In-Chat Commands
 While chatting with Elroy, commands can be used by typing a forward slash (/) followed by the command name. Commands are divided into two categories:
@@ -149,7 +156,7 @@ These commands can be used by both users and Elroy:
 - `/get_active_goal_names` - List all active goals
 
 ##### Memory Management
-- `/create_memory` - Create a new memory
+- `/create_memory` - Create a new memory from text
 - `/print_memory` - View a specific memory
 - `/add_memory_to_current_context` - Add a memory to current conversation
 - `/drop_memory_from_current_context` - Remove memory from current conversation
