@@ -1,9 +1,9 @@
 import json
 import re
 from functools import partial
-from typing import Dict, List, Union, Any
+from typing import Any, Dict, List, Union
 
-from toolz import pipe, curry
+from toolz import pipe
 
 from ..config.config import ChatModel
 from ..llm.client import query_llm
