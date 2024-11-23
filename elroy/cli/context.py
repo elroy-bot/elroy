@@ -37,22 +37,27 @@ from ..utils.utils import datetime_to_string
 from .updater import ensure_current_db_migration
 
 
-def periodic_context_refresh(context: ElroyContext, interval_seconds: float):
+def periodic_context_refresh(context: ElroyContext):
     """Run context refresh in a background thread"""
     # Create new event loop for this thread
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     async def refresh_loop(context: ElroyContext):
+        logging.info(f"Pausing for initial context refresh wait of {context.config.initial_refresh_wait}")
         await asyncio.sleep(context.config.initial_refresh_wait.total_seconds())
         while True:
             try:
                 logging.info("Refreshing context")
                 await context_refresh(context)  # Keep this async
-                await asyncio.sleep(interval_seconds)
+                logging.info(f"Wait for {context.config.context_refresh_interval} before next context refresh")
+                await asyncio.sleep(context.config.context_refresh_interval.total_seconds())
             except Exception as e:
                 logging.error(f"Error in periodic context refresh: {e}")
                 context.session.rollback()
+
+                if context.config.debug_mode:
+                    raise e
 
     try:
         # hack to get a new session for the thread
@@ -88,7 +93,8 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
         io = StdIO()
 
     try:
-        setup_logging(ctx.obj["log_file_path"])
+        config = ctx.obj["elroy_config"]
+        setup_logging(config.log_file_path)
 
         if ctx.obj["use_docker_postgres"]:
             if is_docker_running():
@@ -98,8 +104,6 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
                     "Elroy was started with use_docker_postgres set to True, but no Docker container is running. Please either start a Docker container, provide a postgres_url parameter, or set the ELROY_POSTGRES_URL environment variable."
                 )
 
-        # Check if migrations need to be run
-        config = ctx.obj["elroy_config"]
         ensure_current_db_migration(io, config.postgres_url)
 
         with session_manager(config.postgres_url) as session:
