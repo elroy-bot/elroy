@@ -54,13 +54,25 @@ def query_llm(model: ChatModel, prompt: str, system: str) -> str:
     return _query_llm(model=model, prompt=prompt, system=system)
 
 
-def query_llm_json(model: ChatModel, prompt: str, system: str) -> Union[dict, list]:
+def query_llm_json(model: ChatModel, prompt: str, system: str) -> Dict[str, str]:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return pipe(
         _query_llm(model=model, prompt=prompt, system=system),
-        partial(_parse_json, model),
+        partial(_parse_markdown, model),
     )  # type: ignore
+
+def _parse_markdown(chat_model: ChatModel, markdown_str: str) -> Dict[str, str]:
+    title_match = re.search(r"\*\*Title\*\*:\s*(.+)", markdown_str)
+    thought_match = re.search(r"\*\*Internal Thought\*\*:\s*(.+)", markdown_str)
+
+    if not title_match or not thought_match:
+        raise ValueError("Markdown format is incorrect or missing required sections.")
+
+    return {
+        "Title": title_match.group(1).strip(),
+        "Internal Thought": thought_match.group(1).strip(),
+    }
 
 
 def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
