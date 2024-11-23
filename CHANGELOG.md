@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.47] - 2024-11-22
+
+### Added
+- Added configurable LLM response caching: `enable_caching`, defaulting to true.
+- New system commands for troubleshooting:
+    - `/tail_elroy_logs`: View log Elroy logs from within the chat UI
+    - `/print_elroy_config`: View Elroy config from within the chat UI
+    - `/create_bug_report`: Open a pre-filled bug report in the browser (available to the user only, not the assistant)
+
+
 ## [0.0.46] - 2024-11-20
 
 ### Added
