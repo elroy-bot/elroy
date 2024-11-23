@@ -65,7 +65,28 @@ def parse_json(chat_model: ChatModel, json_str: str, attempt: int = 0) -> Union[
             )  # type: ignore
 
 
-def compare_schemas_with_difflib(generated_schema: Dict[str, Any], expected_schema: Dict[str, Any]) -> List[str]:
+def extract_schema_structure(schema: Dict[str, Any], path: str = "") -> List[str]:
+    """
+    Extract the structure of a JSON schema as a list of strings representing keys and their types.
+
+    Args:
+        schema (Dict[str, Any]): The JSON schema to extract from.
+        path (str): The current path in the schema.
+
+    Returns:
+        List[str]: A list of strings representing the schema structure.
+    """
+    structure = []
+    for key, value in schema.items():
+        current_path = f"{path}.{key}" if path else key
+        if isinstance(value, dict):
+            structure.append(f"{current_path}: object")
+            structure.extend(extract_schema_structure(value, current_path))
+        elif isinstance(value, list):
+            structure.append(f"{current_path}: array")
+        else:
+            structure.append(f"{current_path}: {type(value).__name__}")
+    return structure
     """
     Compare two JSON schemas using difflib and return a list of differences.
 
@@ -76,14 +97,14 @@ def compare_schemas_with_difflib(generated_schema: Dict[str, Any], expected_sche
     Returns:
         List[str]: A list of differences found between the schemas.
     """
-    # Convert JSON schemas to pretty-printed strings
-    generated_schema_str = json.dumps(generated_schema, indent=2, sort_keys=True)
-    expected_schema_str = json.dumps(expected_schema, indent=2, sort_keys=True)
+    # Extract schema structures
+    generated_structure = extract_schema_structure(generated_schema)
+    expected_structure = extract_schema_structure(expected_schema)
 
-    # Use difflib to compare the strings
+    # Use difflib to compare the structures
     diff = difflib.unified_diff(
-        expected_schema_str.splitlines(),
-        generated_schema_str.splitlines(),
+        expected_structure,
+        generated_structure,
         fromfile="expected_schema",
         tofile="generated_schema",
         lineterm="",
