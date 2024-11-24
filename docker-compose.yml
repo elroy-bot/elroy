@@ -32,7 +32,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     stdin_open: true
     tty: true
-    command: elroy
+    command: elroy --no-use-docker-postgres chat
 
 volumes:
   elroy_postgres-data:
