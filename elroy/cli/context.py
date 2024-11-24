@@ -96,7 +96,7 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
         config = ctx.obj["elroy_config"]
         setup_logging(config.log_file_path)
 
-        if ctx.obj["use_docker_postgres"]:
+        if ctx.obj["use_docker_postgres"] and not config.postgres_url:
             if is_docker_running():
                 start_db()
             else:
