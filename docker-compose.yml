@@ -22,7 +22,9 @@ services:
 
   elroy:
     container_name: elroy
-    image: ghcr.io/elroy-bot/elroy:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
       db:
         condition: service_healthy
