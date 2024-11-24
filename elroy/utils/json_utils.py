@@ -2,7 +2,8 @@ import difflib
 import json
 import re
 from functools import partial
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Type
+from dataclasses import is_dataclass, asdict
 
 from toolz import pipe
 
@@ -87,7 +88,7 @@ def extract_schema_structure(schema: Dict[str, Any], path: str = "") -> List[str
         else:
             structure.append(f"{current_path}: {type(value).__name__}")
     return structure
-def compare_schemas_with_difflib(generated_schema: Dict[str, Any], expected_schema: Dict[str, Any]) -> List[str]:
+def compare_schemas_with_difflib(generated_schema: Dict[str, Any], expected_schema: Union[Dict[str, Any], Type]) -> List[str]:
     """
     Compare two JSON schemas using difflib and return a list of differences.
 
@@ -98,7 +99,9 @@ def compare_schemas_with_difflib(generated_schema: Dict[str, Any], expected_sche
     Returns:
         List[str]: A list of differences found between the schemas.
     """
-    # Extract schema structures
+    # Convert dataclass to dict if necessary
+    if is_dataclass(expected_schema):
+        expected_schema = asdict(expected_schema)
     generated_structure = extract_schema_structure(generated_schema)
     expected_structure = extract_schema_structure(expected_schema)
 

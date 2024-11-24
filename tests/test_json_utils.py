@@ -1,17 +1,23 @@
 import pytest
+from dataclasses import dataclass
 
 from elroy.utils.json_utils import compare_schemas, compare_schemas_with_difflib
 
 
-def test_compare_schemas():
+@dataclass
+class ExpectedSchema:
+    name: str
+    age: int
+    address: Dict[str, str]
+    email: str
     generated_schema = {"name": "John Doe", "age": 30, "address": {"street": "123 Main St", "city": "Anytown"}}
 
-    expected_schema = {
-        "name": "John Doe",
-        "age": 30,
-        "address": {"street": "123 Main St", "city": "Anytown", "zipcode": "12345"},
-        "email": "john.doe@example.com",
-    }
+    expected_schema = ExpectedSchema(
+        name="John Doe",
+        age=30,
+        address={"street": "123 Main St", "city": "Anytown", "zipcode": "12345"},
+        email="john.doe@example.com"
+    )
 
     diff = compare_schemas_with_difflib(generated_schema, expected_schema)
     print(diff)
