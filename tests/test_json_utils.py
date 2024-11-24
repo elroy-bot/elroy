@@ -13,7 +13,8 @@ def test_compare_schemas():
         "email": "john.doe@example.com",
     }
 
-    compare_schemas_with_difflib(generated_schema, expected_schema)
+    diff = compare_schemas_with_difflib(generated_schema, expected_schema)
+    print(diff)
 
     discrepancies = compare_schemas(generated_schema, expected_schema)
     assert "Missing key in generated schema: address.zipcode" in discrepancies, "Expected missing zipcode in address"
