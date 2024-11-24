@@ -1,6 +1,6 @@
 from elroy.config.config import ElroyContext
 from elroy.llm.client import query_llm
-from elroy.llm.json import parse_json, query_llm_json
+from elroy.llm.parsing import parse_json, query_llm_json
 
 
 def test_query_json_llm(elroy_context: ElroyContext):

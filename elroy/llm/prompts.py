@@ -2,9 +2,9 @@ from functools import partial
 from typing import Optional, Tuple
 
 from ..config.config import ChatModel
-from ..config.constants import INNER_THOUGHT_TAG, MEMORY_WORD_COUNT_LIMIT
-from ..llm.client import query_llm_with_word_limit
-from .json import query_llm_json
+from ..config.constants import MEMORY_WORD_COUNT_LIMIT
+from ..llm.client import query_llm, query_llm_with_word_limit
+from ..llm.parsing import extract_title_and_body
 
 ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT = (
     lambda preferred_name: f"""
@@ -34,7 +34,7 @@ Only output the summary, do NOT include anything else in your output.
 
 
 async def summarize_for_memory(model: ChatModel, user_preferred_name: str, conversation_summary: str) -> Tuple[str, str]:
-    response = query_llm_json(
+    response = query_llm(
         model=model,
         prompt=conversation_summary,
         system=f"""
@@ -54,20 +54,17 @@ Your response should be in the voice of an internal thought monolgoue, and shoul
 
 Don't say things like "finally, we talked about", or "in conclusion", as this is not the end of the conversation.
 
-Return your response in JSON format, with the following structure:
-- TITLE: the title of the archival memory
-- {INNER_THOUGHT_TAG}: the internal thought monologue
+Respond in markdown format. The first line should be a title line, and the rest of the response should be the content of the memory.
 
-An example valid response might look like:
-{{
-    "TITLE": "Meeting with George",
-    "{INNER_THOUGHT_TAG}": "George is a 35 year"
-}}
+An example response might look like this:
+
+# Exercise progress on 2021-01-01
+Today, {user_preferred_name} went for a 5 mile run. They plan to run a marathon in the spring.
 
 """,
     )
 
-    return (response["TITLE"], response[INNER_THOUGHT_TAG])  # type: ignore
+    return extract_title_and_body(response)
 
 
 DEFAULT_CONTEMPLATE_PROMPT = "Think about the conversation you're in the middle of having. What are important facts to remember?"
