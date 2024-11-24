@@ -1,8 +1,5 @@
-import json
-import re
 from dataclasses import asdict
-from functools import partial
-from typing import Any, Dict, Iterator, List, Union
+from typing import Any, Dict, Iterator, List
 
 from litellm import completion, embedding
 from litellm.exceptions import BadRequestError
@@ -52,15 +49,6 @@ def query_llm(model: ChatModel, prompt: str, system: str) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return _query_llm(model=model, prompt=prompt, system=system)
-
-
-def query_llm_json(model: ChatModel, prompt: str, system: str) -> Union[dict, list]:
-    if not prompt:
-        raise ValueError("Prompt cannot be empty")
-    return pipe(
-        _query_llm(model=model, prompt=prompt, system=system),
-        partial(_parse_json, model),
-    )  # type: ignore
 
 
 def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
@@ -146,31 +134,3 @@ def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
     messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
     completion_kwargs = _build_completion_kwargs(model=model, messages=messages, stream=False, use_tools=False)
     return completion(**completion_kwargs).choices[0].message.content  # type: ignore
-
-
-def _parse_json(chat_model: ChatModel, json_str: str, attempt: int = 0) -> Union[Dict, List]:
-    cleaned_str = pipe(
-        json_str,
-        str.strip,
-        partial(re.sub, r"^```json", ""),
-        str.strip,
-        partial(re.sub, r"```$", ""),
-        str.strip,
-    )
-
-    try:
-        return json.loads(cleaned_str.strip())
-    except json.JSONDecodeError as e:
-        if attempt > 3:
-            raise e
-        else:
-            return pipe(
-                query_llm(
-                    chat_model,
-                    system=f"You will be given a text that is malformed JSON. An attempt to parse it has failed with error: {str(e)}."
-                    "Repair the json and return it. Respond with nothing but the repaired JSON."
-                    "If at all possible maintain the original structure of the JSON, in your repairs bias towards the smallest edit you can make to form valid JSON",
-                    prompt=cleaned_str,
-                ),
-                lambda x: _parse_json(chat_model, x, attempt + 1),
-            )  # type: ignore

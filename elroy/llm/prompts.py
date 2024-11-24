@@ -3,7 +3,8 @@ from typing import Optional, Tuple
 
 from ..config.config import ChatModel
 from ..config.constants import INNER_THOUGHT_TAG, MEMORY_WORD_COUNT_LIMIT
-from ..llm.client import query_llm_json, query_llm_with_word_limit
+from ..llm.client import query_llm_with_word_limit
+from .json import query_llm_json
 
 ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT = (
     lambda preferred_name: f"""
