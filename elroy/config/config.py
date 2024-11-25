@@ -8,11 +8,6 @@ from pathlib import Path
 from typing import Generator, Generic, Optional, TypeVar
 
 import yaml
-from litellm import (
-    anthropic_models,
-    open_ai_chat_completion_models,
-    open_ai_embedding_models,
-)
 from sqlalchemy import NullPool, create_engine
 from sqlmodel import Session
 
@@ -113,6 +108,12 @@ def get_config(
     log_file_path: str,
     enable_caching: bool,
 ) -> ElroyConfig:
+    from litellm import (
+        anthropic_models,
+        open_ai_chat_completion_models,
+        open_ai_embedding_models,
+    )
+
     if chat_model_name in anthropic_models:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
         chat_model = ChatModel(

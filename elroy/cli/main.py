@@ -8,7 +8,6 @@ from typing import Any, Iterable, Optional
 import typer
 from click import get_current_context
 from colorama import init
-from litellm import anthropic_models, open_ai_chat_completion_models
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 from typer import Option
@@ -355,6 +354,7 @@ def remember(
 @app.command()
 def list_chat_models(ctx: typer.Context):
     """Lists supported chat models"""
+    from litellm import anthropic_models, open_ai_chat_completion_models
 
     for m in open_ai_chat_completion_models:
         print(f"{m} (OpenAI)")
