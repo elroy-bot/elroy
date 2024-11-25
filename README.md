@@ -98,6 +98,8 @@ Elroy supports both OpenAI and Anthropic language models:
 - Anthropic Models: All Claude models (claude-2, claude-instant-1, etc.)
 - OpenAI-Compatible APIs: Any provider offering an OpenAI-compatible API endpoint (via --openai-api-base)
 
+To see all supported chat models, use `elroy list-chat-models`.
+
 #### Embedding Models
 - OpenAI Models: text-embedding-ada-002 (default)
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
@@ -160,6 +162,8 @@ These commands can be used by both users and Elroy:
 - `/print_memory` - View a specific memory
 - `/add_memory_to_current_context` - Add a memory to current conversation
 - `/drop_memory_from_current_context` - Remove memory from current conversation
+
+##### Reflection & Contemplation
 - `/contemplate [prompt]` - Ask Elroy to reflect on the conversation or a specific topic
 
 ##### User Preferences
