@@ -43,7 +43,7 @@ from .context import (
     periodic_context_refresh,
 )
 
-app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
+app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}}, rich_markup_mode=None)
 
 
 def CliOption(yaml_key: str, *args: Any, **kwargs: Any):
