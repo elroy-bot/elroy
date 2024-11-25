@@ -14,7 +14,12 @@ from toolz.curried import filter, map
 from typer import Option
 
 from ..cli.updater import check_updates, version_callback
-from ..config.config import ElroyContext, get_config, load_defaults
+from ..config.config import (
+    DEFAULTS_CONFIG_VALUES,
+    ElroyContext,
+    get_config,
+    load_defaults,
+)
 from ..docker_postgres import DOCKER_DB_URL
 from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
@@ -52,6 +57,9 @@ def CliOption(yaml_key: str, *args: Any, **kwargs: Any):
 
     def get_default():
         ctx = get_current_context()
+
+        if ctx.resilient_parsing:
+            return DEFAULTS_CONFIG_VALUES.get(yaml_key)
         config_file = ctx.params.get("config_file")
         defaults = load_defaults(config_file)
         return defaults.get(yaml_key)
