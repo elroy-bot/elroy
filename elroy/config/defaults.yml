@@ -1,7 +1,5 @@
 # Database settings
-postgres_url: null  # Must be provided or use Docker
-use_docker_postgres: true
-stop_docker_postgres_on_exit: false
+postgres_url: null  # Must be provivided (reads ELROY_POSTGRES_URL env var)
 
 # Model settings
 chat_model: "gpt-4o"

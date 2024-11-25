@@ -14,7 +14,6 @@ from toolz.curried import map
 
 from ..config.config import ElroyContext, session_manager
 from ..config.constants import CLI_USER_ID
-from ..docker_postgres import is_docker_running, start_db, stop_db
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..logging_config import setup_logging
@@ -92,32 +91,17 @@ def init_elroy_context(ctx: typer.Context) -> Generator[ElroyContext, None, None
     else:
         io = StdIO()
 
-    try:
-        config = ctx.obj["elroy_config"]
-        setup_logging(config.log_file_path)
+    config = ctx.obj["elroy_config"]
+    setup_logging(config.log_file_path)
+    ensure_current_db_migration(io, config.postgres_url)
 
-        if ctx.obj["use_docker_postgres"] and not config.postgres_url:
-            if is_docker_running():
-                start_db()
-            else:
-                raise typer.BadParameter(
-                    "Elroy was started with use_docker_postgres set to True, but no Docker container is running. Please either start a Docker container, provide a postgres_url parameter, or set the ELROY_POSTGRES_URL environment variable."
-                )
-
-        ensure_current_db_migration(io, config.postgres_url)
-
-        with session_manager(config.postgres_url) as session:
-            yield ElroyContext(
-                user_id=CLI_USER_ID,
-                session=session,
-                config=config,
-                io=io,
-            )
-
-    finally:
-        if ctx.obj["use_docker_postgres"] and ctx.obj["stop_docker_postgres_on_exit"]:
-            io.sys_message("Stopping Docker Postgres container...")
-            stop_db()
+    with session_manager(config.postgres_url) as session:
+        yield ElroyContext(
+            user_id=CLI_USER_ID,
+            session=session,
+            config=config,
+            io=io,
+        )
 
 
 def get_user_logged_in_message(context: ElroyContext) -> str:

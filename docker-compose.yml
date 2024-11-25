@@ -32,9 +32,11 @@ services:
       - ELROY_POSTGRES_URL=postgresql://elroy:password@db:5432/elroy
       - PYTHONPATH=/app
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     stdin_open: true
     tty: true
-    command: elroy --no-use-docker-postgres chat
+    entrypoint: ["elroy"]
+    command: ["chat"]
 
 volumes:
   elroy_postgres-data:
