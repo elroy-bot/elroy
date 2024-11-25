@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.49] - 2024-11-25
+
+### Improved
+- Replaced JSON LLM outputs with Markdown, added more fault tolerance in parsing responses with unexpected formatting.
+
 ## [0.0.48] - 2024-11-22
 
 ### Fixed
