@@ -3,9 +3,12 @@ import subprocess
 import time
 from urllib.parse import quote_plus
 
-import docker
 import psycopg2
-from docker.errors import DockerException
+
+"""
+Starts a Postgres database container, with pgvector configured, using Docker
+"""
+
 
 DB_NAME = "elroy"
 DB_USER = "elroy"
@@ -19,12 +22,11 @@ DOCKER_DB_URL = f"postgresql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB
 
 
 def is_docker_running():
-
+    """Checks if docker daemon is running by trying to execute docker info"""
     try:
-        client = docker.from_env()
-        client.ping()
-        return True
-    except DockerException:
+        result = subprocess.run(["docker", "info"], capture_output=True, check=True)
+        return result.returncode == 0
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
 
@@ -111,8 +113,32 @@ def start_db() -> str:
     return f"postgresql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 
-# TODO: Should be a little more careful for stopping db, if multiple sessions are live it will interupt.
 def stop_db() -> None:
     """Stops the dockerized postgres, if it is running."""
     subprocess.run(["docker", "stop", CONTAINER_NAME], check=True, capture_output=True)
     subprocess.run(["docker", "rm", CONTAINER_NAME], check=True, capture_output=True)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Manage Elroy's PostgreSQL database container")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--start", action="store_true", help="Start the database (default if no flag provided)")
+    group.add_argument("--stop", action="store_true", help="Stop the database")
+    args = parser.parse_args()
+
+    if args.stop:
+        stop_db()
+        print("Database stopped")
+    else:
+        # Either --start was provided or no args
+        if not is_docker_running():
+            print("Error: Docker is not running")
+            exit(1)
+        db_url = start_db()
+        print(f"Database started")
+        print("To use with Elroy, either set:")
+        print(f'ELROY_POSTGRES_URL="{db_url}"')
+        print(f"or run:")
+        print(f'elroy --postgres-url "{db_url}"')

@@ -9,13 +9,14 @@ import typer
 from click import get_current_context
 from colorama import init
 from litellm import anthropic_models, open_ai_chat_completion_models
+from sqlalchemy import text
+from sqlmodel import Session, create_engine
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 from typer import Option
 
 from ..cli.updater import check_updates, version_callback
 from ..config.config import ElroyContext, get_config, load_defaults
-from ..docker_postgres import DOCKER_DB_URL
 from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
 from ..onboard_user import onboard_user
@@ -59,6 +60,17 @@ def CliOption(yaml_key: str, *args: Any, **kwargs: Any):
     return Option(*args, default_factory=get_default, **kwargs)
 
 
+def check_db_connectivity(postgres_url: str) -> bool:
+    """Check if database is reachable by running a simple query"""
+    try:
+        with Session(create_engine(postgres_url)) as session:
+            session.exec(text("SELECT 1")).first()  # type: ignore
+            return True
+    except Exception as e:
+        logging.error(f"Database connectivity check failed: {e}")
+        return False
+
+
 @app.callback()
 def common(
     # Basic Configuration
@@ -87,19 +99,7 @@ def common(
     postgres_url: Optional[str] = CliOption(
         "postgres_url",
         envvar="ELROY_POSTGRES_URL",
-        help="Postgres URL to use for Elroy. If set, overrides use_docker_postgres.",
-        rich_help_panel="Database Configuration",
-    ),
-    use_docker_postgres: Optional[bool] = CliOption(
-        "use_docker_postgres",
-        envvar="USE_DOCKER_POSTGRES",
-        help="If true and postgres_url is not set, will attempt to start a Docker container for Postgres.",
-        rich_help_panel="Database Configuration",
-    ),
-    stop_docker_postgres_on_exit: Optional[bool] = CliOption(
-        "stop_docker_postgres_on_exit",
-        envvar="STOP_DOCKER_POSTGRES_ON_EXIT",
-        help="Whether or not to stop the Postgres container on exit.",
+        help="Postgres URL to use for Elroy.",
         rich_help_panel="Database Configuration",
     ),
     # API Configuration
@@ -238,15 +238,18 @@ def common(
 ):
     """Common parameters."""
 
-    if not postgres_url and not use_docker_postgres:
-        raise typer.BadParameter("If postgres_url parameter or ELROY_POSTGRES_URL env var is not set, use_docker_postgres must be True.")
+    if not postgres_url:
+        raise typer.BadParameter(
+            "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
+        )
 
-    if postgres_url and use_docker_postgres:
-        logging.info("postgres_url is set, ignoring use_docker_postgres set to True")
+    # Check database connectivity
+    if not check_db_connectivity(postgres_url):
+        raise typer.BadParameter("Could not connect to database. Please check if database is running and connection URL is correct.")
 
     ctx.obj = {
         "elroy_config": get_config(
-            postgres_url=postgres_url or DOCKER_DB_URL,
+            postgres_url=postgres_url,
             chat_model_name=chat_model,
             debug=debug,
             embedding_model=emedding_model,
@@ -268,8 +271,6 @@ def common(
             enable_caching=enable_caching,
         ),
         "show_internal_thought_monologue": show_internal_thought_monologue,
-        "use_docker_postgres": use_docker_postgres,
-        "stop_docker_postgres_on_exit": stop_docker_postgres_on_exit,
         "system_message_color": system_message_color,
         "user_input_color": user_input_color,
         "assistant_color": assistant_color,
