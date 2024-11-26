@@ -86,6 +86,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 elroy = "elroy.cli.main:main"
 elroy-with-docker-db = "elroy.extras.docker_postgres.docker_postgres:main"
+elroy-compose = "elroy.extras.docker_compose.docker_compose:main"
 
 [tool.isort]
 profile = "black"
