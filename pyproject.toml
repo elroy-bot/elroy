@@ -30,6 +30,7 @@ scrubadub = "^2.0.1"
 
 [tool.poetry.extras]
 discord = ["discord.py"]
+docker-db = ["docker", "psycopg2-binary"]
 dev = [
     "bumpversion",
     "pydantic",
@@ -84,6 +85,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 elroy = "elroy.cli.main:main"
+elroy-with-docker-db = "elroy.extras.docker_postgres.docker_postgres:main"
 
 [tool.isort]
 profile = "black"
