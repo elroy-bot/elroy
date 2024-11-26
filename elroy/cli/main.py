@@ -89,39 +89,39 @@ def common(
         rich_help_panel="Database Configuration",
     ),
     # API Configuration
-    openai_api_key: Optional[str] = CliOption(
-        "openai_api_key",
+    openai_api_key: Optional[str] = ElroyOption(
+        yaml_key="openai_api_key",
         envvar="OPENAI_API_KEY",
         help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
         rich_help_panel="API Configuration",
     ),
-    openai_api_base: Optional[str] = CliOption(
-        "openai_api_base",
+    openai_api_base: Optional[str] = ElroyOption(
+        yaml_key="openai_api_base",
         envvar="OPENAI_API_BASE",
         help="OpenAI API (or OpenAI compatible) base URL.",
         rich_help_panel="API Configuration",
     ),
-    openai_embedding_api_base: Optional[str] = CliOption(
-        "openai_embedding_api_base",
+    openai_embedding_api_base: Optional[str] = ElroyOption(
+        yaml_key="openai_embedding_api_base",
         envvar="OPENAI_API_BASE",
         help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
         rich_help_panel="API Configuration",
     ),
-    openai_organization: Optional[str] = CliOption(
-        "openai_organization",
+    openai_organization: Optional[str] = ElroyOption(
+        yaml_key="openai_organization",
         envvar="OPENAI_ORGANIZATION",
         help="OpenAI (or OpenAI compatible) organization ID.",
         rich_help_panel="API Configuration",
     ),
-    anthropic_api_key: Optional[str] = CliOption(
-        "anthropic_api_key",
+    anthropic_api_key: Optional[str] = ElroyOption(
+        yaml_key="anthropic_api_key",
         envvar="ANTHROPIC_API_KEY",
         help="Anthropic API key, required for Anthropic models.",
         rich_help_panel="API Configuration",
     ),
     # Model Configuration
-    chat_model: str = CliOption(
-        "chat_model",
+    chat_model: str = ElroyOption(
+        yaml_key="chat_model",
         envvar="ELROY_CHAT_MODEL",
         help="The model to use for chat completions.",
         rich_help_panel="Model Configuration",
