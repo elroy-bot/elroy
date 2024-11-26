@@ -126,97 +126,97 @@ def common(
         help="The model to use for chat completions.",
         rich_help_panel="Model Configuration",
     ),
-    emedding_model: str = CliOption(
-        "embedding_model",
+    emedding_model: str = ElroyOption(
+        yaml_key="embedding_model",
         help="The model to use for text embeddings.",
         rich_help_panel="Model Configuration",
     ),
-    embedding_model_size: int = CliOption(
-        "embedding_model_size",
+    embedding_model_size: int = ElroyOption(
+        yaml_key="embedding_model_size",
         help="The size of the embedding model.",
         rich_help_panel="Model Configuration",
     ),
-    enable_caching: bool = CliOption(
-        "enable_caching",
+    enable_caching: bool = ElroyOption(
+        yaml_key="enable_caching",
         help="Whether to enable caching for the LLM, both for embeddings and completions.",
         rich_help_panel="Model Configuration",
     ),
     # Context Management
-    context_refresh_trigger_tokens: int = CliOption(
-        "context_refresh_trigger_tokens",
+    context_refresh_trigger_tokens: int = ElroyOption(
+        yaml_key="context_refresh_trigger_tokens",
         help="Number of tokens that triggers a context refresh and compresion of messages in the context window.",
         rich_help_panel="Context Management",
     ),
-    context_refresh_target_tokens: int = CliOption(
-        "context_refresh_target_tokens",
+    context_refresh_target_tokens: int = ElroyOption(
+        yaml_key="context_refresh_target_tokens",
         help="Target number of tokens after context refresh / context compression, how many tokens to aim to keep in context.",
         rich_help_panel="Context Management",
     ),
-    max_context_age_minutes: float = CliOption(
-        "max_context_age_minutes",
+    max_context_age_minutes: float = ElroyOption(
+        yaml_key="max_context_age_minutes",
         help="Maximum age in minutes to keep. Messages older tha this will be dropped from context, regardless of token limits",
         rich_help_panel="Context Management",
     ),
-    context_refresh_interval_minutes: float = CliOption(
-        "context_refresh_interval_minutes",
+    context_refresh_interval_minutes: float = ElroyOption(
+        yaml_key="context_refresh_interval_minutes",
         help="How often in minutes to refresh system message and compress context.",
         rich_help_panel="Context Management",
     ),
-    min_convo_age_for_greeting_minutes: float = CliOption(
-        "min_convo_age_for_greeting_minutes",
+    min_convo_age_for_greeting_minutes: float = ElroyOption(
+        yaml_key="min_convo_age_for_greeting_minutes",
         help="Minimum age in minutes of conversation before the assistant will offer a greeting on login.",
         rich_help_panel="Context Management",
     ),
     # Memory Management
-    l2_memory_relevance_distance_threshold: float = CliOption(
-        "l2_memory_relevance_distance_threshold",
+    l2_memory_relevance_distance_threshold: float = ElroyOption(
+        yaml_key="l2_memory_relevance_distance_threshold",
         help="L2 distance threshold for memory relevance.",
         rich_help_panel="Memory Management",
     ),
-    l2_memory_consolidation_distance_threshold: float = CliOption(
-        "l2_memory_consolidation_distance_threshold",
+    l2_memory_consolidation_distance_threshold: float = ElroyOption(
+        yaml_key="l2_memory_consolidation_distance_threshold",
         help="L2 distance threshold for memory consolidation.",
         rich_help_panel="Memory Management",
     ),
-    initial_context_refresh_wait_seconds: int = CliOption(
-        "initial_context_refresh_wait_seconds",
+    initial_context_refresh_wait_seconds: int = ElroyOption(
+        yaml_key="initial_context_refresh_wait_seconds",
         help="Initial wait time in seconds after login before the initial context refresh and compression.",
         rich_help_panel="Memory Management",
     ),
     # UI Configuration
-    show_internal_thought_monologue: bool = CliOption(
-        "show_internal_thought_monologue",
+    show_internal_thought_monologue: bool = ElroyOption(
+        yaml_key="show_internal_thought_monologue",
         help="Show the assistant's internal thought monologue like memory consolidation and internal reflection.",
         rich_help_panel="UI Configuration",
     ),
-    system_message_color: str = CliOption(
-        "system_message_color",
+    system_message_color: str = ElroyOption(
+        yaml_key="system_message_color",
         help="Color for system messages.",
         rich_help_panel="UI Configuration",
     ),
-    user_input_color: str = CliOption(
-        "user_input_color",
+    user_input_color: str = ElroyOption(
+        yaml_key="user_input_color",
         help="Color for user input.",
         rich_help_panel="UI Configuration",
     ),
-    assistant_color: str = CliOption(
-        "assistant_color",
+    assistant_color: str = ElroyOption(
+        yaml_key="assistant_color",
         help="Color for assistant output.",
         rich_help_panel="UI Configuration",
     ),
-    warning_color: str = CliOption(
-        "warning_color",
+    warning_color: str = ElroyOption(
+        yaml_key="warning_color",
         help="Color for warning messages.",
         rich_help_panel="UI Configuration",
     ),
-    internal_thought_color: str = CliOption(
-        "internal_thought_color",
+    internal_thought_color: str = ElroyOption(
+        yaml_key="internal_thought_color",
         help="Color for internal thought messages.",
         rich_help_panel="UI Configuration",
     ),
     # Logging
-    log_file_path: str = CliOption(
-        "log_file_path",
+    log_file_path: str = ElroyOption(
+        yaml_key="log_file_path",
         envvar="ELROY_LOG_FILE_PATH",
         help="Where to write logs.",
         rich_help_panel="Logging",
