@@ -43,21 +43,7 @@ from .context import (
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
 
-def CliOption(yaml_key: str, *args: Any, **kwargs: Any):
-    """
-    Creates a typer Option with value priority:
-    1. CLI provided value (handled by typer)
-    2. User config file value (if provided)
-    3. defaults.yml value
-    """
-
-    def get_default():
-        ctx = get_current_context()
-        config_file = ctx.params.get("config_file")
-        defaults = load_defaults(config_file)
-        return defaults.get(yaml_key)
-
-    return Option(*args, default_factory=get_default, **kwargs)
+from .options import ElroyOption
 
 
 def check_db_connectivity(postgres_url: str) -> bool:
@@ -90,14 +76,14 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Basic Configuration",
     ),
-    debug: bool = CliOption(
-        "debug",
+    debug: bool = ElroyOption(
+        yaml_key="debug",
         help="Whether to fail fast when errors occur, and emit more verbose logging.",
         rich_help_panel="Basic Configuration",
     ),
     # Database Configuration
-    postgres_url: Optional[str] = CliOption(
-        "postgres_url",
+    postgres_url: Optional[str] = ElroyOption(
+        yaml_key="postgres_url",
         envvar="ELROY_POSTGRES_URL",
         help="Postgres URL to use for Elroy.",
         rich_help_panel="Database Configuration",
