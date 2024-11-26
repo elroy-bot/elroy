@@ -116,3 +116,14 @@ def stop_db() -> None:
     """Stops the dockerized postgres, if it is running."""
     subprocess.run(["docker", "stop", CONTAINER_NAME], check=True, capture_output=True)
     subprocess.run(["docker", "rm", CONTAINER_NAME], check=True, capture_output=True)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    if not is_docker_running():
+        raise Exception("Docker is not running.")
+    start_db()
+
+    # TODO: run elroy with params passed to the script
+
+    stop_db()

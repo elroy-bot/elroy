@@ -15,7 +15,7 @@ from typer import Option
 
 from ..cli.updater import check_updates, version_callback
 from ..config.config import ElroyContext, get_config, load_defaults
-from ..docker_postgres import DOCKER_DB_URL
+from ..extras.run_with_docker_postgres import DOCKER_DB_URL
 from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
 from ..onboard_user import onboard_user
