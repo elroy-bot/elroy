@@ -5,8 +5,7 @@ description = ""
 authors = ["Elroy Bot <bot@elroy.ai>"]
 readme = "README.md"
 packages = [
-    { include = "elroy" },
-    { include = "elroy_docker" }
+    { include = "elroy" }
 ]
 
 [tool.poetry.dependencies]
