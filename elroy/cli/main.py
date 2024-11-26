@@ -3,20 +3,18 @@ import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 
 import typer
-from click import get_current_context
 from colorama import init
 from litellm import anthropic_models, open_ai_chat_completion_models
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
-from typer import Option
 
 from ..cli.updater import check_updates, version_callback
-from ..config.config import ElroyContext, get_config, load_defaults
+from ..config.config import ElroyContext, get_config
 from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
 from ..onboard_user import onboard_user

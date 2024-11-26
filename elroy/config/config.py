@@ -22,6 +22,9 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DEFAULTS_CONFIG_PATH = os.path.join(ROOT_DIR, "config", "defaults.yml")
 
+with open(DEFAULTS_CONFIG_PATH, "r") as default_config_file:
+    DEFAULT_CONFIG = yaml.safe_load(default_config_file)
+
 
 @lru_cache
 def load_defaults(user_config_path: Optional[str] = None) -> dict:
