@@ -6,11 +6,12 @@ authors = ["Elroy Bot <bot@elroy.ai>"]
 readme = "README.md"
 packages = [
     { include = "elroy" },
-    { include = "elroy_docker", optional = true }
+    { include = "elroy_docker" }
 ]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
+elroy_docker = { path = "elroy_docker", optional = true }
 pgvector = "^0.3.6"
 psycopg2-binary = "^2.9.9"
 sqlalchemy = "^2.0.29"
