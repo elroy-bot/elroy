@@ -111,34 +111,23 @@ def start_db() -> str:
     return DOCKER_DB_URL
 
 
-def stop_db() -> None:
-    """Stops the dockerized postgres, if it is running."""
-    subprocess.run(["docker", "stop", CONTAINER_NAME], check=True, capture_output=True)
-    subprocess.run(["docker", "rm", CONTAINER_NAME], check=True, capture_output=True)
-
-
 def main():
     """Entry point for elroy-with-docker-db command."""
-    logging.basicConfig(level=logging.INFO)
     if not is_docker_running():
         raise Exception("Docker is not running.")
-    
-    db_url = start_db()
-    
-    try:
-        # Get all command line arguments except the script name
-        elroy_args = sys.argv[1:]
-        
-        # Add the postgres URL if not explicitly provided
-        if not any('--postgres-url' in arg for arg in elroy_args):
-            elroy_args.extend(['--postgres-url', db_url])
-        
-        # Run elroy with the arguments
-        result = subprocess.run(['elroy'] + elroy_args)
-        sys.exit(result.returncode)
-        
-    finally:
-        stop_db()
+
+    start_db()
+
+    # Get all command line arguments except the script name
+    elroy_args = sys.argv[1:]
+
+    # Add the postgres URL if not explicitly provided
+    if not any("--postgres-url" in arg for arg in elroy_args):
+        elroy_args.extend(["--postgres-url", DOCKER_DB_URL])
+
+    # Run elroy with the arguments
+    result = subprocess.run(["elroy"] + elroy_args)
+    sys.exit(result.returncode)
 
 
 if __name__ == "__main__":

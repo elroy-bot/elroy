@@ -24,13 +24,11 @@ docstring-parser = "^0.16"
 pygments = "^2.18.0"
 litellm = "^1.49.6"
 typer = "^0.12.5"
-docker = "^7.1.0"
 semantic-version = "^2.10.0"
 scrubadub = "^2.0.1"
 
 [tool.poetry.extras]
-discord = ["discord.py"]
-docker-db = ["docker", "psycopg2-binary"]
+docker-db = ["docker"]
 dev = [
     "bumpversion",
     "pydantic",

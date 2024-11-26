@@ -1,1 +1,1 @@
-from .docker_postgres import start_db, stop_db, is_docker_running
+from .docker_postgres import is_docker_running, start_db, stop_db
