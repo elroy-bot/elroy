@@ -1,8 +1,10 @@
+from inspect import signature
 from pathlib import Path
 
+import yaml
 from typer.testing import CliRunner
 
-from elroy.cli.main import app
+from elroy.cli.main import app, common
 
 
 def test_config_precedence():
@@ -44,3 +46,30 @@ def test_config_precedence():
     )
     assert result.exit_code == 0
     assert "config_file_model" in result.stdout
+
+
+def test_cli_params_match_defaults():
+    # Load defaults.yml
+    with open("elroy/config/defaults.yml") as f:
+        defaults = yaml.safe_load(f)
+
+    # Get all parameter names from the common function
+    sig = signature(common)
+    # Filter out ctx and version which are special typer params
+    cli_params = {name for name in sig.parameters if name not in ["ctx", "version", "config_file"]}
+
+    # Get all keys from defaults.yml
+    default_keys = set(defaults.keys())
+
+    # Find any mismatches
+    missing_from_defaults = cli_params - default_keys
+    missing_from_cli = default_keys - cli_params
+
+    # Build error message if there are mismatches
+    error_msg = []
+    if missing_from_defaults:
+        error_msg.append(f"CLI params missing from defaults.yml: {missing_from_defaults}")
+    if missing_from_cli:
+        error_msg.append(f"Default keys missing from CLI params: {missing_from_cli}")
+
+    assert not error_msg, "\n".join(error_msg)
