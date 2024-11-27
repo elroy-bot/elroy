@@ -16,7 +16,7 @@ from toolz.curried import filter, map
 from typer import Option
 
 from ..cli.updater import check_updates, version_callback
-from ..config.config import ElroyContext, get_config, load_defaults
+from ..config.config import DEFAULT_CONFIG, ElroyContext, get_config, load_defaults
 from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
 from ..onboard_user import onboard_user
@@ -43,7 +43,7 @@ from .context import (
 app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
 
 
-def CliOption(yaml_key: str, *args: Any, **kwargs: Any):
+def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs: Any):
     """
     Creates a typer Option with value priority:
     1. CLI provided value (handled by typer)
@@ -57,7 +57,16 @@ def CliOption(yaml_key: str, *args: Any, **kwargs: Any):
         defaults = load_defaults(config_file)
         return defaults.get(yaml_key)
 
-    return Option(*args, default_factory=get_default, **kwargs)
+    if not envvar:
+        envvar = f"ELROY_{yaml_key.upper()}"
+
+    return Option(
+        *args,
+        default_factory=get_default,
+        envvar=envvar,
+        show_default=DEFAULT_CONFIG.get(yaml_key),
+        **kwargs,
+    )
 
 
 def check_db_connectivity(postgres_url: str) -> bool:
