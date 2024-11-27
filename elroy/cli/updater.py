@@ -15,13 +15,24 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 
 from .. import __version__
-from ..config.config import ROOT_DIR, ElroyContext
+from ..config.config import ROOT_DIR
 from ..io.base import ElroyIO
-from .bug_report import create_bug_report_from_exception_if_confirmed
 
 
-def check_updates(context: ElroyContext):
-    current_version, latest_version = _check_latest_version()
+def handle_version_check():
+    current_version, latest_version = check_latest_version()
+    if latest_version > current_version:
+        typer.echo(f"Elroy version: {current_version} (newer version {latest_version} available)")
+        typer.echo("\nTo upgrade, run:")
+        typer.echo(f"    pip install --upgrade elroy=={latest_version}")
+    else:
+        typer.echo(f"Elroy version: {current_version} (up to date)")
+
+    raise typer.Exit()
+
+
+def check_updates():
+    current_version, latest_version = check_latest_version()
     if latest_version > current_version:
         if typer.confirm(f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"):
             typer.echo("Upgrading elroy...")
@@ -30,16 +41,9 @@ def check_updates(context: ElroyContext):
             )
 
             if upgrade_exit_code == 0:
-                try:
-                    os.execv(sys.executable, [sys.executable] + sys.argv)
-                except Exception as e:
-                    create_bug_report_from_exception_if_confirmed(context, e, "An error occurred during restart after upgrade.")
-                    context.io.sys_message("Please restart manually")
+                os.execv(sys.executable, [sys.executable] + sys.argv)
             else:
-                create_bug_report_from_exception_if_confirmed(
-                    context, Exception("Upgrade return nonzero exit."), "An error occurred during upgrade."
-                )
-                context.io.sys_message("Please try upgrading manually.")
+                raise Exception("Upgrade return nonzero exit.")
 
 
 def ensure_current_db_migration(io: ElroyIO, postgres_url: str) -> None:
@@ -75,7 +79,7 @@ def ensure_current_db_migration(io: ElroyIO, postgres_url: str) -> None:
             logging.debug("Database is up to date.")
 
 
-def _check_latest_version() -> tuple[Version, Version]:
+def check_latest_version() -> tuple[Version, Version]:
     """Check latest version of elroy on PyPI
     Returns tuple of (current_version, latest_version)"""
     current_version = Version(__version__)
@@ -87,16 +91,3 @@ def _check_latest_version() -> tuple[Version, Version]:
     except Exception as e:
         logging.warning(f"Failed to check latest version: {e}")
         return current_version, current_version
-
-
-def version_callback(value: bool):
-    if value:
-        current_version, latest_version = _check_latest_version()
-        if latest_version > current_version:
-            typer.echo(f"Elroy version: {current_version} (newer version {latest_version} available)")
-            typer.echo("\nTo upgrade, run:")
-            typer.echo(f"    pip install --upgrade elroy=={latest_version}")
-        else:
-            typer.echo(f"Elroy version: {current_version} (up to date)")
-
-        raise typer.Exit()
