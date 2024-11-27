@@ -18,7 +18,6 @@ initial_context_refresh_wait_seconds: 30
 # Memory thresholds
 l2_memory_relevance_distance_threshold: 1.24
 l2_memory_consolidation_distance_threshold: 0.65
-memory_word_count_limit: 300
 
 # UI colors
 system_message_color: "#9ACD32"
