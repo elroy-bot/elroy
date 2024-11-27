@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import os
+import subprocess
 from typing import Any, Generator
 
 import pytest
@@ -13,7 +14,6 @@ from alembic.command import upgrade
 from alembic.config import Config
 from elroy import ROOT_DIR
 from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager
-from elroy.docker_postgres import is_docker_running
 from elroy.io.base import ElroyIO, StdIO
 from elroy.repository.data_models import (
     ASSISTANT,
@@ -241,3 +241,12 @@ def george_context(session, george_user_id, io, elroy_config) -> Generator[Elroy
         io=io,
         config=elroy_config,
     )
+
+
+def is_docker_running():
+    """Checks if docker daemon is running by trying to execute docker info"""
+    try:
+        result = subprocess.run(["docker", "info"], capture_output=True, check=True)
+        return result.returncode == 0
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False

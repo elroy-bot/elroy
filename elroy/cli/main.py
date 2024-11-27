@@ -149,7 +149,7 @@ def common(
         help="The model to use for chat completions.",
         rich_help_panel="Model Configuration",
     ),
-    emedding_model: str = CliOption(
+    embedding_model: str = CliOption(
         "embedding_model",
         help="The model to use for text embeddings.",
         rich_help_panel="Model Configuration",
@@ -261,7 +261,7 @@ def common(
             postgres_url=postgres_url,
             chat_model_name=chat_model,
             debug=debug,
-            embedding_model=emedding_model,
+            embedding_model=embedding_model,
             embedding_model_size=embedding_model_size,
             context_refresh_trigger_tokens=context_refresh_trigger_tokens,
             context_refresh_target_tokens=context_refresh_target_tokens,
