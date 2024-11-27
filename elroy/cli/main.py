@@ -64,7 +64,7 @@ def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs:
         *args,
         default_factory=get_default,
         envvar=envvar,
-        show_default=DEFAULT_CONFIG.get(yaml_key),
+        show_default=str(DEFAULT_CONFIG.get(yaml_key)),
         **kwargs,
     )
 
