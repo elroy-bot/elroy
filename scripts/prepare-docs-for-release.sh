@@ -17,11 +17,16 @@ TODAY=$(date +%Y-%m-%d)
 # Get git commits since last release
 COMMITS=$(git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"- %s")
 
+elroy --help > .aider.elroy.help.txt
+
+aider --read .aider.elroy.help.txt --file README.md --no-auto-commit -m '
+Review the output of `elroy --help` and README.md. Make any edits that would make the document more complete and accurate.
+'
+
 # First update documentation
 aider --read elroy/cli/main.py --read elroy/system_commands.py  --file README.md --no-auto-commit -m '
 Review main.py, system_commands.py and README.md. Make any edits that would make the document more complete.
 Pay particular attention to:
-- Ensuring all CLI commands are documented, and that their README entry is consistent with the code. These system commands are annnotated by @app.command in main.py.
 - Ensuring all assistant tools are documented under the "## Available assistant and CLI Commands" section of the README. See system_commands.py for the list of available assistant/CLI tools.
 - Ensure the README accurately describes which models are supported by Elroy.
 

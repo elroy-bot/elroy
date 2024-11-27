@@ -81,7 +81,7 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.poetry.scripts]
-elroy = "elroy.cli.main:main"
+elroy = "elroy.cli.main:app"
 
 [tool.isort]
 profile = "black"

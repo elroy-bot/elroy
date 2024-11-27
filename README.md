@@ -98,28 +98,23 @@ Elroy supports both OpenAI and Anthropic language models:
 - Anthropic Models: All Claude models (claude-2, claude-instant-1, etc.)
 - OpenAI-Compatible APIs: Any provider offering an OpenAI-compatible API endpoint (via --openai-api-base)
 
-To see all supported chat models, use `elroy list-chat-models`.
+To see all supported chat models, use `elroy --list-models`.
 
 #### Embedding Models
 - OpenAI Models: text-embedding-ada-002 (default)
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
 
-Note: The embedding model size can be configured using the --embedding-model-size flag (default is 1536 for OpenAI models).
-
-Note: For full model compatibility and configuration options, use `elroy list-chat-models` to see all supported chat models and `elroy show-config` to view your current model settings.
-
-Note: For OpenAI models, you'll need an OpenAI API key. For Anthropic models, you'll need an Anthropic API key. You can use compatible API providers by configuring the appropriate base URLs.
-
-Use `elroy list-chat-models` to see all supported chat models.
 
 ### CLI Commands
 These commands can be run directly from your terminal:
 
-- `elroy chat` - Start the interactive chat interface (default command)
-- `elroy remember [--file FILE]` - Create a new memory from stdin, file, or interactively
-- `elroy list-chat-models` - List all supported chat models
-- `elroy show-config` - Display current configuration settings
-- `elroy --version` - Show version information and exit
+- `elroy` - Opens an interactive chat session, or generates a response to stdin input (default command)
+- `elroy --chat` - Equivalent to `elroy`
+- `elroy --remember [-r]` - Create a new memory from stdin or interactively
+- `elroy --remember-file` - Create a new memory from file
+- `elroy --list-models` - Lists supported chat models and exits
+- `elroy --show-config` - Shows current configuration and exits
+- `elroy --version` - Show version and exit
 - `elroy --help` - Show help information and all available options
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
@@ -196,13 +191,10 @@ You can customize Elroy's appearance with these options:
 
 ### Basic Configuration
 * `--config TEXT`: Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.
-* `--version`: Show version and exit.
-* `--debug`: Whether to fail fast when errors occur, and emit more verbose logging.
+* `--debug / --no-debug`: Whether to fail fast when errors occur, and emit more verbose logging. [env var: ELROY_DEBUG]
 
 ### Database Configuration
-* `--postgres-url TEXT`: Postgres URL to use for Elroy. If set, overrides use_docker_postgres. [env var: ELROY_POSTGRES_URL]
-* `--use-docker-postgres / --no-use-docker-postgres`: If true and postgres_url is not set, will attempt to start a Docker container for Postgres. [env var: USE_DOCKER_POSTGRES]
-* `--stop-docker-postgres-on-exit / --no-stop-docker-postgres-on-exit`: Whether to stop the Postgres container on exit. [env var: STOP_DOCKER_POSTGRES_ON_EXIT]
+* `--postgres-url TEXT`: Postgres URL to use for Elroy. [env var: ELROY_POSTGRES_URL]
 
 ### API Configuration
 * `--openai-api-key TEXT`: OpenAI API key, required for OpenAI (or OpenAI compatible) models. [env var: OPENAI_API_KEY]
@@ -224,9 +216,9 @@ You can customize Elroy's appearance with these options:
 * `--min-convo-age-for-greeting-minutes FLOAT`: Minimum conversation age in minutes before offering a greeting on login.
 
 ### Memory Management
-* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance.
-* `--l2-memory-consolidation-distance-threshold FLOAT`: L2 distance threshold for memory consolidation.
-* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds before the first context refresh.
+* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD]
+* `--l2-memory-consolidation-distance-threshold FLOAT`: L2 distance threshold for memory consolidation. [env var: ELROY_L2_MEMORY_CONSOLIDATION_DISTANCE_THRESHOLD]
+* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [env var: ELROY_INITIAL_CONTEXT_REFRESH_WAIT_SECONDS]
 
 ### UI Configuration
 * `--show-internal-thought-monologue`: Show the assistant's internal thought monologue. [default: False]
