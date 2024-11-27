@@ -229,6 +229,29 @@ def common(
     if not check_db_connectivity(postgres_url):
         raise typer.BadParameter("Could not connect to database. Please check if database is running and connection URL is correct.")
 
+    raw_config_values = {
+        "postgres_url": postgres_url,
+        "chat_model": chat_model,
+        "debug": debug,
+        "embedding_model": emedding_model,
+        "embedding_model_size": embedding_model_size,
+        "context_refresh_trigger_tokens": context_refresh_trigger_tokens,
+        "context_refresh_target_tokens": context_refresh_target_tokens,
+        "max_context_age_minutes": max_context_age_minutes,
+        "context_refresh_interval_minutes": context_refresh_interval_minutes,
+        "min_convo_age_for_greeting_minutes": min_convo_age_for_greeting_minutes,
+        "l2_memory_relevance_distance_threshold": l2_memory_relevance_distance_threshold,
+        "l2_memory_consolidation_distance_threshold": l2_memory_consolidation_distance_threshold,
+        "initial_context_refresh_wait_seconds": initial_context_refresh_wait_seconds,
+        "openai_api_key": openai_api_key,
+        "anthropic_api_key": anthropic_api_key,
+        "openai_api_base": openai_api_base,
+        "openai_embedding_api_base": openai_embedding_api_base,
+        "openai_organization": openai_organization,
+        "log_file_path": log_file_path,
+        "enable_caching": enable_caching,
+    }
+
     ctx.obj = {
         "elroy_config": get_config(
             postgres_url=postgres_url,
