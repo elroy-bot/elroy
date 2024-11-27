@@ -74,14 +74,7 @@ jobs:
     - name: Test built package
       run: |
         pip install ./dist/elroy-*.whl
-        elroy --version
-        echo "This is an installation test. Repeat the following text, and only the following text: 'Hello World!'" | elroy | grep -q "Hello World"
-        echo "This is an installation test. The secret number is is 3928" | elroy remember
-        echo "This is an installation test. What is the secret number? Respond with the secret number and only the secret number" | elroy | grep -q "3928"
-        echo "This is an installation test. The secret number is now 2931" > test.txt
-        elroy remember < test.txt
-        echo "This is an installation test. What is the secret number? Respond with the secret number and only the secret number" > prompt.txt
-        elroy < prompt.txt | grep -q "2931"
+        bash scripts/test_cli.sh
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 

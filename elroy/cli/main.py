@@ -2,45 +2,32 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 import typer
 from click import get_current_context
-from colorama import init
-from litellm import anthropic_models, open_ai_chat_completion_models
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
-from toolz import concat, pipe, unique
-from toolz.curried import filter, map
 from typer import Option
 
-from ..cli.updater import check_updates, version_callback
-from ..config.config import DEFAULT_CONFIG, ElroyContext, get_config, load_defaults
+from ..cli.updater import check_updates, handle_version_check
+from ..config.config import DEFAULT_CONFIG, get_config, load_defaults
+from ..io.base import StdIO
 from ..io.cli import CliIO
-from ..messaging.messenger import process_message, validate
-from ..onboard_user import onboard_user
-from ..repository.data_models import SYSTEM, USER, ContextMessage
-from ..repository.memory import manually_record_user_memory
-from ..repository.message import (
-    get_context_messages,
-    get_time_since_most_recent_user_message,
-    replace_context_messages,
-)
-from ..repository.user import is_user_exists
-from ..system_commands import SYSTEM_COMMANDS, contemplate, invoke_system_command
-from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
-from ..utils.clock import get_utc_now
-from ..utils.utils import datetime_to_string, run_in_background_thread
-from .bug_report import create_bug_report_from_exception_if_confirmed
-from .context import (
-    get_completer,
-    get_user_logged_in_message,
-    init_elroy_context,
-    periodic_context_refresh,
+from .chat import handle_chat, process_and_deliver_msg
+from .context import init_elroy_context
+from .remember import (
+    handle_memory_interactive,
+    handle_remember_file,
+    handle_remember_stdin,
 )
 
-app = typer.Typer(help="Elroy CLI", context_settings={"obj": {}})
+app = typer.Typer(
+    help="Elroy CLI",
+    context_settings={"obj": {}},
+    no_args_is_help=False,  # Don't show help when no args provided
+    callback=None,  # Important - don't use a default command
+)
 
 
 def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs: Any):
@@ -80,7 +67,7 @@ def check_db_connectivity(postgres_url: str) -> bool:
         return False
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def common(
     # Basic Configuration
     ctx: typer.Context,
@@ -89,14 +76,6 @@ def common(
         "--config",
         "-c",
         help="Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.",
-        rich_help_panel="Basic Configuration",
-    ),
-    version: bool = typer.Option(
-        None,
-        "--version",
-        callback=version_callback,
-        is_eager=True,
-        help="Show version and exit.",
         rich_help_panel="Basic Configuration",
     ),
     debug: bool = CliOption(
@@ -244,230 +223,124 @@ def common(
         help="Where to write logs.",
         rich_help_panel="Logging",
     ),
+    # Commmands
+    chat: bool = typer.Option(
+        False,
+        "--chat",
+        help="Opens an interactive chat session, or generates a response to stdin input. THe default command.",
+        rich_help_panel="Commands",
+    ),
+    remember: bool = typer.Option(
+        False,
+        "--remember",
+        "-r",
+        help="Create a new memory from stdin or interactively",
+        rich_help_panel="Commands",
+    ),
+    remember_file: Optional[str] = typer.Option(
+        None,
+        "--remember-file",
+        "-f",
+        help="File to read memory text from when using --remember",
+        rich_help_panel="Commands",
+    ),
+    list_models: bool = typer.Option(
+        False,
+        "--list-models",
+        help="Lists supported chat models and exits",
+        rich_help_panel="Commands",
+    ),
+    show_config: bool = typer.Option(
+        False,
+        "--show-config",
+        help="Shows current configuration and exits.",
+        rich_help_panel="Commands",
+    ),
+    version: bool = typer.Option(
+        None,
+        "--version",
+        help="Show version and exit.",
+        rich_help_panel="Commands",
+    ),
 ):
     """Common parameters."""
+
+    if version:
+        handle_version_check()
+
+    if list_models:
+        from litellm import anthropic_models, open_ai_chat_completion_models
+
+        for m in open_ai_chat_completion_models:
+            print(f"{m} (OpenAI)")
+        for m in anthropic_models:
+            print(f"{m} (Anthropic)")
+        exit(0)
 
     if not postgres_url:
         raise typer.BadParameter(
             "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
         )
 
+    config = get_config(
+        postgres_url=postgres_url,
+        chat_model_name=chat_model,
+        debug=debug,
+        embedding_model=embedding_model,
+        embedding_model_size=embedding_model_size,
+        context_refresh_trigger_tokens=context_refresh_trigger_tokens,
+        context_refresh_target_tokens=context_refresh_target_tokens,
+        max_context_age_minutes=max_context_age_minutes,
+        context_refresh_interval_minutes=context_refresh_interval_minutes,
+        min_convo_age_for_greeting_minutes=min_convo_age_for_greeting_minutes,
+        l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold,
+        l2_memory_consolidation_distance_threshold=l2_memory_consolidation_distance_threshold,
+        initial_context_refresh_wait_seconds=initial_context_refresh_wait_seconds,
+        openai_api_key=openai_api_key,
+        anthropic_api_key=anthropic_api_key,
+        openai_api_base=openai_api_base,
+        openai_embedding_api_base=openai_embedding_api_base,
+        openai_organization=openai_organization,
+        log_file_path=os.path.abspath(log_file_path),
+        enable_caching=enable_caching,
+    )
+
+    if show_config:
+        for key, value in config.__dict__.items():
+            print(f"{key}={value}")
+        raise typer.Exit()
+
     # Check database connectivity
     if not check_db_connectivity(postgres_url):
         raise typer.BadParameter("Could not connect to database. Please check if database is running and connection URL is correct.")
 
-    ctx.obj = {
-        "elroy_config": get_config(
-            postgres_url=postgres_url,
-            chat_model_name=chat_model,
-            debug=debug,
-            embedding_model=embedding_model,
-            embedding_model_size=embedding_model_size,
-            context_refresh_trigger_tokens=context_refresh_trigger_tokens,
-            context_refresh_target_tokens=context_refresh_target_tokens,
-            max_context_age_minutes=max_context_age_minutes,
-            context_refresh_interval_minutes=context_refresh_interval_minutes,
-            min_convo_age_for_greeting_minutes=min_convo_age_for_greeting_minutes,
-            l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold,
-            l2_memory_consolidation_distance_threshold=l2_memory_consolidation_distance_threshold,
-            initial_context_refresh_wait_seconds=initial_context_refresh_wait_seconds,
-            openai_api_key=openai_api_key,
-            anthropic_api_key=anthropic_api_key,
-            openai_api_base=openai_api_base,
-            openai_embedding_api_base=openai_embedding_api_base,
-            openai_organization=openai_organization,
-            log_file_path=os.path.abspath(log_file_path),
-            enable_caching=enable_caching,
-        ),
-        "show_internal_thought_monologue": show_internal_thought_monologue,
-        "system_message_color": system_message_color,
-        "user_input_color": user_input_color,
-        "assistant_color": assistant_color,
-        "warning_color": warning_color,
-        "internal_thought_color": internal_thought_color,
-        "is_tty": sys.stdin.isatty(),
-    }
+    if remember_file or not sys.stdin.isatty():
+        io = StdIO()
 
-
-@app.command()
-def chat(ctx: typer.Context):
-    """Start the Elroy chat interface"""
-
-    if not sys.stdin.isatty():
-        with init_elroy_context(ctx) as context:
-            for line in sys.stdin:
-                process_and_deliver_msg(context, line)
-        return
-
-    with init_elroy_context(ctx) as context:
-        try:
-            check_updates(context)
-            asyncio.run(main_chat(context))
-        except Exception as e:
-            create_bug_report_from_exception_if_confirmed(context, e)
-        context.io.sys_message(f"Exiting...")
-
-
-@app.command()
-def remember(
-    ctx: typer.Context,
-    file: Optional[str] = typer.Option(None, "--file", "-f", help="File to read memory text from"),
-):
-    """Create a new memory from stdin or interactively"""
-
-    with init_elroy_context(ctx) as context:
-        memory_name = None
-        if not sys.stdin.isatty():
-            memory_text = sys.stdin.read()
-            metadata = "Memory ingested from stdin\n" f"Ingested at: {datetime_to_string(datetime.now())}\n"
-            memory_text = f"{metadata}\n{memory_text}"
-            memory_name = f"Memory from stdin, ingested {datetime_to_string(datetime.now())}"
-        elif file:
-            try:
-                with open(file, "r") as f:
-                    memory_text = f.read()
-                # Add file metadata
-                file_stat = os.stat(file)
-                metadata = "Memory ingested from file"
-                "File: {file}"
-                f"Last modified: {datetime_to_string(datetime.fromtimestamp(file_stat.st_mtime))}\n"
-                f"Created at: {datetime_to_string(datetime.fromtimestamp(file_stat.st_ctime))}"
-                f"Size: {file_stat.st_size} bytes\n"
-                f"Ingested at: {datetime_to_string(datetime.now())}\n"
-                memory_text = f"{memory_text}\n{metadata}"
-                memory_name = f"Memory from file: {file}, ingested {datetime_to_string(datetime.now())}"
-            except Exception as e:
-                context.io.sys_message(f"Error reading file: {e}")
-                exit(1)
-        else:
-            # Get the memory text from user
-            memory_text = asyncio.run(context.io.prompt_user("Enter the memory text:"))
-            memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
-            # Optionally get memory name
-            memory_name = asyncio.run(context.io.prompt_user("Enter memory name (optional, press enter to skip):"))
-        try:
-            manually_record_user_memory(context, memory_text, memory_name)
-            context.io.sys_message(f"Memory created: {memory_name}")
-            exit(0)
-        except ValueError as e:
-            context.io.assistant_msg(f"Error creating memory: {e}")
-            exit(1)
-
-
-@app.command()
-def list_chat_models(ctx: typer.Context):
-    """Lists supported chat models"""
-
-    for m in open_ai_chat_completion_models:
-        print(f"{m} (OpenAI)")
-    for m in anthropic_models:
-        print(f"{m} (Anthropic)")
-
-
-@app.command()
-def show_config(ctx: typer.Context):
-    """Shows current configuration (for testing)"""
-    config = ctx.obj["elroy_config"]
-    for key, value in config.__dict__.items():
-        print(f"{key}={value}")
-
-
-def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
-    if user_input.startswith("/") and role == USER:
-        cmd = user_input[1:].split()[0]
-
-        if cmd.lower() not in {f.__name__ for f in SYSTEM_COMMANDS}:
-            context.io.assistant_msg(f"Unknown command: {cmd}")
-        else:
-            try:
-                context.io.sys_message(invoke_system_command(context, user_input))
-            except Exception as e:
-                context.io.sys_message(f"Error invoking system command: {e}")
+        with init_elroy_context(config, io) as context:
+            if remember_file:
+                handle_remember_file(context, remember_file)
+            elif remember:
+                handle_remember_stdin(context)
+            else:  # default to chat
+                process_and_deliver_msg(context, sys.stdin.read())
+                raise typer.Exit()
     else:
-        context.io.assistant_msg(process_message(context, user_input, role))
-
-
-async def main_chat(context: ElroyContext[CliIO]):
-    init(autoreset=True)
-
-    run_in_background_thread(periodic_context_refresh, context)
-
-    context.io.print_title_ruler()
-
-    if not is_user_exists(context):
-        context.io.notify_warning("Elroy is in alpha release")
-        name = await context.io.prompt_user("Welcome to Elroy! What should I call you?")
-        user_id = onboard_user(context.session, context.io, context.config, name)
-        assert isinstance(user_id, int)
-
-        set_user_preferred_name(context, name)
-        _print_memory_panel(context, get_context_messages(context))
-        process_and_deliver_msg(context, "Elroy user {name} has been onboarded. Say hello and introduce yourself.", role=SYSTEM)
-        context_messages = get_context_messages(context)
-
-    else:
-        context_messages = get_context_messages(context)
-
-        validated_messages = validate(context.config, context_messages)
-
-        if context_messages != validated_messages:
-            replace_context_messages(context, validated_messages)
-            logging.warning("Context messages were repaired")
-            context_messages = get_context_messages(context)
-
-        _print_memory_panel(context, context_messages)
-
-        if (get_time_since_most_recent_user_message(context_messages) or timedelta()) < context.config.min_convo_age_for_greeting:
-            logging.info("User has interacted recently, skipping greeting.")
-
-        else:
-            get_user_preferred_name(context)
-
-            # TODO: should include some information about how long the user has been talking to Elroy
-            process_and_deliver_msg(
-                context,
-                get_user_logged_in_message(context),
-                SYSTEM,
-            )
-
-    while True:
-        try:
-            context.io.update_completer(get_completer(context, context_messages))
-
-            user_input = await context.io.prompt_user()
-            if user_input.lower().startswith("/exit") or user_input == "exit":
-                break
-            elif user_input:
-                process_and_deliver_msg(context, user_input)
-                run_in_background_thread(contemplate, context)
-        except EOFError:
-            break
-
-        context.io.rule()
-        context_messages = get_context_messages(context)
-        _print_memory_panel(context, context_messages)
-
-
-def _print_memory_panel(context: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
-    pipe(
-        context_messages,
-        filter(lambda m: not m.created_at or m.created_at > get_utc_now() - context.config.max_in_context_message_age),
-        map(lambda m: m.memory_metadata),
-        filter(lambda m: m is not None),
-        concat,
-        map(lambda m: f"{m.memory_type}: {m.name}"),
-        unique,
-        list,
-        sorted,
-        context.io.print_memory_panel,
-    )
-
-
-def main():
-    if len(sys.argv) == 1:
-        sys.argv.append("chat")
-    app()
+        io = CliIO(
+            show_internal_thought_monologue,
+            system_message_color,
+            assistant_color,
+            user_input_color,
+            warning_color,
+            internal_thought_color,
+        )
+        with init_elroy_context(config, io) as context:
+            if remember:
+                handle_memory_interactive(context)
+            else:
+                check_updates()
+                asyncio.run(handle_chat(context))
 
 
 if __name__ == "__main__":
-    main()
+    app()
