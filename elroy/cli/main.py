@@ -74,15 +74,15 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Basic Configuration",
     ),
-    debug: bool = ElroyOption(
-        yaml_key="debug",
+    debug: bool = typer.Option(
+        None,
+        "--debug",
         help="Whether to fail fast when errors occur, and emit more verbose logging.",
         rich_help_panel="Basic Configuration",
     ),
     # Database Configuration
     postgres_url: Optional[str] = ElroyOption(
         yaml_key="postgres_url",
-        envvar="ELROY_POSTGRES_URL",
         help="Postgres URL to use for Elroy.",
         rich_help_panel="Database Configuration",
     ),
@@ -120,7 +120,6 @@ def common(
     # Model Configuration
     chat_model: str = ElroyOption(
         yaml_key="chat_model",
-        envvar="ELROY_CHAT_MODEL",
         help="The model to use for chat completions.",
         rich_help_panel="Model Configuration",
     ),
@@ -215,7 +214,6 @@ def common(
     # Logging
     log_file_path: str = ElroyOption(
         yaml_key="log_file_path",
-        envvar="ELROY_LOG_FILE_PATH",
         help="Where to write logs.",
         rich_help_panel="Logging",
     ),

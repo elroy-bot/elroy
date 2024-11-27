@@ -1,13 +1,16 @@
-from typing import Any
+from typing import Any, Optional
 
 from typer import Option
 
 from ..config.config import DEFAULT_CONFIG
 
 
-def ElroyOption(*args: Any, yaml_key: str, **kwargs: Any) -> Any:
+def ElroyOption(*args: Any, yaml_key: str, envvar: Optional[str] = None, **kwargs: Any) -> Any:
     """
     Creates a typer Option that reads its default from defaults.yml
     """
 
-    return Option(*args, default=DEFAULT_CONFIG.get(yaml_key), show_default=True, **kwargs)
+    if not envvar:
+        envvar = "ELROY_" + yaml_key.upper()
+
+    return Option(*args, default=DEFAULT_CONFIG.get(yaml_key), envvar=envvar, show_default=True, **kwargs)
