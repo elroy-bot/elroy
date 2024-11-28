@@ -98,10 +98,10 @@ Elroy supports both OpenAI and Anthropic language models:
 - Anthropic Models: All Claude models (claude-2, claude-instant-1, etc.)
 - OpenAI-Compatible APIs: Any provider offering an OpenAI-compatible API endpoint (via --openai-api-base)
 
-To see all supported chat models, use `elroy --list-models`.
+The default model is gpt-4o. To see all supported chat models, use `elroy --list-models`.
 
 #### Embedding Models
-- OpenAI Models: text-embedding-ada-002 (default)
+- OpenAI Models: text-embedding-3-small (default, 1536 dimensions)
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
 
 
@@ -204,21 +204,22 @@ You can customize Elroy's appearance with these options:
 * `--anthropic-api-key TEXT`: Anthropic API key, required for Anthropic models. [env var: ANTHROPIC_API_KEY]
 
 ### Model Configuration
-* `--chat-model TEXT`: The model to use for chat completions. [env var: ELROY_CHAT_MODEL]
-* `--embedding-model TEXT`: The model to use for text embeddings.
-* `--embedding-model-size INTEGER`: The size of the embedding model.
+* `--chat-model TEXT`: The model to use for chat completions. [env var: ELROY_CHAT_MODEL] [default: gpt-4o]
+* `--embedding-model TEXT`: The model to use for text embeddings. [default: text-embedding-3-small]
+* `--embedding-model-size INTEGER`: The size of the embedding model. [default: 1536]
+* `--enable-caching / --no-enable-caching`: Whether to enable caching for the LLM, both for embeddings and completions. [default: True]
 
 ### Context Management
-* `--context-refresh-trigger-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages.
-* `--context-refresh-target-tokens INTEGER`: Target number of tokens after context refresh / compression.
-* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages in context.
-* `--context-refresh-interval-minutes FLOAT`: How often in minutes to refresh system message and compress context.
-* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum conversation age in minutes before offering a greeting on login.
+* `--context-refresh-trigger-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages. [default: 3300]
+* `--context-refresh-target-tokens INTEGER`: Target number of tokens after context refresh / compression. [default: 1650]
+* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages in context. [default: 120.0]
+* `--context-refresh-interval-minutes FLOAT`: How often in minutes to refresh system message and compress context. [default: 10.0]
+* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum conversation age in minutes before offering a greeting on login. [default: 10.0]
 
 ### Memory Management
-* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD]
-* `--l2-memory-consolidation-distance-threshold FLOAT`: L2 distance threshold for memory consolidation. [env var: ELROY_L2_MEMORY_CONSOLIDATION_DISTANCE_THRESHOLD]
-* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [env var: ELROY_INITIAL_CONTEXT_REFRESH_WAIT_SECONDS]
+* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD] [default: 1.24]
+* `--l2-memory-consolidation-distance-threshold FLOAT`: L2 distance threshold for memory consolidation. [env var: ELROY_L2_MEMORY_CONSOLIDATION_DISTANCE_THRESHOLD] [default: 0.65]
+* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [env var: ELROY_INITIAL_CONTEXT_REFRESH_WAIT_SECONDS] [default: 30]
 
 ### UI Configuration
 * `--show-internal-thought-monologue`: Show the assistant's internal thought monologue. [default: False]

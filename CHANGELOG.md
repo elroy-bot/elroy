@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.0.50] - 2024-11-28
+
+### Breaking changes
+- CLI commands have been converted to flags, so:
+    - `remember` is now `--remember`
+    - `remember` with `-f` is not `--remember-file`
+    - `list-models` is now `--list-models`
+    - `chat` is now `--chat`. This remains the default command if no command is provided.
+- Docker integration is updated
+    - `--use-docker-postgres` flag is removed. You can start the docker database using the `scripts/docker_postgres.py` script.
+
+### Improved
+- Enhanced CLI configuration with streamlined flag organization
+- Optimized default parameters for better out-of-box experience
+- Improved Docker integration for more reliable container usage
+
+### Fixed
+- Resolved various test suite issues
+
 ## [0.0.49] - 2024-11-25
 
 ### Improved
