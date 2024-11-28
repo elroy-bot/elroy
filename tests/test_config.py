@@ -17,7 +17,7 @@ def test_config_precedence():
     # Test 1: CLI args override everything
     result = runner.invoke(
         app,
-        ["--config", str(config_path), "--chat-model", "cli_model", "show-config"],
+        ["--config", str(config_path), "--chat-model", "cli_model", "--show-config"],
         env={"ELROY_CHAT_MODEL": "env_model"},
         catch_exceptions=False,
     )
@@ -29,7 +29,7 @@ def test_config_precedence():
     # Test 2: Environment variables override config file
     result = runner.invoke(
         app,
-        ["--config", str(config_path), "show-config"],
+        ["--config", str(config_path), "--show-config"],
         env={"ELROY_CHAT_MODEL": "env_model"},
         catch_exceptions=False,
     )
@@ -40,7 +40,7 @@ def test_config_precedence():
     # Test 3: Config file overrides defaults
     result = runner.invoke(
         app,
-        ["--config", str(config_path), "show-config"],
+        ["--config", str(config_path), "--show-config"],
         env={},  # No environment variables
         catch_exceptions=False,
     )
@@ -55,8 +55,22 @@ def test_cli_params_match_defaults():
 
     # Get all parameter names from the common function
     sig = signature(common)
-    # Filter out ctx and version which are special typer params
-    cli_params = {name for name in sig.parameters if name not in ["ctx", "version", "config_file"]}
+    # Filter out ctx, config_file, and command flags.
+    cli_params = {
+        name
+        for name in sig.parameters
+        if name
+        not in [
+            "ctx",
+            "version",
+            "config_file",
+            "show_config",
+            "chat",
+            "remember",
+            "remember_file",
+            "list_models",
+        ]
+    }
 
     # Get all keys from defaults.yml
     default_keys = set(defaults.keys())
