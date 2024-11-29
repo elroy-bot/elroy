@@ -17,10 +17,11 @@ from ..repository.message import (
     replace_context_messages,
 )
 from ..repository.user import is_user_exists
-from ..system_commands import SYSTEM_COMMANDS, contemplate, invoke_system_command
+from ..system_commands import SYSTEM_COMMANDS, contemplate
 from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
 from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
+from .commands import invoke_system_command
 from .context import get_completer, get_user_logged_in_message, periodic_context_refresh
 
 
@@ -39,7 +40,7 @@ async def handle_chat(context: ElroyContext[CliIO]):
 
         set_user_preferred_name(context, name)
         print_memory_panel(context, get_context_messages(context))
-        process_and_deliver_msg(context, "Elroy user {name} has been onboarded. Say hello and introduce yourself.", role=SYSTEM)
+        await process_and_deliver_msg(context, "Elroy user {name} has been onboarded. Say hello and introduce yourself.", role=SYSTEM)
         context_messages = get_context_messages(context)
 
     else:
@@ -61,7 +62,7 @@ async def handle_chat(context: ElroyContext[CliIO]):
             get_user_preferred_name(context)
 
             # TODO: should include some information about how long the user has been talking to Elroy
-            process_and_deliver_msg(
+            await process_and_deliver_msg(
                 context,
                 get_user_logged_in_message(context),
                 SYSTEM,
@@ -75,7 +76,7 @@ async def handle_chat(context: ElroyContext[CliIO]):
             if user_input.lower().startswith("/exit") or user_input == "exit":
                 break
             elif user_input:
-                process_and_deliver_msg(context, user_input)
+                await process_and_deliver_msg(context, user_input)
                 run_in_background_thread(contemplate, context)
         except EOFError:
             break
@@ -85,15 +86,16 @@ async def handle_chat(context: ElroyContext[CliIO]):
         print_memory_panel(context, context_messages)
 
 
-def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
+async def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
     if user_input.startswith("/") and role == USER:
         cmd = user_input[1:].split()[0]
 
         if cmd.lower() not in {f.__name__ for f in SYSTEM_COMMANDS}:
-            context.io.assistant_msg(f"Unknown command: {cmd}")
+            context.io.sys_message(f"Unknown command: {cmd}")
         else:
             try:
-                context.io.sys_message(invoke_system_command(context, user_input))
+                result = await invoke_system_command(context, user_input)
+                context.io.sys_message(result)
             except Exception as e:
                 context.io.sys_message(f"Error invoking system command: {e}")
     else:

@@ -128,7 +128,7 @@ class CliIO(ElroyIO):
 
     async def prompt_user(self, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0) -> str:
         try:
-            return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), style=self.style)
+            return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), default=prefill, style=self.style)
         except KeyboardInterrupt:
             keyboard_interrupt_count += 1
             if keyboard_interrupt_count == 3:
