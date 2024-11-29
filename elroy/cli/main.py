@@ -323,7 +323,7 @@ def common(
             elif remember:
                 handle_remember_stdin(context)
             else:  # default to chat
-                process_and_deliver_msg(context, sys.stdin.read())
+                asyncio.run(process_and_deliver_msg(context, sys.stdin.read()))
                 raise typer.Exit()
     else:
         io = CliIO(

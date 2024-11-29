@@ -7,6 +7,7 @@ from typing import Any, Generator
 import pytest
 from sqlmodel import delete, text
 from tests.fixtures import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME, create_test_user
+from tests.utils import TestCliIO
 from toolz import keyfilter, merge, pipe
 from toolz.curried import valfilter
 
@@ -14,7 +15,7 @@ from alembic.command import upgrade
 from alembic.config import Config
 from elroy import ROOT_DIR
 from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager
-from elroy.io.base import ElroyIO, StdIO
+from elroy.io.base import ElroyIO
 from elroy.repository.data_models import (
     ASSISTANT,
     USER,
@@ -40,10 +41,18 @@ def pytest_addoption(parser):
     # )
 
 
-@pytest.fixture(scope="session", autouse=True)
+def pytest_collection_modifyitems(items):
+    """Automatically mark all test functions as asyncio."""
+    for item in items:
+        if item.get_closest_marker("asyncio") is None:
+            item.add_marker(pytest.mark.asyncio)
+
+
+@pytest.fixture(scope="function", autouse=True)
 def event_loop():
     """Create an instance of the default event loop for each test case."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
     loop.close()
 
@@ -119,9 +128,9 @@ def user_id(session, io, elroy_config) -> Generator[int, Any, None]:
     yield create_test_user(session, io, elroy_config)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def io() -> Generator[ElroyIO, Any, None]:
-    yield StdIO()
+    yield TestCliIO()
 
 
 @pytest.fixture(scope="function")

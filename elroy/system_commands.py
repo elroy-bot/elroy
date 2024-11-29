@@ -1,5 +1,4 @@
 import logging
-from inspect import signature
 from typing import Callable, List, Optional, Set
 
 from rich.pretty import Pretty
@@ -47,57 +46,6 @@ from .tools.user_preferences import (
     set_user_full_name,
     set_user_preferred_name,
 )
-
-
-def invoke_system_command(context: ElroyContext, msg: str) -> str:
-    """
-    Takes user input and executes a system command
-
-    Currently only works well for commands that take 1 non-context argument
-
-    In the future, the execute system command should surface a form
-    """
-    if msg.startswith("/"):
-        msg = msg[1:]
-
-    command, *args = msg.split(" ")
-
-    func = next((f for f in SYSTEM_COMMANDS if f.__name__ == command), None)
-
-    if not func:
-        return f"Unknown command: {command}"
-
-    sig = signature(func)
-    params = list(sig.parameters.values())
-
-    try:
-        func_args = []
-        num_required_non_context_args = len([p for p in params if p.default is p.empty and p.annotation != ElroyContext])
-
-        arg_index = 0
-        for param in params:
-            if param.annotation == ElroyContext:
-                func_args.append(context)
-                continue
-
-            if arg_index < len(args) and args[arg_index] not in [None, ""]:  # We have an argument provided
-                if param.annotation == str and arg_index == num_required_non_context_args - 1:
-                    # Last *required* string param gets remaining args
-                    func_args.append(" ".join(args[arg_index:]))
-                    break
-                else:
-                    func_args.append(args[arg_index])
-                    arg_index += 1
-            elif param.default is not param.empty:
-                # Use default value for optional parameter
-                continue
-            else:
-                # Missing required argument
-                return f"Error: Missing required argument '{param.name}' for command {command}."
-
-        return func(*func_args)
-    except Exception as e:
-        return f"Error invoking system command: {e}"
 
 
 def refresh_system_instructions(context: ElroyContext) -> str:
