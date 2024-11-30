@@ -248,6 +248,7 @@ if __name__ == "__main__":
 
     # open pr with gh cli
     print("Creating PR...")
+    subprocess.run(["git", "push", "origin"], check=True)
     subprocess.run(["gh", "pr", "create", "--fill"], check=True)
 
     # check with user before merging

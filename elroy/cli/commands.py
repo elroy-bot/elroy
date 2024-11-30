@@ -77,4 +77,4 @@ def _get_prompt_for_param(param: Parameter) -> str:
     if _is_optional(param):
         prompt_title += " (optional)"
 
-    return prompt_title + "> "
+    return prompt_title + ">"
