@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.51] - 2024-11-30
+
+### Improved
+- Fix multi-argument system commands. For user initiatied system commands with multiple arguments, the user will now be prompted to enter each argument.
+
 ## [0.0.50] - 2024-11-28
 
 ### Breaking changes

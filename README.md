@@ -210,11 +210,11 @@ You can customize Elroy's appearance with these options:
 * `--enable-caching / --no-enable-caching`: Whether to enable caching for the LLM, both for embeddings and completions. [default: True]
 
 ### Context Management
-* `--context-refresh-trigger-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages. [default: 3300]
-* `--context-refresh-target-tokens INTEGER`: Target number of tokens after context refresh / compression. [default: 1650]
-* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages in context. [default: 120.0]
+* `--context-refresh-trigger-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages in the context window. [default: 3300]
+* `--context-refresh-target-tokens INTEGER`: Target number of tokens after context refresh / compression, how many tokens to aim to keep in context. [default: 1650]
+* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep. Messages older than this will be dropped from context, regardless of token limits. [default: 120.0]
 * `--context-refresh-interval-minutes FLOAT`: How often in minutes to refresh system message and compress context. [default: 10.0]
-* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum conversation age in minutes before offering a greeting on login. [default: 10.0]
+* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. [default: 10.0]
 
 ### Memory Management
 * `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD] [default: 1.24]
