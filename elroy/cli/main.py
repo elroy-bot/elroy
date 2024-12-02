@@ -240,6 +240,7 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
+    use_model: Annotated[bool, *generate_model_options()],
     **model_options: Annotated[bool, generate_model_options()],
 ):
     """Common parameters."""
@@ -261,11 +262,9 @@ def common(
             "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
         )
 
-    for model_option, value in model_options.items():
-        if value:
-            chat_model_key = model_option.replace("_", "-")
-            chat_model = CHAT_MODEL_ALIASES[chat_model_key].resolver()
-            break
+    # Handle model selection
+    if use_model:
+        chat_model = CHAT_MODEL_ALIASES[chat_model_key].resolver()
 
 
 
