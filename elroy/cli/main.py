@@ -8,11 +8,20 @@ import typer
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
 
-from ..cli.updater import check_updates, handle_version_check
-from ..config.config import get_config
-from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
+from ..cli.updater import (
+    check_updates,
+    ensure_current_db_migration,
+    handle_version_check,
+)
+from ..config.config import get_config, session_manager
+from ..config.constants import (
+    DEFAULT_USER_TOKEN,
+    LIST_MODELS_FLAG,
+    MODEL_SELECTION_CONFIG_PANEL,
+)
 from ..io.base import StdIO
 from ..io.cli import CliIO
+from ..logging_config import setup_logging
 from .chat import handle_chat, process_and_deliver_msg
 from .context import init_elroy_context
 from .options import CHAT_MODEL_ALIASES, CliOption
@@ -50,6 +59,13 @@ def common(
         "--config",
         "-c",
         help="Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.",
+        rich_help_panel="Basic Configuration",
+    ),
+    token: str = typer.Option(
+        DEFAULT_USER_TOKEN,
+        "--token",
+        "-t",
+        help="User token",
         rich_help_panel="Basic Configuration",
     ),
     debug: bool = CliOption(
@@ -309,32 +325,37 @@ def common(
     if not check_db_connectivity(postgres_url):
         raise typer.BadParameter("Could not connect to database. Please check if database is running and connection URL is correct.")
 
-    if remember_file or not sys.stdin.isatty():
-        io = StdIO()
+    setup_logging(config.log_file_path)
+    ensure_current_db_migration(config.postgres_url)
 
-        with init_elroy_context(config, io) as context:
-            if remember_file:
-                handle_remember_file(context, remember_file)
-            elif remember:
-                handle_remember_stdin(context)
-            else:  # default to chat
-                asyncio.run(process_and_deliver_msg(context, sys.stdin.read()))
-                raise typer.Exit()
-    else:
-        io = CliIO(
-            show_internal_thought_monologue,
-            system_message_color,
-            assistant_color,
-            user_input_color,
-            warning_color,
-            internal_thought_color,
-        )
-        with init_elroy_context(config, io) as context:
-            if remember:
-                handle_memory_interactive(context)
-            else:
-                check_updates()
-                asyncio.run(handle_chat(context))
+    with session_manager(config.postgres_url) as session:
+
+        if remember_file or not sys.stdin.isatty():
+            io = StdIO()
+
+            with init_elroy_context(config, io, session, token) as context:
+                if remember_file:
+                    handle_remember_file(context, remember_file)
+                elif remember:
+                    handle_remember_stdin(context)
+                else:  # default to chat
+                    asyncio.run(process_and_deliver_msg(context, sys.stdin.read()))
+                    raise typer.Exit()
+        else:
+            io = CliIO(
+                show_internal_thought_monologue,
+                system_message_color,
+                assistant_color,
+                user_input_color,
+                warning_color,
+                internal_thought_color,
+            )
+            with init_elroy_context(config, io, session, token) as context:
+                if remember:
+                    handle_memory_interactive(context)
+                else:
+                    check_updates()
+                    asyncio.run(handle_chat(context))
 
 
 if __name__ == "__main__":

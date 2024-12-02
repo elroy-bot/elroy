@@ -10,8 +10,8 @@ from .repository.message import replace_context_messages
 from .repository.user import create_user
 
 
-def onboard_user(session: Session, io: ElroyIO, config: ElroyConfig, preferred_name: str) -> int:
-    user_id = create_user(session)
+def onboard_user(session: Session, io: ElroyIO, config: ElroyConfig, token: str, preferred_name: str) -> int:
+    user_id = create_user(session, token)
 
     assert isinstance(user_id, int)
 

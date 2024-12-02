@@ -23,6 +23,8 @@ LIST_MODELS_FLAG = "--list-models"
 
 MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
+DEFAULT_USER_TOKEN = "DEFAULT"
+
 
 class MissingAssistantToolCallError(Exception):
     pass

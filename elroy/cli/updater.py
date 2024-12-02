@@ -16,7 +16,6 @@ from alembic.script import ScriptDirectory
 
 from .. import __version__
 from ..config.config import ROOT_DIR
-from ..io.base import ElroyIO
 
 
 def handle_version_check():
@@ -46,7 +45,7 @@ def check_updates():
                 raise Exception("Upgrade return nonzero exit.")
 
 
-def ensure_current_db_migration(io: ElroyIO, postgres_url: str) -> None:
+def ensure_current_db_migration(postgres_url: str) -> None:
     """Check if all migrations have been run.
     Returns True if migrations are up to date, False otherwise."""
     config = Config(os.path.join(ROOT_DIR, "alembic", "alembic.ini"))
@@ -67,14 +66,14 @@ def ensure_current_db_migration(io: ElroyIO, postgres_url: str) -> None:
         head_rev = script.get_current_head()
 
         if current_rev != head_rev:
-            with io.status(f"setting up database..."):
-                # Capture and redirect alembic output to logging
+            logging.info("Running db migrations")
+            # Capture and redirect alembic output to logging
 
-                with contextlib.redirect_stdout(StringIO()) as stdout:
-                    command.upgrade(config, "head")
-                    for line in stdout.getvalue().splitlines():
-                        if line.strip():
-                            logging.info(f"Alembic: {line.strip()}")
+            with contextlib.redirect_stdout(StringIO()) as stdout:
+                command.upgrade(config, "head")
+                for line in stdout.getvalue().splitlines():
+                    if line.strip():
+                        logging.info(f"Alembic: {line.strip()}")
         else:
             logging.debug("Database is up to date.")
 

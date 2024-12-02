@@ -35,7 +35,7 @@ async def handle_chat(context: ElroyContext[CliIO]):
     if not is_user_exists(context):
         context.io.notify_warning("Elroy is in alpha release")
         name = await context.io.prompt_user("Welcome to Elroy! What should I call you?")
-        user_id = onboard_user(context.session, context.io, context.config, name)
+        user_id = onboard_user(context.session, context.io, context.config, token, name)
         assert isinstance(user_id, int)
 
         set_user_preferred_name(context, name)

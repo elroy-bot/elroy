@@ -10,9 +10,9 @@ def is_user_exists(context: ElroyContext) -> bool:
     return bool(context.session.exec(select(User).where(User.id == context.user_id)).first())
 
 
-def create_user(session: Session) -> int:
+def create_user(session: Session, token: str) -> int:
     return pipe(
-        User(),
+        User(token=token),
         do(session.add),
         do(lambda _: session.commit()),
         do(session.refresh),
