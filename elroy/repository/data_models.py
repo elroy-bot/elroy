@@ -67,6 +67,7 @@ class EmbeddableSqlModel(ABC, SQLModel):
 class User(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    token: str = Field(..., description="The token for the user/memory collection")
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
