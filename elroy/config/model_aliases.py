@@ -33,6 +33,20 @@ def get_gpt4o_mini() -> str:
     return _get_model_alias(r"gpt-4o-mini", openai_models)
 
 
+def get_o1() -> str:
+    """Get the latest o1 model (handles both preview and non-preview versions)."""
+    from litellm import openai_models
+
+    return _get_model_alias(r"^o1(?:-preview)?(?:-\d{4})?", openai_models)
+
+
+def get_o1_mini() -> str:
+    """Get the latest o1-mini model."""
+    from litellm import openai_models
+
+    return _get_model_alias(r"o1-mini", openai_models)
+
+
 def _get_model_alias(pattern: str, models: List[str]) -> str:
     """
     Get the highest sorted model name that matches the regex pattern.
