@@ -9,6 +9,7 @@ from toolz.curried import filter
 from typer import Option
 
 from ..config.config import DEFAULT_CONFIG, load_defaults
+from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 
 
 def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs: Any):
@@ -48,7 +49,7 @@ class ModelAlias:
             False,
             f"--{self.keyword}",
             help=f"Use {self.description}",
-            rich_help_panel="Model Selection",
+            rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
         )
 
 

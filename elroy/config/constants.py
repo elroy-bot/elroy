@@ -21,6 +21,8 @@ BUG_REPORT_LOG_LINES = 15
 
 LIST_MODELS_FLAG = "--list-models"
 
+MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
+
 
 class MissingAssistantToolCallError(Exception):
     pass

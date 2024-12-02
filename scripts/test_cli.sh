@@ -60,8 +60,11 @@ elroy --show-config || {
     exit 1
 }
 
-echo "Testing model alias resolution"
-# TODO: test that elroy --sonnet --show-config prints output that includes something that matches .*claude.*sonnet.*
+echo "Testing model alias resolution..."
+elroy --sonnet --show-config | grep -q "claude.*sonnet" || {
+    echo "❌ Model alias resolution failed"
+    exit 1
+}
 
 # Model listing test
 echo "Testing model listing..."

@@ -10,7 +10,7 @@ from sqlmodel import Session, create_engine
 
 from ..cli.updater import check_updates, handle_version_check
 from ..config.config import get_config
-from ..config.constants import LIST_MODELS_FLAG
+from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from .chat import handle_chat, process_and_deliver_msg
@@ -100,22 +100,22 @@ def common(
         "chat_model",
         envvar="ELROY_CHAT_MODEL",
         help="The model to use for chat completions.",
-        rich_help_panel="Model Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     embedding_model: str = CliOption(
         "embedding_model",
         help="The model to use for text embeddings.",
-        rich_help_panel="Model Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     embedding_model_size: int = CliOption(
         "embedding_model_size",
         help="The size of the embedding model.",
-        rich_help_panel="Model Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     enable_caching: bool = CliOption(
         "enable_caching",
         help="Whether to enable caching for the LLM, both for embeddings and completions.",
-        rich_help_panel="Model Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     # Context Management
     context_refresh_trigger_tokens: int = CliOption(
@@ -236,10 +236,10 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
-    gpt4o: bool = CHAT_MODEL_ALIASES["4o"].get_typer_option(),
-    gpt4o_mini: bool = CHAT_MODEL_ALIASES["4o-mini"].get_typer_option(),
     sonnet: bool = CHAT_MODEL_ALIASES["sonnet"].get_typer_option(),
     opus: bool = CHAT_MODEL_ALIASES["opus"].get_typer_option(),
+    gpt4o: bool = CHAT_MODEL_ALIASES["4o"].get_typer_option(),
+    gpt4o_mini: bool = CHAT_MODEL_ALIASES["4o-mini"].get_typer_option(),
     o1: bool = CHAT_MODEL_ALIASES["o1"].get_typer_option(),
     o1_mini: bool = CHAT_MODEL_ALIASES["o1-mini"].get_typer_option(),
 ):
