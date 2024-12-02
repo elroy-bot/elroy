@@ -7,6 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Generator, Generic, Optional, TypeVar
 
+import typer
 import yaml
 from litellm import (
     anthropic_models,
@@ -17,6 +18,7 @@ from sqlalchemy import NullPool, create_engine
 from sqlmodel import Session
 
 from ..io.base import ElroyIO
+from .constants import LIST_MODELS_FLAG
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -112,6 +114,11 @@ def get_config(
     log_file_path: str,
     enable_caching: bool,
 ) -> ElroyConfig:
+    if not (openai_api_base is not None or chat_model_name in anthropic_models or chat_model_name in open_ai_chat_completion_models):
+        raise typer.BadParameter(
+            f"No OpenAI API base provided, and chat model {chat_model_name} not found in supported commercial models. Please use the {LIST_MODELS_FLAG} flag to list supported models"
+        )
+
     if chat_model_name in anthropic_models:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
         chat_model = ChatModel(

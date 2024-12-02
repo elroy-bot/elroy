@@ -12,6 +12,7 @@ from typer import Option
 
 from ..cli.updater import check_updates, handle_version_check
 from ..config.config import DEFAULT_CONFIG, get_config, load_defaults
+from ..config.constants import LIST_MODELS_FLAG
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from .chat import handle_chat, process_and_deliver_msg
@@ -246,7 +247,7 @@ def common(
     ),
     list_models: bool = typer.Option(
         False,
-        "--list-models",
+        LIST_MODELS_FLAG,
         help="Lists supported chat models and exits",
         rich_help_panel="Commands",
     ),
