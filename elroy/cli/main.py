@@ -256,8 +256,7 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
-    use_model: Annotated[bool, *generate_model_options()],
-    **model_options: Annotated[bool, generate_model_options()],
+    **model_options: dict[str, bool] = generate_model_options(),
 ):
     """Common parameters."""
 
@@ -279,8 +278,11 @@ def common(
         )
 
     # Handle model selection
-    if use_model:
-        chat_model = CHAT_MODEL_ALIASES[chat_model_key].resolver()
+    selected_models = [k for k, v in model_options.items() if v]
+    if len(selected_models) > 1:
+        raise typer.BadParameter("Only one model can be selected at a time")
+    elif len(selected_models) == 1:
+        chat_model = CHAT_MODEL_ALIASES[selected_models[0]].resolver()
 
 
 
