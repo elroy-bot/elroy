@@ -273,19 +273,15 @@ def common(
             "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
         )
 
-    if gpt4o:
-        chat_model = CHAT_MODEL_ALIASES["4o"].resolver()
-    elif gpt4o_mini:
-        chat_model = CHAT_MODEL_ALIASES["4o-mini"].resolver()
-    elif sonnet:
-        chat_model = CHAT_MODEL_ALIASES["sonnet"].resolver()
-    elif opus:
-        chat_model = CHAT_MODEL_ALIASES["opus"].resolver()
-    elif o1:
-        chat_model = CHAT_MODEL_ALIASES["o1"].resolver()
-    elif o1_mini:
-        chat_model = CHAT_MODEL_ALIASES["o1-mini"].resolver()
-
+    model_flags = {
+        'gpt4o': gpt4o,
+        'gpt4o_mini': gpt4o_mini,
+        'sonnet': sonnet,
+        'opus': opus,
+        'o1': o1,
+        'o1_mini': o1_mini
+    }
+    
     config = get_config(
         postgres_url=postgres_url,
         chat_model_name=chat_model,
