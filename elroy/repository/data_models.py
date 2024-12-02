@@ -65,7 +65,7 @@ class EmbeddableSqlModel(ABC, SQLModel):
 
 
 class User(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("token"), {"extend_existing": True})
+    __table_args__ = (UniqueConstraint("token"),)
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     token: str = Field(..., description="The token for the user/memory collection")
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -73,7 +73,6 @@ class User(SQLModel, table=True):
 
 
 class Memory(EmbeddableSqlModel, table=True):
-    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -89,7 +88,7 @@ class Memory(EmbeddableSqlModel, table=True):
 
 
 class Goal(EmbeddableSqlModel, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
+    __table_args__ = (UniqueConstraint("user_id", "name", "is_active"),)
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -155,7 +154,7 @@ class Message(SQLModel, table=True):
 
 
 class UserPreference(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
+    __table_args__ = (UniqueConstraint("user_id", "is_active"),)
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
