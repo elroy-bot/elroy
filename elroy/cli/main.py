@@ -5,12 +5,28 @@ import sys
 from typing import Annotated, Any, Optional
 
 import typer
+from typing import Annotated
 from click import get_current_context
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
 from typer import Option
 
-from .options import CHAT_MODEL_ALIASES, CliOption, generate_model_options
+from .options import CHAT_MODEL_ALIASES, CliOption
+
+def generate_model_options():
+    """Generate model options for CLI parameters"""
+    options = []
+    for alias_key, alias in CHAT_MODEL_ALIASES.items():
+        option_name = f"--{alias_key}"  # Keep the original hyphenated name
+        options.append(
+            typer.Option(
+                False,
+                option_name,
+                help=f"Use {alias.description}",
+                rich_help_panel="Model Selection"
+            )
+        )
+    return options
 
 from ..cli.updater import check_updates, handle_version_check
 from ..config.config import DEFAULT_CONFIG, get_config, load_defaults
