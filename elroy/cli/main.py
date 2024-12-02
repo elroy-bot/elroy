@@ -249,12 +249,20 @@ def common(
         handle_version_check()
 
     if list_models:
+        alias_dict = {v.resolver(): k for k, v in CHAT_MODEL_ALIASES.items()}
+
         from litellm import anthropic_models, open_ai_chat_completion_models
 
         for m in open_ai_chat_completion_models:
-            print(f"{m} (OpenAI)")
+            if m in alias_dict:
+                print(f"{m} (OpenAI) (--{alias_dict[m]})")
+            else:
+                print(f"{m} (OpenAI)")
         for m in anthropic_models:
-            print(f"{m} (Anthropic)")
+            if m in alias_dict:
+                print(f"{m} (Anthropic) (--{alias_dict[m]})")
+            else:
+                print(f"{m} (Anthropic)")
         exit(0)
 
     if not postgres_url:
