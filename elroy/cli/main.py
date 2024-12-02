@@ -2,20 +2,20 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Any, Optional
+from typing import Optional
 
 import typer
-from click import get_current_context
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
-from typer import Option
 
 from ..cli.updater import check_updates, handle_version_check
-from ..config.config import DEFAULT_CONFIG, get_config, load_defaults
+from ..config.config import get_config
+from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from .chat import handle_chat, process_and_deliver_msg
 from .context import init_elroy_context
+from .options import CHAT_MODEL_ALIASES, CliOption
 from .remember import (
     handle_memory_interactive,
     handle_remember_file,
@@ -28,32 +28,6 @@ app = typer.Typer(
     no_args_is_help=False,  # Don't show help when no args provided
     callback=None,  # Important - don't use a default command
 )
-
-
-def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs: Any):
-    """
-    Creates a typer Option with value priority:
-    1. CLI provided value (handled by typer)
-    2. User config file value (if provided)
-    3. defaults.yml value
-    """
-
-    def get_default():
-        ctx = get_current_context()
-        config_file = ctx.params.get("config_file")
-        defaults = load_defaults(config_file)
-        return defaults.get(yaml_key)
-
-    if not envvar:
-        envvar = f"ELROY_{yaml_key.upper()}"
-
-    return Option(
-        *args,
-        default_factory=get_default,
-        envvar=envvar,
-        show_default=str(DEFAULT_CONFIG.get(yaml_key)),
-        **kwargs,
-    )
 
 
 def check_db_connectivity(postgres_url: str) -> bool:
@@ -126,22 +100,22 @@ def common(
         "chat_model",
         envvar="ELROY_CHAT_MODEL",
         help="The model to use for chat completions.",
-        rich_help_panel="Model Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     embedding_model: str = CliOption(
         "embedding_model",
         help="The model to use for text embeddings.",
-        rich_help_panel="Model Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     embedding_model_size: int = CliOption(
         "embedding_model_size",
         help="The size of the embedding model.",
-        rich_help_panel="Model Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     enable_caching: bool = CliOption(
         "enable_caching",
         help="Whether to enable caching for the LLM, both for embeddings and completions.",
-        rich_help_panel="Model Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     # Context Management
     context_refresh_trigger_tokens: int = CliOption(
@@ -246,7 +220,7 @@ def common(
     ),
     list_models: bool = typer.Option(
         False,
-        "--list-models",
+        LIST_MODELS_FLAG,
         help="Lists supported chat models and exits",
         rich_help_panel="Commands",
     ),
@@ -262,6 +236,12 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
+    sonnet: bool = CHAT_MODEL_ALIASES["sonnet"].get_typer_option(),
+    opus: bool = CHAT_MODEL_ALIASES["opus"].get_typer_option(),
+    gpt4o: bool = CHAT_MODEL_ALIASES["4o"].get_typer_option(),
+    gpt4o_mini: bool = CHAT_MODEL_ALIASES["4o-mini"].get_typer_option(),
+    o1: bool = CHAT_MODEL_ALIASES["o1"].get_typer_option(),
+    o1_mini: bool = CHAT_MODEL_ALIASES["o1-mini"].get_typer_option(),
 ):
     """Common parameters."""
 
@@ -269,18 +249,33 @@ def common(
         handle_version_check()
 
     if list_models:
+        alias_dict = {v.resolver(): k for k, v in CHAT_MODEL_ALIASES.items()}
+
         from litellm import anthropic_models, open_ai_chat_completion_models
 
         for m in open_ai_chat_completion_models:
-            print(f"{m} (OpenAI)")
+            if m in alias_dict:
+                print(f"{m} (OpenAI) (--{alias_dict[m]})")
+            else:
+                print(f"{m} (OpenAI)")
         for m in anthropic_models:
-            print(f"{m} (Anthropic)")
+            if m in alias_dict:
+                print(f"{m} (Anthropic) (--{alias_dict[m]})")
+            else:
+                print(f"{m} (Anthropic)")
         exit(0)
 
     if not postgres_url:
         raise typer.BadParameter(
             "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
         )
+
+    for k, v in locals().items():
+        alias = k.replace("-", "_")
+        if CHAT_MODEL_ALIASES.get(alias, None) and v:
+            chat_model = CHAT_MODEL_ALIASES[alias].resolver()
+            logging.info(f"Resolved model alias {alias} to {chat_model}")
+            break
 
     config = get_config(
         postgres_url=postgres_url,

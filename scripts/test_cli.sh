@@ -60,6 +60,12 @@ elroy --show-config || {
     exit 1
 }
 
+echo "Testing model alias resolution..."
+elroy --sonnet --show-config | grep -q "claude.*sonnet" || {
+    echo "❌ Model alias resolution failed"
+    exit 1
+}
+
 # Model listing test
 echo "Testing model listing..."
 elroy --list-models || {
