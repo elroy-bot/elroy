@@ -2,34 +2,26 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Annotated, Any, Optional
+from typing import Optional
 
 import typer
-from typing import Annotated
-from click import get_current_context
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
-from typer import Option
 
-from .options import CHAT_MODEL_ALIASES, CliOption
+from .options import CHAT_MODEL_ALIASES, CliOption, get_cli_option
+
 
 def generate_model_options():
     """Generate model options for CLI parameters"""
     options = []
     for alias_key, alias in CHAT_MODEL_ALIASES.items():
         option_name = f"--{alias_key}"  # Keep the original hyphenated name
-        options.append(
-            typer.Option(
-                False,
-                option_name,
-                help=f"Use {alias.description}",
-                rich_help_panel="Model Selection"
-            )
-        )
+        options.append(typer.Option(False, option_name, help=f"Use {alias.description}", rich_help_panel="Model Selection"))
     return options
 
+
 from ..cli.updater import check_updates, handle_version_check
-from ..config.config import DEFAULT_CONFIG, get_config, load_defaults
+from ..config.config import get_config
 from ..config.constants import LIST_MODELS_FLAG
 from ..io.base import StdIO
 from ..io.cli import CliIO
@@ -47,7 +39,6 @@ app = typer.Typer(
     no_args_is_help=False,  # Don't show help when no args provided
     callback=None,  # Important - don't use a default command
 )
-
 
 
 def check_db_connectivity(postgres_url: str) -> bool:
@@ -256,7 +247,12 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
-    **model_options: dict[str, bool] = generate_model_options(),
+    gpt4o: bool = get_cli_option("4o"),
+    gpt4o_mini: bool = get_cli_option("4o-mini"),
+    sonnet: bool = get_cli_option("sonnet"),
+    opus: bool = get_cli_option("opus"),
+    o1: bool = get_cli_option("o1"),
+    o1_mini: bool = get_cli_option("o1-mini"),
 ):
     """Common parameters."""
 
@@ -277,14 +273,18 @@ def common(
             "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
         )
 
-    # Handle model selection
-    selected_models = [k for k, v in model_options.items() if v]
-    if len(selected_models) > 1:
-        raise typer.BadParameter("Only one model can be selected at a time")
-    elif len(selected_models) == 1:
-        chat_model = CHAT_MODEL_ALIASES[selected_models[0]].resolver()
-
-
+    if gpt4o:
+        chat_model = CHAT_MODEL_ALIASES["4o"].resolver()
+    elif gpt4o_mini:
+        chat_model = CHAT_MODEL_ALIASES["4o-mini"].resolver()
+    elif sonnet:
+        chat_model = CHAT_MODEL_ALIASES["sonnet"].resolver()
+    elif opus:
+        chat_model = CHAT_MODEL_ALIASES["opus"].resolver()
+    elif o1:
+        chat_model = CHAT_MODEL_ALIASES["o1"].resolver()
+    elif o1_mini:
+        chat_model = CHAT_MODEL_ALIASES["o1-mini"].resolver()
 
     config = get_config(
         postgres_url=postgres_url,
