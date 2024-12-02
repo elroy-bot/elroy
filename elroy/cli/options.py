@@ -43,6 +43,14 @@ class ModelAlias:
     description: str
     resolver: Callable[[], str]
 
+    def get_typer_option(self):
+        return typer.Option(
+            False,
+            f"--{self.keyword}",
+            help=f"Use {self.description}",
+            rich_help_panel="Model Selection",
+        )
+
 
 CHAT_MODEL_ALIASES = {
     "sonnet": ModelAlias("sonnet", "Anthropic's Sonnet model", lambda: resolve_anthropic("sonnet")),
@@ -52,17 +60,6 @@ CHAT_MODEL_ALIASES = {
     "o1": ModelAlias("o1", "OpenAI's o1 model", lambda: "o1-preview"),
     "o1-mini": ModelAlias("o1-mini", "OpenAI's o1-mini model", lambda: "o1-mini"),
 }
-
-
-def get_option(alias_key: str):
-    """Generate model options for CLI parameters"""
-
-    return typer.Option(
-        False,
-        f"--{alias_key}",
-        help=f"Use {CHAT_MODEL_ALIASES[alias_key].description}",
-        rich_help_panel="Model Selection",
-    )
 
 
 def resolve_anthropic(pattern: str) -> str:

@@ -15,7 +15,7 @@ from ..io.base import StdIO
 from ..io.cli import CliIO
 from .chat import handle_chat, process_and_deliver_msg
 from .context import init_elroy_context
-from .options import CHAT_MODEL_ALIASES, CliOption, get_option
+from .options import CHAT_MODEL_ALIASES, CliOption
 from .remember import (
     handle_memory_interactive,
     handle_remember_file,
@@ -236,12 +236,12 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
-    gpt4o: bool = get_option("4o"),
-    gpt4o_mini: bool = get_option("4o-mini"),
-    sonnet: bool = get_option("sonnet"),
-    opus: bool = get_option("opus"),
-    o1: bool = get_option("o1"),
-    o1_mini: bool = get_option("o1-mini"),
+    gpt4o: bool = CHAT_MODEL_ALIASES["4o"].get_typer_option(),
+    gpt4o_mini: bool = CHAT_MODEL_ALIASES["4o-mini"].get_typer_option(),
+    sonnet: bool = CHAT_MODEL_ALIASES["sonnet"].get_typer_option(),
+    opus: bool = CHAT_MODEL_ALIASES["opus"].get_typer_option(),
+    o1: bool = CHAT_MODEL_ALIASES["o1"].get_typer_option(),
+    o1_mini: bool = CHAT_MODEL_ALIASES["o1-mini"].get_typer_option(),
 ):
     """Common parameters."""
 
