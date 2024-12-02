@@ -274,12 +274,8 @@ def common(
         )
 
     model_flags = {
-        'gpt4o': gpt4o,
-        'gpt4o_mini': gpt4o_mini,
-        'sonnet': sonnet,
-        'opus': opus,
-        'o1': o1,
-        'o1_mini': o1_mini
+        k.replace('-', '_'): v for k, v in locals().items()
+        if k.replace('-', '_') in [alias.replace('-', '_') for alias in CHAT_MODEL_ALIASES.keys()]
     }
     
     config = get_config(
