@@ -2,13 +2,15 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 import typer
 from click import get_current_context
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
 from typer import Option
+
+from .options import CHAT_MODEL_ALIASES, CliOption, generate_model_options
 
 from ..cli.updater import check_updates, handle_version_check
 from ..config.config import DEFAULT_CONFIG, get_config, load_defaults
@@ -30,31 +32,6 @@ app = typer.Typer(
     callback=None,  # Important - don't use a default command
 )
 
-
-def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs: Any):
-    """
-    Creates a typer Option with value priority:
-    1. CLI provided value (handled by typer)
-    2. User config file value (if provided)
-    3. defaults.yml value
-    """
-
-    def get_default():
-        ctx = get_current_context()
-        config_file = ctx.params.get("config_file")
-        defaults = load_defaults(config_file)
-        return defaults.get(yaml_key)
-
-    if not envvar:
-        envvar = f"ELROY_{yaml_key.upper()}"
-
-    return Option(
-        *args,
-        default_factory=get_default,
-        envvar=envvar,
-        show_default=str(DEFAULT_CONFIG.get(yaml_key)),
-        **kwargs,
-    )
 
 
 def check_db_connectivity(postgres_url: str) -> bool:
@@ -263,6 +240,7 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
+    **model_options: Annotated[bool, generate_model_options()],
 ):
     """Common parameters."""
 
@@ -282,6 +260,14 @@ def common(
         raise typer.BadParameter(
             "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
         )
+
+    for model_option, value in model_options.items():
+        if value:
+            chat_model_key = model_option.replace("_", "-")
+            chat_model = CHAT_MODEL_ALIASES[chat_model_key].resolver()
+            break
+
+
 
     config = get_config(
         postgres_url=postgres_url,
