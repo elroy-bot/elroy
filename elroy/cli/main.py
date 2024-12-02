@@ -8,18 +8,6 @@ import typer
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
 
-from .options import CHAT_MODEL_ALIASES, CliOption, get_cli_option
-
-
-def generate_model_options():
-    """Generate model options for CLI parameters"""
-    options = []
-    for alias_key, alias in CHAT_MODEL_ALIASES.items():
-        option_name = f"--{alias_key}"  # Keep the original hyphenated name
-        options.append(typer.Option(False, option_name, help=f"Use {alias.description}", rich_help_panel="Model Selection"))
-    return options
-
-
 from ..cli.updater import check_updates, handle_version_check
 from ..config.config import get_config
 from ..config.constants import LIST_MODELS_FLAG
@@ -27,6 +15,7 @@ from ..io.base import StdIO
 from ..io.cli import CliIO
 from .chat import handle_chat, process_and_deliver_msg
 from .context import init_elroy_context
+from .options import CHAT_MODEL_ALIASES, CliOption, get_option
 from .remember import (
     handle_memory_interactive,
     handle_remember_file,
@@ -247,12 +236,12 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
-    gpt4o: bool = get_cli_option("4o"),
-    gpt4o_mini: bool = get_cli_option("4o-mini"),
-    sonnet: bool = get_cli_option("sonnet"),
-    opus: bool = get_cli_option("opus"),
-    o1: bool = get_cli_option("o1"),
-    o1_mini: bool = get_cli_option("o1-mini"),
+    gpt4o: bool = get_option("4o"),
+    gpt4o_mini: bool = get_option("4o-mini"),
+    sonnet: bool = get_option("sonnet"),
+    opus: bool = get_option("opus"),
+    o1: bool = get_option("o1"),
+    o1_mini: bool = get_option("o1-mini"),
 ):
     """Common parameters."""
 
@@ -273,11 +262,13 @@ def common(
             "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
         )
 
-    model_flags = {
-        k.replace('-', '_'): v for k, v in locals().items()
-        if k.replace('-', '_') in [alias.replace('-', '_') for alias in CHAT_MODEL_ALIASES.keys()]
-    }
-    
+    for k, v in locals().items():
+        alias = k.replace("-", "_")
+        if CHAT_MODEL_ALIASES.get(alias, None) and v:
+            chat_model = CHAT_MODEL_ALIASES[alias].resolver()
+            logging.info(f"Resolved model alias {alias} to {chat_model}")
+            break
+
     config = get_config(
         postgres_url=postgres_url,
         chat_model_name=chat_model,

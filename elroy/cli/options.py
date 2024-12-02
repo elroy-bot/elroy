@@ -2,8 +2,9 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, List, Optional
 
+import typer
 from click import get_current_context
-from toolz import last, pipe
+from toolz import first, pipe
 from toolz.curried import filter
 from typer import Option
 
@@ -53,25 +54,15 @@ CHAT_MODEL_ALIASES = {
 }
 
 
-def get_cli_option(option_name: str):
-    return CliOption(
-        option_name,
-        help=f"Use {CHAT_MODEL_ALIASES[option_name].description}",
-        is_flag=True,
-        default=False,
+def get_option(alias_key: str):
+    """Generate model options for CLI parameters"""
+
+    return typer.Option(
+        False,
+        f"--{alias_key}",
+        help=f"Use {CHAT_MODEL_ALIASES[alias_key].description}",
         rich_help_panel="Model Selection",
     )
-
-
-def generate_model_options():
-    """Generate Typer CLI options for each model alias"""
-    options = {}
-    for alias_key, alias in CHAT_MODEL_ALIASES.items():
-        option_name = f"{alias_key.replace('-', '_')}"  # Convert hyphens to underscores for valid Python names
-        options[option_name] = CliOption(
-            option_name, help=f"Use {alias.description}", is_flag=True, default=False, rich_help_panel="Model Selection"
-        )
-    return options
 
 
 def resolve_openai(pattern: str) -> str:
@@ -101,5 +92,5 @@ def _get_model_alias(pattern: str, models: List[str]) -> str:
         models,
         filter(lambda x: re.search(pattern, x, re.IGNORECASE)),
         sorted,
-        last,
+        first,
     )  # type: ignore
