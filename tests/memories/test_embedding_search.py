@@ -1,7 +1,7 @@
 from typing import List
 
 from sqlmodel import select
-from tests.fixtures import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME
+from tests.conftest import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME
 from tests.utils import process_test_message, vector_search_by_text
 from toolz import pipe
 from toolz.curried import filter

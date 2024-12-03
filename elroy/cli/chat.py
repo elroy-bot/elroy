@@ -1,72 +1,70 @@
+import asyncio
 import logging
+import sys
 from datetime import timedelta
 from typing import Iterable
 
+import typer
 from colorama import init
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
 from ..config.config import ElroyContext
-from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
-from ..onboard_user import onboard_user
 from ..repository.data_models import SYSTEM, USER, ContextMessage
 from ..repository.message import (
     get_context_messages,
     get_time_since_most_recent_user_message,
     replace_context_messages,
 )
-from ..repository.user import is_user_exists
 from ..system_commands import SYSTEM_COMMANDS, contemplate
-from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
+from ..tools.user_preferences import get_user_preferred_name
 from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
 from .commands import invoke_system_command
+from .config import elroy_context_from_typer, elroy_context_from_typer_interactive
 from .context import get_completer, get_user_logged_in_message, periodic_context_refresh
 
 
-async def handle_chat(context: ElroyContext[CliIO]):
+def handle_chat(ctx: typer.Context):
+    if sys.stdin.isatty():
+        with elroy_context_from_typer_interactive(ctx) as context:
+            asyncio.run(chat(context))
+    else:
+        with elroy_context_from_typer(ctx) as context:
+            user_input = sys.stdin.read()
+            context.io.assistant_msg(process_message(context, user_input, USER))
+
+
+async def chat(context: ElroyContext):
     init(autoreset=True)
 
     run_in_background_thread(periodic_context_refresh, context)
 
     context.io.print_title_ruler()
+    context_messages = get_context_messages(context)
 
-    if not is_user_exists(context):
-        context.io.notify_warning("Elroy is in alpha release")
-        name = await context.io.prompt_user("Welcome to Elroy! What should I call you?")
-        user_id = onboard_user(context.session, context.io, context.config, name)
-        assert isinstance(user_id, int)
+    validated_messages = validate(context.config, context_messages)
 
-        set_user_preferred_name(context, name)
-        print_memory_panel(context, get_context_messages(context))
-        await process_and_deliver_msg(context, "Elroy user {name} has been onboarded. Say hello and introduce yourself.", role=SYSTEM)
+    if context_messages != validated_messages:
+        replace_context_messages(context, validated_messages)
+        logging.warning("Context messages were repaired")
         context_messages = get_context_messages(context)
+
+    print_memory_panel(context, context_messages)
+
+    if (get_time_since_most_recent_user_message(context_messages) or timedelta()) < context.config.min_convo_age_for_greeting:
+        logging.info("User has interacted recently, skipping greeting.")
 
     else:
-        context_messages = get_context_messages(context)
+        get_user_preferred_name(context)
 
-        validated_messages = validate(context.config, context_messages)
-
-        if context_messages != validated_messages:
-            replace_context_messages(context, validated_messages)
-            logging.warning("Context messages were repaired")
-            context_messages = get_context_messages(context)
-
-        print_memory_panel(context, context_messages)
-
-        if (get_time_since_most_recent_user_message(context_messages) or timedelta()) < context.config.min_convo_age_for_greeting:
-            logging.info("User has interacted recently, skipping greeting.")
-
-        else:
-            get_user_preferred_name(context)
-
-            # TODO: should include some information about how long the user has been talking to Elroy
-            await process_and_deliver_msg(
-                context,
-                get_user_logged_in_message(context),
-                SYSTEM,
-            )
+        # TODO: should include some information about how long the user has been talking to Elroy
+        await process_and_deliver_msg(
+            context,
+            get_user_logged_in_message(context),
+            SYSTEM,
+        )
 
     while True:
         try:

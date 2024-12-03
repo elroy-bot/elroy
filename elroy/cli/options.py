@@ -1,5 +1,4 @@
 import re
-from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 import typer
@@ -38,29 +37,23 @@ def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs:
     )
 
 
-@dataclass
-class ModelAlias:
-    keyword: str
-    description: str
-    resolver: Callable[[], str]
+def model_alias_typer_option(model_alias: str, description: str, resolver: Callable[[], str]):
+    def set_chat_model(ctx: typer.Context, value: bool):
+        if not value:
+            return
+        if not ctx.obj:
+            ctx.obj = {}
 
-    def get_typer_option(self):
-        return typer.Option(
-            False,
-            f"--{self.keyword}",
-            help=f"Use {self.description}",
-            rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-        )
+        ctx.obj["chat_model"] = resolver()
 
-
-CHAT_MODEL_ALIASES = {
-    "sonnet": ModelAlias("sonnet", "Anthropic's Sonnet model", lambda: resolve_anthropic("sonnet")),
-    "opus": ModelAlias("opus", "Anthropic's Opus model", lambda: resolve_anthropic("opus")),
-    "4o": ModelAlias("gpt4o", "OpenAI's GPT-4o model", lambda: "gpt-4o"),
-    "4o-mini": ModelAlias("gpt4o-mini", "OpenAI's GPT-4o-mini model", lambda: "gpt-4o-mini"),
-    "o1": ModelAlias("o1", "OpenAI's o1 model", lambda: "o1-preview"),
-    "o1-mini": ModelAlias("o1-mini", "OpenAI's o1-mini model", lambda: "o1-mini"),
-}
+    return typer.Option(
+        False,
+        f"--{model_alias}",
+        help=f"Use {description}",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+        callback=set_chat_model,
+        is_eager=True,
+    )
 
 
 def resolve_anthropic(pattern: str) -> str:

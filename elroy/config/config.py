@@ -9,11 +9,6 @@ from typing import Generator, Generic, Optional, TypeVar
 
 import typer
 import yaml
-from litellm import (
-    anthropic_models,
-    open_ai_chat_completion_models,
-    open_ai_embedding_models,
-)
 from sqlalchemy import NullPool, create_engine
 from sqlmodel import Session
 
@@ -114,6 +109,12 @@ def get_config(
     log_file_path: str,
     enable_caching: bool,
 ) -> ElroyConfig:
+    from litellm import (
+        anthropic_models,
+        open_ai_chat_completion_models,
+        open_ai_embedding_models,
+    )
+
     if not (openai_api_base is not None or chat_model_name in anthropic_models or chat_model_name in open_ai_chat_completion_models):
         raise typer.BadParameter(
             f"Chat model {chat_model_name} not recognized. Please either specify a custom open_api_base, or select a chat model from the list provided by: elroy {LIST_MODELS_FLAG}"

@@ -2,7 +2,6 @@ import logging
 from functools import partial
 from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
-from litellm.types.utils import ChatCompletionDeltaToolCall
 from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
@@ -30,6 +29,8 @@ from ..utils.utils import last_or_none, logged_exec_time
 
 
 class ToolCallAccumulator:
+    from litellm.types.utils import ChatCompletionDeltaToolCall
+
     def __init__(self, chat_model: ChatModel):
         self.chat_model = chat_model
         self.tool_calls: Dict[int, PartialToolCall] = {}

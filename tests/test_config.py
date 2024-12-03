@@ -17,12 +17,12 @@ def test_config_precedence():
     # Test 1: CLI args override everything
     result = runner.invoke(
         app,
-        ["--config", str(config_path), "--chat-model", "cli_model", "--show-config"],
+        ["--config", str(config_path), "--chat-model", "gpt-4o-mini", "--show-config"],
         env={"ELROY_CHAT_MODEL": "env_model"},
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert "cli_model" in result.stdout
+    assert "gpt-4o-mini" in result.stdout
     assert "env_model" not in result.stdout
     assert "config_file_model" not in result.stdout
 
@@ -30,11 +30,11 @@ def test_config_precedence():
     result = runner.invoke(
         app,
         ["--config", str(config_path), "--show-config"],
-        env={"ELROY_CHAT_MODEL": "env_model"},
+        env={"ELROY_CHAT_MODEL": "gpt-4o-mini"},
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert "env_model" in result.stdout
+    assert "gpt-4o-mini" in result.stdout
     assert "config_file_model" not in result.stdout
 
     # Test 3: Config file overrides defaults
@@ -45,7 +45,7 @@ def test_config_precedence():
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert "config_file_model" in result.stdout
+    assert "gpt-4o-mini" in result.stdout
 
 
 def test_cli_params_match_defaults():
@@ -69,6 +69,12 @@ def test_cli_params_match_defaults():
             "remember",
             "remember_file",
             "list_models",
+            "o1",
+            "gpt4o_mini",
+            "opus",
+            "gpt4o",
+            "o1_mini",
+            "sonnet",
         ]
     }
 

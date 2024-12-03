@@ -1,10 +1,13 @@
 import re
 
+import pytest
+
 from elroy.cli.chat import process_and_deliver_msg
 from elroy.config.config import ElroyConfig
 from elroy.system_commands import get_active_goal_names
 
 
+@pytest.mark.asyncio
 async def test_create_and_mark_goal_complete(elroy_context):
     elroy_context.io.add_user_responses("Test Goal", "", "", "", "", "")
 
@@ -23,6 +26,7 @@ async def test_create_and_mark_goal_complete(elroy_context):
     assert re.search(r"Test Goal.*completed", elroy_context.io.get_sys_messages()[-1]) is not None
 
 
+@pytest.mark.asyncio
 async def test_print_config(elroy_context):
 
     await process_and_deliver_msg(elroy_context, "/print_elroy_config")
@@ -30,6 +34,7 @@ async def test_print_config(elroy_context):
     assert response and ElroyConfig.__name__ in response
 
 
+@pytest.mark.asyncio
 async def test_invalid_update(elroy_context):
     elroy_context.io.add_user_responses("Nonexistent goal", "Foo")
     await process_and_deliver_msg(elroy_context, "/mark_goal_completed")
@@ -38,6 +43,7 @@ async def test_invalid_update(elroy_context):
     assert re.search(r"Error.*Nonexistent goal.*not found", response) is not None
 
 
+@pytest.mark.asyncio
 async def test_invalid_cmd(elroy_context):
     await process_and_deliver_msg(elroy_context, "/foo")
     response = elroy_context.io.get_sys_messages()[-1]
