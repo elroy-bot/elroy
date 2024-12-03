@@ -52,6 +52,9 @@ class CliIO(ElroyIO):
         )
         self.is_streaming_output = False
 
+    def is_interactive(self) -> bool:
+        return True
+
     def internal_thought_msg(self, message):
         if self.is_streaming_output:
             # hack, should be replaced with a buffer
@@ -110,12 +113,6 @@ class CliIO(ElroyIO):
         if titles:
             panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
-
-    @contextmanager
-    def status(self, message: str) -> Generator[None, None, None]:
-        self.console.print(f"[{self.system_message_color}]{message}[/]")
-        yield
-        self.console.print(f"[{self.system_message_color}]Done![/]")
 
     def print_title_ruler(self):
         self.console.rule(

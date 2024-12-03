@@ -25,7 +25,7 @@ from .commands import invoke_system_command
 from .context import get_completer, get_user_logged_in_message, periodic_context_refresh
 
 
-async def handle_chat(context: ElroyContext[CliIO]):
+async def handle_interactive_chat(context: ElroyContext[CliIO]):
     init(autoreset=True)
 
     run_in_background_thread(periodic_context_refresh, context)

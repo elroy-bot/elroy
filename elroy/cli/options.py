@@ -56,8 +56,8 @@ class ModelAlias:
 CHAT_MODEL_ALIASES = {
     "sonnet": ModelAlias("sonnet", "Anthropic's Sonnet model", lambda: resolve_anthropic("sonnet")),
     "opus": ModelAlias("opus", "Anthropic's Opus model", lambda: resolve_anthropic("opus")),
-    "4o": ModelAlias("gpt4o", "OpenAI's GPT-4o model", lambda: "gpt-4o"),
-    "4o-mini": ModelAlias("gpt4o-mini", "OpenAI's GPT-4o-mini model", lambda: "gpt-4o-mini"),
+    "4o": ModelAlias("4o", "OpenAI's GPT-4o model", lambda: "gpt-4o"),
+    "4o-mini": ModelAlias("4o-mini", "OpenAI's GPT-4o-mini model", lambda: "gpt-4o-mini"),
     "o1": ModelAlias("o1", "OpenAI's o1 model", lambda: "o1-preview"),
     "o1-mini": ModelAlias("o1-mini", "OpenAI's o1-mini model", lambda: "o1-mini"),
 }

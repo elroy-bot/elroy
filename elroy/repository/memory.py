@@ -1,12 +1,13 @@
 import logging
 from typing import List, Optional, Tuple
 
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from ..config.config import ChatModel, ElroyContext
 from ..config.constants import MEMORY_WORD_COUNT_LIMIT
 from ..llm.client import query_llm
 from ..repository.data_models import ContextMessage, Memory
+from ..utils.clock import get_utc_now
 
 MAX_MEMORY_LENGTH = 12000  # Characters
 
@@ -15,7 +16,7 @@ def memory_to_fact(memory: Memory) -> str:
     return f"#{memory.name}\n{memory.text}"
 
 
-def manually_record_user_memory(context: ElroyContext, text: str, name: Optional[str] = None) -> None:
+def manually_record_user_memory(session: Session, user_id: int, text: str, name: Optional[str] = None) -> None:
     """Manually record a memory for the user.
 
     Args:
@@ -31,13 +32,7 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
         raise ValueError(f"Memory text exceeds maximum length of {MAX_MEMORY_LENGTH} characters.")
 
     if not name:
-        name = query_llm(
-            context.config.chat_model,
-            system="Given text representing a memory, your task is to come up with a short title for a memory. "
-            "If the title mentions dates, it should be specific dates rather than relative ones.",
-            prompt=text,
-        )
-
+        name = f"Manually recorded memory from {get_utc_now()}"
     create_memory(context, name, text)
 
 
@@ -309,12 +304,16 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     Returns:
         int: The database ID of the memory.
     """
+    db_create_memory(context.session, context.user_id, name, text)
+
+
+def db_create_memory(session: Session, user_id: int, name: str, text: str):
     from ..messaging.context import add_to_context
 
-    memory = Memory(user_id=context.user_id, name=name, text=text)
-    context.session.add(memory)
-    context.session.commit()
-    context.session.refresh(memory)
+    memory = Memory(user_id=user_id, name=name, text=text)
+    session.add(memory)
+    session.commit()
+    session.refresh(memory)
     from ..repository.embeddings import upsert_embedding
 
     memory_id = memory.id

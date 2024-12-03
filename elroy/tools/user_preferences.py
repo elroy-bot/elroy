@@ -1,5 +1,7 @@
 from typing import Optional
 
+from sqlmodel import Session
+
 from ..config.config import ElroyContext
 from ..config.constants import UNKNOWN
 from ..repository.data_models import UserPreference
@@ -15,7 +17,7 @@ def set_user_preferred_name(context: ElroyContext, preferred_name: str, override
         override_existing: Whether to override the an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect.
     """
 
-    user_preference = _get_user_preference(context)
+    user_preference = _get_user_preference(context.session, context.user_id)
 
     old_preferred_name = user_preference.preferred_name or UNKNOWN
 
@@ -38,7 +40,7 @@ def get_user_preferred_name(context: ElroyContext) -> str:
         str: String representing the user's preferred name.
     """
 
-    user_preference = _get_user_preference(context)
+    user_preference = _get_user_preference(context.session, context.user_id)
 
     return user_preference.preferred_name or UNKNOWN
 
@@ -59,14 +61,13 @@ def set_user_full_name(context: ElroyContext, full_name: str, override_existing:
         str: result of the attempt to set the user's full name
     """
 
-    user_preference = _get_user_preference(context)
+    user_preference = _get_user_preference(context.session, context.user_id)
 
     old_full_name = user_preference.full_name or UNKNOWN
     if old_full_name != UNKNOWN and not override_existing:
         return f"Full name already set to {user_preference.full_name}. If this should be changed, set override_existing=True."
     else:
-        user_preference.full_name = full_name
-        context.session.commit()
+        db_set_user_preferred_name(context.session, context.user_id, full_name)
 
         return f"Full name set to {full_name}. Previous value was {old_full_name}."
 
@@ -81,24 +82,31 @@ def get_user_full_name(context: ElroyContext) -> str:
         str: String representing the user's full name.
     """
 
-    user_preference = _get_user_preference(context)
+    user_preference = _get_user_preference(context.session, context.user_id)
 
     return user_preference.full_name or "Unknown name"
 
 
-def _get_user_preference(context: ElroyContext):
+def db_set_user_preferred_name(session: Session, user_id: int, preferred_name: str) -> None:
+    user_preference = _get_user_preference(session, user_id)
+    user_preference.preferred_name = preferred_name
+    session.add(user_preference)
+    session.commit()
+
+
+def _get_user_preference(session: Session, user_id: int) -> UserPreference:
     from sqlmodel import select
 
-    user_preference = context.session.exec(
+    user_preference = session.exec(
         select(UserPreference).where(
-            UserPreference.user_id == context.user_id,
+            UserPreference.user_id == user_id,
             UserPreference.is_active == True,
         )
     ).first()
 
     if user_preference is None:
-        user_preference = UserPreference(user_id=context.user_id, is_active=True)
-        context.session.add(user_preference)
-        context.session.commit()
-        context.session.refresh(user_preference)
+        user_preference = UserPreference(user_id=user_id, is_active=True)
+        session.add(user_preference)
+        session.commit()
+        session.refresh(user_preference)
     return user_preference

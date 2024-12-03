@@ -3,7 +3,7 @@ from datetime import timedelta
 from functools import partial
 from typing import Iterable, List, Optional, Union
 
-from sqlmodel import select
+from sqlmodel import Session, select
 from toolz import first, pipe
 from toolz.curried import filter, map, pipe
 
@@ -116,16 +116,16 @@ def get_context_messages(context: ElroyContext) -> List[ContextMessage]:
     return list(_get_context_messages_iter(context))
 
 
-def persist_messages(context: ElroyContext, messages: List[ContextMessage]) -> List[int]:
+def persist_messages(session: Session, user_id: int, messages: List[ContextMessage]) -> List[int]:
     msg_ids = []
     for msg in messages:
         if msg.id:
             msg_ids.append(msg.id)
         else:
-            db_message = context_message_to_db_message(context.user_id, msg)
-            context.session.add(db_message)
-            context.session.commit()
-            context.session.refresh(db_message)
+            db_message = context_message_to_db_message(user_id, msg)
+            session.add(db_message)
+            session.commit()
+            session.refresh(db_message)
             msg_ids.append(db_message.id)
     return msg_ids
 
@@ -148,22 +148,26 @@ def add_context_messages(context: ElroyContext, messages: Union[ContextMessage, 
 
 
 def replace_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
-    msg_ids = persist_messages(context, messages)
+    db_replace_context_messages(context.session, context.user_id, messages)
 
-    existing_context = context.session.exec(
+
+def db_replace_context_messages(session: Session, user_id: int, messages: List[ContextMessage]) -> None:
+    msg_ids = persist_messages(session, user_id, messages)
+
+    existing_context = session.exec(
         select(ContextMessageSet).where(
-            ContextMessageSet.user_id == context.user_id,
+            ContextMessageSet.user_id == user_id,
             ContextMessageSet.is_active == True,
         )
     ).first()
 
     if existing_context:
         existing_context.is_active = None
-        context.session.add(existing_context)
+        session.add(existing_context)
     new_context = ContextMessageSet(
-        user_id=context.user_id,
+        user_id=user_id,
         message_ids=msg_ids,
         is_active=True,
     )
-    context.session.add(new_context)
-    context.session.commit()
+    session.add(new_context)
+    session.commit()

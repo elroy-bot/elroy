@@ -5,6 +5,7 @@ from datetime import datetime
 from itertools import product
 from typing import Generator, List
 
+import typer
 from prompt_toolkit.completion import WordCompleter
 from pytz import UTC
 from sqlmodel import Session, select
@@ -32,6 +33,10 @@ from ..system_commands import (
 from ..tools.user_preferences import get_user_preferred_name
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
+
+
+def get_config(ctx: typer.Context) -> ElroyConfig:
+    ret
 
 
 def periodic_context_refresh(context: ElroyContext):
@@ -74,11 +79,11 @@ def periodic_context_refresh(context: ElroyContext):
 
 
 @contextmanager
-def init_elroy_context(config: ElroyConfig, io: ElroyIO, session: Session, token: str) -> Generator[ElroyContext, None, None]:
+def init_elroy_context(config: ElroyConfig, io: ElroyIO, session: Session, user_id: int) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext as a context manager"""
 
     context = ElroyContext(
-        user_id=CLI_USER_ID,
+        user_id=user_id,
         session=session,
         config=config,
         io=io,

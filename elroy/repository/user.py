@@ -1,13 +1,21 @@
+from typing import Optional
+
 from sqlmodel import Session, select
 from toolz import pipe
 from toolz.curried import do
 
-from ..config.config import ElroyContext
 from ..repository.data_models import User
 
 
-def is_user_exists(context: ElroyContext) -> bool:
-    return bool(context.session.exec(select(User).where(User.id == context.user_id)).first())
+def get_user_id_if_exist(session: Session, token: str) -> Optional[int]:
+    user = session.exec(select(User).where(User.token == token)).first()
+
+    if user:
+        return user.id
+
+
+def is_user_exists(session: Session, token: str) -> bool:
+    return bool(session.exec(select(User).where(User.token == token)).first())
 
 
 def create_user(session: Session, token: str) -> int:

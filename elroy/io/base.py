@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
 from datetime import datetime
 from typing import Generator, Iterator, Union
 
@@ -33,10 +32,9 @@ class ElroyIO(ABC):
     def internal_thought_msg(self, message: str) -> None:
         raise NotImplementedError
 
-    @contextmanager
-    def status(self, message: str) -> Generator[None, None, None]:
-        logging.info(message)
-        yield
+    @abstractmethod
+    def is_interactive(self) -> bool:
+        raise NotImplementedError
 
 
 class StdIO(ElroyIO):
@@ -63,3 +61,6 @@ class StdIO(ElroyIO):
 
     def internal_thought_msg(self, message: str) -> None:
         logging.info(f"[{datetime.now()}] INTERNAL THOUGHT: {message}")
+
+    def is_interactive(self) -> bool:
+        return False

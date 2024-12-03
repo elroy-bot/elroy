@@ -8,9 +8,13 @@ import typer
 from ..config.config import ElroyContext
 from ..repository.memory import manually_record_user_memory
 from ..utils.utils import datetime_to_string
+from .main import get_config_typer, validate_and_configure_db
 
 
-def handle_remember_file(context: ElroyContext, file_path: str) -> None:
+def handle_remember_file(ctx: typer.Context, file_path: str) -> None:
+    validate_and_configure_db(ctx.params["postgres_url"])
+    get_config_typer(ctx)
+
     try:
         with open(file_path, "r") as f:
             memory_text = f.read()

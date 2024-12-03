@@ -2,7 +2,7 @@
 import logging
 from typing import Optional
 
-from sqlmodel import select, update
+from sqlmodel import Session, select, update
 from toolz import pipe
 from toolz.curried import filter
 
@@ -70,18 +70,16 @@ def create_goal(
     if existing_goal:
         raise Exception(f"Active goal {goal_name} already exists for user {context.user_id}")
     else:
-        goal = Goal(
-            user_id=context.user_id,
-            name=goal_name,
-            description=description,
-            strategy=strategy,
-            end_condition=end_condition,
-            priority=priority,
-            target_completion_time=get_utc_now() + string_to_timedelta(time_to_completion) if time_to_completion else None,
+        goal = db_create_goal(
+            context.session,
+            context.user_id,
+            goal_name,
+            strategy,
+            description,
+            end_condition,
+            time_to_completion,
+            priority,
         )
-        context.session.add(goal)
-        context.session.commit()
-        context.session.refresh(goal)
 
         add_context_messages(
             context,
@@ -98,6 +96,32 @@ def create_goal(
         upsert_embedding(context, goal)
 
         return f"Goal '{goal_name}' has been created."
+
+
+def db_create_goal(
+    session: Session,
+    user_id: int,
+    goal_name: str,
+    strategy: Optional[str] = None,
+    description: Optional[str] = None,
+    end_condition: Optional[str] = None,
+    time_to_completion: Optional[str] = None,
+    priority: Optional[int] = None,
+) -> Goal:
+    goal = Goal(
+        user_id=user_id,
+        name=goal_name,
+        description=description,
+        strategy=strategy,
+        end_condition=end_condition,
+        priority=priority,
+        target_completion_time=get_utc_now() + string_to_timedelta(time_to_completion) if time_to_completion else None,
+    )
+
+    session.add(goal)
+    session.commit()
+    session.refresh(goal)
+    return goal
 
 
 def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -> str:
@@ -234,10 +258,10 @@ def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_
     return f"Status update added to goal '{goal_name}'."
 
 
-def create_onboarding_goal(context: ElroyContext, preferred_name: str) -> None:
-
-    create_goal(
-        context=context,
+def create_onboarding_goal(session: Session, user_id: int, preferred_name: str) -> None:
+    db_create_goal(
+        session=session,
+        user_id=user_id,
         goal_name=f"Introduce myself to {preferred_name}",
         description="Introduce myself - a few things that make me unique are my ability to form long term memories, and the ability to set and track goals.",
         strategy=f"After exchanging some pleasantries, tell {preferred_name} about my ability to form long term memories, including goals. Use function {add_goal_status_update.__name__} with any progress or learnings.",
