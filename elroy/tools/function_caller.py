@@ -16,7 +16,6 @@ from typing import (
 )
 
 from docstring_parser import parse
-from litellm.types.utils import ChatCompletionDeltaToolCall
 from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
@@ -61,7 +60,11 @@ class PartialToolCall:
     type: str = "function"
     is_complete: bool = False
 
+    from litellm.types.utils import ChatCompletionDeltaToolCall
+
     def update(self, delta: ChatCompletionDeltaToolCall) -> Optional[FunctionCall]:
+        from litellm.types.utils import ChatCompletionDeltaToolCall
+
         if self.is_complete:
             raise ValueError("PartialToolCall is already complete")
 

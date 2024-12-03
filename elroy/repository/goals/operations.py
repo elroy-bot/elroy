@@ -2,7 +2,7 @@
 import logging
 from typing import Optional
 
-from sqlmodel import select, update
+from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
@@ -192,16 +192,12 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
 
     goal.updated_at = get_utc_now()
 
-    # Explicitly update the status_updates column, the recommended style has a bug
-    context.session.execute(
-        update(Goal)
-        .where(Goal.id == goal.id)  # type: ignore
-        .values(status_updates=goal.status_updates, is_active=goal.is_active, updated_at=goal.updated_at)
-    )
-
+    context.session.add(goal)
     context.session.commit()
+    context.session.refresh(goal)
 
-    assert status in goal.status_updates, "Status update not found in goal status updates"
+    if status:
+        assert status in goal.status_updates, "Status update not found in goal status updates"
 
     # Refresh the goal object after commit
     context.session.refresh(goal)

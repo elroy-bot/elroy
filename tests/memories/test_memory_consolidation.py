@@ -1,6 +1,7 @@
 from typing import Optional
 from unittest.mock import AsyncMock
 
+import pytest
 from sqlmodel import select
 
 from elroy.config.config import ElroyContext
@@ -8,6 +9,7 @@ from elroy.repository.data_models import Memory
 from elroy.repository.memory import consolidate_memories, create_memory
 
 
+@pytest.mark.asyncio
 async def test_identical_memories(elroy_context):
     """Test consolidation of identical memories marks one inactive"""
     memory1_id = create_memory(
@@ -27,6 +29,7 @@ async def test_identical_memories(elroy_context):
     assert memory2_after and not memory2_after.is_active
 
 
+@pytest.mark.asyncio
 async def test_well_formatted_consolidation(elroy_context):
     """Test consolidation with well-formatted LLM response combining related hiking memories"""
     elroy_context.query_llm = AsyncMock(
@@ -56,6 +59,7 @@ The user is an avid hiker who enjoys both day hikes and overnight camping. They 
     assert memory2_after and not memory2_after.is_active
 
 
+@pytest.mark.asyncio
 async def test_malformed_response_still_creates_memory(elroy_context):
     """Test consolidation still works with malformed response that has minimal structure"""
     elroy_context.query_llm = AsyncMock(
@@ -84,6 +88,7 @@ They enjoy lighter roasts in the afternoon, sometimes with a splash of oat milk.
     assert memory2_after and not memory2_after.is_active
 
 
+@pytest.mark.asyncio
 async def test_split_unrelated_memories(elroy_context):
     """Test consolidation that correctly splits unrelated topics"""
     elroy_context.query_llm = AsyncMock(
@@ -116,6 +121,7 @@ The user played piano for 10 years during their childhood and recently started t
     assert memory2_after and not memory2_after.is_active
 
 
+@pytest.mark.asyncio
 async def test_missing_reasoning_section(elroy_context):
     """Test consolidation without reasoning section but with clear memory structure"""
     elroy_context.query_llm = AsyncMock(

@@ -5,7 +5,6 @@ from functools import partial, reduce
 from operator import add
 from typing import List, Optional, Type, Union
 
-from litellm.utils import token_counter
 from sqlmodel import select
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
@@ -88,6 +87,8 @@ def format_message(user_preferred_name: str, message: ContextMessage) -> Optiona
 
 # passing message content is an approximation, tool calls may not be accounted for.
 def count_tokens(chat_model_name: str, context_messages: Union[List[ContextMessage], ContextMessage]) -> int:
+    from litellm.utils import token_counter
+
     if isinstance(context_messages, ContextMessage):
         context_messages = [context_messages]
 

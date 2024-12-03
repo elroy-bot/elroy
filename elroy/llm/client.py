@@ -1,8 +1,6 @@
 from dataclasses import asdict
 from typing import Any, Dict, Iterator, List
 
-from litellm import completion, embedding
-from litellm.exceptions import BadRequestError
 from toolz import pipe
 from toolz.curried import keyfilter, map
 
@@ -14,6 +12,8 @@ from ..utils.utils import logged_exec_time
 
 @logged_exec_time
 def generate_chat_completion_message(chat_model: ChatModel, context_messages: List[ContextMessage]) -> Iterator[Dict]:
+    from litellm.exceptions import BadRequestError
+
     context_messages = pipe(
         context_messages,
         map(asdict),
@@ -77,6 +77,8 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     Returns:
         List[float]: The generated embedding as a list of floats.
     """
+    from litellm import embedding
+
     if not text:
         raise ValueError("Text cannot be empty")
     embedding_kwargs = {
@@ -131,6 +133,8 @@ def _build_completion_kwargs(
 
 
 def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
+    from litellm import completion
+
     messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
     completion_kwargs = _build_completion_kwargs(model=model, messages=messages, stream=False, use_tools=False)
     return completion(**completion_kwargs).choices[0].message.content  # type: ignore

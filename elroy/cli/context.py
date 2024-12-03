@@ -1,9 +1,8 @@
 import asyncio
 import logging
-from contextlib import contextmanager
 from datetime import datetime
 from itertools import product
-from typing import Generator, List
+from typing import List
 
 from prompt_toolkit.completion import WordCompleter
 from pytz import UTC
@@ -11,11 +10,9 @@ from sqlmodel import select
 from toolz import concatv, pipe
 from toolz.curried import map
 
-from ..config.config import ElroyConfig, ElroyContext, session_manager
+from ..config.config import ElroyContext, session_manager
 from ..config.constants import CLI_USER_ID
-from ..io.base import ElroyIO
 from ..io.cli import CliIO
-from ..logging_config import setup_logging
 from ..messaging.context import context_refresh, is_memory_in_context
 from ..repository.data_models import USER, ContextMessage, Message
 from ..repository.goals.queries import get_active_goals
@@ -32,8 +29,6 @@ from ..system_commands import (
 )
 from ..tools.user_preferences import get_user_preferred_name
 from ..utils.utils import datetime_to_string
-from .bug_report import create_bug_report_from_exception_if_confirmed
-from .updater import ensure_current_db_migration
 
 
 def periodic_context_refresh(context: ElroyContext):
@@ -73,27 +68,6 @@ def periodic_context_refresh(context: ElroyContext):
             )
     finally:
         loop.close()
-
-
-@contextmanager
-def init_elroy_context(config: ElroyConfig, io: ElroyIO) -> Generator[ElroyContext, None, None]:
-    """Create an ElroyContext as a context manager"""
-    setup_logging(config.log_file_path)
-    ensure_current_db_migration(io, config.postgres_url)
-
-    with session_manager(config.postgres_url) as session:
-        context = ElroyContext(
-            user_id=CLI_USER_ID,
-            session=session,
-            config=config,
-            io=io,
-        )
-
-        try:
-            yield context
-        except Exception as e:
-            if isinstance(context.io, CliIO):
-                create_bug_report_from_exception_if_confirmed(context, e)  # type: ignore
 
 
 def get_user_logged_in_message(context: ElroyContext) -> str:

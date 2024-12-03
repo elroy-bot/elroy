@@ -1,26 +1,15 @@
-import asyncio
-import logging
-import os
-import sys
+from functools import partial
 from typing import Optional
 
 import typer
-from sqlalchemy import text
-from sqlmodel import Session, create_engine
+from toolz import first, pipe
+from toolz.curried import filter
 
-from ..cli.updater import check_updates, handle_version_check
-from ..config.config import get_config
 from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
-from ..io.base import StdIO
-from ..io.cli import CliIO
-from .chat import handle_chat, process_and_deliver_msg
-from .context import init_elroy_context
-from .options import CHAT_MODEL_ALIASES, CliOption
-from .remember import (
-    handle_memory_interactive,
-    handle_remember_file,
-    handle_remember_stdin,
-)
+from .chat import handle_chat
+from .config import handle_list_models, handle_show_config, handle_show_version
+from .options import CliOption, model_alias_typer_option, resolve_anthropic
+from .remember import handle_remember, handle_remember_file
 
 app = typer.Typer(
     help="Elroy CLI",
@@ -28,17 +17,6 @@ app = typer.Typer(
     no_args_is_help=False,  # Don't show help when no args provided
     callback=None,  # Important - don't use a default command
 )
-
-
-def check_db_connectivity(postgres_url: str) -> bool:
-    """Check if database is reachable by running a simple query"""
-    try:
-        with Session(create_engine(postgres_url)) as session:
-            session.exec(text("SELECT 1")).first()  # type: ignore
-            return True
-    except Exception as e:
-        logging.error(f"Database connectivity check failed: {e}")
-        return False
 
 
 @app.callback(invoke_without_command=True)
@@ -55,6 +33,11 @@ def common(
     debug: bool = CliOption(
         "debug",
         help="Whether to fail fast when errors occur, and emit more verbose logging.",
+        rich_help_panel="Basic Configuration",
+    ),
+    user_token: str = CliOption(
+        "user_token",
+        help="User token to use for Elroy",
         rich_help_panel="Basic Configuration",
     ),
     # Database Configuration
@@ -236,105 +219,27 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
-    sonnet: bool = CHAT_MODEL_ALIASES["sonnet"].get_typer_option(),
-    opus: bool = CHAT_MODEL_ALIASES["opus"].get_typer_option(),
-    gpt4o: bool = CHAT_MODEL_ALIASES["4o"].get_typer_option(),
-    gpt4o_mini: bool = CHAT_MODEL_ALIASES["4o-mini"].get_typer_option(),
-    o1: bool = CHAT_MODEL_ALIASES["o1"].get_typer_option(),
-    o1_mini: bool = CHAT_MODEL_ALIASES["o1-mini"].get_typer_option(),
+    sonnet: bool = model_alias_typer_option("sonnet", "Use Anthropic's Sonnet model", lambda: resolve_anthropic("sonnet")),
+    opus: bool = model_alias_typer_option("opus", "Use Anthropic's Opus model", lambda: resolve_anthropic("opus")),
+    gpt4o: bool = model_alias_typer_option("4o", "Use OpenAI's GPT-4o model", lambda: "gpt-4o"),
+    gpt4o_mini: bool = model_alias_typer_option("4o-mini", "Use OpenAI's GPT-4o-mini model", lambda: "gpt-4o-mini"),
+    o1: bool = model_alias_typer_option("o1", "OpenAI's o1 model", lambda: "o1-preview"),
+    o1_mini: bool = model_alias_typer_option("o1-mini", "Use OpenAI's o1-mini model", lambda: "o1-mini"),
 ):
     """Common parameters."""
-
-    if version:
-        handle_version_check()
-
-    if list_models:
-        alias_dict = {v.resolver(): k for k, v in CHAT_MODEL_ALIASES.items()}
-
-        from litellm import anthropic_models, open_ai_chat_completion_models
-
-        for m in open_ai_chat_completion_models:
-            if m in alias_dict:
-                print(f"{m} (OpenAI) (--{alias_dict[m]})")
-            else:
-                print(f"{m} (OpenAI)")
-        for m in anthropic_models:
-            if m in alias_dict:
-                print(f"{m} (Anthropic) (--{alias_dict[m]})")
-            else:
-                print(f"{m} (Anthropic)")
-        exit(0)
-
-    if not postgres_url:
-        raise typer.BadParameter(
-            "Postgres URL is required, please either set the ELROY_POSRTGRES_URL environment variable or run with --postgres-url"
-        )
-
-    for k, v in locals().items():
-        alias = k.replace("-", "_")
-        if CHAT_MODEL_ALIASES.get(alias, None) and v:
-            chat_model = CHAT_MODEL_ALIASES[alias].resolver()
-            logging.info(f"Resolved model alias {alias} to {chat_model}")
-            break
-
-    config = get_config(
-        postgres_url=postgres_url,
-        chat_model_name=chat_model,
-        debug=debug,
-        embedding_model=embedding_model,
-        embedding_model_size=embedding_model_size,
-        context_refresh_trigger_tokens=context_refresh_trigger_tokens,
-        context_refresh_target_tokens=context_refresh_target_tokens,
-        max_context_age_minutes=max_context_age_minutes,
-        context_refresh_interval_minutes=context_refresh_interval_minutes,
-        min_convo_age_for_greeting_minutes=min_convo_age_for_greeting_minutes,
-        l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold,
-        l2_memory_consolidation_distance_threshold=l2_memory_consolidation_distance_threshold,
-        initial_context_refresh_wait_seconds=initial_context_refresh_wait_seconds,
-        openai_api_key=openai_api_key,
-        anthropic_api_key=anthropic_api_key,
-        openai_api_base=openai_api_base,
-        openai_embedding_api_base=openai_embedding_api_base,
-        openai_organization=openai_organization,
-        log_file_path=os.path.abspath(log_file_path),
-        enable_caching=enable_caching,
+    pipe(
+        [
+            (show_config, partial(handle_show_config, ctx)),
+            (version, handle_show_version),
+            (list_models, handle_list_models),
+            (remember_file, partial(handle_remember_file, ctx, remember_file)),
+            (remember, partial(handle_remember, ctx)),
+            (True, partial(handle_chat, ctx)),  # Chat is default
+        ],
+        filter(lambda x: x[0]),
+        first,
+        lambda x: x[1](),
     )
-
-    if show_config:
-        for key, value in config.__dict__.items():
-            print(f"{key}={value}")
-        raise typer.Exit()
-
-    # Check database connectivity
-    if not check_db_connectivity(postgres_url):
-        raise typer.BadParameter("Could not connect to database. Please check if database is running and connection URL is correct.")
-
-    if remember_file or not sys.stdin.isatty():
-        io = StdIO()
-
-        with init_elroy_context(config, io) as context:
-            if remember_file:
-                handle_remember_file(context, remember_file)
-            elif remember:
-                handle_remember_stdin(context)
-            else:  # default to chat
-                asyncio.run(process_and_deliver_msg(context, sys.stdin.read()))
-                raise typer.Exit()
-    else:
-        io = CliIO(
-            show_internal_thought_monologue,
-            system_message_color,
-            assistant_color,
-            user_input_color,
-            warning_color,
-            internal_thought_color,
-        )
-        with init_elroy_context(config, io) as context:
-            if remember:
-                handle_memory_interactive(context)
-            else:
-                check_updates()
-                asyncio.run(handle_chat(context))
 
 
 if __name__ == "__main__":

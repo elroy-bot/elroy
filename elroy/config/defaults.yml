@@ -1,3 +1,6 @@
+# User token
+user_token: DEFAULT
+
 # Database settings
 postgres_url: null  # Must be provivided (reads ELROY_POSTGRES_URL env var)
 

@@ -2,11 +2,11 @@ import asyncio
 import inspect
 import os
 import subprocess
+import uuid
 from typing import Any, Generator
 
 import pytest
 from sqlmodel import delete, text
-from tests.fixtures import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME, create_test_user
 from tests.utils import TestCliIO
 from toolz import keyfilter, merge, pipe
 from toolz.curried import valfilter
@@ -14,6 +14,7 @@ from toolz.curried import valfilter
 from alembic.command import upgrade
 from alembic.config import Config
 from elroy import ROOT_DIR
+from elroy.cli.config import init_elroy_context
 from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager
 from elroy.io.base import ElroyIO
 from elroy.repository.data_models import (
@@ -27,8 +28,11 @@ from elroy.repository.data_models import (
 )
 from elroy.repository.goals.operations import create_goal
 from elroy.repository.message import ContextMessage, Message, add_context_messages
+from elroy.repository.user import create_user_id
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
+
+BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketball shots"
 
 
 def pytest_addoption(parser):
@@ -124,8 +128,13 @@ def session(elroy_config):
 
 
 @pytest.fixture(scope="function")
-def user_id(session, io, elroy_config) -> Generator[int, Any, None]:
-    yield create_test_user(session, io, elroy_config)
+def user_token(scope="function"):
+    return str(uuid.uuid4())
+
+
+@pytest.fixture(scope="function")
+def user_id(session, user_token) -> Generator[int, Any, None]:
+    yield create_user_id(session, user_token)
 
 
 @pytest.fixture(scope="function")
@@ -134,33 +143,9 @@ def io() -> Generator[ElroyIO, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def elroy_context(session, user_id, io, elroy_config) -> Generator[ElroyContext, Any, None]:
-    yield ElroyContext(
-        session=session,
-        user_id=user_id,
-        io=io,
-        config=elroy_config,
-    )
-
-
-@pytest.fixture(scope="function")
-def onboarded_user_id(session, io, elroy_config) -> Generator[int, None, None]:
-    yield create_test_user(
-        session,
-        io,
-        elroy_config,
-        initial_messages=["Hello! My name is George. I work as a air traffic controller, and am interested in politics."],
-    )
-
-
-@pytest.fixture(scope="function")
-def onboarded_context(session, onboarded_user_id, io, elroy_config) -> Generator[ElroyContext, None, None]:
-    yield ElroyContext(
-        session=session,
-        user_id=onboarded_user_id,
-        io=io,
-        config=elroy_config,
-    )
+def elroy_context(session, user_token, io, elroy_config) -> Generator[ElroyContext, Any, None]:
+    with init_elroy_context(session, elroy_config, io, user_token) as context:
+        yield context
 
 
 @pytest.fixture(scope="function")
