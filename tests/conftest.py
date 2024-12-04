@@ -45,13 +45,6 @@ def pytest_addoption(parser):
     # )
 
 
-def pytest_collection_modifyitems(items):
-    """Automatically mark all test functions as asyncio."""
-    for item in items:
-        if item.get_closest_marker("asyncio") is None:
-            item.add_marker(pytest.mark.asyncio)
-
-
 @pytest.fixture(scope="function", autouse=True)
 def event_loop():
     """Create an instance of the default event loop for each test case."""
