@@ -2,6 +2,7 @@
 import logging
 from typing import Optional
 
+from sqlalchemy import update
 from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
@@ -179,37 +180,32 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
     logging.info(f"Current status updates: {goal.status_updates}")
 
     # Append the new status update to the list
+    status_updates = goal.status_updates or []
     if status:
-        if goal.status_updates is None:
-            goal.status_updates = []
-        goal.status_updates.append(status)
+        status_updates.append(status)
 
     logging.info(f"Updated status updates: {goal.status_updates}")
 
-    # Update the goal's active status if it's terminal
-    if is_terminal:
-        goal.is_active = False
-
-    goal.updated_at = get_utc_now()
-
-    context.session.add(goal)
+    ### Explicitly update the status_updates column, the recommended style has a bug
+    context.session.execute(
+        update(Goal)
+        .where(Goal.id == goal.id)  # type: ignore
+        .values(
+            status_updates=status_updates,
+            is_active=None if is_terminal else True,
+            updated_at=get_utc_now(),
+        )
+    )
+    ###
     context.session.commit()
     context.session.refresh(goal)
 
     if status:
         assert status in goal.status_updates, "Status update not found in goal status updates"
 
-    # Refresh the goal object after commit
-    context.session.refresh(goal)
-
-    logging.info(f"Status updates after commit and refresh: {goal.status_updates}")
-
-    assert goal.id
-
     upsert_embedding(context, goal)
 
     if not goal.is_active:
-
         remove_from_context(context, goal)
 
 
