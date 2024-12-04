@@ -12,6 +12,7 @@ from ..utils.utils import logged_exec_time
 
 @logged_exec_time
 def generate_chat_completion_message(chat_model: ChatModel, context_messages: List[ContextMessage]) -> Iterator[Dict]:
+    from litellm import completion
     from litellm.exceptions import BadRequestError
 
     context_messages = pipe(
