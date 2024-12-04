@@ -71,7 +71,7 @@ async def onboard_user_interactive(context: ElroyContext[CliIO]) -> None:
 
     assert isinstance(context.io, CliIO)
 
-    preferred_name = asyncio.run(context.io.prompt_user("Welcome to Elroy! What should I call you?"))
+    preferred_name = await context.io.prompt_user("Welcome to Elroy! What should I call you?")
 
     set_user_preferred_name(context, preferred_name)
 
