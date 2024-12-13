@@ -1,3 +1,4 @@
+import logging
 from dataclasses import asdict
 from typing import Any, Dict, Iterator, List
 
@@ -5,17 +6,24 @@ from toolz import pipe
 from toolz.curried import keyfilter, map
 
 from ..config.config import ChatModel, EmbeddingModel
-from ..config.constants import MissingToolCallMessageError
+from ..config.constants import (
+    MAX_CHAT_COMPLETION_RETRY_COUNT,
+    MaxRetriesExceededError,
+    MissingToolCallMessageError,
+)
+from ..config.models import get_fallback_model
 from ..repository.data_models import SYSTEM, USER, ContextMessage
 from ..utils.utils import logged_exec_time
 
 
 @logged_exec_time
-def generate_chat_completion_message(chat_model: ChatModel, context_messages: List[ContextMessage]) -> Iterator[Dict]:
+def generate_chat_completion_message(
+    chat_model: ChatModel, context_messages: List[ContextMessage], retry_number: int = 0
+) -> Iterator[Dict]:
     from litellm import completion
-    from litellm.exceptions import BadRequestError
+    from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
 
-    context_messages = pipe(
+    context_message_dicts = pipe(
         context_messages,
         map(asdict),
         map(keyfilter(lambda k: k not in ("id", "created_at", "memory_metadata", "chat_model"))),
@@ -24,7 +32,7 @@ def generate_chat_completion_message(chat_model: ChatModel, context_messages: Li
 
     if chat_model.ensure_alternating_roles:
         USER_HIDDEN_PREFIX = "[This is a system message, representing internal thought process of the assistant]"
-        for idx, message in enumerate(context_messages):
+        for idx, message in enumerate(context_message_dicts):
             assert isinstance(message, Dict)
 
             if idx == 0:
@@ -36,14 +44,26 @@ def generate_chat_completion_message(chat_model: ChatModel, context_messages: Li
 
     try:
         completion_kwargs = _build_completion_kwargs(
-            model=chat_model, messages=context_messages, stream=True, use_tools=True  # type: ignore
+            model=chat_model, messages=context_message_dicts, stream=True, use_tools=True  # type: ignore
         )
         return completion(**completion_kwargs)  # type: ignore
-    except BadRequestError as e:
-        if "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
-            raise MissingToolCallMessageError
-        else:
-            raise e
+    except Exception as e:
+        if isinstance(e, BadRequestError):
+            if "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
+                raise MissingToolCallMessageError
+        elif isinstance(e, InternalServerError) or isinstance(e, RateLimitError):
+            if retry_number >= MAX_CHAT_COMPLETION_RETRY_COUNT:
+                raise MaxRetriesExceededError()
+            else:
+                fallback_model = get_fallback_model(chat_model)
+                if fallback_model:
+                    logging.info(
+                        f"Rate limit or internal server error for model {chat_model.name}, falling back to model {fallback_model.name}"
+                    )
+                    return generate_chat_completion_message(fallback_model, context_messages, retry_number + 1)
+                else:
+                    logging.error(f"No fallback model available for {chat_model.name}, aborting")
+        raise e
 
 
 def query_llm(model: ChatModel, prompt: str, system: str) -> str:
@@ -107,7 +127,7 @@ def _build_completion_kwargs(
     """Centralized configuration for LLM requests"""
     kwargs = {
         "messages": messages,
-        "model": model.model,
+        "model": model.name,
         "api_key": model.api_key,
         "caching": model.enable_caching,
     }

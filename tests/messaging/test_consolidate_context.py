@@ -28,7 +28,7 @@ def test_compress_context_messages(george_context):
 
     # Test token count
     assert (
-        count_tokens(george_context.config.chat_model.model, compressed_messages) < george_context.config.context_refresh_token_target * 1.5
+        count_tokens(george_context.config.chat_model.name, compressed_messages) < george_context.config.context_refresh_token_target * 1.5
     )
 
     # Test message ordering

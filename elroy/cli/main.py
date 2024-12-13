@@ -6,9 +6,10 @@ from toolz import first, pipe
 from toolz.curried import filter
 
 from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
+from ..config.models import resolve_anthropic
 from .chat import handle_chat
 from .config import handle_list_models, handle_show_config, handle_show_version
-from .options import CliOption, model_alias_typer_option, resolve_anthropic
+from .options import CliOption, model_alias_typer_option
 from .remember import handle_remember, handle_remember_file
 
 app = typer.Typer(

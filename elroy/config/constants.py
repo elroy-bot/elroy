@@ -23,12 +23,18 @@ LIST_MODELS_FLAG = "--list-models"
 
 MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
+MAX_CHAT_COMPLETION_RETRY_COUNT = 2
+
 
 class MissingAssistantToolCallError(Exception):
     pass
 
 
 class MissingToolCallMessageError(Exception):
+    pass
+
+
+class MaxRetriesExceededError(Exception):
     pass
 
 

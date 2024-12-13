@@ -180,11 +180,14 @@ def handle_show_config(ctx: typer.Context):
 
 
 def handle_list_models():
-    from litellm import anthropic_models, open_ai_chat_completion_models
+    from ..config.models import (
+        get_supported_anthropic_models,
+        get_supported_openai_models,
+    )
 
-    for m in open_ai_chat_completion_models:
+    for m in get_supported_openai_models():
         print(f"{m} (OpenAI)")
-    for m in anthropic_models:
+    for m in get_supported_anthropic_models():
         print(f"{m} (Anthropic)")
     raise typer.Exit()
 

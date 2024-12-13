@@ -46,7 +46,7 @@ class ToolCallAccumulator:
                 ):
                     raise ValueError("New tool call started, but old one is not yet complete")
                 assert delta.id
-                self.tool_calls[delta.index] = PartialToolCall(id=delta.id, model=self.chat_model.model)
+                self.tool_calls[delta.index] = PartialToolCall(id=delta.id, model=self.chat_model.name)
 
             completed_tool_call = self.tool_calls[delta.index].update(delta)
             if completed_tool_call:
@@ -86,7 +86,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
                         role=TOOL,
                         tool_call_id=x.id,
                         content=exec_function_call(context, x),
-                        chat_model=context.config.chat_model.model,
+                        chat_model=context.config.chat_model.name,
                     ),
                     tool_context_messages.append,
                 )
@@ -95,7 +95,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
                 role=ASSISTANT,
                 content=full_content,
                 tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
-                chat_model=context.config.chat_model.model,
+                chat_model=context.config.chat_model.name,
             )
         )
 

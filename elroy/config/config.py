@@ -50,7 +50,7 @@ def load_defaults(user_config_path: Optional[str] = None) -> dict:
 
 @dataclass
 class ChatModel:
-    model: str
+    name: str
     enable_caching: bool
     api_key: Optional[str]
     ensure_alternating_roles: (
@@ -109,13 +109,14 @@ def get_config(
     log_file_path: str,
     enable_caching: bool,
 ) -> ElroyConfig:
-    from litellm import (
-        anthropic_models,
-        open_ai_chat_completion_models,
-        open_ai_embedding_models,
-    )
+    from litellm import open_ai_embedding_models
 
-    if not (openai_api_base is not None or chat_model_name in anthropic_models or chat_model_name in open_ai_chat_completion_models):
+    from .models import get_supported_anthropic_models, get_supported_openai_models
+
+    anthropic_models = get_supported_anthropic_models()
+    openai_models = get_supported_openai_models()
+
+    if openai_api_base is None and chat_model_name not in anthropic_models and chat_model_name not in openai_models:
         raise typer.BadParameter(
             f"Chat model {chat_model_name} not recognized. Please either specify a custom open_api_base, or select a chat model from the list provided by: elroy {LIST_MODELS_FLAG}"
         )
@@ -123,13 +124,13 @@ def get_config(
     if chat_model_name in anthropic_models:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
         chat_model = ChatModel(
-            model=chat_model_name, api_key=anthropic_api_key, ensure_alternating_roles=True, enable_caching=enable_caching
+            name=chat_model_name, api_key=anthropic_api_key, ensure_alternating_roles=True, enable_caching=enable_caching
         )
     else:
-        if chat_model_name in open_ai_chat_completion_models:
+        if chat_model_name in openai_models:
             assert openai_api_key is not None, "OpenAI API key is required for OpenAI chat models"
         chat_model = ChatModel(
-            model=chat_model_name,
+            name=chat_model_name,
             api_key=openai_api_key,
             ensure_alternating_roles=False,
             api_base=openai_api_base,
