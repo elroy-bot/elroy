@@ -91,7 +91,7 @@ def create_goal(
                     role=SYSTEM,
                     content=f"New goal created: {goal_to_fact(goal)}",
                     memory_metadata=[goal.to_memory_metadata()],
-                    chat_model=context.config.chat_model.model,
+                    chat_model=context.config.chat_model.name,
                 )
             ],
         )
@@ -156,7 +156,7 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
                 role=SYSTEM,
                 content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {goal_to_fact(old_goal)}",
                 memory_metadata=[old_goal.to_memory_metadata()],
-                chat_model=context.config.chat_model.model,
+                chat_model=context.config.chat_model.name,
             )
         ],
     )

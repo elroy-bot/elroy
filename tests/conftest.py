@@ -37,12 +37,9 @@ BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketb
 
 def pytest_addoption(parser):
     parser.addoption("--postgres-url", action="store", default=None, help="Database URL from either environment or command line")
-    parser.addoption("--chat-models", action="store", default="gpt-4o", help="Comma-separated list of chat models to test")
-    # parser.addoption("--chat-models", action="store", default="claude-3-5-sonnet-20241022", help="Comma-separated list of chat models to test")
-    # TODO: Add multiple models once users have tokens associated with them (test isolation breaks, currently).
-    # parser.addoption(
-    # "--chat-models", action="store", default="gpt-4o,claude-3-5-sonnet-20241022", help="Comma-separated list of chat models to test"
-    # )
+    parser.addoption(
+        "--chat-models", action="store", default="gpt-4o,claude-3-5-sonnet-20241022", help="Comma-separated list of chat models to test"
+    )
 
 
 @pytest.fixture(scope="function", autouse=True)

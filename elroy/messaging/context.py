@@ -145,7 +145,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
     assert is_system_instruction(system_message)
     assert not any(is_system_instruction(msg) for msg in prev_messages)
 
-    current_token_count = count_tokens(context.config.chat_model.model, system_message)
+    current_token_count = count_tokens(context.config.chat_model.name, system_message)
 
     kept_messages = deque()
 
@@ -155,7 +155,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
         msg_created_at = msg.created_at
         assert isinstance(msg_created_at, datetime)
 
-        candidate_message_count = count_tokens(context.config.chat_model.model, msg)
+        candidate_message_count = count_tokens(context.config.chat_model.name, msg)
 
         if len(kept_messages) > 0 and kept_messages[0].role == TOOL:
             # if the last message kept was a tool call, we must keep the corresponding assistant message that came before it.

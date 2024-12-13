@@ -81,7 +81,7 @@ def _missing_tool_message(elroy_context: ElroyContext):
         ContextMessage(
             role=ASSISTANT,
             content="Hello George! It's nice to meet you. I'd be happy to share some information about the history of Minnesota with you. What aspect of Minnesota's history are you most interested in?",
-            chat_model=elroy_context.config.chat_model.model,
+            chat_model=elroy_context.config.chat_model.name,
             tool_calls=[  # missing subsequent tool message
                 ToolCall(
                     id="abc",
@@ -107,13 +107,13 @@ def _missing_tool_call(elroy_context: ElroyContext):
         ContextMessage(
             role=ASSISTANT,
             content="Hello George! It's nice to meet you. I'd be happy to share some information about the history of Minnesota with you. What aspect of Minnesota's history are you most interested in?",
-            chat_model=elroy_context.config.chat_model.model,
+            chat_model=elroy_context.config.chat_model.name,
             tool_calls=None,
         ),
         ContextMessage(  # previous message missing tool_calls
             role=TOOL,
             content="George",
             tool_call_id="abc",
-            chat_model=elroy_context.config.chat_model.model,
+            chat_model=elroy_context.config.chat_model.name,
         ),
     ]

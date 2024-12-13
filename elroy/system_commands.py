@@ -111,7 +111,7 @@ def add_internal_thought(context: ElroyContext, thought: str) -> str:
             ContextMessage(
                 role=SYSTEM,
                 content=thought,
-                chat_model=context.config.chat_model.model,
+                chat_model=context.config.chat_model.name,
             )
         ],
     )
@@ -244,7 +244,7 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
             ContextMessage(
                 role=SYSTEM,
                 content=response,
-                chat_model=context.config.chat_model.model,
+                chat_model=context.config.chat_model.name,
             )
         ],
     )

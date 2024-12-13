@@ -1,10 +1,7 @@
-import re
 from typing import Any, Callable, Optional
 
 import typer
 from click import get_current_context
-from toolz import pipe
-from toolz.curried import filter
 from typer import Option
 
 from ..config.config import DEFAULT_CONFIG, load_defaults
@@ -54,29 +51,3 @@ def model_alias_typer_option(model_alias: str, description: str, resolver: Calla
         callback=set_chat_model,
         is_eager=True,
     )
-
-
-def resolve_anthropic(pattern: str) -> str:
-    from litellm import anthropic_models
-
-    return pipe(
-        anthropic_models,
-        filter(lambda x: re.search(pattern, x, re.IGNORECASE)),
-        lambda x: max(x, key=claude_model_sort_key),  # type: ignore
-    )
-
-
-def claude_model_sort_key(model_name: str):
-    # good lord claude names their models annoyingly
-    version_match = re.search(r"claude-(\d+)(?:-(\d+))?", model_name)
-    if version_match:
-        major = int(version_match.group(1))
-        minor = int(version_match.group(2)) if version_match.group(2) else 0
-        version = float(f"{major}.{minor}")
-    else:
-        version = 0.0
-
-    date_match = re.search(r"(\d{8})", model_name)
-    date = int(date_match.group(1)) if date_match else 0
-
-    return (version, date)
