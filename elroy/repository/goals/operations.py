@@ -10,7 +10,7 @@ from toolz.curried import filter
 from ...config.config import ElroyContext
 from ...messaging.context import drop_goal_from_current_context, remove_from_context
 from ...utils.clock import get_utc_now, string_to_timedelta
-from ...utils.utils import first_or_none
+from ...utils.utils import first_or_none, is_blank
 from ..data_models import SYSTEM, ContextMessage, Goal
 from ..embeddings import upsert_embedding
 from ..message import add_context_messages
@@ -58,7 +58,7 @@ def create_goal(
         time_to_completion (str): The amount of time from now until the goal can be completed. Should be in the form of NUMBER TIME_UNIT, where TIME_UNIT is one of HOURS, DAYS, WEEKS, MONTHS. For example, "1 DAYS" would be a goal that should be completed within 1 day.
         priority (int): The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest.
     """
-    if goal_name in [None, ""]:
+    if is_blank(goal_name):
         raise ValueError("Goal name cannot be empty")
 
     existing_goal = context.session.exec(

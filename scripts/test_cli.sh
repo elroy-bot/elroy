@@ -73,5 +73,27 @@ elroy --list-models || {
     exit 1
 }
 
+# Test setting persona
+echo "Testing default persona listing..."
+elroy --show-persona || grep -q "Elroy" || {
+    echo "❌ Persona display failed"
+    exit 1
+}
+
+echo "Testing setting custom persona..."
+elroy --set-persona "You are a helpful assistant, your name is Jimbo" --user-token=foobarbaz
+elroy --show-persona --user-token=foobarbaz | grep -q "Jimbo" || {
+    echo "❌ Persona setting failed"
+    exit 1
+}
+
+echo "Testing resetting persona..."
+elroy --reset-persona --user-token=foobarbaz
+elroy --show-persona --user-token=foobarbaz | grep -q "Elroy" || {
+    echo "❌ Persona reset failed"
+    exit 1
+}
+
+
 echo "✅ All tests passed successfully!"
 

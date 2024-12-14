@@ -41,14 +41,16 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
     create_memory(context, name, text)
 
 
-async def formulate_memory(chat_model: ChatModel, user_preferred_name: str, context_messages: List[ContextMessage]) -> Tuple[str, str]:
+async def formulate_memory(
+    chat_model: ChatModel, user_preferred_name: Optional[str], context_messages: List[ContextMessage]
+) -> Tuple[str, str]:
     from ..llm.prompts import summarize_for_memory
     from ..messaging.context import format_context_messages
 
     return await summarize_for_memory(
         chat_model,
+        format_context_messages(context_messages, user_preferred_name),
         user_preferred_name,
-        format_context_messages(user_preferred_name, context_messages),
     )
 
 

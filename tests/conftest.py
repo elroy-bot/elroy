@@ -118,7 +118,7 @@ def session(elroy_config):
 
 
 @pytest.fixture(scope="function")
-def user_token(scope="function"):
+def user_token():
     return str(uuid.uuid4())
 
 

@@ -85,6 +85,7 @@ class ElroyConfig:
     embedding_model: EmbeddingModel
     debug_mode: bool  # Whether to emit more verbose logging and fail faster on errors rather than attempting to recover
     log_file_path: str
+    default_persona: str
 
 
 def get_config(
@@ -107,6 +108,7 @@ def get_config(
     openai_embedding_api_base: Optional[str],
     openai_organization: Optional[str],
     log_file_path: str,
+    default_persona: str,
     enable_caching: bool,
 ) -> ElroyConfig:
     from litellm import open_ai_embedding_models
@@ -163,6 +165,7 @@ def get_config(
         l2_memory_consolidation_distance_threshold=l2_memory_consolidation_distance_threshold,
         initial_refresh_wait=timedelta(seconds=initial_context_refresh_wait_seconds),
         log_file_path=log_file_path,
+        default_persona=default_persona,
     )
 
 

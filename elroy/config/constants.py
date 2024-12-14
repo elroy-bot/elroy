@@ -25,6 +25,9 @@ MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
+# In system persona, the string to replace with the actual user alias
+USER_ALIAS_STRING = "$USER_ALIAS"
+
 
 class MissingAssistantToolCallError(Exception):
     pass
