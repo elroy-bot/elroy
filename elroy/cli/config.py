@@ -2,12 +2,14 @@ import asyncio
 import contextlib
 import logging
 import os
+from functools import partial
 from io import StringIO
 from typing import Optional
 
 import typer
 from sqlalchemy import create_engine, engine_from_config
 from sqlmodel import Session, text
+from toolz import pipe
 
 from alembic import command
 from alembic.config import Config
@@ -21,9 +23,9 @@ from ..config.config import (
     get_config,
     session_manager,
 )
-from ..config.constants import UNKNOWN
 from ..io.base import ElroyIO, StdIO
 from ..io.cli import CliIO
+from ..llm.persona import get_persona
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from ..logging_config import setup_logging
 from ..messaging.context import get_refreshed_system_message
@@ -31,7 +33,11 @@ from ..repository.data_models import SYSTEM, ContextMessage
 from ..repository.goals.operations import create_onboarding_goal
 from ..repository.message import replace_context_messages
 from ..repository.user import create_user_id, get_user_id_if_exists
-from ..tools.user_preferences import set_user_preferred_name
+from ..tools.user_preferences import (
+    reset_system_persona,
+    set_system_persona,
+    set_user_preferred_name,
+)
 from .updater import check_latest_version
 
 
@@ -58,12 +64,13 @@ def init_config(ctx: typer.Context) -> ElroyConfig:
         openai_embedding_api_base=p["openai_embedding_api_base"],
         openai_organization=p["openai_organization"],
         log_file_path=os.path.abspath(p["log_file_path"]),
+        default_persona=p["default_persona"],
         enable_caching=p["enable_caching"],
     )
 
 
 def onboard_user(context: ElroyContext) -> None:
-    replace_context_messages(context, [get_refreshed_system_message(context.config.chat_model, UNKNOWN, [])])
+    replace_context_messages(context, [get_refreshed_system_message(context, [])])
 
 
 async def onboard_user_interactive(context: ElroyContext[CliIO]) -> None:
@@ -80,7 +87,7 @@ async def onboard_user_interactive(context: ElroyContext[CliIO]) -> None:
     replace_context_messages(
         context,
         [
-            get_refreshed_system_message(context.config.chat_model, preferred_name, []),
+            get_refreshed_system_message(context, []),
             ContextMessage(
                 role=SYSTEM,
                 content=ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name),
@@ -177,6 +184,50 @@ def handle_show_config(ctx: typer.Context):
     for key, value in config.__dict__.items():
         print(f"{key}={value}")
     raise typer.Exit()
+
+
+def handle_set_persona(ctx: typer.Context):
+    config = init_config(ctx)
+    user_token = ctx.params["user_token"]
+
+    with session_manager(config.postgres_url) as session:
+        user_id = get_user_id_if_exists(session, user_token)
+        if not user_id:
+            logging.info(f"No user found for token {user_token}, creating one")
+            user_id = create_user_id(session, user_token)
+
+        context = ElroyContext(session, StdIO(), config, user_id)
+        set_system_persona(context, ctx.params["set_persona"])
+    raise typer.Exit()
+
+
+def handle_reset_persona(ctx: typer.Context):
+    config = init_config(ctx)
+    user_token = ctx.params["user_token"]
+
+    with session_manager(config.postgres_url) as session:
+        user_id = get_user_id_if_exists(session, user_token)
+        if not user_id:
+            logging.warning(f"No user found for token {user_token}, so no persona to clear")
+            return typer.Exit()
+        else:
+            context = ElroyContext(session, StdIO(), config, user_id)
+            reset_system_persona(context)
+    raise typer.Exit()
+
+
+def handle_show_persona(ctx: typer.Context):
+    config = init_config(ctx)
+
+    user_token = ctx.params["user_token"]
+
+    with session_manager(config.postgres_url) as session:
+        pipe(
+            get_user_id_if_exists(session, user_token),
+            partial(get_persona, session, config),
+            print,
+        )
+        raise typer.Exit()
 
 
 def handle_list_models():

@@ -33,7 +33,9 @@ Only output the summary, do NOT include anything else in your output.
 )
 
 
-async def summarize_for_memory(model: ChatModel, user_preferred_name: str, conversation_summary: str) -> Tuple[str, str]:
+async def summarize_for_memory(model: ChatModel, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
+    user_noun = user_preferred_name or "the user"
+
     response = query_llm(
         model=model,
         prompt=conversation_summary,
@@ -42,7 +44,7 @@ You are the internal thought monologue of an AI personal assistant, forming a me
 
 Given a conversation summary, your will reflect on the conversation and decide which memories might be relevant in future interactions with {user_preferred_name}.
 
-Pay particular attention facts about {user_preferred_name}, such as name, age, location, etc.
+Pay particular attention facts about {user_noun}, such as name, age, location, etc.
 Specifics about events and dates are also important.
 
 When referring to dates and times, use use ISO 8601 format, rather than relative references.
@@ -59,7 +61,7 @@ Respond in markdown format. The first line should be a title line, and the rest 
 An example response might look like this:
 
 # Exercise progress on 2021-01-01
-Today, {user_preferred_name} went for a 5 mile run. They plan to run a marathon in the spring.
+Today, {user_noun} went for a 5 mile run. They plan to run a marathon in the spring.
 
 """,
     )
@@ -72,7 +74,7 @@ DEFAULT_CONTEMPLATE_PROMPT = "Think about the conversation you're in the middle 
 "Also consider if any functions might be appropriate to invoke, and why"
 
 
-def contemplate_prompt(user_preferred_name: str, prompt: Optional[str]) -> str:
+def contemplate_prompt(user_preferred_name: Optional[str], prompt: Optional[str]) -> str:
     prompt = prompt or DEFAULT_CONTEMPLATE_PROMPT
 
     return f"""

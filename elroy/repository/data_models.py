@@ -161,6 +161,9 @@ class UserPreference(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     user_id: int = Field(..., description="User for context")
     preferred_name: Optional[str] = Field(default=None, description="The preferred name for the user")
+    system_persona: Optional[str] = Field(
+        default=None, description="The system persona for the user, included in the system instruction. If unset, a default is used"
+    )
     full_name: Optional[str] = Field(default=None, description="The full name for the user")
     is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
 

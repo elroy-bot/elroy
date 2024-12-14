@@ -1,1 +1,2 @@
 chat_model: gpt-4o-mini
+default_persona: You are a helpful assistant, your name is Jimbo

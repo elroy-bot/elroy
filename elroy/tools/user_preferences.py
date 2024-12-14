@@ -1,8 +1,59 @@
+import logging
 from typing import Optional
+
+import typer
+from sqlmodel import Session
+from toolz import do
 
 from ..config.config import ElroyContext
 from ..config.constants import UNKNOWN
 from ..repository.data_models import UserPreference
+from ..utils.utils import is_blank
+
+
+def set_system_persona(context: ElroyContext, system_persona: str) -> str:
+    """
+    Sets the system instruction for the user
+    """
+    from ..system_commands import refresh_system_instructions
+
+    system_persona = system_persona.strip()
+
+    if is_blank(system_persona):
+        raise typer.BadParameter("System persona cannot be blank.")
+
+    user_preference = get_or_create_user_preference(context.session, context.user_id)
+
+    if user_preference.system_persona == system_persona:
+        return do(logging.warning, "New system persona and old system persona are identical")
+
+    user_preference.system_persona = system_persona
+
+    context.session.add(user_preference)
+    context.session.commit()
+
+    refresh_system_instructions(context)
+    return "System persona updated."
+
+
+def reset_system_persona(context: ElroyContext) -> str:
+    """
+    Clears the system instruction for the user
+    """
+    from ..system_commands import refresh_system_instructions
+
+    user_preference = get_or_create_user_preference(context.session, context.user_id)
+    if not user_preference.system_persona:
+        # Re-clear the persona even if it was already blank, in case some malformed value has been set
+        logging.warning("System persona was already set to default")
+
+    user_preference.system_persona = None
+
+    context.session.add(user_preference)
+    context.session.commit()
+
+    refresh_system_instructions(context)
+    return "System persona cleared, will now use default persona."
 
 
 def set_user_preferred_name(context: ElroyContext, preferred_name: str, override_existing: Optional[bool] = False) -> str:
@@ -15,7 +66,7 @@ def set_user_preferred_name(context: ElroyContext, preferred_name: str, override
         override_existing: Whether to override the an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect.
     """
 
-    user_preference = _get_user_preference(context)
+    user_preference = get_or_create_user_preference(context.session, context.user_id)
 
     old_preferred_name = user_preference.preferred_name or UNKNOWN
 
@@ -38,7 +89,7 @@ def get_user_preferred_name(context: ElroyContext) -> str:
         str: String representing the user's preferred name.
     """
 
-    user_preference = _get_user_preference(context)
+    user_preference = get_or_create_user_preference(context.session, context.user_id)
 
     return user_preference.preferred_name or UNKNOWN
 
@@ -59,7 +110,7 @@ def set_user_full_name(context: ElroyContext, full_name: str, override_existing:
         str: result of the attempt to set the user's full name
     """
 
-    user_preference = _get_user_preference(context)
+    user_preference = get_or_create_user_preference(context.session, context.user_id)
 
     old_full_name = user_preference.full_name or UNKNOWN
     if old_full_name != UNKNOWN and not override_existing:
@@ -81,24 +132,24 @@ def get_user_full_name(context: ElroyContext) -> str:
         str: String representing the user's full name.
     """
 
-    user_preference = _get_user_preference(context)
+    user_preference = get_or_create_user_preference(context.session, context.user_id)
 
     return user_preference.full_name or "Unknown name"
 
 
-def _get_user_preference(context: ElroyContext):
+def get_or_create_user_preference(session: Session, user_id: int) -> UserPreference:
     from sqlmodel import select
 
-    user_preference = context.session.exec(
+    user_preference = session.exec(
         select(UserPreference).where(
-            UserPreference.user_id == context.user_id,
+            UserPreference.user_id == user_id,
             UserPreference.is_active == True,
         )
     ).first()
 
     if user_preference is None:
-        user_preference = UserPreference(user_id=context.user_id, is_active=True)
-        context.session.add(user_preference)
-        context.session.commit()
-        context.session.refresh(user_preference)
+        user_preference = UserPreference(user_id=user_id, is_active=True)
+        session.add(user_preference)
+        session.commit()
+        session.refresh(user_preference)
     return user_preference

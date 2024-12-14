@@ -59,11 +59,15 @@ def refresh_system_instructions(context: ElroyContext) -> str:
     """
 
     context_messages = get_context_messages(context)
-    context_messages[0] = get_refreshed_system_message(
-        context.config.chat_model,
-        get_user_preferred_name(context),
-        context_messages[1:],
-    )
+    if len(context_messages) == 0:
+        context_messages.append(
+            get_refreshed_system_message(context, []),
+        )
+    else:
+        context_messages[0] = get_refreshed_system_message(
+            context,
+            context_messages[1:],
+        )
     replace_context_messages(context, context_messages)
     return "System instruction refresh complete"
 
@@ -139,8 +143,7 @@ def reset_system_context(context: ElroyContext) -> str:
             else "No first message found"
         )
         current_sys_message = get_refreshed_system_message(
-            context.config.chat_model,
-            get_user_preferred_name(context),
+            context,
             get_context_messages(context),
         )
 
@@ -230,7 +233,7 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
     user_preferred_name = get_user_preferred_name(context)
     context_messages = get_context_messages(context)
 
-    msgs_input = format_context_messages(user_preferred_name, context_messages)
+    msgs_input = format_context_messages(context_messages, user_preferred_name)
 
     response = client.query_llm(
         prompt=msgs_input,

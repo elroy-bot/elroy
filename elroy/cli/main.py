@@ -8,7 +8,14 @@ from toolz.curried import filter
 from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
 from ..config.models import resolve_anthropic
 from .chat import handle_chat
-from .config import handle_list_models, handle_show_config, handle_show_version
+from .config import (
+    handle_list_models,
+    handle_reset_persona,
+    handle_set_persona,
+    handle_show_config,
+    handle_show_persona,
+    handle_show_version,
+)
 from .options import CliOption, model_alias_typer_option
 from .remember import handle_remember, handle_remember_file
 
@@ -29,6 +36,11 @@ def common(
         "--config",
         "-c",
         help="Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.",
+        rich_help_panel="Basic Configuration",
+    ),
+    default_persona: str = CliOption(
+        "default_persona",
+        help="Default persona to use for assistants.",
         rich_help_panel="Basic Configuration",
     ),
     debug: bool = CliOption(
@@ -177,7 +189,6 @@ def common(
     # Logging
     log_file_path: str = CliOption(
         "log_file_path",
-        envvar="ELROY_LOG_FILE_PATH",
         help="Where to write logs.",
         rich_help_panel="Logging",
     ),
@@ -220,6 +231,24 @@ def common(
         help="Show version and exit.",
         rich_help_panel="Commands",
     ),
+    set_persona: str = typer.Option(
+        None,
+        "--set-persona",
+        help="Path to a persona file to user for the assistant",
+        rich_help_panel="Commands",
+    ),
+    reset_persona: bool = typer.Option(
+        False,
+        "--reset-persona",
+        help="Removes any custom persona, reverting to the default",
+        rich_help_panel="Commands",
+    ),
+    show_persona: bool = typer.Option(
+        False,
+        "--show-persona",
+        help="Print the system persona and exit",
+        rich_help_panel="Commands",
+    ),
     sonnet: bool = model_alias_typer_option("sonnet", "Use Anthropic's Sonnet model", lambda: resolve_anthropic("sonnet")),
     opus: bool = model_alias_typer_option("opus", "Use Anthropic's Opus model", lambda: resolve_anthropic("opus")),
     gpt4o: bool = model_alias_typer_option("4o", "Use OpenAI's GPT-4o model", lambda: "gpt-4o"),
@@ -235,6 +264,9 @@ def common(
             (list_models, handle_list_models),
             (remember_file, partial(handle_remember_file, ctx, remember_file)),
             (remember, partial(handle_remember, ctx)),
+            (set_persona, partial(handle_set_persona, ctx)),
+            (reset_persona, partial(handle_reset_persona, ctx)),
+            (show_persona, partial(handle_show_persona, ctx)),
             (True, partial(handle_chat, ctx)),  # Chat is default
         ],
         filter(lambda x: x[0]),

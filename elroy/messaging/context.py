@@ -9,9 +9,8 @@ from sqlmodel import select
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
-from ..config.config import ChatModel, ElroyContext
+from ..config.config import ElroyContext
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
-from ..llm.persona import persona
 from ..llm.prompts import summarize_conversation
 from ..repository.data_models import (
     ASSISTANT,
@@ -36,11 +35,16 @@ from ..repository.message import (
     remove_context_messages,
     replace_context_messages,
 )
+from ..tools.user_preferences import get_or_create_user_preference
 from ..utils.clock import get_utc_now
 from ..utils.utils import datetime_to_string, logged_exec_time
 
 
-def get_refreshed_system_message(chat_model: ChatModel, user_preferred_name: str, context_messages: List[ContextMessage]) -> ContextMessage:
+def get_refreshed_system_message(context: ElroyContext, context_messages: List[ContextMessage]) -> ContextMessage:
+    from ..llm.persona import get_persona
+
+    user_preference = get_or_create_user_preference(context.session, context.user_id)
+
     assert isinstance(context_messages, list)
     if len(context_messages) > 0 and context_messages[0].role == SYSTEM:
         # skip existing system message if it is still in context.
@@ -51,8 +55,8 @@ def get_refreshed_system_message(chat_model: ChatModel, user_preferred_name: str
     else:
         conversation_summary = pipe(
             context_messages,
-            lambda msgs: format_context_messages(user_preferred_name, msgs),
-            partial(summarize_conversation, chat_model),
+            lambda msgs: format_context_messages(msgs, user_preference.preferred_name),
+            partial(summarize_conversation, context.config.chat_model),
             lambda _: f"<conversational_summary>{_}</conversational_summary>",
             str,
         )
@@ -60,7 +64,7 @@ def get_refreshed_system_message(chat_model: ChatModel, user_preferred_name: str
     return pipe(
         [
             SYSTEM_INSTRUCTION_LABEL,
-            f"<persona>{persona(user_preferred_name)}</persona>",
+            f"<persona>{get_persona(context.session, context.config, context.user_id)}</persona>",
             conversation_summary,
             "From now on, converse as your persona.",
         ],  # type: ignore
@@ -70,12 +74,14 @@ def get_refreshed_system_message(chat_model: ChatModel, user_preferred_name: str
     )
 
 
-def format_message(user_preferred_name: str, message: ContextMessage) -> Optional[str]:
+def format_message(message: ContextMessage, user_preferred_name: Optional[str]) -> Optional[str]:
     datetime_str = datetime_to_string(message.created_at)
     if message.role == SYSTEM:
         return f"SYSTEM ({datetime_str}): {message.content}"
     elif message.role == USER:
-        return f"{user_preferred_name.upper()} ({datetime_str}): {message.content}"
+        user_name = user_preferred_name.upper() if user_preferred_name else "USER"
+
+        return f"{user_name} ({datetime_str}): {message.content}"
     elif message.role == ASSISTANT:
         if message.content:
             return f"ELROY ({datetime_str}): {message.content}"
@@ -176,7 +182,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
     return [system_message] + list(kept_messages)
 
 
-def format_context_messages(user_preferred_name: str, context_messages: List[ContextMessage]) -> str:
+def format_context_messages(context_messages: List[ContextMessage], user_preferred_name: Optional[str]) -> str:
     convo_range = pipe(
         context_messages,
         filter(lambda _: _.role == USER),
@@ -188,7 +194,7 @@ def format_context_messages(user_preferred_name: str, context_messages: List[Con
     return (
         pipe(
             context_messages,
-            map(lambda msg: format_message(user_preferred_name, msg)),
+            map(lambda msg: format_message(msg, user_preferred_name)),
             remove(lambda _: _ is None),
             list,
             "\n".join,
@@ -226,7 +232,7 @@ async def context_refresh(context: ElroyContext) -> None:
         await consolidate_memories(context, mem1, mem2)
 
     pipe(
-        get_refreshed_system_message(context.config.chat_model, user_preferred_name, context_messages),
+        get_refreshed_system_message(context, context_messages),
         partial(replace_system_instruction, context_messages),
         partial(compress_context_messages, context),
         partial(replace_context_messages, context),

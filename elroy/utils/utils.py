@@ -12,6 +12,11 @@ from ..config.config import ElroyContext, session_manager
 T = TypeVar("T")
 
 
+def is_blank(input: Optional[str]) -> bool:
+    assert isinstance(input, (str, type(None)))
+    return not input or not input.strip()
+
+
 def logged_exec_time(func, name: Optional[str] = None):
     def wrapper(*args, **kwargs):
         start_time = time.time()
