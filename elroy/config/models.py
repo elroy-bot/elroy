@@ -123,8 +123,8 @@ def get_fallback_model(chat_model: ChatModel) -> Optional[ChatModel]:
     else:
         return None
 
-    idx = model_list.index(chat_model.name) - 1
-    if idx < 0:
+    idx = model_list.index(chat_model.name) + 1
+    if idx > len(model_list) - 1:
         return None
 
     name = model_list[idx]
