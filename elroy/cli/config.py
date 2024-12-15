@@ -102,7 +102,7 @@ def elroy_context_from_typer_interactive(ctx: typer.Context):
     setup_logging(config.log_file_path)
     validate_and_configure_db(config.postgres_url)
     io = CliIO(
-        show_internal_thought_monologue=ctx.params["show_internal_thought_monologue"],
+        show_internal_thought=ctx.params["show_internal_thought"],
         system_message_color=ctx.params["system_message_color"],
         assistant_message_color=ctx.params["assistant_color"],
         user_input_color=ctx.params["user_input_color"],

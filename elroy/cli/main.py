@@ -144,8 +144,8 @@ def common(
         rich_help_panel="Memory Management",
     ),
     # UI Configuration
-    show_internal_thought_monologue: bool = CliOption(
-        "show_internal_thought_monologue",
+    show_internal_thought: bool = CliOption(
+        "show_internal_thought",
         help="Show the assistant's internal thought monologue like memory consolidation and internal reflection.",
         rich_help_panel="UI Configuration",
     ),
