@@ -22,7 +22,7 @@ from ..repository.data_models import FunctionCall
 class CliIO(ElroyIO):
     def __init__(
         self,
-        show_internal_thought_monologue: bool,
+        show_internal_thought: bool,
         system_message_color: str,
         assistant_message_color: str,
         user_input_color: str,
@@ -30,7 +30,7 @@ class CliIO(ElroyIO):
         internal_thought_color: str,
     ) -> None:
         self.console = Console()
-        self.show_internal_thought_monologue = show_internal_thought_monologue
+        self.show_internal_thought = show_internal_thought
         self.system_message_color = system_message_color
         self.assistant_message_color = assistant_message_color
         self.warning_color = warning_color
@@ -56,8 +56,8 @@ class CliIO(ElroyIO):
         if self.is_streaming_output:
             # hack, should be replaced with a buffer
             logging.info("Dropping internal monologue message since we are streaming assistant output")
-        elif not self.show_internal_thought_monologue:
-            logging.info("Not showing internal monologue since show_internal_thought_monologue is False")
+        elif not self.show_internal_thought:
+            logging.info("Not showing internal monologue since show_internal_thought is False")
         else:
             print_formatted_text(HTML(f'<style fg="{self.internal_thought_color}"><i>{message}</i></style>'))
 

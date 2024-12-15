@@ -222,7 +222,7 @@ You can customize Elroy's appearance with these options:
 * `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [env var: ELROY_INITIAL_CONTEXT_REFRESH_WAIT_SECONDS] [default: 30]
 
 ### UI Configuration
-* `--show-internal-thought-monologue`: Show the assistant's internal thought monologue. [default: False]
+* `--show-internal-thought`: Show the assistant's internal thought monologue. [default: False]
 * `--system-message-color TEXT`: Color for system messages. [default: #9ACD32]
 * `--user-input-color TEXT`: Color for user input. [default: #FFE377]
 * `--assistant-color TEXT`: Color for assistant output. [default: #77DFD8]

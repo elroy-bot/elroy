@@ -20,7 +20,7 @@ from elroy.utils.utils import first_or_none
 class TestCliIO(CliIO):
     def __init__(self, *args, **kwargs):
         super().__init__(
-            show_internal_thought_monologue=False,
+            show_internal_thought=False,
             system_message_color="blue",
             assistant_message_color="green",
             user_input_color="red",
