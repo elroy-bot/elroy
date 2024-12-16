@@ -26,7 +26,12 @@ curl -O https://raw.githubusercontent.com/elroy-bot/elroy/main/docker-compose.ym
 
 2. Run Elroy:
 ```bash
+# to ensure you have the most up to date image
+docker compose build --no-cache
 docker compose run --rm elroy
+
+# Add parameters as needed, e.g. here to use Anthropic's Sonnet model
+docker compose run --rm elroy --sonnet
 ```
 
 The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
@@ -100,7 +105,7 @@ Elroy supports both OpenAI and Anthropic language models:
 
 The default model is gpt-4o. Use `elroy --list-models` to see all supported chat models. Model shortcuts are available:
 - `--sonnet`: Use Anthropic's Sonnet model
-- `--opus`: Use Anthropic's Opus model  
+- `--opus`: Use Anthropic's Opus model
 - `--4o`: Use OpenAI's GPT-4o model
 - `--4o-mini`: Use OpenAI's GPT-4o-mini model
 - `--o1`: Use OpenAI's o1-preview model
