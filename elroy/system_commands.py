@@ -34,12 +34,8 @@ from .repository.message import (
     is_system_instruction,
     replace_context_messages,
 )
-from .tools.developer import (
-    create_bug_report,
-    print_elroy_config,
-    start_aider_session,
-    tail_elroy_logs,
-)
+from .tools.coding import make_coding_edit
+from .tools.developer import create_bug_report, print_elroy_config, tail_elroy_logs
 from .tools.user_preferences import (
     get_user_full_name,
     get_user_preferred_name,
@@ -289,13 +285,13 @@ NON_ARG_PREFILL_COMMANDS = {
     create_goal,
     create_memory,
     contemplate,
-    start_aider_session,
     get_user_full_name,
     set_user_full_name,
     get_user_preferred_name,
     set_user_preferred_name,
     tail_elroy_logs,
     print_elroy_config,
+    make_coding_edit,
 }
 
 # These are commands that are visible to the assistant to be executed as tools.

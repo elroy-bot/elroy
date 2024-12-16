@@ -5,6 +5,8 @@ SYSTEM_INSTRUCTION_LABEL = "*Elroy System Instruction*"
 
 UNKNOWN = "Unknown"
 
+AUTO = "auto"
+
 CLI_USER_ID = 1
 
 ### Model parameters ###
@@ -34,6 +36,10 @@ class MissingAssistantToolCallError(Exception):
 
 
 class MissingToolCallMessageError(Exception):
+    pass
+
+
+class InvalidForceToolError(Exception):
     pass
 
 

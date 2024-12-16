@@ -1,11 +1,11 @@
 import logging
 from functools import partial
-from typing import Dict, Iterator, List, NamedTuple, Optional, Union
+from typing import Iterator, List, Optional
 
 from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
-from ..config.config import ChatModel, ElroyConfig, ElroyContext
+from ..config.config import ElroyConfig, ElroyContext
 from ..config.constants import (
     SYSTEM_INSTRUCTION_LABEL,
     MisplacedSystemInstructError,
@@ -14,7 +14,7 @@ from ..config.constants import (
     MissingToolCallMessageError,
 )
 from ..llm.client import generate_chat_completion_message, get_embedding
-from ..repository.data_models import ASSISTANT, SYSTEM, TOOL, USER
+from ..repository.data_models import ASSISTANT, SYSTEM, TOOL, USER, ContentItem
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
 from ..repository.facts import to_fact
 from ..repository.message import (
@@ -24,39 +24,11 @@ from ..repository.message import (
     is_system_instruction,
     replace_context_messages,
 )
-from ..tools.function_caller import FunctionCall, PartialToolCall, exec_function_call
+from ..tools.function_caller import FunctionCall, exec_function_call
 from ..utils.utils import last_or_none, logged_exec_time
 
 
-class ToolCallAccumulator:
-    from litellm.types.utils import ChatCompletionDeltaToolCall
-
-    def __init__(self, chat_model: ChatModel):
-        self.chat_model = chat_model
-        self.tool_calls: Dict[int, PartialToolCall] = {}
-        self.last_updated_index: Optional[int] = None
-
-    def update(self, delta_tool_calls: Optional[List[ChatCompletionDeltaToolCall]]) -> Iterator[FunctionCall]:
-        for delta in delta_tool_calls or []:
-            if delta.index not in self.tool_calls:
-                if (
-                    self.last_updated_index is not None
-                    and self.last_updated_index in self.tool_calls
-                    and self.last_updated_index != delta.index
-                ):
-                    raise ValueError("New tool call started, but old one is not yet complete")
-                assert delta.id
-                self.tool_calls[delta.index] = PartialToolCall(id=delta.id, model=self.chat_model.name)
-
-            completed_tool_call = self.tool_calls[delta.index].update(delta)
-            if completed_tool_call:
-                self.tool_calls.pop(delta.index)
-                yield completed_tool_call
-            else:
-                self.last_updated_index = delta.index
-
-
-def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterator[str]:
+def process_message(role: str, context: ElroyContext, msg: str, force_tool: Optional[str] = None) -> Iterator[str]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
     context_messages = pipe(
@@ -74,7 +46,7 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        for stream_chunk in _generate_assistant_reply(context.config.chat_model, context_messages):
+        for stream_chunk in generate_chat_completion_message(context.config.chat_model, context_messages, force_tool):
             if isinstance(stream_chunk, ContentItem):
                 full_content += stream_chunk.content
                 yield stream_chunk.content
@@ -99,11 +71,24 @@ def process_message(context: ElroyContext, msg: str, role: str = USER) -> Iterat
             )
         )
 
-        if not tool_context_messages:
+        if force_tool:
+            assert len(tool_context_messages) >= 1
+            if len(tool_context_messages) > 1:
+                logging.warning(f"With force tool {force_tool}, expected one tool message, but found {len(tool_context_messages)}")
+
+            context_messages += tool_context_messages
+            replace_context_messages(context, context_messages)
+
+            content = tool_context_messages[-1].content
+            assert isinstance(content, str)
+            yield content
+            break
+
+        elif tool_context_messages:
+            context_messages += tool_context_messages
+        else:
             replace_context_messages(context, context_messages)
             break
-        else:
-            context_messages += tool_context_messages
 
 
 def validate(config: ElroyConfig, context_messages: List[ContextMessage]) -> List[ContextMessage]:
@@ -257,29 +242,3 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
     )
 
     return new_memory_messages
-
-
-from typing import Iterator
-
-
-class ContentItem(NamedTuple):
-    content: str
-
-
-StreamItem = Union[ContentItem, FunctionCall]
-
-
-def _generate_assistant_reply(
-    chat_model: ChatModel,
-    context_messages: List[ContextMessage],
-) -> Iterator[StreamItem]:
-
-    if context_messages[-1].role == ASSISTANT:
-        raise ValueError("Assistant message already the most recent message")
-
-    tool_call_accumulator = ToolCallAccumulator(chat_model)
-    for chunk in generate_chat_completion_message(chat_model, context_messages):
-        if chunk.choices[0].delta.content:  # type: ignore
-            yield ContentItem(content=chunk.choices[0].delta.content)  # type: ignore
-        if chunk.choices[0].delta.tool_calls:  # type: ignore
-            yield from tool_call_accumulator.update(chunk.choices[0].delta.tool_calls)  # type: ignore

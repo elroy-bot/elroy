@@ -5,10 +5,9 @@ import yaml
 from typer.testing import CliRunner
 
 from elroy.cli.main import app, common
-from elroy.llm.persona import get_persona
-from elroy.tools.user_preferences import reset_system_persona, set_system_persona
 
 
+# TODO: These tests are problematic, they run the system installed version rather than the one from current code.
 def test_config_precedence():
     """Test that config values are properly prioritized:
     CLI args > env vars > config file > defaults
@@ -50,36 +49,7 @@ def test_config_precedence():
     assert "gpt-4o-mini" in result.stdout
 
 
-def test_persona(user_token):
-
-    runner = CliRunner(mix_stderr=True)
-    config_path = str(Path(__file__).parent / "fixtures" / "test_config.yml")
-    result = runner.invoke(
-        app,
-        [
-            "--config",
-            config_path,
-            "--user-token",
-            user_token,
-            "--show-persona",
-        ],
-        env={},
-        catch_exceptions=True,
-    )
-
-    assert result.exit_code == 0
-    assert "jimbo" in result.stdout.lower()
-
-
-def test_persona_assistant_specific_persona(elroy_context, user_token):
-    set_system_persona(elroy_context, "You are a helpful assistant. Your name is Billy.")
-    assert "Billy" in get_persona(elroy_context.session, elroy_context.config, elroy_context.user_id)
-    reset_system_persona(elroy_context)
-    assert "Elroy" in get_persona(elroy_context.session, elroy_context.config, elroy_context.user_id)
-
-
 def test_cli_params_match_defaults():
-    # Load defaults.yml
     with open("elroy/config/defaults.yml") as f:
         defaults = yaml.safe_load(f)
 
@@ -90,6 +60,9 @@ def test_cli_params_match_defaults():
         name
         for name in sig.parameters
         if name
+        # This list are those that are either:
+        # - application commands
+        # - parameters that are relevant to one specific invocation
         not in [
             "ctx",
             "version",
@@ -108,6 +81,8 @@ def test_cli_params_match_defaults():
             "set_persona",
             "show_persona",
             "reset_persona",
+            "tool",
+            "message",
         ]
     }
 

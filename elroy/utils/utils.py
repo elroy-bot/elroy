@@ -12,6 +12,13 @@ from ..config.config import ElroyContext, session_manager
 T = TypeVar("T")
 
 
+def is_truthy(input: Any) -> bool:
+    if isinstance(input, str):
+        return not is_blank(input)
+    else:
+        return bool(input)
+
+
 def is_blank(input: Optional[str]) -> bool:
     assert isinstance(input, (str, type(None)))
     return not input or not input.strip()

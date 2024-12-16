@@ -98,14 +98,14 @@ async def onboard_user_interactive(context: ElroyContext[CliIO]) -> None:
     )
 
     await process_and_deliver_msg(
+        SYSTEM,
         context,
         f"Elroy user {preferred_name} has been onboarded. Say hello and introduce yourself.",
-        role=SYSTEM,
     )
 
 
 @contextlib.contextmanager
-def elroy_context_from_typer_interactive(ctx: typer.Context):
+def cli_elroy_context_interactive(ctx: typer.Context):
     config = init_config(ctx)
     setup_logging(config.log_file_path)
     validate_and_configure_db(config.postgres_url)
@@ -141,7 +141,7 @@ def elroy_context_from_typer_interactive(ctx: typer.Context):
             context.io.notify_warning("Elroy is in alpha release")
             asyncio.run(onboard_user_interactive(context))
 
-        if not context.config.chat_model.supports_tools:
+        if not context.config.chat_model.has_tool_support:
             context.io.notify_warning(
                 f"{context.config.chat_model.name} does not support tool calling, some functionality will be disabled."
             )
@@ -150,7 +150,7 @@ def elroy_context_from_typer_interactive(ctx: typer.Context):
 
 
 @contextlib.contextmanager
-def elroy_context_from_typer(ctx: typer.Context):
+def cli_elroy_context(ctx: typer.Context):
     config = init_config(ctx)
     with session_manager(config.postgres_url) as session:
         with init_elroy_context(session, config, StdIO(), ctx.params["user_token"]) as context:

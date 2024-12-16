@@ -7,7 +7,8 @@ from toolz.curried import filter
 
 from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
 from ..config.models import resolve_anthropic
-from .chat import handle_chat
+from ..utils.utils import is_truthy
+from .chat import handle_chat, handle_message
 from .config import (
     handle_list_models,
     handle_reset_persona,
@@ -17,7 +18,7 @@ from .config import (
     handle_show_version,
 )
 from .options import CliOption, model_alias_typer_option
-from .remember import handle_remember, handle_remember_file
+from .remember import handle_remember
 
 app = typer.Typer(
     help="Elroy CLI",
@@ -201,21 +202,26 @@ def common(
     chat: bool = typer.Option(
         False,
         "--chat",
-        help="Opens an interactive chat session, or generates a response to stdin input. THe default command.",
+        help="Opens an interactive chat session, or generates a response to stdin input. The default command.",
         rich_help_panel="Commands",
+    ),
+    message: str = typer.Option(
+        None,
+        "--message",
+        "-m",
+        help="If provided, the Elroy will generate a response and then exit.",
+    ),
+    tool: str = typer.Option(
+        None,
+        "--tool",
+        "-t",
+        help="Specifies the tool to use in responding to a message. Only valid when processing a single message",
     ),
     remember: bool = typer.Option(
         False,
         "--remember",
         "-r",
         help="Create a new memory from stdin or interactively",
-        rich_help_panel="Commands",
-    ),
-    remember_file: Optional[str] = typer.Option(
-        None,
-        "--remember-file",
-        "-f",
-        help="File to read memory text from when using --remember",
         rich_help_panel="Commands",
     ),
     list_models: bool = typer.Option(
@@ -267,14 +273,14 @@ def common(
             (show_config, partial(handle_show_config, ctx)),
             (version, handle_show_version),
             (list_models, handle_list_models),
-            (remember_file, partial(handle_remember_file, ctx, remember_file)),
+            (message, partial(handle_message, ctx)),
             (remember, partial(handle_remember, ctx)),
             (set_persona, partial(handle_set_persona, ctx)),
             (reset_persona, partial(handle_reset_persona, ctx)),
             (show_persona, partial(handle_show_persona, ctx)),
             (True, partial(handle_chat, ctx)),  # Chat is default
         ],
-        filter(lambda x: x[0]),
+        filter(lambda x: is_truthy(x[0])),
         first,
         lambda x: x[1](),
     )

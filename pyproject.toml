@@ -12,7 +12,7 @@ psycopg2-binary = "^2.9.9"
 sqlalchemy = "^2.0.29"
 pyyaml = "^6.0.1"
 requests = "^2.32.2"
-tiktoken = "^0.7.0"
+tiktoken = "^0.8.0"
 prompt-toolkit = "^3.0.47"
 
 colorama = "^0.4.6"
@@ -28,6 +28,7 @@ typer = "^0.12.5"
 semantic-version = "^2.10.0"
 discord-py = "^2.4.0"
 scrubadub = "^2.0.1"
+aider-chat = "^0.69.0"
 
 
 [tool.pyright]
@@ -53,7 +54,7 @@ target-version = ['py39', 'py310', 'py311']
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"
-pydantic = "<2.10" # 2.10 seems to have some bugs around default value handling
+pydantic = "^2.10.3" # 2.10 seems to have some bugs around default value handling
 black = "^24.4.2"
 autoflake = "^2.3.0"
 pyright = "^1.1.350"
