@@ -2,13 +2,13 @@
 
 [[package]]
 name = "aider-chat"
-version = "0.69.0"
+version = "0.69.1"
 description = "Aider is AI pair programming in your terminal"
 optional = false
 python-versions = "<3.13,>=3.9"
 files = [
-    {file = "aider_chat-0.69.0-py3-none-any.whl", hash = "sha256:a2ec20af31bd1f672e6097f8c53a14e13119bf022c6bdcbd1c953523f33e6e1b"},
-    {file = "aider_chat-0.69.0.tar.gz", hash = "sha256:3d6889825bdea9d8a93e7eeecf1c26d7e42189af4a6dc0ad4a55c260ba4b4484"},
+    {file = "aider_chat-0.69.1-py3-none-any.whl", hash = "sha256:069f130cd33490bf038b3dcca9d0e9fc452586ad5512f66a21f46322b39f1f1f"},
+    {file = "aider_chat-0.69.1.tar.gz", hash = "sha256:0a4296ef176b6b7e62265b70fec479d16f90f8754967ab426efe6eac7f5ad31b"},
 ]
 
 [package.dependencies]

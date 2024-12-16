@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.0.52] - 2024-12-16
+
+### Added
+- Ability to create multiple "users" in a single deployment. Each user has isolated memories.
+- Customizable personas: Specify your own default persona for all assistants via the `default_persona` config value, or use `--set-persona` to set a persona for one specific assistant.
+- Model alias support for easier model selection: --o1, --gpt-4o, --sonnet, etc. See README for full list of aliases.
+- Configurable assistant greeting: use `no-enable-assistant-greeting` to prevent the assistant from sending the first message.
+
+### Improved
+- Enhanced model fallback behavior: Primarily motivated by Anthropic - if a rate limit is used, Elroy will automatically attempt to switch to a fallback model (order of fallback behavior can be found via `elroy --list-models`)
+- Better detection of tool support for OpenAI and Anthropic models: Chat functionality and memory consolidation are now supported for models that do not support tools.
+- Streamlined CLI commands and tools organization
+
+### Fixed
+- Various minor bugfixes and stability improvements
+
 ## [0.0.51] - 2024-11-30
 
 ### Improved
