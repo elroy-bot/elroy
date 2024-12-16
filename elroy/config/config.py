@@ -52,6 +52,7 @@ def load_defaults(user_config_path: Optional[str] = None) -> dict:
 class ChatModel:
     name: str
     enable_caching: bool
+    enable_tools: bool
     api_key: Optional[str]
     ensure_alternating_roles: (
         bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
@@ -112,6 +113,9 @@ def get_config(
     enable_caching: bool,
 ) -> ElroyConfig:
     from litellm import open_ai_embedding_models
+    from litellm.litellm_core_utils.get_supported_openai_params import (
+        get_supported_openai_params,
+    )
 
     from .models import get_supported_anthropic_models, get_supported_openai_models
 
@@ -126,7 +130,11 @@ def get_config(
     if chat_model_name in anthropic_models:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
         chat_model = ChatModel(
-            name=chat_model_name, api_key=anthropic_api_key, ensure_alternating_roles=True, enable_caching=enable_caching
+            name=chat_model_name,
+            api_key=anthropic_api_key,
+            ensure_alternating_roles=True,
+            enable_caching=enable_caching,
+            enable_tools="tools" in get_supported_openai_params(chat_model_name, "anthropic"),  # type: ignore
         )
     else:
         if chat_model_name in openai_models:
@@ -138,6 +146,7 @@ def get_config(
             api_base=openai_api_base,
             organization=openai_organization,
             enable_caching=enable_caching,
+            enable_tools="tools" in get_supported_openai_params(chat_model_name, "openai"),  # type: ignore
         )
     if embedding_model in open_ai_embedding_models:
         assert openai_api_key is not None, "OpenAI API key is required for OpenAI embedding models"

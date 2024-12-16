@@ -44,7 +44,10 @@ def generate_chat_completion_message(
 
     try:
         completion_kwargs = _build_completion_kwargs(
-            model=chat_model, messages=context_message_dicts, stream=True, use_tools=True  # type: ignore
+            model=chat_model,
+            messages=context_message_dicts,
+            stream=True,
+            use_tools=True,
         )
         return completion(**completion_kwargs)  # type: ignore
     except Exception as e:
@@ -157,5 +160,10 @@ def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
     from litellm import completion
 
     messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
-    completion_kwargs = _build_completion_kwargs(model=model, messages=messages, stream=False, use_tools=False)
+    completion_kwargs = _build_completion_kwargs(
+        model=model,
+        messages=messages,
+        stream=False,
+        use_tools=False,
+    )
     return completion(**completion_kwargs).choices[0].message.content  # type: ignore
