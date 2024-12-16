@@ -44,6 +44,7 @@ jobs:
       env:
         PYTHONWARNINGS: "ignore::DeprecationWarning"
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
   test-install:
     environment:
@@ -77,6 +78,7 @@ jobs:
         bash scripts/test_cli.sh
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
   publish-pypi:
     environment:
