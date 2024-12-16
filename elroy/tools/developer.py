@@ -45,7 +45,7 @@ def print_elroy_config(context: ElroyContext) -> str:
     Returns:
         str: The current Elroy configuration
     """
-    return str(context.config)
+    return pformat(asdict(context.config), indent=2, width=80)
 
 
 def create_bug_report(
