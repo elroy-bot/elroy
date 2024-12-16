@@ -134,9 +134,14 @@ def common(
         help="How often in minutes to refresh system message and compress context.",
         rich_help_panel="Context Management",
     ),
-    min_convo_age_for_greeting_minutes: float = CliOption(
+    min_convo_age_for_greeting_minutes: Optional[float] = CliOption(
         "min_convo_age_for_greeting_minutes",
-        help="Minimum age in minutes of conversation before the assistant will offer a greeting on login.",
+        help="Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set enable_assistant_greeting=False (This will override any value for min_convo_age_for_greeting_minutes)",
+        rich_help_panel="Context Management",
+    ),
+    enable_assistant_greeting: bool = CliOption(
+        "enable_assistant_greeting",
+        help="Whether to allow the assistant to send the first message",
         rich_help_panel="Context Management",
     ),
     # Memory Management

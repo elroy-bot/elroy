@@ -52,7 +52,7 @@ def load_defaults(user_config_path: Optional[str] = None) -> dict:
 class ChatModel:
     name: str
     enable_caching: bool
-    enable_tools: bool
+    supports_tools: bool
     api_key: Optional[str]
     ensure_alternating_roles: (
         bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
@@ -74,17 +74,18 @@ class EmbeddingModel:
 @dataclass
 class ElroyConfig:
     postgres_url: str
-    context_refresh_token_trigger_limit: int  # how many tokens we reach before triggering refresh
-    context_refresh_token_target: int  # how many tokens we aim to have after refresh
-    max_in_context_message_age: timedelta  # max age of a message to keep in context
-    context_refresh_interval: timedelta  # how often to refresh system message and compress context messages
-    min_convo_age_for_greeting: timedelta  # minimum age of conversation before showing greeting
-    l2_memory_relevance_distance_threshold: float  # threshold for memory relevance
-    l2_memory_consolidation_distance_threshold: float  # threshold for memory consolidation
-    initial_refresh_wait: timedelta  # initial wait time before first refresh
+    context_refresh_token_trigger_limit: int
+    context_refresh_token_target: int
+    max_in_context_message_age: timedelta
+    context_refresh_interval: timedelta
+    min_convo_age_for_greeting: timedelta
+    enable_assistant_greeting: bool
+    l2_memory_relevance_distance_threshold: float
+    l2_memory_consolidation_distance_threshold: float
+    initial_refresh_wait: timedelta
     chat_model: ChatModel
     embedding_model: EmbeddingModel
-    debug_mode: bool  # Whether to emit more verbose logging and fail faster on errors rather than attempting to recover
+    debug_mode: bool
     log_file_path: str
     default_persona: str
 
@@ -99,6 +100,7 @@ def get_config(
     max_context_age_minutes: float,
     context_refresh_interval_minutes: float,
     min_convo_age_for_greeting_minutes: float,
+    enable_assistant_greeting: bool,
     l2_memory_relevance_distance_threshold: float,
     l2_memory_consolidation_distance_threshold: float,
     initial_context_refresh_wait_seconds: int,
@@ -134,7 +136,7 @@ def get_config(
             api_key=anthropic_api_key,
             ensure_alternating_roles=True,
             enable_caching=enable_caching,
-            enable_tools="tools" in get_supported_openai_params(chat_model_name, "anthropic"),  # type: ignore
+            supports_tools="tools" in get_supported_openai_params(chat_model_name, "anthropic"),  # type: ignore
         )
     else:
         if chat_model_name in openai_models:
@@ -146,7 +148,7 @@ def get_config(
             api_base=openai_api_base,
             organization=openai_organization,
             enable_caching=enable_caching,
-            enable_tools="tools" in get_supported_openai_params(chat_model_name, "openai"),  # type: ignore
+            supports_tools="tools" in get_supported_openai_params(chat_model_name, "openai"),  # type: ignore
         )
     if embedding_model in open_ai_embedding_models:
         assert openai_api_key is not None, "OpenAI API key is required for OpenAI embedding models"
@@ -170,6 +172,7 @@ def get_config(
         max_in_context_message_age=timedelta(minutes=max_context_age_minutes),
         context_refresh_interval=timedelta(minutes=context_refresh_interval_minutes),
         min_convo_age_for_greeting=timedelta(minutes=min_convo_age_for_greeting_minutes),
+        enable_assistant_greeting=enable_assistant_greeting,
         l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold,
         l2_memory_consolidation_distance_threshold=l2_memory_consolidation_distance_threshold,
         initial_refresh_wait=timedelta(seconds=initial_context_refresh_wait_seconds),

@@ -45,9 +45,9 @@ def generate_chat_completion_message(
     try:
         completion_kwargs = _build_completion_kwargs(
             model=chat_model,
-            messages=context_message_dicts,
+            messages=context_message_dicts,  # type: ignore
             stream=True,
-            use_tools=True,
+            use_tools=chat_model.supports_tools,
         )
         return completion(**completion_kwargs)  # type: ignore
     except Exception as e:
@@ -124,8 +124,8 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
 def _build_completion_kwargs(
     model: ChatModel,
     messages: List[Dict[str, str]],
-    stream: bool = False,
-    use_tools: bool = False,
+    stream: bool,
+    use_tools: bool,
 ) -> Dict[str, Any]:
     """Centralized configuration for LLM requests"""
     kwargs = {

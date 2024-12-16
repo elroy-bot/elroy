@@ -55,6 +55,7 @@ def init_config(ctx: typer.Context) -> ElroyConfig:
         max_context_age_minutes=p["max_context_age_minutes"],
         context_refresh_interval_minutes=p["context_refresh_interval_minutes"],
         min_convo_age_for_greeting_minutes=p["min_convo_age_for_greeting_minutes"],
+        enable_assistant_greeting=p["enable_assistant_greeting"],
         l2_memory_relevance_distance_threshold=p["l2_memory_relevance_distance_threshold"],
         l2_memory_consolidation_distance_threshold=p["l2_memory_consolidation_distance_threshold"],
         initial_context_refresh_wait_seconds=p["initial_context_refresh_wait_seconds"],
@@ -139,6 +140,11 @@ def elroy_context_from_typer_interactive(ctx: typer.Context):
         if new_user_created:
             context.io.notify_warning("Elroy is in alpha release")
             asyncio.run(onboard_user_interactive(context))
+
+        if not context.config.chat_model.supports_tools:
+            context.io.notify_warning(
+                f"{context.config.chat_model.name} does not support tool calling, some functionality will be disabled."
+            )
 
         yield context
 
