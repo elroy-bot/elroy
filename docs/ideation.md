@@ -27,7 +27,7 @@ echo "Using feedback to refine the output."
 # Assuming feedback refined task would be processed here
 echo "{Refined Task with feedback}" | elroy --remember
 
-## 
+##
 
 in flight message tone and brevity links
 - periodic message length preference checkins
@@ -44,3 +44,10 @@ I use memory to refine my understanding of the world, thereby deploying a novel 
 My user might be a person, interested in performing tasks or to just chat.
 
 My user also may be another machine.
+
+
+##
+
+tool calling from cli
+
+can provide partial arg list
