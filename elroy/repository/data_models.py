@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, Column, UniqueConstraint
@@ -38,6 +38,13 @@ class FunctionCall:
 
     def to_tool_call(self) -> ToolCall:
         return ToolCall(id=self.id, function={"name": self.function_name, "arguments": json.dumps(self.arguments)})
+
+
+class ContentItem(NamedTuple):
+    content: str
+
+
+StreamItem = Union[ContentItem, FunctionCall]
 
 
 @dataclass

@@ -52,7 +52,7 @@ def load_defaults(user_config_path: Optional[str] = None) -> dict:
 class ChatModel:
     name: str
     enable_caching: bool
-    supports_tools: bool
+    has_tool_support: bool
     api_key: Optional[str]
     ensure_alternating_roles: (
         bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
@@ -136,7 +136,7 @@ def get_config(
             api_key=anthropic_api_key,
             ensure_alternating_roles=True,
             enable_caching=enable_caching,
-            supports_tools="tools" in get_supported_openai_params(chat_model_name, "anthropic"),  # type: ignore
+            has_tool_support="tools" in get_supported_openai_params(chat_model_name, "anthropic"),  # type: ignore
         )
     else:
         if chat_model_name in openai_models:
@@ -148,7 +148,7 @@ def get_config(
             api_base=openai_api_base,
             organization=openai_organization,
             enable_caching=enable_caching,
-            supports_tools="tools" in get_supported_openai_params(chat_model_name, "openai"),  # type: ignore
+            has_tool_support="tools" in get_supported_openai_params(chat_model_name, "openai"),  # type: ignore
         )
     if embedding_model in open_ai_embedding_models:
         assert openai_api_key is not None, "OpenAI API key is required for OpenAI embedding models"

@@ -1,5 +1,4 @@
 import inspect
-import json
 import traceback
 from dataclasses import dataclass
 from types import FunctionType, ModuleType
@@ -49,43 +48,6 @@ def get_json_type(py_type: Type) -> str:
 
 def get_modules():
     return []
-
-
-@dataclass
-class PartialToolCall:
-    id: str
-    model: str  # Add model parameter to determine format
-    function_name: str = ""
-    arguments: str = ""
-    type: str = "function"
-    is_complete: bool = False
-
-    from litellm.types.utils import ChatCompletionDeltaToolCall
-
-    def update(self, delta: ChatCompletionDeltaToolCall) -> Optional[FunctionCall]:
-        from litellm.types.utils import ChatCompletionDeltaToolCall
-
-        if self.is_complete:
-            raise ValueError("PartialToolCall is already complete")
-
-        assert isinstance(delta, ChatCompletionDeltaToolCall), f"Expected ChoiceDeltaToolCall, got {type(delta)}"
-        assert delta.function
-        if delta.function.name:
-            self.function_name += delta.function.name
-        if delta.function.arguments:
-            self.arguments += delta.function.arguments
-
-        # Check if we have a complete JSON object for arguments
-        try:
-            function_call = FunctionCall(
-                id=self.id,
-                function_name=self.function_name,
-                arguments=json.loads(self.arguments),
-            )
-            self.is_complete = True
-            return function_call
-        except json.JSONDecodeError:
-            return None
 
 
 ERROR_PREFIX = "**Tool call resulted in error: **"

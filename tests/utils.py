@@ -59,11 +59,11 @@ class TestCliIO(CliIO):
         return self._user_responses.pop(0)
 
 
-def process_test_message(context: ElroyContext, msg: str) -> str:
+def process_test_message(context: ElroyContext, msg: str, force_tool: Optional[str] = None) -> str:
     logging.info(f"USER MESSAGE: {msg}")
 
     return pipe(
-        process_message(context, msg),
+        process_message(USER, context, msg, force_tool),
         list,
         "".join,
         do(lambda x: logging.info(f"ASSISTANT MESSAGE: {x}")),

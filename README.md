@@ -168,7 +168,6 @@ These commands can be used by both users and Elroy:
 - `/set_user_preferred_name` - Set your preferred name
 
 ##### Development Tools
-- `/start_aider_session [file_location] [comment]` - Start an aider coding session (experimental)
 - `/tail_elroy_logs` - View Elroy's log output
 - `/print_elroy_config` - Display current configuration
 - `/create_bug_report` - Create a bug report with current context

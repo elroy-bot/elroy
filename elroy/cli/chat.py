@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 from datetime import timedelta
+from functools import partial
 from typing import Iterable
 
 import typer
@@ -22,18 +23,38 @@ from ..tools.user_preferences import get_user_preferred_name
 from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
 from .commands import invoke_system_command
-from .config import elroy_context_from_typer, elroy_context_from_typer_interactive
+from .config import cli_elroy_context, cli_elroy_context_interactive
 from .context import get_completer, get_user_logged_in_message, periodic_context_refresh
+
+
+def handle_message(ctx: typer.Context):
+    if sys.stdin.isatty() and not ctx.params.get("message"):
+        with cli_elroy_context_interactive(ctx) as context:
+            pipe(
+                context.io.prompt_user("Enter your message"),
+                asyncio.run,
+                lambda input: process_message(USER, context, input, ctx.params.get("tool")),
+                partial(process_message, USER, context),
+                context.io.assistant_msg,
+            )
+    else:
+        with cli_elroy_context(ctx) as context:
+            message = ctx.params.get("message")
+            assert message is not None
+            assert isinstance(message, str)
+            pipe(
+                process_message(USER, context, message, ctx.params.get("tool")),
+                context.io.assistant_msg,
+            )
 
 
 def handle_chat(ctx: typer.Context):
     if sys.stdin.isatty():
-        with elroy_context_from_typer_interactive(ctx) as context:
+        with cli_elroy_context_interactive(ctx) as context:
             asyncio.run(chat(context))
     else:
-        with elroy_context_from_typer(ctx) as context:
-            user_input = sys.stdin.read()
-            context.io.assistant_msg(process_message(context, user_input, USER))
+        ctx.params["message"] = sys.stdin.read()
+        handle_message(ctx)
 
 
 async def chat(context: ElroyContext):
@@ -62,9 +83,9 @@ async def chat(context: ElroyContext):
 
         # TODO: should include some information about how long the user has been talking to Elroy
         await process_and_deliver_msg(
+            SYSTEM,
             context,
             get_user_logged_in_message(context),
-            SYSTEM,
         )
 
     while True:
@@ -75,7 +96,7 @@ async def chat(context: ElroyContext):
             if user_input.lower().startswith("/exit") or user_input == "exit":
                 break
             elif user_input:
-                await process_and_deliver_msg(context, user_input)
+                await process_and_deliver_msg(USER, context, user_input)
                 run_in_background_thread(contemplate, context)
         except EOFError:
             break
@@ -85,7 +106,7 @@ async def chat(context: ElroyContext):
         print_memory_panel(context, context_messages)
 
 
-async def process_and_deliver_msg(context: ElroyContext, user_input: str, role=USER):
+async def process_and_deliver_msg(role: str, context: ElroyContext, user_input: str):
     if user_input.startswith("/") and role == USER:
         cmd = user_input[1:].split()[0]
 
@@ -98,7 +119,7 @@ async def process_and_deliver_msg(context: ElroyContext, user_input: str, role=U
             except Exception as e:
                 context.io.sys_message(f"Error invoking system command: {e}")
     else:
-        context.io.assistant_msg(process_message(context, user_input, role))
+        context.io.assistant_msg(process_message(role, context, user_input))
 
 
 def print_memory_panel(context: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:

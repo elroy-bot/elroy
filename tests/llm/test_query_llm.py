@@ -1,3 +1,5 @@
+from litellm.types.utils import Delta, ModelResponse, StreamingChoices
+
 from elroy.config.config import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, query_llm
 from elroy.repository.data_models import ContextMessage
@@ -20,7 +22,7 @@ def test_model_fallback(elroy_context: ElroyContext, mocker):
     mock_completion = mocker.patch("litellm.completion")
     mock_completion.side_effect = [
         RateLimitError("Rate limit exceeded", "foo", "bar"),  # First call fails
-        iter([{"choices": [{"delta": {"content": "hello world"}}]}]),  # Second call succeeds
+        iter([ModelResponse(choices=[StreamingChoices(delta=Delta(content="hello world"))], finish_reason="stop")]),  # Second call succeeds
     ]
 
     messages = [
