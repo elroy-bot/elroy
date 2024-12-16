@@ -14,9 +14,9 @@ def experimental(func: Callable) -> Callable:
 
         if context and hasattr(context, "io"):
             io = context.io
-            from ..io.cli import CliIO
+            from ..io.base import ElroyIO
 
-            assert isinstance(io, CliIO)
+            assert isinstance(io, ElroyIO)
             io.notify_warning("Warning: This is an experimental feature.")
         else:
             logging.warning("No context found to notify of experimental feature.")

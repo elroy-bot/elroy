@@ -41,6 +41,11 @@ def handle_message(ctx: typer.Context):
         with cli_elroy_context(ctx) as context:
             message = ctx.params.get("message")
             assert message is not None
+
+            if not sys.stdin.isatty():
+                message += "\n" + sys.stdin.read()
+
+            assert message is not None
             assert isinstance(message, str)
             pipe(
                 process_message(USER, context, message, ctx.params.get("tool")),

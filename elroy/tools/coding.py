@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 
@@ -7,12 +8,12 @@ from ..utils.ops import experimental
 
 @experimental
 def make_coding_edit(context: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
-    """Make a coding edit in the specified directory and return the git diff.
+    """Instructs a delegated coding LLM to make an edit to code. As context is being passed transferred to the assistant, care must be taken to ensure the assistant has all necessary context.
 
     Args:
         context: The ElroyContext instance
         working_dir: Directory to work in
-        instruction: The edit instruction
+        instruction: The edit instruction. This should be exhaustive, and include any raw data needed to make the edit. It should also include any instructions based on memory or feedback as relevant.
         file_name: File to edit
 
     Returns:
@@ -21,6 +22,8 @@ def make_coding_edit(context: ElroyContext, working_dir: str, instruction: str, 
     from aider.coders import Coder
     from aider.io import InputOutput
     from aider.models import Model
+
+    logging.info(f"Instructions to aider: {instruction}")
 
     # Store current dir
     original_dir = os.getcwd()
