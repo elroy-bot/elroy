@@ -234,6 +234,35 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
+      "name": "make_coding_edit",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "working_dir": {
+            "type": "string",
+            "description": "Directory to work in"
+          },
+          "instruction": {
+            "type": "string",
+            "description": "The edit instruction. This should be exhaustive, and include any raw data needed to make the edit. It should also include any instructions based on memory or feedback as relevant."
+          },
+          "file_name": {
+            "type": "string",
+            "description": "File to edit"
+          }
+        }
+      },
+      "required": [
+        "context",
+        "working_dir",
+        "instruction",
+        "file_name"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "mark_goal_completed",
       "parameters": {
         "type": "object",
@@ -372,28 +401,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
       "required": [
         "context",
         "preferred_name"
-      ]
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "start_aider_session",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "file_location": {
-            "type": "string",
-            "description": "The file or directory location to start aider with. Defaults to current directory."
-          },
-          "comment": {
-            "type": "string",
-            "description": "Initial text to be processed by aider as if it was typed. Defaults to empty string."
-          }
-        }
-      },
-      "required": [
-        "context"
       ]
     }
   },

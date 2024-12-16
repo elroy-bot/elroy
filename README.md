@@ -94,11 +94,17 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 Elroy supports both OpenAI and Anthropic language models:
 
 #### Chat Models
-- OpenAI Models: All chat completion models (gpt-3.5-turbo, gpt-4, etc.)
-- Anthropic Models: All Claude models (claude-2, claude-instant-1, etc.)
+- OpenAI Models: GPT-4 and variants (gpt-4o, gpt-4o-mini, o1-preview, o1-mini)
+- Anthropic Models: Claude models (sonnet, opus)
 - OpenAI-Compatible APIs: Any provider offering an OpenAI-compatible API endpoint (via --openai-api-base)
 
-The default model is gpt-4o. To see all supported chat models, use `elroy --list-models`.
+The default model is gpt-4o. Use `elroy --list-models` to see all supported chat models. Model shortcuts are available:
+- `--sonnet`: Use Anthropic's Sonnet model
+- `--opus`: Use Anthropic's Opus model  
+- `--4o`: Use OpenAI's GPT-4o model
+- `--4o-mini`: Use OpenAI's GPT-4o-mini model
+- `--o1`: Use OpenAI's o1-preview model
+- `--o1-mini`: Use OpenAI's o1-mini model
 
 #### Embedding Models
 - OpenAI Models: text-embedding-3-small (default, 1536 dimensions)
@@ -111,10 +117,12 @@ These commands can be run directly from your terminal:
 - `elroy` - Opens an interactive chat session, or generates a response to stdin input (default command)
 - `elroy --chat` - Equivalent to `elroy`
 - `elroy --remember [-r]` - Create a new memory from stdin or interactively
-- `elroy --remember-file` - Create a new memory from file
 - `elroy --list-models` - Lists supported chat models and exits
 - `elroy --show-config` - Shows current configuration and exits
 - `elroy --version` - Show version and exit
+- `elroy --set-persona TEXT` - Path to a persona file to use for the assistant
+- `elroy --reset-persona` - Removes any custom persona, reverting to the default
+- `elroy --show-persona` - Print the system persona and exit
 - `elroy --help` - Show help information and all available options
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
@@ -171,6 +179,7 @@ These commands can be used by both users and Elroy:
 - `/tail_elroy_logs` - View Elroy's log output
 - `/print_elroy_config` - Display current configuration
 - `/create_bug_report` - Create a bug report with current context
+- `/make_coding_edit` - Make changes to code files in the current repository
 
 Note: All these commands can be used with a leading slash (/) in the chat interface. The assistant uses these commands without the slash when helping you.
 
@@ -207,6 +216,12 @@ You can customize Elroy's appearance with these options:
 * `--embedding-model TEXT`: The model to use for text embeddings. [default: text-embedding-3-small]
 * `--embedding-model-size INTEGER`: The size of the embedding model. [default: 1536]
 * `--enable-caching / --no-enable-caching`: Whether to enable caching for the LLM, both for embeddings and completions. [default: True]
+* `--sonnet`: Use Anthropic's Sonnet model
+* `--opus`: Use Anthropic's Opus model
+* `--4o`: Use OpenAI's GPT-4o model
+* `--4o-mini`: Use OpenAI's GPT-4o-mini model
+* `--o1`: Use OpenAI's o1 model
+* `--o1-mini`: Use OpenAI's o1-mini model
 
 ### Context Management
 * `--context-refresh-trigger-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages in the context window. [default: 3300]
