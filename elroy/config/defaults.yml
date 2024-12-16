@@ -15,8 +15,10 @@ context_refresh_trigger_tokens: 3300
 context_refresh_target_tokens: 1650
 max_context_age_minutes: 120.0
 context_refresh_interval_minutes: 10.0
-min_convo_age_for_greeting_minutes: 10.0
+
 initial_context_refresh_wait_seconds: 30
+enable_assistant_greeting: true # If false, overrides any value for min_convo_age_for_greeting_minutes
+min_convo_age_for_greeting_minutes: 10.0
 
 # Memory thresholds
 l2_memory_relevance_distance_threshold: 1.24

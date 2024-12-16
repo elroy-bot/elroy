@@ -53,9 +53,10 @@ async def chat(context: ElroyContext):
 
     print_memory_panel(context, context_messages)
 
-    if (get_time_since_most_recent_user_message(context_messages) or timedelta()) < context.config.min_convo_age_for_greeting:
+    if not (context.config.enable_assistant_greeting):
+        logging.info("enable_assistant_greeting param disabled, skipping greeting")
+    elif (get_time_since_most_recent_user_message(context_messages) or timedelta()) < context.config.min_convo_age_for_greeting:
         logging.info("User has interacted recently, skipping greeting.")
-
     else:
         get_user_preferred_name(context)
 
