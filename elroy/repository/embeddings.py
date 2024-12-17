@@ -10,7 +10,7 @@ from toolz.curried import do, map
 
 from ..config.config import ElroyContext
 from ..config.constants import RESULT_SET_LIMIT_COUNT
-from ..repository.data_models import EmbeddableSqlModel, Goal, Memory
+from ..repository.data_models import EmbeddableSqlModel, Goal, Memory, VectorStorage
 from ..repository.facts import to_fact
 from ..utils.utils import first_or_none
 
@@ -33,22 +33,23 @@ def query_vector(
         List[Tuple[Fact, float]]: A list of tuples containing the matching Fact and its similarity score.
     """
 
-    distance_exp = table.embedding.l2_distance(query)  # type: ignore
+    # Use pgvector's <-> operator for L2 distance
+    distance_exp = VectorStorage.embedding_data.l2_distance(query).label("distance")  # type: ignore
 
     return pipe(
         context.session.exec(
-            select(table, distance_exp.label("distance"))  # type: ignore
+            select(table, distance_exp)
+            .join(VectorStorage, (VectorStorage.source_type == table.__name__) & (VectorStorage.source_id == table.id))  # type: ignore
             .where(
                 table.user_id == context.user_id,
                 table.is_active == True,
-                distance_exp < context.config.l2_memory_relevance_distance_threshold,  # type: ignore
-                table.embedding != None,
+                distance_exp < context.config.l2_memory_relevance_distance_threshold,
             )
             .order_by(distance_exp)
             .limit(RESULT_SET_LIMIT_COUNT)
         ),
         map(lambda row: row[0]),
-    )
+    )  # type: ignore
 
 
 get_most_relevant_goal = compose(first_or_none, partial(query_vector, Goal))
@@ -80,27 +81,30 @@ def find_redundant_pairs(
     t1 = aliased(table, name="t1")
     t2 = aliased(table, name="t2")
 
-    distance_exp = t1.embedding.l2_distance(t2.embedding)  # type: ignore
+    v1 = aliased(VectorStorage, name="v1")
+    v2 = aliased(VectorStorage, name="v2")
+
+    distance_exp = v1.embedding_data.l2_distance(v2.embedding_data).label("distance")  # type: ignore
 
     yield from pipe(
         context.session.exec(
-            select(t1, t2, distance_exp.label("distance"))  # type: ignore
-            .join(t2, t1.id < t2.id)  # type: ignore Ensure we don't compare a row with itself or duplicate comparisons
+            select(t1, t2, distance_exp)
+            .join(t2, t1.id < t2.id)  # type: ignore Ensure we don't compare a row with itself
+            .join(v1, (v1.source_type == table.__name__) & (v1.source_id == t1.id))  # type: ignore
+            .join(v2, (v2.source_type == table.__name__) & (v2.source_id == t2.id))  # type: ignore
             .where(
                 t1.user_id == context.user_id,
                 t2.user_id == context.user_id,
                 t1.is_active == True,
                 t2.is_active == True,
-                distance_exp < context.config.l2_memory_consolidation_distance_threshold,  # type: ignore
-                t1.embedding.is_not(None),  # type: ignore
-                t2.embedding.is_not(None),  # type: ignore
+                distance_exp < context.config.l2_memory_consolidation_distance_threshold,
             )
             .order_by(func.random())  # order by random to lessen chance of infinite loops
             .limit(limit)
         ),
         map(do(lambda row: logging.info(f"Found redundant pair: {row[0].id} and {row[1].id}. Distance = {row[2]}"))),
         map(lambda row: (row[0], row[1])),
-    )
+    )  # type: ignore
 
 
 def upsert_embedding(context: ElroyContext, row: EmbeddableSqlModel) -> None:
@@ -109,14 +113,23 @@ def upsert_embedding(context: ElroyContext, row: EmbeddableSqlModel) -> None:
     new_text = to_fact(row)
     new_md5 = hashlib.md5(new_text.encode()).hexdigest()
 
-    if row.embedding_text_md5 == new_md5:
+    # Check if vector storage exists for this row
+    vector_storage = context.session.exec(
+        select(VectorStorage).where(VectorStorage.source_type == row.__class__.__name__, VectorStorage.source_id == row.id)
+    ).first()
+
+    if vector_storage and vector_storage.embedding_text_md5 == new_md5:
         logging.info("Old and new text matches md5, skipping")
         return
     else:
         embedding = get_embedding(context.config.embedding_model, new_text)
+        if vector_storage:
+            vector_storage.embedding_data = embedding
+            vector_storage.embedding_text_md5 = new_md5
+        else:
+            vector_storage = VectorStorage(
+                source_type=row.__class__.__name__, source_id=row.id, embedding_data=embedding, embedding_text_md5=new_md5  # type: ignore
+            )
 
-        row.embedding = embedding
-        row.embedding_text_md5 = new_md5
-
-        context.session.add(row)
+        context.session.add(vector_storage)
         context.session.commit()

@@ -6,7 +6,7 @@ from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, Column, UniqueConstraint
-from sqlmodel import Column, Field, SQLModel
+from sqlmodel import Column, Field, Session, SQLModel, select
 
 from ..config.constants import EMBEDDING_SIZE
 from ..utils.clock import get_utc_now
@@ -54,14 +54,25 @@ class MemoryMetadata:
     name: str
 
 
+class VectorStorage(SQLModel, table=True):
+    """Table for storing vector embeddings for any model type"""
+
+    __table_args__ = {"extend_existing": True}
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    source_type: str = Field(..., description="The type of model this embedding is for (e.g. Memory, Goal)")
+    source_id: int = Field(..., description="The ID of the source model")
+    embedding_data: List[float] = Field(..., description="The vector embedding data", sa_column=Column(Vector(EMBEDDING_SIZE)))
+    embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
+
+
 class EmbeddableSqlModel(ABC, SQLModel):
     id: Optional[int]
     created_at: datetime
     updated_at: datetime
     user_id: int
     is_active: Optional[bool]
-    embedding: Optional[List[float]] = Field(sa_column=Column(Vector(EMBEDDING_SIZE)))
-    embedding_text_md5: Optional[str] = Field(..., description="Hash of the text used to generate the embedding")
 
     @abstractmethod
     def get_name(self) -> str:
@@ -69,6 +80,20 @@ class EmbeddableSqlModel(ABC, SQLModel):
 
     def to_memory_metadata(self) -> MemoryMetadata:
         return MemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
+
+    def embedding(self, session: Session) -> Optional[List[float]]:
+        return session.exec(
+            select(VectorStorage.embedding_data).where(
+                VectorStorage.source_id == self.id, VectorStorage.source_type == self.__class__.__name__
+            )
+        ).first()  # type: ignore
+
+    def embedding_text_md5(self, session: Session) -> Optional[str]:
+        return session.exec(
+            select(VectorStorage.embedding_text_md5).where(
+                VectorStorage.source_id == self.id, VectorStorage.source_type == self.__class__.__name__
+            )
+        ).first()
 
 
 class User(SQLModel, table=True):
@@ -88,8 +113,6 @@ class Memory(EmbeddableSqlModel, table=True):
     name: str = Field(..., description="The name of the context")
     text: str = Field(..., description="The text of the message")
     is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
-    embedding: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(EMBEDDING_SIZE)))
-    embedding_text_md5: Optional[str] = Field(default=None, description="Hash of the text used to generate the embedding")
 
     def get_name(self) -> str:
         return self.name
@@ -113,8 +136,6 @@ class Goal(EmbeddableSqlModel, table=True):
     is_active: Optional[bool] = Field(default=True, description="Whether the goal is complete")
     priority: Optional[int] = Field(4, description="The priority of the goal")
     target_completion_time: Optional[datetime] = Field(default=None, description="The datetime of the targeted completion for the goal.")
-    embedding: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(EMBEDDING_SIZE)))
-    embedding_text_md5: Optional[str] = Field(default=None, description="Hash of the text used to generate the embedding")
 
     def get_name(self) -> str:
         return self.name
