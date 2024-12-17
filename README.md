@@ -1,5 +1,7 @@
 # Elroy
 
+[![Discord](https://img.shields.io/discord/1200684659277832293?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/5PJUY4eMce)
+
 Elroy is a CLI AI personal assistant with long term memory and goal tracking capabilities. It features:
 
 - **Long-term Memory**: Elroy maintains memories across conversations

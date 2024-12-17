@@ -3,7 +3,7 @@ import logging
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Iterator, List, Optional, Union
 
-from toolz import pipe
+from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
 from ..config.config import ChatModel, EmbeddingModel
@@ -57,6 +57,7 @@ def generate_chat_completion_message(
         context_messages,
         map(asdict),
         map(keyfilter(lambda k: k not in ("id", "created_at", "memory_metadata", "chat_model"))),
+        map(lambda d: dissoc(d, "tool_calls") if not d.get("tool_calls") else d),
         list,
     )
 
