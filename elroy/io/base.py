@@ -2,12 +2,15 @@ import logging
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Generator, Iterator, Union
+from typing import Any, Generator, Iterator, Union
 
 from ..repository.data_models import FunctionCall
 
 
 class ElroyIO(ABC):
+    @abstractmethod
+    def print(self, message) -> None:
+        raise NotImplementedError
 
     @abstractmethod
     def sys_message(self, message: str) -> None:
@@ -43,6 +46,9 @@ class StdIO(ElroyIO):
     """
     IO which emits plain text to stdin and stdout.
     """
+
+    def print(self, message: Any):
+        print(message)
 
     def sys_message(self, message: str) -> None:
         logging.info(f"[{datetime.now()}] SYSTEM: {message}")

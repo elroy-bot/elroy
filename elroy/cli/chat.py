@@ -11,6 +11,7 @@ from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
 from ..config.config import ElroyContext
+from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
 from ..repository.data_models import SYSTEM, USER, ContextMessage
 from ..repository.message import (
@@ -24,7 +25,7 @@ from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
 from .commands import invoke_system_command
 from .config import cli_elroy_context, cli_elroy_context_interactive
-from .context import get_completer, get_user_logged_in_message, periodic_context_refresh
+from .context import get_user_logged_in_message, periodic_context_refresh
 
 
 def handle_message(ctx: typer.Context):
@@ -62,7 +63,7 @@ def handle_chat(ctx: typer.Context):
         handle_message(ctx)
 
 
-async def chat(context: ElroyContext):
+async def chat(context: ElroyContext[CliIO]):
     init(autoreset=True)
 
     run_in_background_thread(periodic_context_refresh, context)
@@ -95,7 +96,7 @@ async def chat(context: ElroyContext):
 
     while True:
         try:
-            context.io.update_completer(get_completer(context, context_messages))
+            context.io.update_completer(context, context_messages)
 
             user_input = await context.io.prompt_user()
             if user_input.lower().startswith("/exit") or user_input == "exit":
@@ -120,7 +121,8 @@ async def process_and_deliver_msg(role: str, context: ElroyContext, user_input: 
         else:
             try:
                 result = await invoke_system_command(context, user_input)
-                context.io.sys_message(result)
+                if result:
+                    context.io.sys_message(result)
             except Exception as e:
                 context.io.sys_message(f"Error invoking system command: {e}")
     else:

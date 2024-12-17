@@ -1,10 +1,11 @@
 import logging
 from contextlib import contextmanager
+from itertools import product
 from typing import Generator, Iterator, List, Text, Union
 
 from prompt_toolkit import HTML, Application, PromptSession, print_formatted_text
 from prompt_toolkit.application import get_app
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import FuzzyWordCompleter
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
@@ -13,10 +14,24 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.text import Text
+from toolz import concatv, pipe
+from toolz.curried import map
 
+from ..config.config import ElroyContext
 from ..config.constants import REPO_ISSUES_URL
 from ..io.base import ElroyIO
-from ..repository.data_models import FunctionCall
+from ..messaging.context import is_memory_in_context
+from ..repository.data_models import ContextMessage, FunctionCall
+from ..repository.goals.queries import get_active_goals
+from ..repository.memory import get_active_memories
+
+
+class SlashCompleter(FuzzyWordCompleter):
+    def get_completions(self, document, complete_event):
+        if document.text.startswith("/"):
+            yield from super().get_completions(document, complete_event)
+        else:
+            yield from []
 
 
 class CliIO(ElroyIO):
@@ -51,6 +66,9 @@ class CliIO(ElroyIO):
             lexer=PygmentsLexer(TextLexer),
         )
         self.is_streaming_output = False
+
+    def print(self, message) -> None:
+        self.console.print(message)
 
     def internal_thought_msg(self, message):
         if self.is_streaming_output:
@@ -138,8 +156,40 @@ class CliIO(ElroyIO):
                 raise EOFError
             return await self.prompt_user(prompt, prefill, keyboard_interrupt_count)
 
-    def update_completer(self, completer: WordCompleter) -> None:
-        self.prompt_session.completer = completer
+    def update_completer(self, context: ElroyContext, context_messages: List[ContextMessage]) -> None:
+        from ..system_commands import (
+            ALL_ACTIVE_GOAL_COMMANDS,
+            ALL_ACTIVE_MEMORY_COMMANDS,
+            IN_CONTEXT_GOAL_COMMANDS,
+            IN_CONTEXT_MEMORY_COMMANDS,
+            NON_ARG_PREFILL_COMMANDS,
+            NON_CONTEXT_GOAL_COMMANDS,
+            NON_CONTEXT_MEMORY_COMMANDS,
+            USER_ONLY_COMMANDS,
+        )
+
+        goals = get_active_goals(context)
+        in_context_goal_names = sorted([g.get_name() for g in goals if is_memory_in_context(context_messages, g)])
+        non_context_goal_names = sorted([g.get_name() for g in goals if g.get_name() not in in_context_goal_names])
+
+        memories = get_active_memories(context)
+        in_context_memories = sorted([m.get_name() for m in memories if is_memory_in_context(context_messages, m)])
+        non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
+
+        self.prompt_session.completer = pipe(  # type: ignore
+            concatv(
+                product(IN_CONTEXT_GOAL_COMMANDS, in_context_goal_names),
+                product(NON_CONTEXT_GOAL_COMMANDS, non_context_goal_names),
+                product(ALL_ACTIVE_GOAL_COMMANDS, [g.get_name() for g in goals]),
+                product(IN_CONTEXT_MEMORY_COMMANDS, in_context_memories),
+                product(NON_CONTEXT_MEMORY_COMMANDS, non_context_memories),
+                product(ALL_ACTIVE_MEMORY_COMMANDS, [m.get_name() for m in memories]),
+            ),
+            map(lambda x: f"/{x[0].__name__} {x[1]}"),
+            list,
+            lambda x: x + [f"/{f.__name__}" for f in NON_ARG_PREFILL_COMMANDS | USER_ONLY_COMMANDS],
+            lambda x: SlashCompleter(words=x),  # type: ignore
+        )
 
     def get_current_input(self) -> str:
         """Get the current content of the input buffer"""

@@ -1,32 +1,14 @@
 import asyncio
 import logging
 from datetime import datetime
-from itertools import product
-from typing import List
 
-from prompt_toolkit.completion import WordCompleter
 from pytz import UTC
 from sqlmodel import select
-from toolz import concatv, pipe
-from toolz.curried import map
 
 from ..config.config import ElroyContext, session_manager
 from ..config.constants import CLI_USER_ID
-from ..io.cli import CliIO
-from ..messaging.context import context_refresh, is_memory_in_context
-from ..repository.data_models import USER, ContextMessage, Message
-from ..repository.goals.queries import get_active_goals
-from ..repository.memory import get_active_memories
-from ..system_commands import (
-    ALL_ACTIVE_GOAL_COMMANDS,
-    ALL_ACTIVE_MEMORY_COMMANDS,
-    IN_CONTEXT_GOAL_COMMANDS,
-    IN_CONTEXT_MEMORY_COMMANDS,
-    NON_ARG_PREFILL_COMMANDS,
-    NON_CONTEXT_GOAL_COMMANDS,
-    NON_CONTEXT_MEMORY_COMMANDS,
-    USER_ONLY_COMMANDS,
-)
+from ..messaging.context import context_refresh
+from ..repository.data_models import USER, Message
 from ..tools.user_preferences import get_user_preferred_name
 from ..utils.utils import datetime_to_string
 
@@ -100,28 +82,3 @@ def get_user_logged_in_message(context: ElroyContext) -> str:
         today_summary = f"I haven't chatted with {preferred_name} yet today. I should offer a brief greeting."
 
     return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
-
-
-def get_completer(context: ElroyContext[CliIO], context_messages: List[ContextMessage]) -> WordCompleter:
-    goals = get_active_goals(context)
-    in_context_goal_names = sorted([g.get_name() for g in goals if is_memory_in_context(context_messages, g)])
-    non_context_goal_names = sorted([g.get_name() for g in goals if g.get_name() not in in_context_goal_names])
-
-    memories = get_active_memories(context)
-    in_context_memories = sorted([m.get_name() for m in memories if is_memory_in_context(context_messages, m)])
-    non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
-
-    return pipe(
-        concatv(
-            product(IN_CONTEXT_GOAL_COMMANDS, in_context_goal_names),
-            product(NON_CONTEXT_GOAL_COMMANDS, non_context_goal_names),
-            product(ALL_ACTIVE_GOAL_COMMANDS, [g.get_name() for g in goals]),
-            product(IN_CONTEXT_MEMORY_COMMANDS, in_context_memories),
-            product(NON_CONTEXT_MEMORY_COMMANDS, non_context_memories),
-            product(ALL_ACTIVE_MEMORY_COMMANDS, [m.get_name() for m in memories]),
-        ),
-        map(lambda x: f"/{x[0].__name__} {x[1]}"),
-        list,
-        lambda x: x + [f"/{f.__name__}" for f in NON_ARG_PREFILL_COMMANDS | USER_ONLY_COMMANDS],
-        lambda x: WordCompleter(x, sentence=True, pattern=r"^/"),  # type: ignore
-    )

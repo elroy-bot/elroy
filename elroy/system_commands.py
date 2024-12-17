@@ -1,11 +1,14 @@
+import inspect
 import logging
 from typing import Callable, List, Optional, Set
 
 from rich.pretty import Pretty
 from sqlmodel import select
 from toolz import pipe
+from toolz.curried import map
 
 from .config.config import ElroyContext
+from .io.cli import CliIO
 from .llm import client
 from .llm.prompts import contemplate_prompt
 from .messaging.context import (
@@ -84,14 +87,39 @@ def print_system_instruction(context: ElroyContext) -> Optional[str]:
     )  # type: ignore
 
 
-def print_available_commands(context: ElroyContext) -> str:
+def help(context: ElroyContext) -> None:
     """Prints the available system commands
 
     Returns:
         str: The available system commands
     """
+    if isinstance(context.io, CliIO):
+        from rich.table import Table
 
-    return "Available commands: " + "\n".join([f.__name__ for f in SYSTEM_COMMANDS])
+        commands = pipe(
+            SYSTEM_COMMANDS,
+            map(
+                lambda f: (
+                    f.__name__,
+                    inspect.getdoc(f).split("\n")[0],  # type: ignore
+                )
+            ),
+            list,
+            sorted,
+        )
+
+        table = Table(title="Available Slash Commands")
+        table.add_column("Command", justify="left", style="cyan", no_wrap=True)
+        table.add_column("Description", justify="left", style="green")
+
+        for command, description in commands:  # type: ignore
+            table.add_row(command, description)
+
+        context.io.print(table)
+    else:
+        # not really expecting to use this function outside of CLI, but just in case
+        for f in SYSTEM_COMMANDS:
+            context.io.print(f.__name__)
 
 
 def add_internal_thought(context: ElroyContext, thought: str) -> str:
@@ -281,6 +309,7 @@ ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
 }
 
+
 NON_ARG_PREFILL_COMMANDS = {
     create_goal,
     create_memory,
@@ -313,7 +342,7 @@ USER_ONLY_COMMANDS = {
     print_context_messages,
     print_system_instruction,
     refresh_system_instructions,
-    print_available_commands,
+    help,
     create_bug_report,
 }
 
