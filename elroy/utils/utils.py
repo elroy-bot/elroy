@@ -7,8 +7,6 @@ from typing import Any, Dict, Iterator, Optional, TypeVar
 
 from pytz import UTC
 
-from ..config.config import ElroyContext, session_manager
-
 T = TypeVar("T")
 
 
@@ -85,6 +83,8 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def run_in_background_thread(fn, context, *args):
+    from ..config.config import ElroyContext, session_manager
+
     # hack to get a new session for the thread
     with session_manager(context.config.postgres_url) as session:
         thread = threading.Thread(

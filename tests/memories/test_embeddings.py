@@ -17,5 +17,5 @@ def test_embeddings(george_context):
 
     assert goal is not None, "Goal was not created"
     assert isinstance(goal, Goal), f"Expected {goal} to be a Goal, but got {type(goal)}"
-    assert goal.embedding is not None, "Embedding was not created for the goal"
-    assert goal.embedding_text_md5 is not None, "Embedding text MD5 was not created for the goal"
+    assert goal.embedding(george_context.session) is not None, "Embedding was not created for the goal"
+    assert goal.embedding_text_md5(george_context.session) is not None, "Embedding text MD5 was not created for the goal"

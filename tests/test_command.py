@@ -3,7 +3,6 @@ import re
 import pytest
 
 from elroy.cli.chat import process_and_deliver_msg
-from elroy.config.config import ElroyConfig
 from elroy.repository.data_models import USER
 from elroy.system_commands import get_active_goal_names
 
@@ -32,7 +31,7 @@ async def test_print_config(elroy_context):
 
     await process_and_deliver_msg(USER, elroy_context, "/print_elroy_config")
     response = elroy_context.io.get_sys_messages()[-1]
-    assert response and ElroyConfig.__name__ in response
+    assert response and "context_refresh_token_target" in response  # just picking a random key
 
 
 @pytest.mark.asyncio

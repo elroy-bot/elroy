@@ -79,7 +79,7 @@ def create_goal(
             end_condition=end_condition,
             priority=priority,
             target_completion_time=get_utc_now() + string_to_timedelta(time_to_completion) if time_to_completion else None,
-        )
+        )  # type: ignore
         context.session.add(goal)
         context.session.commit()
         context.session.refresh(goal)
