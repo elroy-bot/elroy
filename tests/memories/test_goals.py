@@ -1,4 +1,4 @@
-from tests.utils import assert_false, assert_true, process_test_message
+from tests.utils import process_test_message, quiz_assistant_bool
 
 from elroy.repository.goals.operations import create_goal
 from elroy.repository.goals.queries import get_active_goals_summary
@@ -6,7 +6,7 @@ from elroy.system_commands import reset_system_context
 
 
 def test_goal(elroy_context):
-    assert_false(elroy_context, "Do I have any goals about becoming president of the United States?")
+    quiz_assistant_bool(False, elroy_context, "Do I have any goals about becoming president of the United States?")
 
     # Simulate user asking elroy to create a new goal
 
@@ -20,7 +20,8 @@ def test_goal(elroy_context):
     assert "mayor" in get_active_goals_summary(elroy_context).lower(), "Goal not found in active goals."
 
     # Verify Elroy's knowledge about the new goal
-    assert_true(
+    quiz_assistant_bool(
+        True,
         elroy_context,
         "Do I have any goals about going to running for a political office?",
     )
@@ -32,7 +33,8 @@ def test_goal(elroy_context):
     )
 
     # Verify that the goal's new status is recorded and reachable.
-    assert_true(
+    quiz_assistant_bool(
+        True,
         elroy_context,
         "Does the status update convey similar information to: I've put up flyers around my town?",
     )
@@ -43,7 +45,8 @@ def test_goal(elroy_context):
         "Great news, I won my election! My goal is now done. Please mark the goal completed, without asking any clarifying questions.",
     )
 
-    assert_false(
+    quiz_assistant_bool(
+        False,
         elroy_context,
         "Do I have any active goals about running for mayor of my town?",
     )

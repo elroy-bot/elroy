@@ -78,7 +78,7 @@ def vector_search_by_text(context: ElroyContext, query: str, table: Type[Embedda
     )  # type: ignore
 
 
-def assert_assistant_bool(expected_answer: bool, context: ElroyContext, question: str) -> None:
+def quiz_assistant_bool(expected_answer: bool, context: ElroyContext, question: str) -> None:
     def get_boolean(response: str, attempt: int = 1) -> bool:
         if attempt > 3:
             raise ValueError("Too many attempts")
@@ -136,11 +136,3 @@ def assert_assistant_bool(expected_answer: bool, context: ElroyContext, question
     bool_answer = get_boolean(full_response)
 
     assert bool_answer == expected_answer, f"Expected {expected_answer}, got {bool_answer}. Full response: {full_response}"
-
-
-def assert_true(context: ElroyContext, question: str) -> None:
-    assert_assistant_bool(True, context, question)
-
-
-def assert_false(context: ElroyContext, question: str) -> None:
-    assert_assistant_bool(False, context, question)
