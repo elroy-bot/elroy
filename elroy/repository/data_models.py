@@ -5,8 +5,10 @@ from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Column, UniqueConstraint
+from sqlalchemy import Column, Text, UniqueConstraint
 from sqlmodel import Column, Field, Session, SQLModel, select
+from toolz import pipe
+from toolz.curried import filter
 
 from ..config.constants import EMBEDDING_SIZE
 from ..utils.clock import get_utc_now
@@ -63,7 +65,9 @@ class VectorStorage(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     source_type: str = Field(..., description="The type of model this embedding is for (e.g. Memory, Goal)")
     source_id: int = Field(..., description="The ID of the source model")
-    embedding_data: List[float] = Field(..., description="The vector embedding data", sa_column=Column(Vector(EMBEDDING_SIZE)))
+    embedding_data: List[float] = Field(
+        ..., description="The vector embedding data", sa_column=Column(Vector(EMBEDDING_SIZE), nullable=False)
+    )
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
 
 
@@ -77,6 +81,10 @@ class EmbeddableSqlModel(ABC, SQLModel):
     @abstractmethod
     def get_name(self) -> str:
         pass
+
+    @abstractmethod
+    def to_fact(self) -> str:
+        raise NotImplementedError
 
     def to_memory_metadata(self) -> MemoryMetadata:
         return MemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
@@ -117,6 +125,9 @@ class Memory(EmbeddableSqlModel, table=True):
     def get_name(self) -> str:
         return self.name
 
+    def to_fact(self) -> str:
+        return f"#{self.name}\n{self.text}"
+
 
 class Goal(EmbeddableSqlModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
@@ -125,11 +136,40 @@ class Goal(EmbeddableSqlModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user whose assistant is being reminded")
     name: str = Field(..., description="The name of the goal")
-    status_updates: List[str] = Field(
-        sa_column=Column(JSON, nullable=False, server_default="[]"),
-        default_factory=list,
-        description="Status update reports from the goal",
+    status_updates: str = Field(
+        sa_column=Column(Text, nullable=False, server_default="[]"),
+        default="[]",
+        description="Status update reports from the goal as JSON string",
     )
+
+    def to_fact(self) -> str:
+        from .goals.operations import add_goal_status_update, mark_goal_completed
+
+        status_updates = self.get_status_updates()
+
+        return pipe(
+            [
+                f"# {self.__class__.__name__}: {self.name}",
+                self.description if self.description else None,
+                f"## Strategy\n{self.strategy}" if self.strategy else None,
+                f"## End Condition\n{self.end_condition}" if self.end_condition else None,
+                f"## Target Completion Time\n{self.target_completion_time}" if self.target_completion_time else None,
+                "## Status Updates\n" + ("\n".join(status_updates) if status_updates else "No status updates"),
+                f"## Priority\n{self.priority}" if self.priority else None,
+                f"### Note for assistant:\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
+            ],
+            filter(lambda x: x is not None),
+            "\n\n".join,
+        )  # type: ignore
+
+    def get_status_updates(self) -> List[str]:
+        """Get deserialized status updates"""
+        return json.loads(self.status_updates)
+
+    def set_status_updates(self, updates: List[str]) -> None:
+        """Set status updates with JSON serialization"""
+        self.status_updates = json.dumps(updates)
+
     description: Optional[str] = Field(..., description="The description of the goal")
     strategy: Optional[str] = Field(..., description="The strategy to achieve the goal")
     end_condition: Optional[str] = Field(..., description="The condition that will end the goal")
@@ -175,11 +215,35 @@ class Message(SQLModel, table=True):
     role: str = Field(..., description="The role of the message")
     content: Optional[str] = Field(..., description="The text of the message")
     model: Optional[str] = Field(None, description="The model used to generate the message")
-    tool_calls: Optional[List[Dict[str, Any]]] = Field(sa_column=Column(JSON))
+    tool_calls: Optional[str] = Field(sa_column=Column(Text), description="Tool calls as JSON string")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call")
-    memory_metadata: Optional[List[Dict[str, Any]]] = Field(
-        sa_column=Column(JSON), description="Metadata for which memory entities are associated with this message"
-    )
+    memory_metadata: Optional[str] = Field(sa_column=Column(Text), description="Metadata for which memory entities as JSON string")
+
+    def get_tool_calls(self) -> Optional[List[Dict[str, Any]]]:
+        """Get deserialized tool calls"""
+        if self.tool_calls is None:
+            return None
+        return json.loads(self.tool_calls)
+
+    def set_tool_calls(self, tool_calls: Optional[List[Dict[str, Any]]]) -> None:
+        """Set tool calls with JSON serialization"""
+        if tool_calls is None:
+            self.tool_calls = None
+        else:
+            self.tool_calls = json.dumps(tool_calls)
+
+    def get_memory_metadata(self) -> Optional[List[Dict[str, Any]]]:
+        """Get deserialized memory metadata"""
+        if self.memory_metadata is None:
+            return None
+        return json.loads(self.memory_metadata)
+
+    def set_memory_metadata(self, metadata: Optional[List[Dict[str, Any]]]) -> None:
+        """Set memory metadata with JSON serialization"""
+        if metadata is None:
+            self.memory_metadata = None
+        else:
+            self.memory_metadata = json.dumps(metadata)
 
 
 class UserPreference(SQLModel, table=True):
@@ -202,5 +266,14 @@ class ContextMessageSet(SQLModel, table=True):
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
-    message_ids: List[int] = Field(sa_column=Column(JSON), description="The messages in the context window")
+    message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
+
+    def get_message_ids(self) -> List[int]:
+        """Get deserialized message IDs"""
+        return json.loads(self.message_ids)
+
+    def set_message_ids(self, ids: List[int]) -> None:
+        """Set message IDs with JSON serialization"""
+        self.message_ids = json.dumps(ids)
+
     is_active: Optional[bool] = Field(True, description="Whether the context is active")

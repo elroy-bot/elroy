@@ -1,3 +1,4 @@
+import json
 from dataclasses import asdict
 from datetime import timedelta
 from functools import partial
@@ -40,9 +41,9 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
         content=context_message.content,
         role=context_message.role,
         model=context_message.chat_model,
-        tool_calls=[asdict(t) for t in context_message.tool_calls] if context_message.tool_calls else None,
+        tool_calls=json.dumps([asdict(t) for t in context_message.tool_calls]) if context_message.tool_calls else None,
         tool_call_id=context_message.tool_call_id,
-        memory_metadata=[asdict(m) for m in context_message.memory_metadata],
+        memory_metadata=json.dumps([asdict(m) for m in context_message.memory_metadata]),
     )
 
 
@@ -52,10 +53,10 @@ def db_message_to_context_message(db_message: Message) -> ContextMessage:
         content=db_message.content,
         role=db_message.role,
         created_at=ensure_utc(db_message.created_at),
-        tool_calls=[ToolCall(**t) for t in db_message.tool_calls] if db_message.tool_calls else None,
+        tool_calls=[ToolCall(**t) for t in json.loads(db_message.tool_calls)] if db_message.tool_calls else None,
         tool_call_id=db_message.tool_call_id,
         chat_model=db_message.model,
-        memory_metadata=[MemoryMetadata(**m) for m in db_message.memory_metadata] if db_message.memory_metadata else [],
+        memory_metadata=[MemoryMetadata(**m) for m in json.loads(db_message.memory_metadata)] if db_message.memory_metadata else [],
     )
 
 
@@ -82,7 +83,8 @@ def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage
 
     message_ids = pipe(
         get_current_context_message_set_db(context),
-        lambda x: x.message_ids if x else [],
+        lambda x: x.message_ids if x else "[]",
+        json.loads,
     )
 
     assert isinstance(message_ids, list)
@@ -162,7 +164,7 @@ def replace_context_messages(context: ElroyContext, messages: List[ContextMessag
         context.session.add(existing_context)
     new_context = ContextMessageSet(
         user_id=context.user_id,
-        message_ids=msg_ids,
+        message_ids=json.dumps(msg_ids),
         is_active=True,
     )
     context.session.add(new_context)
