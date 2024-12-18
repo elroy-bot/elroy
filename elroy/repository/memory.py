@@ -11,10 +11,6 @@ from ..repository.data_models import ContextMessage, Memory
 MAX_MEMORY_LENGTH = 12000  # Characters
 
 
-def memory_to_fact(memory: Memory) -> str:
-    return f"#{memory.name}\n{memory.text}"
-
-
 def manually_record_user_memory(context: ElroyContext, text: str, name: Optional[str] = None) -> None:
     """Manually record a memory for the user.
 

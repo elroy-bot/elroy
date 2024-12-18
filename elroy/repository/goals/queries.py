@@ -6,7 +6,6 @@ from toolz.curried import map
 
 from ...config.config import ElroyContext
 from ..data_models import Goal
-from ..facts import to_fact
 
 
 def get_active_goals_summary(context: ElroyContext) -> str:
@@ -22,7 +21,7 @@ def get_active_goals_summary(context: ElroyContext) -> str:
     """
     return pipe(
         get_active_goals(context),
-        map(to_fact),
+        map(lambda x: x.to_fact()),
         list,
         "\n\n".join,
     )  # type: ignore

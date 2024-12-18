@@ -2,7 +2,6 @@
 import logging
 from typing import Optional
 
-from sqlalchemy import update
 from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
@@ -15,24 +14,6 @@ from ..data_models import SYSTEM, ContextMessage, Goal
 from ..embeddings import upsert_embedding
 from ..message import add_context_messages
 from .queries import get_active_goals
-
-
-def goal_to_fact(goal: Goal) -> str:
-
-    return pipe(
-        [
-            f"# {goal.__class__.__name__}: {goal.name}",
-            goal.description if goal.description else None,
-            f"## Strategy\n{goal.strategy}" if goal.strategy else None,
-            f"## End Condition\n{goal.end_condition}" if goal.end_condition else None,
-            f"## Target Completion Time\n{goal.target_completion_time}" if goal.target_completion_time else None,
-            "## Status Updates\n" + ("\n".join(goal.status_updates) if goal.status_updates else "No status updates"),
-            f"## Priority\n{goal.priority}" if goal.priority else None,
-            f"### Note for assistant:\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
-        ],
-        filter(lambda x: x is not None),
-        "\n\n".join,
-    )  # type: ignore
 
 
 def create_goal(
@@ -89,7 +70,7 @@ def create_goal(
             [
                 ContextMessage(
                     role=SYSTEM,
-                    content=f"New goal created: {goal_to_fact(goal)}",
+                    content=f"New goal created: {goal.to_fact()}",
                     memory_metadata=[goal.to_memory_metadata()],
                     chat_model=context.config.chat_model.name,
                 )
@@ -154,7 +135,7 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
         [
             ContextMessage(
                 role=SYSTEM,
-                content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {goal_to_fact(old_goal)}",
+                content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
                 memory_metadata=[old_goal.to_memory_metadata()],
                 chat_model=context.config.chat_model.name,
             )
@@ -179,24 +160,17 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
     logging.info(f"Updating goal {goal_name} for user {context.user_id}")
     logging.info(f"Current status updates: {goal.status_updates}")
 
-    # Append the new status update to the list
-    status_updates = goal.status_updates or []
+    # Get current status updates and append new one
+    status_updates = goal.get_status_updates()
     if status:
         status_updates.append(status)
+        goal.set_status_updates(status_updates)
+
+    if is_terminal:
+        goal.is_active = None
 
     logging.info(f"Updated status updates: {goal.status_updates}")
 
-    ### Explicitly update the status_updates column, the recommended style has a bug
-    context.session.execute(
-        update(Goal)
-        .where(Goal.id == goal.id)  # type: ignore
-        .values(
-            status_updates=status_updates,
-            is_active=None if is_terminal else True,
-            updated_at=get_utc_now(),
-        )
-    )
-    ###
     context.session.commit()
     context.session.refresh(goal)
 
