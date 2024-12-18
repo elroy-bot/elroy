@@ -138,6 +138,7 @@ class Goal(EmbeddableSqlModel, table=True):
     def set_status_updates(self, updates: List[str]) -> None:
         """Set status updates with JSON serialization"""
         self.status_updates = json.dumps(updates)
+
     description: Optional[str] = Field(..., description="The description of the goal")
     strategy: Optional[str] = Field(..., description="The strategy to achieve the goal")
     end_condition: Optional[str] = Field(..., description="The condition that will end the goal")
@@ -185,9 +186,7 @@ class Message(SQLModel, table=True):
     model: Optional[str] = Field(None, description="The model used to generate the message")
     tool_calls: Optional[str] = Field(sa_column=Column(Text), description="Tool calls as JSON string")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call")
-    memory_metadata: Optional[str] = Field(
-        sa_column=Column(Text), description="Metadata for which memory entities as JSON string"
-    )
+    memory_metadata: Optional[str] = Field(sa_column=Column(Text), description="Metadata for which memory entities as JSON string")
 
     def get_tool_calls(self) -> Optional[List[Dict[str, Any]]]:
         """Get deserialized tool calls"""
@@ -245,4 +244,5 @@ class ContextMessageSet(SQLModel, table=True):
     def set_message_ids(self, ids: List[int]) -> None:
         """Set message IDs with JSON serialization"""
         self.message_ids = json.dumps(ids)
+
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
