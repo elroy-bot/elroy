@@ -145,6 +145,8 @@ class Goal(EmbeddableSqlModel, table=True):
     def to_fact(self) -> str:
         from .goals.operations import add_goal_status_update, mark_goal_completed
 
+        status_updates = self.get_status_updates()
+
         return pipe(
             [
                 f"# {self.__class__.__name__}: {self.name}",
@@ -152,7 +154,7 @@ class Goal(EmbeddableSqlModel, table=True):
                 f"## Strategy\n{self.strategy}" if self.strategy else None,
                 f"## End Condition\n{self.end_condition}" if self.end_condition else None,
                 f"## Target Completion Time\n{self.target_completion_time}" if self.target_completion_time else None,
-                "## Status Updates\n" + ("\n".join(self.status_updates) if self.status_updates else "No status updates"),
+                "## Status Updates\n" + ("\n".join(status_updates) if status_updates else "No status updates"),
                 f"## Priority\n{self.priority}" if self.priority else None,
                 f"### Note for assistant:\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
             ],

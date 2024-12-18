@@ -24,12 +24,11 @@ from .repository.goals.operations import (
     add_goal_status_update,
     create_goal,
     delete_goal_permanently,
-    goal_to_fact,
     mark_goal_completed,
     rename_goal,
 )
 from .repository.goals.queries import get_active_goals
-from .repository.memory import create_memory, memory_to_fact
+from .repository.memory import create_memory
 from .repository.message import (
     add_context_messages,
     get_context_messages,
@@ -208,7 +207,7 @@ def print_goal(context: ElroyContext, goal_name: str) -> str:
         )
     ).first()
     if goal:
-        return goal_to_fact(goal)
+        return goal.to_fact()
     else:
         return f"Goal '{goal_name}' not found for the current user."
 
@@ -236,7 +235,7 @@ def print_memory(context: ElroyContext, memory_name: str) -> str:
         )
     ).first()
     if memory:
-        return memory_to_fact(memory)
+        return memory.to_fact()
     else:
         return f"Memory '{memory_name}' not found for the current user."
 
