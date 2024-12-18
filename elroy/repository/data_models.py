@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Column, UniqueConstraint
+from sqlalchemy import Column, Text, UniqueConstraint
 from sqlmodel import Column, Field, Session, SQLModel, select
 
 from ..config.constants import EMBEDDING_SIZE
@@ -125,10 +125,10 @@ class Goal(EmbeddableSqlModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user whose assistant is being reminded")
     name: str = Field(..., description="The name of the goal")
-    status_updates: List[str] = Field(
-        sa_column=Column(JSON, nullable=False, server_default="[]"),
-        default_factory=list,
-        description="Status update reports from the goal",
+    status_updates: str = Field(
+        sa_column=Column(Text, nullable=False, server_default="[]"),
+        default="[]",
+        description="Status update reports from the goal as JSON string",
     )
     description: Optional[str] = Field(..., description="The description of the goal")
     strategy: Optional[str] = Field(..., description="The strategy to achieve the goal")
@@ -175,10 +175,10 @@ class Message(SQLModel, table=True):
     role: str = Field(..., description="The role of the message")
     content: Optional[str] = Field(..., description="The text of the message")
     model: Optional[str] = Field(None, description="The model used to generate the message")
-    tool_calls: Optional[List[Dict[str, Any]]] = Field(sa_column=Column(JSON))
+    tool_calls: Optional[str] = Field(sa_column=Column(Text), description="Tool calls as JSON string")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call")
-    memory_metadata: Optional[List[Dict[str, Any]]] = Field(
-        sa_column=Column(JSON), description="Metadata for which memory entities are associated with this message"
+    memory_metadata: Optional[str] = Field(
+        sa_column=Column(Text), description="Metadata for which memory entities as JSON string"
     )
 
 
@@ -202,5 +202,5 @@ class ContextMessageSet(SQLModel, table=True):
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
-    message_ids: List[int] = Field(sa_column=Column(JSON), description="The messages in the context window")
+    message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
