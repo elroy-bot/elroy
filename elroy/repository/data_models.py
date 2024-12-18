@@ -130,6 +130,14 @@ class Goal(EmbeddableSqlModel, table=True):
         default="[]",
         description="Status update reports from the goal as JSON string",
     )
+
+    def get_status_updates(self) -> List[str]:
+        """Get deserialized status updates"""
+        return json.loads(self.status_updates)
+
+    def set_status_updates(self, updates: List[str]) -> None:
+        """Set status updates with JSON serialization"""
+        self.status_updates = json.dumps(updates)
     description: Optional[str] = Field(..., description="The description of the goal")
     strategy: Optional[str] = Field(..., description="The strategy to achieve the goal")
     end_condition: Optional[str] = Field(..., description="The condition that will end the goal")
@@ -181,6 +189,32 @@ class Message(SQLModel, table=True):
         sa_column=Column(Text), description="Metadata for which memory entities as JSON string"
     )
 
+    def get_tool_calls(self) -> Optional[List[Dict[str, Any]]]:
+        """Get deserialized tool calls"""
+        if self.tool_calls is None:
+            return None
+        return json.loads(self.tool_calls)
+
+    def set_tool_calls(self, tool_calls: Optional[List[Dict[str, Any]]]) -> None:
+        """Set tool calls with JSON serialization"""
+        if tool_calls is None:
+            self.tool_calls = None
+        else:
+            self.tool_calls = json.dumps(tool_calls)
+
+    def get_memory_metadata(self) -> Optional[List[Dict[str, Any]]]:
+        """Get deserialized memory metadata"""
+        if self.memory_metadata is None:
+            return None
+        return json.loads(self.memory_metadata)
+
+    def set_memory_metadata(self, metadata: Optional[List[Dict[str, Any]]]) -> None:
+        """Set memory metadata with JSON serialization"""
+        if metadata is None:
+            self.memory_metadata = None
+        else:
+            self.memory_metadata = json.dumps(metadata)
+
 
 class UserPreference(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
@@ -203,4 +237,12 @@ class ContextMessageSet(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
+
+    def get_message_ids(self) -> List[int]:
+        """Get deserialized message IDs"""
+        return json.loads(self.message_ids)
+
+    def set_message_ids(self, ids: List[int]) -> None:
+        """Set message IDs with JSON serialization"""
+        self.message_ids = json.dumps(ids)
     is_active: Optional[bool] = Field(True, description="Whether the context is active")

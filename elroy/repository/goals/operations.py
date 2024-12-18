@@ -179,10 +179,11 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
     logging.info(f"Updating goal {goal_name} for user {context.user_id}")
     logging.info(f"Current status updates: {goal.status_updates}")
 
-    # Append the new status update to the list
-    status_updates = goal.status_updates or []
+    # Get current status updates and append new one
+    status_updates = goal.get_status_updates()
     if status:
         status_updates.append(status)
+        goal.set_status_updates(status_updates)
 
     logging.info(f"Updated status updates: {goal.status_updates}")
 
