@@ -53,10 +53,10 @@ def db_message_to_context_message(db_message: Message) -> ContextMessage:
         content=db_message.content,
         role=db_message.role,
         created_at=ensure_utc(db_message.created_at),
-        tool_calls=[ToolCall(**t) for t in db_message.tool_calls] if db_message.tool_calls else None,
+        tool_calls=[ToolCall(**t) for t in json.loads(db_message.tool_calls)] if db_message.tool_calls else None,
         tool_call_id=db_message.tool_call_id,
         chat_model=db_message.model,
-        memory_metadata=[MemoryMetadata(**m) for m in db_message.memory_metadata] if db_message.memory_metadata else [],
+        memory_metadata=[MemoryMetadata(**m) for m in json.loads(db_message.memory_metadata)] if db_message.memory_metadata else [],
     )
 
 
@@ -83,15 +83,11 @@ def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage
 
     message_ids = pipe(
         get_current_context_message_set_db(context),
-        lambda x: x.message_ids if x else [],
+        lambda x: x.message_ids if x else "[]",
+        json.loads,
     )
 
     assert isinstance(message_ids, list)
-
-    messages = (context.session.exec(select(Message).where(Message.id.in_(message_ids))),)  # type: ignore
-    import pdb
-
-    pdb.set_trace()
 
     return pipe(
         context.session.exec(select(Message).where(Message.id.in_(message_ids))),  # type: ignore

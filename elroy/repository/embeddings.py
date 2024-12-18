@@ -11,7 +11,6 @@ from toolz.curried import do, map
 from ..config.config import ElroyContext
 from ..config.constants import RESULT_SET_LIMIT_COUNT
 from ..repository.data_models import EmbeddableSqlModel, Goal, Memory, VectorStorage
-from ..repository.facts import to_fact
 from ..utils.utils import first_or_none
 
 T = TypeVar("T", bound=EmbeddableSqlModel)
@@ -110,7 +109,7 @@ def find_redundant_pairs(
 def upsert_embedding(context: ElroyContext, row: EmbeddableSqlModel) -> None:
     from ..llm.client import get_embedding
 
-    new_text = to_fact(row)
+    new_text = row.to_fact()
     new_md5 = hashlib.md5(new_text.encode()).hexdigest()
 
     # Check if vector storage exists for this row

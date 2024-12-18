@@ -23,7 +23,6 @@ from ..repository.data_models import (
     Memory,
 )
 from ..repository.embeddings import find_redundant_pairs
-from ..repository.facts import to_fact
 from ..repository.memory import consolidate_memories
 from ..repository.message import (
     ContextMessage,
@@ -264,7 +263,7 @@ def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
             ContextMessage(
                 role=SYSTEM,
                 memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
-                content=str(to_fact(memory)),
+                content=memory.to_fact(),
                 chat_model=None,
             )
         ],

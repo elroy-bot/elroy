@@ -7,6 +7,8 @@ from typing import Any, Dict, List, NamedTuple, Optional, Union
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Text, UniqueConstraint
 from sqlmodel import Column, Field, Session, SQLModel, select
+from toolz import pipe
+from toolz.curried import filter
 
 from ..config.constants import EMBEDDING_SIZE
 from ..utils.clock import get_utc_now
@@ -80,6 +82,10 @@ class EmbeddableSqlModel(ABC, SQLModel):
     def get_name(self) -> str:
         pass
 
+    @abstractmethod
+    def to_fact(self) -> str:
+        raise NotImplementedError
+
     def to_memory_metadata(self) -> MemoryMetadata:
         return MemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
 
@@ -119,6 +125,9 @@ class Memory(EmbeddableSqlModel, table=True):
     def get_name(self) -> str:
         return self.name
 
+    def to_fact(self) -> str:
+        return f"#{self.name}\n{self.text}"
+
 
 class Goal(EmbeddableSqlModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
@@ -132,6 +141,24 @@ class Goal(EmbeddableSqlModel, table=True):
         default="[]",
         description="Status update reports from the goal as JSON string",
     )
+
+    def to_fact(self) -> str:
+        from .goals.operations import add_goal_status_update, mark_goal_completed
+
+        return pipe(
+            [
+                f"# {self.__class__.__name__}: {self.name}",
+                self.description if self.description else None,
+                f"## Strategy\n{self.strategy}" if self.strategy else None,
+                f"## End Condition\n{self.end_condition}" if self.end_condition else None,
+                f"## Target Completion Time\n{self.target_completion_time}" if self.target_completion_time else None,
+                "## Status Updates\n" + ("\n".join(self.status_updates) if self.status_updates else "No status updates"),
+                f"## Priority\n{self.priority}" if self.priority else None,
+                f"### Note for assistant:\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
+            ],
+            filter(lambda x: x is not None),
+            "\n\n".join,
+        )  # type: ignore
 
     def get_status_updates(self) -> List[str]:
         """Get deserialized status updates"""

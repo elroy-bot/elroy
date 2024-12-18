@@ -16,7 +16,6 @@ from ..config.constants import (
 from ..llm.client import generate_chat_completion_message, get_embedding
 from ..repository.data_models import ASSISTANT, SYSTEM, TOOL, USER, ContentItem
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
-from ..repository.facts import to_fact
 from ..repository.message import (
     ContextMessage,
     MemoryMetadata,
@@ -234,7 +233,7 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
             lambda x: ContextMessage(
                 role=SYSTEM,
                 memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
-                content="Information recalled from assistant memory: " + to_fact(x),
+                content="Information recalled from assistant memory: " + x.to_fact(),
                 chat_model=None,
             )
         ),
