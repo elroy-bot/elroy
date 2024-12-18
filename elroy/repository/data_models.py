@@ -63,7 +63,9 @@ class VectorStorage(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     source_type: str = Field(..., description="The type of model this embedding is for (e.g. Memory, Goal)")
     source_id: int = Field(..., description="The ID of the source model")
-    embedding_data: List[float] = Field(..., description="The vector embedding data", sa_column=Column(Vector(EMBEDDING_SIZE)))
+    embedding_data: List[float] = Field(
+        ..., description="The vector embedding data", sa_column=Column(Vector(EMBEDDING_SIZE), nullable=False)
+    )
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
 
 
