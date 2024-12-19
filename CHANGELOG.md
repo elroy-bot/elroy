@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.53] - 2024-12-19
+
+### Improved
+- New `/help` command with improved command autocomplete functionality
+- Cross-platform support for Elroy cache and home directories using platformdirs
+- `ctrl-r` Conversation search now spans sessions
+
+### Infrastructure
+- DB schema migrations to prepare for sqlite support
+- Added Discord community server
+
+### Documentation
+- Added Discord server link to README
+- Update Docker setup documentation
+
 ## [0.0.52] - 2024-12-16
 
 ### Added
