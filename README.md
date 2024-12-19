@@ -87,6 +87,12 @@ elroy chat
 # Or just 'elroy' which defaults to chat mode
 elroy
 
+# Process a single message and exit
+elroy --message "Say hello world"
+
+# Force use of a specific tool
+elroy --message "Create a goal" --tool create_goal
+
 # Elroy also accepts stdin
 echo "Say hello world" | elroy
 ```
@@ -96,22 +102,6 @@ echo "Say hello world" | elroy
 
 Elroy provides both CLI commands and in-chat commands (which can be used by both users and the assistant). For full schema information, see [tools schema reference](docs/tools_schema.md).
 
-### Model Support
-
-Elroy supports both OpenAI and Anthropic language models:
-
-#### Chat Models
-- OpenAI Models: GPT-4 and variants (gpt-4o, gpt-4o-mini, o1-preview, o1-mini)
-- Anthropic Models: Claude models (sonnet, opus)
-- OpenAI-Compatible APIs: Any provider offering an OpenAI-compatible API endpoint (via --openai-api-base)
-
-The default model is gpt-4o. Use `elroy --list-models` to see all supported chat models. Model shortcuts are available:
-- `--sonnet`: Use Anthropic's Sonnet model
-- `--opus`: Use Anthropic's Opus model
-- `--4o`: Use OpenAI's GPT-4o model
-- `--4o-mini`: Use OpenAI's GPT-4o-mini model
-- `--o1`: Use OpenAI's o1-preview model
-- `--o1-mini`: Use OpenAI's o1-mini model
 
 #### Embedding Models
 - OpenAI Models: text-embedding-3-small (default, 1536 dimensions)
@@ -206,7 +196,9 @@ You can customize Elroy's appearance with these options:
 
 ### Basic Configuration
 * `--config TEXT`: Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.
+* `--default-persona TEXT`: Default persona to use for assistants. [env var: ELROY_DEFAULT_PERSONA]
 * `--debug / --no-debug`: Whether to fail fast when errors occur, and emit more verbose logging. [env var: ELROY_DEBUG]
+* `--user-token TEXT`: User token to use for Elroy [env var: ELROY_USER_TOKEN]
 
 ### Database Configuration
 * `--postgres-url TEXT`: Postgres URL to use for Elroy. [env var: ELROY_POSTGRES_URL]
@@ -236,6 +228,7 @@ You can customize Elroy's appearance with these options:
 * `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep. Messages older than this will be dropped from context, regardless of token limits. [default: 120.0]
 * `--context-refresh-interval-minutes FLOAT`: How often in minutes to refresh system message and compress context. [default: 10.0]
 * `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. [default: 10.0]
+* `--enable-assistant-greeting / --no-enable-assistant-greeting`: Whether to allow the assistant to send the first message [default: True]
 
 ### Memory Management
 * `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD] [default: 1.24]
