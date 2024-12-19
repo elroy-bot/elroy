@@ -53,10 +53,18 @@ def db_message_to_context_message(db_message: Message) -> ContextMessage:
         content=db_message.content,
         role=db_message.role,
         created_at=ensure_utc(db_message.created_at),
-        tool_calls=[ToolCall(**t) for t in json.loads(db_message.tool_calls)] if db_message.tool_calls else None,
+        tool_calls=pipe(
+            json.loads(db_message.tool_calls or "[]") or [],
+            map(lambda x: ToolCall(**x)),
+            list,
+        ),
         tool_call_id=db_message.tool_call_id,
         chat_model=db_message.model,
-        memory_metadata=[MemoryMetadata(**m) for m in json.loads(db_message.memory_metadata)] if db_message.memory_metadata else [],
+        memory_metadata=pipe(
+            json.loads(db_message.memory_metadata or "[]") or [],
+            map(lambda x: MemoryMetadata(**x)),
+            list,
+        ),
     )
 
 

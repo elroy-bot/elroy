@@ -6,7 +6,7 @@ from typing import Generator, Iterator, List, Text, Union
 from prompt_toolkit import HTML, Application, PromptSession, print_formatted_text
 from prompt_toolkit.application import get_app
 from prompt_toolkit.completion import FuzzyWordCompleter
-from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments.lexers.special import TextLexer
@@ -19,6 +19,7 @@ from toolz.curried import map
 
 from ..config.config import ElroyContext
 from ..config.constants import REPO_ISSUES_URL
+from ..config.paths import get_prompt_history_path
 from ..io.base import ElroyIO
 from ..messaging.context import is_memory_in_context
 from ..repository.data_models import ContextMessage, FunctionCall
@@ -61,7 +62,7 @@ class CliIO(ElroyIO):
         )
 
         self.prompt_session = PromptSession(
-            history=InMemoryHistory(),
+            history=FileHistory(get_prompt_history_path()),
             style=self.style,
             lexer=PygmentsLexer(TextLexer),
         )
