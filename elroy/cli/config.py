@@ -7,14 +7,13 @@ from io import StringIO
 from typing import Optional
 
 import typer
-from sqlalchemy import create_engine, engine_from_config
-from sqlmodel import Session, text
-from toolz import pipe
-
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from sqlalchemy import create_engine, engine_from_config
+from sqlmodel import Session, text
+from toolz import pipe
 
 from ..config.config import (
     ROOT_DIR,

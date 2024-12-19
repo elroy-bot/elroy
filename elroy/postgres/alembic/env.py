@@ -1,9 +1,9 @@
+import os
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
-
-from alembic import context
 
 ### Imports necessary to correctly load SQLModel subclasses and set env variables ###
 from elroy.repository import data_models  # type: ignore
@@ -16,6 +16,17 @@ models = data_models
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+
+# Add command line option for postgres URL
+cmd_opts = context.get_x_argument(as_dictionary=True)
+if "postgres_url" in cmd_opts:
+    config.set_main_option("sqlalchemy.url", cmd_opts["postgres_url"])
+# Fall back to environment variable if no command line option
+elif "ELROY_POSTGRES_URL" in os.environ:
+    config.set_main_option("sqlalchemy.url", os.environ["ELROY_POSTGRES_URL"])
+else:
+    raise Exception("No postgres url found")
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

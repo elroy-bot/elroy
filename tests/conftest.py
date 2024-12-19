@@ -6,13 +6,13 @@ import uuid
 from typing import Any, Generator
 
 import pytest
+from alembic.command import upgrade
+from alembic.config import Config
 from sqlmodel import delete, text
 from tests.utils import TestCliIO
 from toolz import keyfilter, merge, pipe
 from toolz.curried import valfilter
 
-from alembic.command import upgrade
-from alembic.config import Config
 from elroy import ROOT_DIR
 from elroy.cli.config import init_elroy_context
 from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager

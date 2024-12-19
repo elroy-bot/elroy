@@ -9,10 +9,9 @@ Create Date: 2024-10-14 14:57:55.117588
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+from alembic import op
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
-
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "bc853b0f6e47"
