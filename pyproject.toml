@@ -29,6 +29,7 @@ semantic-version = "^2.10.0"
 discord-py = "^2.4.0"
 scrubadub = "^2.0.1"
 aider-chat = "^0.69.0"
+platformdirs = "^4.3.6"
 
 
 [tool.pyright]
