@@ -1,10 +1,10 @@
 from inspect import signature
 from pathlib import Path
 
-import yaml
 from typer.testing import CliRunner
 
 from elroy.cli.main import app, common
+from elroy.config.config import DEFAULTS_CONFIG
 
 
 # TODO: These tests are problematic, they run the system installed version rather than the one from current code.
@@ -50,8 +50,6 @@ def test_config_precedence():
 
 
 def test_cli_params_match_defaults():
-    with open("elroy/config/defaults.yml") as f:
-        defaults = yaml.safe_load(f)
 
     # Get all parameter names from the common function
     sig = signature(common)
@@ -83,11 +81,12 @@ def test_cli_params_match_defaults():
             "reset_persona",
             "tool",
             "message",
+            "sqlite_path",
         ]
     }
 
     # Get all keys from defaults.yml
-    default_keys = set(defaults.keys())
+    default_keys = set(DEFAULTS_CONFIG.keys())
 
     # Find any mismatches
     missing_from_defaults = cli_params - default_keys

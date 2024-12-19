@@ -19,7 +19,7 @@ from toolz import concat, concatv, merge, pipe
 from toolz.curried import filter, map, remove
 
 from ..config.config import ElroyContext
-from ..repository.data_models import FunctionCall
+from ..db.db_models import FunctionCall
 from ..utils.utils import first_or_none
 
 PY_TO_JSON_TYPE = {

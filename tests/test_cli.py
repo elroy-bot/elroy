@@ -30,6 +30,6 @@ def test_persona(user_token):
 
 def test_persona_assistant_specific_persona(elroy_context):
     set_system_persona(elroy_context, "You are a helpful assistant. Your name is Billy.")
-    assert "Billy" in get_persona(elroy_context.session, elroy_context.config, elroy_context.user_id)
+    assert "Billy" in get_persona(elroy_context.db, elroy_context.config, elroy_context.user_id)
     reset_system_persona(elroy_context)
-    assert "Elroy" in get_persona(elroy_context.session, elroy_context.config, elroy_context.user_id)
+    assert "Elroy" in get_persona(elroy_context.db, elroy_context.config, elroy_context.user_id)

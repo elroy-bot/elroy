@@ -1,26 +1,22 @@
 import logging
-import os
-from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache
+from importlib.resources import open_text
 from pathlib import Path
-from typing import Generator, Generic, Optional, TypeVar
+from typing import Generic, Optional
 
 import typer
 import yaml
-from sqlalchemy import NullPool, create_engine
-from sqlmodel import Session
 
-from ..io.base import ElroyIO
+from ..db.db_manager import DbManager
+from ..io.base import IOType
 from .constants import LIST_MODELS_FLAG
+from .paths import APP_NAME
 
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-DEFAULTS_CONFIG_PATH = os.path.join(ROOT_DIR, "config", "defaults.yml")
-
-with open(DEFAULTS_CONFIG_PATH, "r") as default_config_file:
-    DEFAULT_CONFIG = yaml.safe_load(default_config_file)
+with open_text(APP_NAME, "defaults.yml") as f:
+    DEFAULTS_CONFIG = yaml.safe_load(f)
 
 
 @lru_cache
@@ -30,8 +26,8 @@ def load_defaults(user_config_path: Optional[str] = None) -> dict:
     1. defaults.yml (base defaults)
     2. User config file (if provided)
     """
-    with open(DEFAULTS_CONFIG_PATH, "r") as default_config_file:
-        config = yaml.safe_load(default_config_file)
+
+    config = deepcopy(DEFAULTS_CONFIG)
 
     if user_config_path:
         if not Path(user_config_path).exists():
@@ -73,7 +69,7 @@ class EmbeddingModel:
 
 @dataclass
 class ElroyConfig:
-    postgres_url: str
+    database_url: str
     context_refresh_token_trigger_limit: int
     context_refresh_token_target: int
     max_in_context_message_age: timedelta
@@ -91,7 +87,7 @@ class ElroyConfig:
 
 
 def get_config(
-    postgres_url: str,
+    database_url: str,
     chat_model_name: str,
     embedding_model: str,
     embedding_model_size: int,
@@ -163,7 +159,7 @@ def get_config(
     )
 
     return ElroyConfig(
-        postgres_url=postgres_url,
+        database_url=database_url,
         chat_model=chat_model,
         embedding_model=embedding_model_data,
         debug_mode=debug,
@@ -181,29 +177,9 @@ def get_config(
     )
 
 
-@contextmanager
-def session_manager(postgres_url: str) -> Generator[Session, None, None]:
-    engine = create_engine(postgres_url, poolclass=NullPool)
-    session = Session(engine)
-    try:
-        yield session
-        if session.is_active:  # Only commit if the session is still active
-            session.commit()
-    except Exception:
-        if session.is_active:  # Only rollback if the session is still active
-            session.rollback()
-        raise
-    finally:
-        if session.is_active:  # Only close if not already closed
-            session.close()
-
-
-T = TypeVar("T", bound=ElroyIO)
-
-
 @dataclass
-class ElroyContext(Generic[T]):
-    session: Session
-    io: T
+class ElroyContext(Generic[IOType]):
+    db: DbManager
+    io: IOType
     config: ElroyConfig
     user_id: int

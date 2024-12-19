@@ -5,10 +5,10 @@ from datetime import datetime
 from pytz import UTC
 from sqlmodel import select
 
-from ..config.config import ElroyContext, session_manager
-from ..config.constants import CLI_USER_ID
+from ..config.config import ElroyContext
+from ..config.constants import CLI_USER_ID, USER
+from ..db.db_models import Message
 from ..messaging.context import context_refresh
-from ..repository.data_models import USER, Message
 from ..tools.user_preferences import get_user_preferred_name
 from ..utils.utils import datetime_to_string
 
@@ -30,19 +30,20 @@ def periodic_context_refresh(context: ElroyContext):
                 await asyncio.sleep(context.config.context_refresh_interval.total_seconds())
             except Exception as e:
                 logging.error(f"Error in periodic context refresh: {e}")
-                context.session.rollback()
+                context.db.rollback()
 
                 if context.config.debug_mode:
                     raise e
 
     try:
         # hack to get a new session for the thread
-        with session_manager(context.config.postgres_url) as session:
+        with context.db.get_new_session() as db:
+
             loop.run_until_complete(
                 refresh_loop(
                     ElroyContext(
                         user_id=CLI_USER_ID,
-                        session=session,
+                        db=db,
                         config=context.config,
                         io=context.io,
                     )
@@ -66,7 +67,7 @@ def get_user_logged_in_message(context: ElroyContext) -> str:
     # Convert to UTC for database comparison
     today_start_utc = today_start.astimezone(UTC)
 
-    earliest_today_msg = context.session.exec(
+    earliest_today_msg = context.db.exec(
         select(Message)
         .where(Message.role == USER)
         .where(Message.created_at >= today_start_utc)

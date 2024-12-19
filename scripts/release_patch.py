@@ -111,7 +111,18 @@ def run_tests(errors: Errors):
 
     try:
         # Run pytest with specified chat models
-        subprocess.run(["pytest", "-n", "auto"], check=True)
+        subprocess.run(
+            [
+                "pytest",
+                "-n",
+                "auto",
+                "--chat-models",
+                "claude-3-5-haiku,gpt-4o-mini",
+                "--db-type",
+                "sqlite,postgres",
+            ],
+            check=True,
+        )
 
         # If tests pass, create cache file
         with open(cache_file, "w") as f:

@@ -8,6 +8,7 @@ from toolz import pipe
 from toolz.curried import map
 
 from .config.config import ElroyContext
+from .db.db_models import SYSTEM, Goal, Memory
 from .io.cli import CliIO
 from .llm import client
 from .llm.prompts import contemplate_prompt
@@ -19,7 +20,7 @@ from .messaging.context import (
     format_context_messages,
     get_refreshed_system_message,
 )
-from .repository.data_models import SYSTEM, ContextMessage, Goal, Memory
+from .repository.data_models import ContextMessage
 from .repository.goals.operations import (
     add_goal_status_update,
     create_goal,
@@ -199,7 +200,7 @@ def print_goal(context: ElroyContext, goal_name: str) -> str:
     Returns:
         str: Information for the goal with the given name
     """
-    goal = context.session.exec(
+    goal = context.db.exec(
         select(Goal).where(
             Goal.user_id == context.user_id,
             Goal.name == goal_name,
@@ -227,7 +228,7 @@ def print_memory(context: ElroyContext, memory_name: str) -> str:
     Returns:
         str: Information for the memory with the given name
     """
-    memory = context.session.exec(
+    memory = context.db.exec(
         select(Memory).where(
             Memory.user_id == context.user_id,
             Memory.name == memory_name,

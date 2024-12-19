@@ -10,10 +10,9 @@ from toolz.curried import filter, map, pipe
 
 from ..config.config import ElroyContext
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
-from ..repository.data_models import (
+from ..db.db_models import (
     SYSTEM,
     USER,
-    ContextMessage,
     ContextMessageSet,
     MemoryMetadata,
     Message,
@@ -21,6 +20,7 @@ from ..repository.data_models import (
 )
 from ..utils.clock import ensure_utc, get_utc_now
 from ..utils.utils import last_or_none, logged_exec_time
+from .data_models import ContextMessage
 
 
 # This is hacky, should add arbitrary metadata
@@ -69,7 +69,7 @@ def db_message_to_context_message(db_message: Message) -> ContextMessage:
 
 
 def get_current_context_message_set_db(context: ElroyContext) -> Optional[ContextMessageSet]:
-    return context.session.exec(
+    return context.db.exec(
         select(ContextMessageSet).where(
             ContextMessageSet.user_id == context.user_id,
             ContextMessageSet.is_active == True,
@@ -98,7 +98,7 @@ def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage
     assert isinstance(message_ids, list)
 
     return pipe(
-        context.session.exec(select(Message).where(Message.id.in_(message_ids))),  # type: ignore
+        context.db.exec(select(Message).where(Message.id.in_(message_ids))),  # type: ignore
         lambda messages: sorted(messages, key=lambda m: message_ids.index(m.id)),
         map(db_message_to_context_message),
     )  # type: ignore
@@ -133,9 +133,9 @@ def persist_messages(context: ElroyContext, messages: List[ContextMessage]) -> L
             msg_ids.append(msg.id)
         else:
             db_message = context_message_to_db_message(context.user_id, msg)
-            context.session.add(db_message)
-            context.session.commit()
-            context.session.refresh(db_message)
+            context.db.add(db_message)
+            context.db.commit()
+            context.db.refresh(db_message)
             msg_ids.append(db_message.id)
     return msg_ids
 
@@ -160,7 +160,7 @@ def add_context_messages(context: ElroyContext, messages: Union[ContextMessage, 
 def replace_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
     msg_ids = persist_messages(context, messages)
 
-    existing_context = context.session.exec(
+    existing_context = context.db.exec(
         select(ContextMessageSet).where(
             ContextMessageSet.user_id == context.user_id,
             ContextMessageSet.is_active == True,
@@ -169,11 +169,11 @@ def replace_context_messages(context: ElroyContext, messages: List[ContextMessag
 
     if existing_context:
         existing_context.is_active = None
-        context.session.add(existing_context)
+        context.db.add(existing_context)
     new_context = ContextMessageSet(
         user_id=context.user_id,
         message_ids=json.dumps(msg_ids),
         is_active=True,
     )
-    context.session.add(new_context)
-    context.session.commit()
+    context.db.add(new_context)
+    context.db.commit()

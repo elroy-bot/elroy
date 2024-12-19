@@ -1,8 +1,11 @@
 import asyncio
+import html
 import logging
 import sys
+import traceback
 from datetime import timedelta
 from functools import partial
+from operator import add
 from typing import Iterable
 
 import typer
@@ -11,26 +14,40 @@ from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
 from ..config.config import ElroyContext
+from ..config.constants import SYSTEM, USER
+from ..io.base import StdIO
 from ..io.cli import CliIO
+from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
+from ..messaging.context import get_refreshed_system_message
 from ..messaging.messenger import process_message, validate
-from ..repository.data_models import SYSTEM, USER, ContextMessage
+from ..repository.data_models import ContextMessage
+from ..repository.goals.operations import create_onboarding_goal
 from ..repository.message import (
     get_context_messages,
     get_time_since_most_recent_user_message,
     replace_context_messages,
 )
 from ..system_commands import SYSTEM_COMMANDS, contemplate
-from ..tools.user_preferences import get_user_preferred_name
+from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
 from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
 from .commands import invoke_system_command
-from .config import cli_elroy_context, cli_elroy_context_interactive
+from .config import (
+    get_user_token,
+    init_cli_io,
+    init_config,
+    init_db,
+    init_elroy_context,
+)
 from .context import get_user_logged_in_message, periodic_context_refresh
 
 
 def handle_message(ctx: typer.Context):
-    if sys.stdin.isatty() and not ctx.params.get("message"):
-        with cli_elroy_context_interactive(ctx) as context:
+    config = init_config(ctx)
+    user_token = get_user_token(ctx)
+    with init_db(ctx) as db:
+        if sys.stdin.isatty() and not ctx.params.get("message"):
+            context, _new_user_created = init_elroy_context(db, init_cli_io(ctx), config, user_token)
             pipe(
                 context.io.prompt_user("Enter your message"),
                 asyncio.run,
@@ -38,8 +55,8 @@ def handle_message(ctx: typer.Context):
                 partial(process_message, USER, context),
                 context.io.assistant_msg,
             )
-    else:
-        with cli_elroy_context(ctx) as context:
+        else:
+            context, _new_user_created = init_elroy_context(db, StdIO(), config, user_token)
             message = ctx.params.get("message")
             assert message is not None
 
@@ -56,7 +73,11 @@ def handle_message(ctx: typer.Context):
 
 def handle_chat(ctx: typer.Context):
     if sys.stdin.isatty():
-        with cli_elroy_context_interactive(ctx) as context:
+        with init_db(ctx) as db:
+            context, new_user_created = init_elroy_context(db, init_cli_io(ctx), init_config(ctx), get_user_token(ctx))
+            if new_user_created:
+                asyncio.run(onboard_interactive(context))
+
             asyncio.run(chat(context))
     else:
         ctx.params["message"] = sys.stdin.read()
@@ -87,7 +108,6 @@ async def chat(context: ElroyContext[CliIO]):
     else:
         get_user_preferred_name(context)
 
-        # TODO: should include some information about how long the user has been talking to Elroy
         await process_and_deliver_msg(
             SYSTEM,
             context,
@@ -122,9 +142,16 @@ async def process_and_deliver_msg(role: str, context: ElroyContext, user_input: 
             try:
                 result = await invoke_system_command(context, user_input)
                 if result:
-                    context.io.sys_message(result)
+                    context.io.sys_message(str(result))
             except Exception as e:
-                context.io.sys_message(f"Error invoking system command: {e}")
+                pipe(
+                    traceback.format_exception(type(e), e, e.__traceback__),
+                    "".join,
+                    html.escape,
+                    lambda x: x.replace("\n", "<br/>"),
+                    partial(add, "Error invoking system command: "),
+                    context.io.sys_message,
+                )
     else:
         context.io.assistant_msg(process_message(role, context, user_input))
 
@@ -141,4 +168,34 @@ def print_memory_panel(context: ElroyContext, context_messages: Iterable[Context
         list,
         sorted,
         context.io.print_memory_panel,
+    )
+
+
+async def onboard_interactive(context: ElroyContext[CliIO]):
+    from .chat import process_and_deliver_msg
+
+    assert isinstance(context.io, CliIO)
+
+    preferred_name = await context.io.prompt_user("Welcome to Elroy! What should I call you?")
+
+    set_user_preferred_name(context, preferred_name)
+
+    create_onboarding_goal(context, preferred_name)
+
+    replace_context_messages(
+        context,
+        [
+            get_refreshed_system_message(context, []),
+            ContextMessage(
+                role=SYSTEM,
+                content=ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name),
+                chat_model=None,
+            ),
+        ],
+    )
+
+    await process_and_deliver_msg(
+        SYSTEM,
+        context,
+        f"Elroy user {preferred_name} has been onboarded. Say hello and introduce yourself.",
     )

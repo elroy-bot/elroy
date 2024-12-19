@@ -23,21 +23,3 @@ def experimental(func: Callable) -> Callable:
         return func(*args, **kwargs)
 
     return wrapper
-
-
-def debug(value: T) -> T:
-    import pdb
-    import traceback
-
-    for line in traceback.format_stack():
-        print(line.strip())
-    pdb.set_trace()
-    return value
-
-
-def debug_log(value: T) -> T:
-    import traceback
-
-    traceback.print_stack()
-    print(f"CURRENT VALUE: {value}")
-    return value

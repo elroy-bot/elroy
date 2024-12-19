@@ -29,7 +29,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      - ELROY_POSTGRES_URL=postgresql://elroy:password@db:5432/elroy
+      - ELROY_DATABASE_URL=postgresql://elroy:password@db:5432/elroy
       - PYTHONPATH=/app
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}

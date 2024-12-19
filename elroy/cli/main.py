@@ -7,6 +7,7 @@ from toolz.curried import filter
 
 from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
 from ..config.models import resolve_anthropic
+from ..config.paths import get_default_sqlite_url
 from ..utils.utils import is_truthy
 from .chat import handle_chat, handle_message
 from .config import (
@@ -55,11 +56,11 @@ def common(
         rich_help_panel="Basic Configuration",
     ),
     # Database Configuration
-    postgres_url: Optional[str] = CliOption(
-        "postgres_url",
-        envvar="ELROY_POSTGRES_URL",
-        help="Postgres URL to use for Elroy.",
-        rich_help_panel="Database Configuration",
+    database_url: Optional[str] = typer.Option(
+        get_default_sqlite_url(),
+        envvar="ELROY_DATABASE_URL",
+        help="Valid Sqlite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.",
+        rich_help_panel="Basic Configuration",
     ),
     # API Configuration
     openai_api_key: Optional[str] = CliOption(

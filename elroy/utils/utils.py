@@ -83,13 +83,15 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def run_in_background_thread(fn, context, *args):
-    from ..config.config import ElroyContext, session_manager
+    from ..config.config import ElroyContext
+
+    assert isinstance(context, ElroyContext)
 
     # hack to get a new session for the thread
-    with session_manager(context.config.postgres_url) as session:
+    with context.db.get_new_session() as db:
         thread = threading.Thread(
             target=fn,
-            args=(ElroyContext(user_id=context.user_id, session=session, config=context.config, io=context.io), *args),
+            args=(ElroyContext(user_id=context.user_id, db=db, config=context.config, io=context.io), *args),
             daemon=True,
         )
         thread.start()

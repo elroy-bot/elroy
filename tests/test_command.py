@@ -3,7 +3,7 @@ import re
 import pytest
 
 from elroy.cli.chat import process_and_deliver_msg
-from elroy.repository.data_models import USER
+from elroy.config.constants import USER
 from elroy.system_commands import get_active_goal_names
 
 

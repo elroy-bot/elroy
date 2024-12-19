@@ -6,26 +6,18 @@ import uuid
 from typing import Any, Generator
 
 import pytest
-from sqlmodel import delete, text
+from sqlmodel import delete
 from tests.utils import TestCliIO
 from toolz import keyfilter, merge, pipe
-from toolz.curried import valfilter
+from toolz.curried import do, valfilter
 
-from alembic.command import upgrade
-from alembic.config import Config
-from elroy import ROOT_DIR
-from elroy.cli.config import init_elroy_context
-from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager
+from elroy.cli.config import init_elroy_context, onboard_user_non_interactive
+from elroy.config.config import ElroyContext, get_config, load_defaults
+from elroy.config.constants import ASSISTANT, USER
+from elroy.db.db_models import ContextMessageSet, Goal, Memory, User, UserPreference
+from elroy.db.postgres.postgres_manager import PostgresManager
+from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.base import ElroyIO
-from elroy.repository.data_models import (
-    ASSISTANT,
-    USER,
-    ContextMessageSet,
-    Goal,
-    Memory,
-    User,
-    UserPreference,
-)
 from elroy.repository.goals.operations import create_goal
 from elroy.repository.message import ContextMessage, Message, add_context_messages
 from elroy.repository.user import create_user_id
@@ -38,17 +30,17 @@ BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketb
 def pytest_addoption(parser):
     parser.addoption("--postgres-url", action="store", default=None, help="Database URL from either environment or command line")
     parser.addoption(
-        "--chat-models", action="store", default="gpt-4o-mini,claude-3-5-haiku-20241022", help="Comma-separated list of chat models to test"
+        "--chat-models",
+        action="store",
+        default="gpt-4o-mini",
+        help="Comma-separated list of chat models to test",
     )
-
-
-@pytest.fixture(scope="function", autouse=True)
-def event_loop():
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()
+    parser.addoption(
+        "--db-type",
+        action="store",
+        default="sqlite",
+        help="Database type to use for testing (postgres or sqlite)",
+    )
 
 
 @pytest.fixture(scope="session")
@@ -59,9 +51,7 @@ def postgres_url(request):
         yield os.environ[ELROY_TEST_POSTGRES_URL]
     elif not is_docker_running():
         raise Exception(
-            "By default, tests run using Docker containers for PostgreSQL."
-            "To run tests without Docker, please provide a --postgres-url argument, "
-            f"or set the {ELROY_TEST_POSTGRES_URL} environment variable."
+            f"Tests configured to run via PostGreSQL, but no PostGreSQL URL provided. Please either set the {ELROY_TEST_POSTGRES_URL} environment variable, provide a --postgres-url argument, or run tests with Docker."
         )
     else:
         from testcontainers.postgres import PostgresContainer
@@ -76,10 +66,13 @@ def pytest_generate_tests(metafunc):
     if "chat_model_name" in metafunc.fixturenames:
         models = metafunc.config.getoption("--chat-models").split(",")
         metafunc.parametrize("chat_model_name", models, scope="session")
+    if "db" in metafunc.fixturenames:
+        db_types = metafunc.config.getoption("--db-type").split(",")
+        metafunc.parametrize("db_type", db_types, scope="session")
 
 
 @pytest.fixture(scope="session")
-def elroy_config(postgres_url, chat_model_name):
+def elroy_config(db, chat_model_name):
     env_vars_dict = pipe(
         {
             "openai_api_key": os.environ.get("OPENAI_API_KEY"),
@@ -93,28 +86,35 @@ def elroy_config(postgres_url, chat_model_name):
 
     yield pipe(
         load_defaults(),
-        lambda x: merge(x, env_vars_dict, {"postgres_url": postgres_url, "chat_model_name": chat_model_name}),
+        lambda x: merge(x, env_vars_dict, {"chat_model_name": chat_model_name, "database_url": db.url}),
         lambda x: keyfilter(lambda k: k in inspect.signature(get_config).parameters, x),
         lambda x: get_config(**x),
     )
 
 
 @pytest.fixture(scope="session")
-def session(elroy_config):
-    with session_manager(elroy_config.postgres_url) as session:
-        session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))  # type: ignore
+def db(
+    request,
+    tmp_path_factory,
+    db_type: str,
+):
+    if db_type == "postgres":
+        database_url = request.getfixturevalue("postgres_url")
 
-    # apply migrations
-    alembic_cfg = Config(os.path.join(ROOT_DIR, "alembic", "alembic.ini"))
-    alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.postgres_url)
-    upgrade(alembic_cfg, "head")
+        with PostgresManager.open_session(database_url, True) as db:
+            for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
+                db.exec(delete(table))  # type: ignore
+            db.commit()
 
-    with session_manager(elroy_config.postgres_url) as session:
-        for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
-            session.exec(delete(table))  # type: ignore
-        session.commit()
+            yield db
+    else:
+        url = pipe(tmp_path_factory.mktemp("data"), do(lambda x: x.mkdir(exist_ok=True)), lambda x: f"sqlite:///{x}/test.db")
+        with SqliteManager.open_session(url, True) as db:
+            for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
+                db.exec(delete(table))  # type: ignore
+            db.commit()
 
-        yield session
+            yield db
 
 
 @pytest.fixture(scope="function")
@@ -123,8 +123,8 @@ def user_token():
 
 
 @pytest.fixture(scope="function")
-def user_id(session, user_token) -> Generator[int, Any, None]:
-    yield create_user_id(session, user_token)
+def user_id(db, user_token) -> Generator[int, Any, None]:
+    yield create_user_id(db, user_token)
 
 
 @pytest.fixture(scope="function")
@@ -133,9 +133,10 @@ def io() -> Generator[ElroyIO, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def elroy_context(session, user_token, io, elroy_config) -> Generator[ElroyContext, Any, None]:
-    with init_elroy_context(session, elroy_config, io, user_token) as context:
-        yield context
+def elroy_context(db, user_token, io, elroy_config) -> Generator[ElroyContext, Any, None]:
+    context, _new_user_created = init_elroy_context(db, io, elroy_config, user_token)
+    asyncio.run(onboard_user_non_interactive(context))
+    yield context
 
 
 @pytest.fixture(scope="function")
@@ -219,9 +220,9 @@ def george_user_id(elroy_context) -> int:
 
 
 @pytest.fixture(scope="function")
-def george_context(session, george_user_id, io, elroy_config) -> Generator[ElroyContext, None, None]:
+def george_context(db, george_user_id, io, elroy_config) -> Generator[ElroyContext, None, None]:
     yield ElroyContext(
-        session=session,
+        db=db,
         user_id=george_user_id,
         io=io,
         config=elroy_config,

@@ -5,7 +5,7 @@ from toolz import pipe
 from toolz.curried import map
 
 from ...config.config import ElroyContext
-from ..data_models import Goal
+from ...db.db_models import Goal
 
 
 def get_active_goals_summary(context: ElroyContext) -> str:
@@ -38,7 +38,7 @@ def get_active_goals(context: ElroyContext) -> List[Goal]:
     Returns:
         List[Goal]: A list of active goals.
     """
-    return context.session.exec(
+    return context.db.exec(
         select(Goal)
         .where(
             Goal.user_id == context.user_id,

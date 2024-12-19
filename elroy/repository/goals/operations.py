@@ -7,11 +7,12 @@ from toolz import pipe
 from toolz.curried import filter
 
 from ...config.config import ElroyContext
+from ...db.db_models import SYSTEM, Goal
 from ...messaging.context import drop_goal_from_current_context, remove_from_context
 from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import first_or_none, is_blank
-from ..data_models import SYSTEM, ContextMessage, Goal
-from ..embeddings import upsert_embedding
+from ..data_models import ContextMessage
+from ..embeddings import upsert_embedding_if_needed
 from ..message import add_context_messages
 from .queries import get_active_goals
 
@@ -42,7 +43,7 @@ def create_goal(
     if is_blank(goal_name):
         raise ValueError("Goal name cannot be empty")
 
-    existing_goal = context.session.exec(
+    existing_goal = context.db.exec(
         select(Goal).where(
             Goal.user_id == context.user_id,
             Goal.name == goal_name,
@@ -61,9 +62,9 @@ def create_goal(
             priority=priority,
             target_completion_time=get_utc_now() + string_to_timedelta(time_to_completion) if time_to_completion else None,
         )  # type: ignore
-        context.session.add(goal)
-        context.session.commit()
-        context.session.refresh(goal)
+        context.db.add(goal)
+        context.db.commit()
+        context.db.refresh(goal)
 
         add_context_messages(
             context,
@@ -77,7 +78,7 @@ def create_goal(
             ],
         )
 
-        upsert_embedding(context, goal)
+        upsert_embedding_if_needed(context, goal)
 
         return f"Goal '{goal_name}' has been created."
 
@@ -125,10 +126,10 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
     old_goal.name = new_goal_name
     old_goal.updated_at = get_utc_now()
 
-    context.session.commit()
-    context.session.refresh(old_goal)
+    context.db.commit()
+    context.db.refresh(old_goal)
 
-    upsert_embedding(context, old_goal)
+    upsert_embedding_if_needed(context, old_goal)
 
     add_context_messages(
         context,
@@ -171,13 +172,13 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
 
     logging.info(f"Updated status updates: {goal.status_updates}")
 
-    context.session.commit()
-    context.session.refresh(goal)
+    context.db.commit()
+    context.db.refresh(goal)
 
     if status:
         assert status in goal.status_updates, "Status update not found in goal status updates"
 
-    upsert_embedding(context, goal)
+    upsert_embedding_if_needed(context, goal)
 
     if not goal.is_active:
         remove_from_context(context, goal)

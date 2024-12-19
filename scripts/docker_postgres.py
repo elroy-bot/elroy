@@ -139,6 +139,6 @@ if __name__ == "__main__":
         db_url = start_db()
         print(f"Database started")
         print("To use with Elroy, either set:")
-        print(f'ELROY_POSTGRES_URL="{db_url}"')
+        print(f'ELROY_DATABASE_URL="{db_url}"')
         print(f"or run:")
-        print(f'elroy --postgres-url "{db_url}"')
+        print(f'elroy --database-url "{db_url}"')
