@@ -2,9 +2,9 @@ import logging
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, Generator, Iterator, Union
+from typing import Any, Generator, Iterator, TypeVar, Union
 
-from ..repository.data_models import FunctionCall
+from ..db.db_models import FunctionCall
 
 
 class ElroyIO(ABC):
@@ -40,6 +40,9 @@ class ElroyIO(ABC):
     def status(self, message: str) -> Generator[None, None, None]:
         logging.info(message)
         yield
+
+
+IOType = TypeVar("IOType", bound=ElroyIO)
 
 
 class StdIO(ElroyIO):

@@ -2,7 +2,7 @@
 user_token: DEFAULT # Identifies a distinct user/use case
 
 # Database settings
-postgres_url: null  # Must be provivided (reads ELROY_POSTGRES_URL env var)
+database_url: null  # Required to be valid Sqlite or Postgres db URL. Can be provided via the ELROY_DATABASE_URL environment variable. If non is created, a Sqlite db will be created in the user's home directory.
 
 # Model settings
 chat_model: "gpt-4o"

@@ -9,9 +9,8 @@ Create Date: 2024-12-03 13:10:28.637848
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from sqlmodel.sql.sqltypes import AutoString
-
 from alembic import op
+from sqlmodel.sql.sqltypes import AutoString
 
 # revision identifiers, used by Alembic.
 revision: str = "b360a1f1b06e"

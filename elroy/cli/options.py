@@ -4,7 +4,7 @@ import typer
 from click import get_current_context
 from typer import Option
 
-from ..config.config import DEFAULT_CONFIG, load_defaults
+from ..config.config import DEFAULTS_CONFIG, load_defaults
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 
 
@@ -29,7 +29,7 @@ def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs:
         *args,
         default_factory=get_default,
         envvar=envvar,
-        show_default=str(DEFAULT_CONFIG.get(yaml_key)),
+        show_default=str(DEFAULTS_CONFIG.get(yaml_key)),
         **kwargs,
     )
 

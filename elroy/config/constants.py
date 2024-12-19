@@ -1,11 +1,16 @@
 MEMORY_WORD_COUNT_LIMIT = 300
 
+DEFAULT_USER_TOKEN = "DEFAULT"
+
 INNER_THOUGHT_TAG = "INNER_THOUGHT_MONOLOGUE"
 SYSTEM_INSTRUCTION_LABEL = "*Elroy System Instruction*"
 
 UNKNOWN = "Unknown"
 
 AUTO = "auto"
+
+# Message roles
+USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
 
 CLI_USER_ID = 1
 

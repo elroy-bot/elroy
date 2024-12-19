@@ -5,8 +5,9 @@ from sqlmodel import select
 
 from ..config.config import ChatModel, ElroyContext
 from ..config.constants import MEMORY_WORD_COUNT_LIMIT
+from ..db.db_models import Memory
 from ..llm.client import query_llm
-from ..repository.data_models import ContextMessage, Memory
+from .data_models import ContextMessage
 
 MAX_MEMORY_LENGTH = 12000  # Characters
 
@@ -55,8 +56,8 @@ async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: 
     if memory1.text == memory2.text:
         logging.info(f"Memories are identical, marking memory with id {memory2.id} as inactive.")
         memory2.is_active = False
-        context.session.add(memory2)
-        context.session.commit()
+        context.db.add(memory2)
+        context.db.commit()
     else:
 
         context.io.internal_thought_msg(f"Consolidating memories '{memory1.name}' and '{memory2.name}'")
@@ -269,8 +270,8 @@ def mark_memory_inactive(context: ElroyContext, memory: Memory):
     from ..messaging.context import remove_from_context
 
     memory.is_active = False
-    context.session.add(memory)
-    context.session.commit()
+    context.db.add(memory)
+    context.db.commit()
     remove_from_context(context, memory)
 
 
@@ -310,15 +311,15 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     from ..messaging.context import add_to_context
 
     memory = Memory(user_id=context.user_id, name=name, text=text)
-    context.session.add(memory)
-    context.session.commit()
-    context.session.refresh(memory)
-    from ..repository.embeddings import upsert_embedding
+    context.db.add(memory)
+    context.db.commit()
+    context.db.refresh(memory)
+    from ..repository.embeddings import upsert_embedding_if_needed
 
     memory_id = memory.id
     assert memory_id
 
-    upsert_embedding(context, memory)
+    upsert_embedding_if_needed(context, memory)
     add_to_context(context, memory)
 
     return memory_id
@@ -327,7 +328,7 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
 def get_active_memories(context: ElroyContext) -> List[Memory]:
     """Fetch all active memories for the user"""
     return list(
-        context.session.exec(
+        context.db.exec(
             select(Memory).where(
                 Memory.user_id == context.user_id,
                 Memory.is_active == True,

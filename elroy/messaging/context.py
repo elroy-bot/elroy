@@ -11,21 +11,19 @@ from toolz.curried import filter, map, remove
 
 from ..config.config import ElroyContext
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
-from ..llm.prompts import summarize_conversation
-from ..repository.data_models import (
+from ..db.db_models import (
     ASSISTANT,
     SYSTEM,
     TOOL,
     USER,
-    ContextMessage,
     EmbeddableSqlModel,
     Goal,
     Memory,
 )
-from ..repository.embeddings import find_redundant_pairs
+from ..llm.prompts import summarize_conversation
+from ..repository.data_models import ContextMessage
 from ..repository.memory import consolidate_memories
 from ..repository.message import (
-    ContextMessage,
     MemoryMetadata,
     add_context_messages,
     get_context_messages,
@@ -42,7 +40,7 @@ from ..utils.utils import datetime_to_string, logged_exec_time
 def get_refreshed_system_message(context: ElroyContext, context_messages: List[ContextMessage]) -> ContextMessage:
     from ..llm.persona import get_persona
 
-    user_preference = get_or_create_user_preference(context.session, context.user_id)
+    user_preference = get_or_create_user_preference(context.db, context.user_id)
 
     assert isinstance(context_messages, list)
     if len(context_messages) > 0 and context_messages[0].role == SYSTEM:
@@ -63,7 +61,7 @@ def get_refreshed_system_message(context: ElroyContext, context_messages: List[C
     return pipe(
         [
             SYSTEM_INSTRUCTION_LABEL,
-            f"<persona>{get_persona(context.session, context.config, context.user_id)}</persona>",
+            f"<persona>{get_persona(context.db, context.config, context.user_id)}</persona>",
             conversation_summary,
             "From now on, converse as your persona.",
         ],  # type: ignore
@@ -227,7 +225,11 @@ async def context_refresh(context: ElroyContext) -> None:
     memory_title, memory_text = await formulate_memory(context.config.chat_model, user_preferred_name, context_messages)
     create_memory(context, memory_title, memory_text)
 
-    for mem1, mem2 in find_redundant_pairs(context, Memory):
+    for mem1, mem2 in context.db.find_redundant_pairs(
+        Memory,
+        context.config.l2_memory_consolidation_distance_threshold,
+        context.user_id,
+    ):
         await consolidate_memories(context, mem1, mem2)
 
     pipe(
@@ -297,7 +299,7 @@ def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
 
 
 def _add_to_current_context_by_name(context: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
-    item = context.session.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
+    item = context.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
 
     if item:
         add_to_context(context, item)
@@ -345,7 +347,7 @@ def drop_memory_from_current_context(context: ElroyContext, memory_name: str) ->
 
 
 def _drop_from_context_by_name(context: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
-    item = context.session.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
+    item = context.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
 
     if item:
         remove_from_context(context, item)

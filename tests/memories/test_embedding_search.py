@@ -6,7 +6,7 @@ from tests.utils import process_test_message, vector_search_by_text
 from toolz import pipe
 from toolz.curried import filter
 
-from elroy.repository.data_models import Goal
+from elroy.db.db_models import Goal
 from elroy.repository.message import ContextMessage, get_context_messages
 
 
@@ -26,7 +26,7 @@ def test_goal_relevance(george_context):
 
 
 def test_goal_in_context(george_context):
-    goal = george_context.session.exec(
+    goal = george_context.db.exec(
         select(Goal).where(
             Goal.user_id == george_context.user_id,
             Goal.name == BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,

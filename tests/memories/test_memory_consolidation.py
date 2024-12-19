@@ -5,7 +5,7 @@ import pytest
 from sqlmodel import select
 
 from elroy.config.config import ElroyContext
-from elroy.repository.data_models import Memory
+from elroy.db.db_models import Memory
 from elroy.repository.memory import consolidate_memories, create_memory
 
 
@@ -153,4 +153,4 @@ They have a precise brewing routine, using water at exactly 175°F for green tea
 
 def get_memory_by_id(elroy_context: ElroyContext, memory_id: int) -> Optional[Memory]:
     """Fetch a specific memory by ID"""
-    return elroy_context.session.exec(select(Memory).where(Memory.id == memory_id, Memory.user_id == elroy_context.user_id)).first()
+    return elroy_context.db.exec(select(Memory).where(Memory.id == memory_id, Memory.user_id == elroy_context.user_id)).first()

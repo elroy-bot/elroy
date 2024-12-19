@@ -1,18 +1,17 @@
 from typing import Optional
 
-from sqlmodel import Session
-
 from ..config.config import ElroyConfig
 from ..config.constants import USER_ALIAS_STRING
+from ..db.db_manager import DbManager
 from ..tools.user_preferences import get_or_create_user_preference
 
 
-def get_persona(session: Session, config: ElroyConfig, user_id: Optional[int]):
+def get_persona(db: DbManager, config: ElroyConfig, user_id: Optional[int]):
     if not user_id:
         user_noun = "my user"
         raw_persona = config.default_persona
     else:
-        user_preference = get_or_create_user_preference(session, user_id)
+        user_preference = get_or_create_user_preference(db, user_id)
         if user_preference.system_persona:
             raw_persona = user_preference.system_persona
         else:
