@@ -7,6 +7,7 @@ from sqlmodel import SQLModel
 
 ### Imports necessary to correctly load SQLModel subclasses and set env variables ###
 from elroy.repository import data_models  # type: ignore
+from elroy.config.paths import get_default_sqlite_db_path
 
 models = data_models
 
@@ -18,15 +19,20 @@ models = data_models
 config = context.config
 
 
-# Add command line option for postgres URL
+# Add command line option for sqlite path
 cmd_opts = context.get_x_argument(as_dictionary=True)
-if "postgres_url" in cmd_opts:
-    config.set_main_option("sqlalchemy.url", cmd_opts["postgres_url"])
+if "sqlite_path" in cmd_opts:
+    db_path = cmd_opts["sqlite_path"]
 # Fall back to environment variable if no command line option
-elif "ELROY_POSTGRES_URL" in os.environ:
-    config.set_main_option("sqlalchemy.url", os.environ["ELROY_POSTGRES_URL"])
+elif "ELROY_SQLITE_PATH" in os.environ:
+    db_path = os.environ["ELROY_SQLITE_PATH"]
+# Use default path as final fallback
 else:
-    raise Exception("No postgres url found")
+    db_path = str(get_default_sqlite_db_path())
+
+# Construct SQLite URL
+sqlite_url = f"sqlite:///{db_path}"
+config.set_main_option("sqlalchemy.url", sqlite_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
