@@ -7,7 +7,6 @@ from sqlmodel import SQLModel
 
 ### Imports necessary to correctly load SQLModel subclasses and set env variables ###
 from elroy.repository import data_models  # type: ignore
-from elroy.config.paths import get_default_sqlite_db_path
 
 models = data_models
 
