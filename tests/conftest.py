@@ -15,10 +15,9 @@ from toolz.curried import valfilter
 
 from elroy.cli.config import init_elroy_context
 from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager
-from elroy.config.constants import PACKAGE_ROOT, USER
+from elroy.config.constants import ASSISTANT, PACKAGE_ROOT, USER
 from elroy.db.db_models import ContextMessageSet, Goal, Memory, User, UserPreference
 from elroy.io.base import ElroyIO
-from elroy.repository.data_models import ASSISTANT
 from elroy.repository.goals.operations import create_goal
 from elroy.repository.message import ContextMessage, Message, add_context_messages
 from elroy.repository.user import create_user_id

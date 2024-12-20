@@ -11,7 +11,7 @@ from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
 from ..config.config import ElroyContext
-from ..db.db_models import SYSTEM, USER
+from ..config.constants import SYSTEM, USER
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT

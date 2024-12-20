@@ -17,7 +17,7 @@ from ..io.base import ElroyIO
 from .constants import LIST_MODELS_FLAG
 from .paths import APP_NAME
 
-with open_text(APP_NAME, "config/defaults.yml") as f:
+with open_text(APP_NAME, "defaults.yml") as f:
     DEFAULTS_CONFIG = yaml.safe_load(f)
 
 

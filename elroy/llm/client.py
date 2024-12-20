@@ -9,12 +9,14 @@ from toolz.curried import keyfilter, map
 from ..config.config import ChatModel, EmbeddingModel
 from ..config.constants import (
     MAX_CHAT_COMPLETION_RETRY_COUNT,
+    SYSTEM,
+    USER,
     InvalidForceToolError,
     MaxRetriesExceededError,
     MissingToolCallMessageError,
 )
 from ..config.models import get_fallback_model
-from ..db.db_models import ASSISTANT, SYSTEM, USER, FunctionCall
+from ..db.db_models import ASSISTANT, FunctionCall
 from ..repository.data_models import ContentItem, ContextMessage
 from ..utils.utils import logged_exec_time
 
