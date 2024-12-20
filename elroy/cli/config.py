@@ -1,10 +1,9 @@
-import asyncio
 import contextlib
 import logging
 import os
 from functools import partial
 from io import StringIO
-from typing import Optional
+from typing import Any, Generator, Optional, Tuple, TypeVar
 
 import typer
 from alembic import command
@@ -15,13 +14,8 @@ from sqlalchemy import create_engine, engine_from_config
 from sqlmodel import Session, text
 from toolz import pipe
 
-from ..config.config import (
-    ROOT_DIR,
-    ElroyConfig,
-    ElroyContext,
-    get_config,
-    session_manager,
-)
+from ..config.config import ElroyConfig, ElroyContext, get_config, session_manager
+from ..config.constants import PACKAGE_ROOT
 from ..db.db_models import SYSTEM
 from ..io.base import ElroyIO, StdIO
 from ..io.cli import CliIO
@@ -32,13 +26,19 @@ from ..messaging.context import get_refreshed_system_message
 from ..repository.data_models import ContextMessage
 from ..repository.goals.operations import create_onboarding_goal
 from ..repository.message import replace_context_messages
-from ..repository.user import create_user_id, get_user_id_if_exists
+from ..repository.user import get_or_create_user_id, get_user_id_if_exists
 from ..tools.user_preferences import (
     reset_system_persona,
     set_system_persona,
     set_user_preferred_name,
 )
 from .updater import check_latest_version
+
+
+def get_user_token(ctx: typer.Context) -> str:
+    token = ctx.params["user_token"]
+    assert isinstance(token, str)
+    return token
 
 
 def init_config(ctx: typer.Context) -> ElroyConfig:
@@ -70,7 +70,7 @@ def init_config(ctx: typer.Context) -> ElroyConfig:
     )
 
 
-def onboard_user(context: ElroyContext) -> None:
+async def onboard_user_non_interactive(context: ElroyContext) -> None:
     replace_context_messages(context, [get_refreshed_system_message(context, [])])
 
 
@@ -104,12 +104,8 @@ async def onboard_user_interactive(context: ElroyContext[CliIO]) -> None:
     )
 
 
-@contextlib.contextmanager
-def cli_elroy_context_interactive(ctx: typer.Context):
-    config = init_config(ctx)
-    setup_logging(config.log_file_path)
-    validate_and_configure_db(config.postgres_url)
-    io = CliIO(
+def init_cli_io(ctx: typer.Context) -> CliIO:
+    return CliIO(
         show_internal_thought=ctx.params["show_internal_thought"],
         system_message_color=ctx.params["system_message_color"],
         assistant_message_color=ctx.params["assistant_color"],
@@ -118,59 +114,19 @@ def cli_elroy_context_interactive(ctx: typer.Context):
         internal_thought_color=ctx.params["internal_thought_color"],
     )
 
-    with Session(create_engine(config.postgres_url)) as session:
-        user_token = ctx.params["user_token"]
-        assert isinstance(user_token, str)
 
-        user_id = get_user_id_if_exists(session, user_token)
-
-        if not user_id:
-            user_id = create_user_id(session, user_token)
-            new_user_created = True
-        else:
-            new_user_created = False
-
-        context = ElroyContext(
-            user_id=user_id,
-            session=session,
-            config=config,
-            io=io,
-        )
-
-        if new_user_created:
-            context.io.notify_warning("Elroy is in alpha release")
-            asyncio.run(onboard_user_interactive(context))
-
-        if not context.config.chat_model.has_tool_support:
-            context.io.notify_warning(
-                f"{context.config.chat_model.name} does not support tool calling, some functionality will be disabled."
-            )
-
-        yield context
+TIO = TypeVar("TIO", bound=ElroyIO)
 
 
 @contextlib.contextmanager
-def cli_elroy_context(ctx: typer.Context):
-    config = init_config(ctx)
-    with session_manager(config.postgres_url) as session:
-        with init_elroy_context(session, config, StdIO(), ctx.params["user_token"]) as context:
-            yield context
-
-
-@contextlib.contextmanager
-def init_elroy_context(session: Session, config: ElroyConfig, io: ElroyIO, user_token: str):
+def init_elroy_context(io: TIO, config: ElroyConfig, user_token: str) -> Generator[Tuple[ElroyContext[TIO], bool], Any, None]:
     setup_logging(config.log_file_path)
     validate_and_configure_db(config.postgres_url)
 
     with Session(create_engine(config.postgres_url)) as session:
         assert isinstance(user_token, str)
 
-        user_id = get_user_id_if_exists(session, user_token)
-        if not user_id:
-            user_id = create_user_id(session, user_token)
-            new_user_created = True
-        else:
-            new_user_created = False
+        user_id, new_user_created = get_or_create_user_id(session, user_token)
 
         context = ElroyContext(
             user_id=user_id,
@@ -179,9 +135,15 @@ def init_elroy_context(session: Session, config: ElroyConfig, io: ElroyIO, user_
             io=io,
         )
 
+        if not context.config.chat_model.has_tool_support:
+            context.io.notify_warning(
+                f"{context.config.chat_model.name} does not support tool calling, some functionality will be disabled."
+            )
+
         if new_user_created:
-            onboard_user(context)
-        yield context
+            io.notify_warning(f"New user created for token {user_token}")
+
+        yield context, new_user_created
 
 
 def handle_show_config(ctx: typer.Context):
@@ -197,10 +159,9 @@ def handle_set_persona(ctx: typer.Context):
     user_token = ctx.params["user_token"]
 
     with session_manager(config.postgres_url) as session:
-        user_id = get_user_id_if_exists(session, user_token)
-        if not user_id:
+        user_id, new_user_created = get_or_create_user_id(session, user_token)
+        if new_user_created:
             logging.info(f"No user found for token {user_token}, creating one")
-            user_id = create_user_id(session, user_token)
 
         context = ElroyContext(session, StdIO(), config, user_id)
         set_system_persona(context, ctx.params["set_persona"])
@@ -286,7 +247,7 @@ def _check_db_connectivity(postgres_url: str) -> bool:
 def _ensure_current_db_migration(postgres_url: str) -> None:
     """Check if all migrations have been run.
     Returns True if migrations are up to date, False otherwise."""
-    config = Config(os.path.join(ROOT_DIR, "alembic", "alembic.ini"))
+    config = Config(str(PACKAGE_ROOT / "alembic" / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", postgres_url)
 
     # Configure alembic logging to use Python's logging

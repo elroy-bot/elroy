@@ -4,14 +4,18 @@ from datetime import datetime
 
 import typer
 
+from ..io.base import StdIO
 from ..repository.memory import manually_record_user_memory
 from ..utils.utils import datetime_to_string
-from .config import cli_elroy_context, cli_elroy_context_interactive
+from .config import get_user_token, init_cli_io, init_config, init_elroy_context
 
 
 def handle_remember(ctx: typer.Context) -> None:
+    config = init_config(ctx)
+    user_token = get_user_token(ctx)
     if sys.stdin.isatty():
-        with cli_elroy_context_interactive(ctx) as context:
+        with init_elroy_context(init_cli_io(ctx), config, user_token) as (context, new_user_created):
+            context.io.notify_warning("Creating memory for new user")
             memory_text = asyncio.run(context.io.prompt_user("Enter the memory text:"))
             memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
             # Optionally get memory name
@@ -24,7 +28,10 @@ def handle_remember(ctx: typer.Context) -> None:
                 context.io.assistant_msg(f"Error creating memory: {e}")
                 raise typer.Exit(1)
     else:
-        with cli_elroy_context(ctx) as context:
+        with init_elroy_context(StdIO(), config, user_token) as (context, new_user_created):
+            if new_user_created:
+                context.io.notify_warning("Creating memory for new user")
+
             memory_text = sys.stdin.read()
             metadata = "Memory ingested from stdin\n" f"Ingested at: {datetime_to_string(datetime.now())}\n"
             memory_text = f"{metadata}\n{memory_text}"

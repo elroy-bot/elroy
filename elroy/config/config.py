@@ -1,9 +1,10 @@
 import logging
-import os
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache
+from importlib.resources import open_text
 from pathlib import Path
 from typing import Generator, Generic, Optional, TypeVar
 
@@ -14,13 +15,10 @@ from sqlmodel import Session
 
 from ..io.base import ElroyIO
 from .constants import LIST_MODELS_FLAG
+from .paths import APP_NAME
 
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-DEFAULTS_CONFIG_PATH = os.path.join(ROOT_DIR, "config", "defaults.yml")
-
-with open(DEFAULTS_CONFIG_PATH, "r") as default_config_file:
-    DEFAULT_CONFIG = yaml.safe_load(default_config_file)
+with open_text(APP_NAME, "config/defaults.yml") as f:
+    DEFAULTS_CONFIG = yaml.safe_load(f)
 
 
 @lru_cache
@@ -30,8 +28,8 @@ def load_defaults(user_config_path: Optional[str] = None) -> dict:
     1. defaults.yml (base defaults)
     2. User config file (if provided)
     """
-    with open(DEFAULTS_CONFIG_PATH, "r") as default_config_file:
-        config = yaml.safe_load(default_config_file)
+
+    config = deepcopy(DEFAULTS_CONFIG)
 
     if user_config_path:
         if not Path(user_config_path).exists():
