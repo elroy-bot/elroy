@@ -4,6 +4,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
+from toolz import pipe
+from toolz.curried import filter, keymap
 
 ### Imports necessary to correctly load SQLModel subclasses and set env variables ###
 from ....repository import data_models
@@ -16,17 +18,22 @@ models = data_models
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-from ....config.paths import get_default_sqlite_db_path
 
 # Add command line option for postgres URL
-cmd_opts = context.get_x_argument(as_dictionary=True)
-if "sqlite-path" in cmd_opts:
-    config.set_main_option("sqlalchemy.url", cmd_opts["sqlite-path"])
-# Fall back to environment variable if no command line option
-elif "ELROY_SQLITE_PATH" in os.environ:
-    config.set_main_option("sqlalchemy.url", os.environ["ELROY_SQLITE_PATH"])
-else:
-    config.set_main_option("sqlalchemy.url", get_default_sqlite_db_path())
+postgres_url = pipe(
+    context.get_x_argument(as_dictionary=True),
+    keymap(str.lower),
+    keymap(lambda x: x.replace("-", "_")),
+    lambda x: [x.get("postgres_url"), os.environ.get("ELROY_POSTGRES_URL")],
+    filter(lambda x: x is not None),
+    list,
+    lambda x: x[0] if len(x) > 0 else None,
+)
+
+if not postgres_url:
+    raise "No postgres URL provided: provide either via --postgres-url or via ELROY_POSTGRES_URL environment variable"
+
+config.set_main_option("sqlalchemy.url", postgres_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -37,7 +44,6 @@ target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
 
@@ -83,9 +89,3 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
-
-
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
