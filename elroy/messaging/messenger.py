@@ -13,11 +13,11 @@ from ..config.constants import (
     MissingSystemInstructError,
     MissingToolCallMessageError,
 )
-from ..db.data_models import ASSISTANT, SYSTEM, TOOL, USER, ContentItem
+from ..db.db_models import ASSISTANT, SYSTEM, TOOL, USER
 from ..llm.client import generate_chat_completion_message, get_embedding
+from ..repository.data_models import ContentItem, ContextMessage
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
 from ..repository.message import (
-    ContextMessage,
     MemoryMetadata,
     get_context_messages,
     is_system_instruction,

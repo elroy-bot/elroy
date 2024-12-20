@@ -14,14 +14,8 @@ from ..config.constants import (
     MissingToolCallMessageError,
 )
 from ..config.models import get_fallback_model
-from ..db.data_models import (
-    ASSISTANT,
-    SYSTEM,
-    USER,
-    ContentItem,
-    ContextMessage,
-    FunctionCall,
-)
+from ..db.db_models import ASSISTANT, SYSTEM, USER, FunctionCall
+from ..repository.data_models import ContentItem, ContextMessage
 from ..utils.utils import logged_exec_time
 
 

@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 from toolz import pipe
 from toolz.curried import do
 
-from ..db.data_models import User
+from ..db.db_models import User
 
 
 def get_or_create_user_id(session: Session, user_token: str) -> int:

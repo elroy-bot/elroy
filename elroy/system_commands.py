@@ -8,7 +8,7 @@ from toolz import pipe
 from toolz.curried import map
 
 from .config.config import ElroyContext
-from .db.data_models import SYSTEM, ContextMessage, Goal, Memory
+from .db.db_models import SYSTEM, Goal, Memory
 from .io.cli import CliIO
 from .llm import client
 from .llm.prompts import contemplate_prompt
@@ -20,6 +20,7 @@ from .messaging.context import (
     format_context_messages,
     get_refreshed_system_message,
 )
+from .repository.data_models import ContextMessage
 from .repository.goals.operations import (
     add_goal_status_update,
     create_goal,

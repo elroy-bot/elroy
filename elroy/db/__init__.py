@@ -1,1 +1,1 @@
-from elroy.repository import data_models
+from . import db_models

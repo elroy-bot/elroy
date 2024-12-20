@@ -7,7 +7,7 @@ from toolz import do
 
 from ..config.config import ElroyContext
 from ..config.constants import UNKNOWN
-from ..db.data_models import UserPreference
+from ..db.db_models import UserPreference
 from ..utils.utils import is_blank
 
 

@@ -7,6 +7,9 @@ UNKNOWN = "Unknown"
 
 AUTO = "auto"
 
+# Message roles
+USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
+
 CLI_USER_ID = 1
 
 ### Model parameters ###
