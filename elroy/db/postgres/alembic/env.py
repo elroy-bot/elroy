@@ -19,7 +19,7 @@ postgres_url = pipe(
 )
 
 if not postgres_url:
-    raise "No postgres URL provided: provide either via --postgres-url or via ELROY_POSTGRES_URL environment variable"
+    raise ValueError("No postgres URL provided: provide either via --postgres-url or via ELROY_POSTGRES_URL environment variable")
 
 
 # Interpret the config file for Python logging.

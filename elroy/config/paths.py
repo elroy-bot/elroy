@@ -36,5 +36,5 @@ def get_prompt_history_path():
     return get_elroy_cache() / ".history"
 
 
-def get_default_sqlite_db_path():
+def get_default_sqlite_path():
     return get_elroy_cache() / "elroy.db"
