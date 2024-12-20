@@ -14,7 +14,7 @@ from ..config.constants import (
     MissingToolCallMessageError,
 )
 from ..config.models import get_fallback_model
-from ..repository.data_models import (
+from ..db.data_models import (
     ASSISTANT,
     SYSTEM,
     USER,

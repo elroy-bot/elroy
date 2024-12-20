@@ -11,9 +11,9 @@ from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
 from ..config.config import ElroyContext
+from ..db.data_models import SYSTEM, USER, ContextMessage
 from ..io.cli import CliIO
 from ..messaging.messenger import process_message, validate
-from ..repository.data_models import SYSTEM, USER, ContextMessage
 from ..repository.message import (
     get_context_messages,
     get_time_since_most_recent_user_message,

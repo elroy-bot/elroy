@@ -5,8 +5,8 @@ from sqlmodel import select
 
 from ..config.config import ChatModel, ElroyContext
 from ..config.constants import MEMORY_WORD_COUNT_LIMIT
+from ..db.data_models import ContextMessage, Memory
 from ..llm.client import query_llm
-from ..repository.data_models import ContextMessage, Memory
 
 MAX_MEMORY_LENGTH = 12000  # Characters
 

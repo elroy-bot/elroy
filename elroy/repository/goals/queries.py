@@ -5,7 +5,7 @@ from toolz import pipe
 from toolz.curried import map
 
 from ...config.config import ElroyContext
-from ..data_models import Goal
+from ...db.data_models import Goal
 
 
 def get_active_goals_summary(context: ElroyContext) -> str:

@@ -6,7 +6,7 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 ### Imports necessary to correctly load SQLModel subclasses and set env variables ###
-from ...db import data_models  # type: ignore
+from ....repository import data_models  # type: ignore
 
 models = data_models
 
@@ -16,17 +16,22 @@ models = data_models
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-from ...config.paths import get_default_sqlite_db_path
 
-# Add command line option for postgres URL
+
+# Add command line option for sqlite path
 cmd_opts = context.get_x_argument(as_dictionary=True)
-if "sqlite-path" in cmd_opts:
-    config.set_main_option("sqlalchemy.url", cmd_opts["sqlite-path"])
+if "sqlite_path" in cmd_opts:
+    db_path = cmd_opts["sqlite_path"]
 # Fall back to environment variable if no command line option
 elif "ELROY_SQLITE_PATH" in os.environ:
-    config.set_main_option("sqlalchemy.url", os.environ["ELROY_SQLITE_PATH"])
+    db_path = os.environ["ELROY_SQLITE_PATH"]
+# Use default path as final fallback
 else:
-    config.set_main_option("sqlalchemy.url", get_default_sqlite_db_path())
+    db_path = str(get_default_sqlite_db_path())
+
+# Construct SQLite URL
+sqlite_url = f"sqlite:///{db_path}"
+config.set_main_option("sqlalchemy.url", sqlite_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

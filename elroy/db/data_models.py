@@ -143,7 +143,10 @@ class Goal(EmbeddableSqlModel, table=True):
     )
 
     def to_fact(self) -> str:
-        from .goals.operations import add_goal_status_update, mark_goal_completed
+        from ..repository.goals.operations import (
+            add_goal_status_update,
+            mark_goal_completed,
+        )
 
         status_updates = self.get_status_updates()
 

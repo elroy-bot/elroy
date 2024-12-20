@@ -7,10 +7,10 @@ from toolz import pipe
 from toolz.curried import filter
 
 from ...config.config import ElroyContext
+from ...db.data_models import SYSTEM, ContextMessage, Goal
 from ...messaging.context import drop_goal_from_current_context, remove_from_context
 from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import first_or_none, is_blank
-from ..data_models import SYSTEM, ContextMessage, Goal
 from ..embeddings import upsert_embedding
 from ..message import add_context_messages
 from .queries import get_active_goals

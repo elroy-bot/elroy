@@ -10,7 +10,7 @@ from toolz.curried import filter, map, pipe
 
 from ..config.config import ElroyContext
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
-from ..repository.data_models import (
+from ..db.data_models import (
     SYSTEM,
     USER,
     ContextMessage,

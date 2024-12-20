@@ -22,13 +22,13 @@ from ..config.config import (
     get_config,
     session_manager,
 )
+from ..db.data_models import SYSTEM, ContextMessage
 from ..io.base import ElroyIO, StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from ..logging_config import setup_logging
 from ..messaging.context import get_refreshed_system_message
-from ..repository.data_models import SYSTEM, ContextMessage
 from ..repository.goals.operations import create_onboarding_goal
 from ..repository.message import replace_context_messages
 from ..repository.user import create_user_id, get_user_id_if_exists

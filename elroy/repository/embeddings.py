@@ -10,7 +10,7 @@ from toolz.curried import do, map
 
 from ..config.config import ElroyContext
 from ..config.constants import RESULT_SET_LIMIT_COUNT
-from ..repository.data_models import EmbeddableSqlModel, Goal, Memory, VectorStorage
+from ..db.data_models import EmbeddableSqlModel, Goal, Memory, VectorStorage
 from ..utils.utils import first_or_none
 
 T = TypeVar("T", bound=EmbeddableSqlModel)
