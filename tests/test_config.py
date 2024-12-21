@@ -4,8 +4,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from elroy.cli.main import app, common
-
-from ..elroy.config.config import DEFAULTS_CONFIG
+from elroy.config.config import DEFAULTS_CONFIG
 
 
 # TODO: These tests are problematic, they run the system installed version rather than the one from current code.

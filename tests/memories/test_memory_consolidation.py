@@ -5,7 +5,7 @@ import pytest
 from sqlmodel import select
 
 from elroy.config.config import ElroyContext
-from elroy.repository.data_models import Memory
+from elroy.db.db_models import Memory
 from elroy.repository.memory import consolidate_memories, create_memory
 
 

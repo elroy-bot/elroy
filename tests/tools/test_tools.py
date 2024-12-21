@@ -5,17 +5,14 @@ from tests.utils import process_test_message
 
 from elroy.config.config import ElroyContext
 from elroy.config.constants import (
-    MissingAssistantToolCallError,
-    MissingToolCallMessageError,
-)
-from elroy.repository.data_models import (
     ASSISTANT,
     SYSTEM,
     TOOL,
     USER,
-    ContextMessage,
-    ToolCall,
+    MissingAssistantToolCallError,
+    MissingToolCallMessageError,
 )
+from elroy.repository.data_models import ContextMessage, ToolCall
 from elroy.repository.message import add_context_messages
 
 
