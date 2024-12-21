@@ -1,19 +1,24 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 from sqlmodel import Session, select
 from toolz import pipe
 from toolz.curried import do
 
-from ..repository.data_models import User
+from ..db.db_models import User
 
 
-def get_or_create_user_id(session: Session, user_token: str) -> int:
+def get_or_create_user_id(session: Session, user_token: str) -> Tuple[int, bool]:
+    """
+    Returns:
+    int: user id for token
+    bool: True if a new user was created, false if not.
+    """
     user_id = get_user_id_if_exists(session, user_token)
 
     if user_id is not None:
-        return user_id
+        return (user_id, False)
     else:
-        return create_user_id(session, user_token)
+        return (create_user_id(session, user_token), True)
 
 
 def get_user_id_if_exists(session: Session, user_token: str) -> Optional[int]:

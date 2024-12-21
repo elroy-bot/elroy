@@ -11,21 +11,20 @@ from toolz.curried import filter, map, remove
 
 from ..config.config import ElroyContext
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
-from ..llm.prompts import summarize_conversation
-from ..repository.data_models import (
+from ..db.db_models import (
     ASSISTANT,
     SYSTEM,
     TOOL,
     USER,
-    ContextMessage,
     EmbeddableSqlModel,
     Goal,
     Memory,
 )
+from ..llm.prompts import summarize_conversation
+from ..repository.data_models import ContextMessage
 from ..repository.embeddings import find_redundant_pairs
 from ..repository.memory import consolidate_memories
 from ..repository.message import (
-    ContextMessage,
     MemoryMetadata,
     add_context_messages,
     get_context_messages,

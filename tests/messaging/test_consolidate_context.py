@@ -3,9 +3,9 @@ from datetime import datetime
 from lorem_text import lorem
 from pytz import UTC
 
-from elroy.config.constants import SYSTEM_INSTRUCTION_LABEL
+from elroy.config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, USER
 from elroy.messaging.context import compress_context_messages, count_tokens
-from elroy.repository.data_models import ASSISTANT, SYSTEM, USER, ContextMessage
+from elroy.repository.data_models import ContextMessage
 
 
 def test_compress_context_messages(george_context):

@@ -6,26 +6,19 @@ import uuid
 from typing import Any, Generator
 
 import pytest
+from alembic.command import upgrade
+from alembic.config import Config
 from sqlmodel import delete, text
 from tests.utils import TestCliIO
 from toolz import keyfilter, merge, pipe
 from toolz.curried import valfilter
 
-from alembic.command import upgrade
-from alembic.config import Config
-from elroy import ROOT_DIR
+from elroy import PACKAGE_ROOT
 from elroy.cli.config import init_elroy_context
 from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager
+from elroy.config.constants import ASSISTANT, USER
+from elroy.db.db_models import ContextMessageSet, Goal, Memory, User, UserPreference
 from elroy.io.base import ElroyIO
-from elroy.repository.data_models import (
-    ASSISTANT,
-    USER,
-    ContextMessageSet,
-    Goal,
-    Memory,
-    User,
-    UserPreference,
-)
 from elroy.repository.goals.operations import create_goal
 from elroy.repository.message import ContextMessage, Message, add_context_messages
 from elroy.repository.user import create_user_id
@@ -105,7 +98,7 @@ def session(elroy_config):
         session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))  # type: ignore
 
     # apply migrations
-    alembic_cfg = Config(os.path.join(ROOT_DIR, "alembic", "alembic.ini"))
+    alembic_cfg = Config(str(PACKAGE_ROOT / "db" / "postgres" / "alembic" / "alembic.ini"))
     alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.postgres_url)
     upgrade(alembic_cfg, "head")
 
@@ -133,8 +126,8 @@ def io() -> Generator[ElroyIO, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def elroy_context(session, user_token, io, elroy_config) -> Generator[ElroyContext, Any, None]:
-    with init_elroy_context(session, elroy_config, io, user_token) as context:
+def elroy_context(user_token, io, elroy_config) -> Generator[ElroyContext, Any, None]:
+    with init_elroy_context(io, elroy_config, user_token) as (context, _new_user_created):
         yield context
 
 

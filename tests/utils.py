@@ -8,10 +8,11 @@ from toolz import pipe
 from toolz.curried import do, map
 
 from elroy.config.config import ElroyContext
+from elroy.config.constants import USER
+from elroy.db.db_models import EmbeddableSqlModel
 from elroy.io.cli import CliIO
 from elroy.llm.client import get_embedding, query_llm
 from elroy.messaging.messenger import process_message
-from elroy.repository.data_models import USER, EmbeddableSqlModel
 from elroy.repository.embeddings import query_vector
 from elroy.repository.message import get_context_messages, replace_context_messages
 from elroy.utils.utils import first_or_none

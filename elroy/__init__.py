@@ -1,5 +1,5 @@
 __version__ = "0.0.53"
 
-import os
+from importlib_resources import files
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+PACKAGE_ROOT = files(__package__)

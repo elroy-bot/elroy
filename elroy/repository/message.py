@@ -10,10 +10,9 @@ from toolz.curried import filter, map, pipe
 
 from ..config.config import ElroyContext
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
-from ..repository.data_models import (
+from ..db.db_models import (
     SYSTEM,
     USER,
-    ContextMessage,
     ContextMessageSet,
     MemoryMetadata,
     Message,
@@ -21,6 +20,7 @@ from ..repository.data_models import (
 )
 from ..utils.clock import ensure_utc, get_utc_now
 from ..utils.utils import last_or_none, logged_exec_time
+from .data_models import ContextMessage
 
 
 # This is hacky, should add arbitrary metadata

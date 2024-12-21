@@ -6,9 +6,9 @@ from pytz import UTC
 from sqlmodel import select
 
 from ..config.config import ElroyContext, session_manager
-from ..config.constants import CLI_USER_ID
+from ..config.constants import CLI_USER_ID, USER
+from ..db.db_models import Message
 from ..messaging.context import context_refresh
-from ..repository.data_models import USER, Message
 from ..tools.user_preferences import get_user_preferred_name
 from ..utils.utils import datetime_to_string
 

@@ -20,9 +20,10 @@ from toolz.curried import map
 from ..config.config import ElroyContext
 from ..config.constants import REPO_ISSUES_URL
 from ..config.paths import get_prompt_history_path
+from ..db.db_models import FunctionCall
 from ..io.base import ElroyIO
 from ..messaging.context import is_memory_in_context
-from ..repository.data_models import ContextMessage, FunctionCall
+from ..repository.data_models import ContextMessage
 from ..repository.goals.queries import get_active_goals
 from ..repository.memory import get_active_memories
 
