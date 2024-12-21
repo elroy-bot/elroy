@@ -14,8 +14,8 @@ from sqlalchemy import create_engine, engine_from_config
 from sqlmodel import Session, text
 from toolz import pipe
 
+from .. import PACKAGE_ROOT
 from ..config.config import ElroyConfig, ElroyContext, get_config, session_manager
-from ..config.constants import PACKAGE_ROOT
 from ..db.db_models import SYSTEM
 from ..io.base import ElroyIO, StdIO
 from ..io.cli import CliIO
@@ -247,7 +247,7 @@ def _check_db_connectivity(postgres_url: str) -> bool:
 def _ensure_current_db_migration(postgres_url: str) -> None:
     """Check if all migrations have been run.
     Returns True if migrations are up to date, False otherwise."""
-    config = Config(str(PACKAGE_ROOT / "alembic" / "alembic.ini"))
+    config = Config(str(PACKAGE_ROOT / "db" / "postgres" / "alembic" / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", postgres_url)
 
     # Configure alembic logging to use Python's logging

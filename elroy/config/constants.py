@@ -1,8 +1,3 @@
-from importlib_resources import files
-
-PACKAGE_ROOT = files(__package__)
-
-
 MEMORY_WORD_COUNT_LIMIT = 300
 
 INNER_THOUGHT_TAG = "INNER_THOUGHT_MONOLOGUE"

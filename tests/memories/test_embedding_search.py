@@ -6,7 +6,7 @@ from tests.utils import process_test_message, vector_search_by_text
 from toolz import pipe
 from toolz.curried import filter
 
-from elroy.repository.data_models import Goal
+from elroy.db.db_models import Goal
 from elroy.repository.message import ContextMessage, get_context_messages
 
 

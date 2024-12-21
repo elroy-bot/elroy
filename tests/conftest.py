@@ -13,9 +13,10 @@ from tests.utils import TestCliIO
 from toolz import keyfilter, merge, pipe
 from toolz.curried import valfilter
 
+from elroy import PACKAGE_ROOT
 from elroy.cli.config import init_elroy_context
 from elroy.config.config import ElroyContext, get_config, load_defaults, session_manager
-from elroy.config.constants import ASSISTANT, PACKAGE_ROOT, USER
+from elroy.config.constants import ASSISTANT, USER
 from elroy.db.db_models import ContextMessageSet, Goal, Memory, User, UserPreference
 from elroy.io.base import ElroyIO
 from elroy.repository.goals.operations import create_goal
@@ -97,7 +98,7 @@ def session(elroy_config):
         session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))  # type: ignore
 
     # apply migrations
-    alembic_cfg = Config(str(PACKAGE_ROOT / "alembic" / "alembic.ini"))
+    alembic_cfg = Config(str(PACKAGE_ROOT / "db" / "postgres" / "alembic" / "alembic.ini"))
     alembic_cfg.set_main_option("sqlalchemy.url", elroy_config.postgres_url)
     upgrade(alembic_cfg, "head")
 

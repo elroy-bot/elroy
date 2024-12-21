@@ -7,8 +7,8 @@ from alembic import context
 from toolz import pipe
 from toolz.curried import keymap
 
-from ....config.paths import get_default_sqlite_path
-from ...migrate import run_migrations_offline, run_migrations_online
+from elroy.config.paths import get_default_sqlite_path
+from elroy.db.migrate import run_migrations_offline, run_migrations_online
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

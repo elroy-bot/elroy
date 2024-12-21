@@ -1,7 +1,7 @@
 from sqlmodel import desc, select
 from tests.utils import process_test_message
 
-from elroy.repository.data_models import Goal
+from elroy.db.db_models import Goal
 
 
 def test_embeddings(george_context):
