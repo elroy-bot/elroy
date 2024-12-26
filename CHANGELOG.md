@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.54] - 2024-12-26
+
+### Added
+- SQLite support! The defualt data store is now SQLite.
+
+### Breaking changes
+- The default data store is now SQLite, and the database env var has been renamed from ELROY_POSTGRES_URL to ELROY_DATABASE_URL (ELROY_POSTGRES_URL will still be recognized for backward compatibility)
+
+
 ## [0.0.53] - 2024-12-19
 
 ### Improved

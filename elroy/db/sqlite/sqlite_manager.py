@@ -255,7 +255,7 @@ class SqliteManager(DbManager):
             # Strip sqlite:/// prefix if present
             db_path = url.replace("sqlite:///", "")
             conn = sqlite3.connect(db_path)
-            logging.debug(f"Sqlite version: {sqlite3.sqlite_version}")  # Shows SQLite version
+            logging.debug(f"SQLite version: {sqlite3.sqlite_version}")  # Shows SQLite version
 
             logging.debug("Loading vec extension")
             conn.enable_load_extension(True)

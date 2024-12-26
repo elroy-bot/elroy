@@ -59,7 +59,7 @@ def common(
     database_url: Optional[str] = typer.Option(
         get_default_sqlite_url(),
         envvar="ELROY_DATABASE_URL",
-        help="Valid Sqlite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.",
+        help="Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.",
         rich_help_panel="Basic Configuration",
     ),
     # API Configuration
