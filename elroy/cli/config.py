@@ -230,7 +230,7 @@ def init_db(ctx: typer.Context) -> Generator[DbManager, Any, None]:
     elif url.startswith("sqlite:///"):
         db_manager = SqliteManager
     elif path_to_sqlite_url(url):
-        logging.warning("Sqlite URL provided without 'sqlite:///' prefix, adding it")
+        logging.warning("SQLite URL provided without 'sqlite:///' prefix, adding it")
         url = path_to_sqlite_url(url)
         assert url
         db_manager = SqliteManager

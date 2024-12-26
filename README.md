@@ -43,15 +43,20 @@ The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 #### Prerequisites
 - Python 3.9 or higher
 - Relevant API keys (for simplest setup, set OPENAI_API_KEY)
-- PostgreSQL database with pgvector extension
+- Database (SQLite or PostgreSQL with pgvector extension)
 
 ```bash
 pip install elroy
 ```
 
-For the database, either:
-- Let Elroy manage PostgreSQL via Docker (default) (requires Docker)
-- Provide a PostgreSQL connection string, either by setting the `ELROY_POSTGRES_URL` environment variable, or by using the `--postgres_url` flag.
+For the database, you can either:
+- Use SQLite (default)
+- Use PostgreSQL with pgvector extension.
+
+
+Either a valid Postgres url (i.e. `postgresql://{your connection params}`) or SQLite url (i.e. `sqlite:///{your path}))`) are can be provided.
+
+You can provide your database url either via the `ELROY_DATABASE_URL`, the `database_url` config value, or via the `--database-url` startup flag.
 
 ### Option 3: Installing from Source
 
@@ -103,6 +108,13 @@ echo "Say hello world" | elroy
 Elroy provides both CLI commands and in-chat commands (which can be used by both users and the assistant). For full schema information, see [tools schema reference](docs/tools_schema.md).
 
 
+### Supported Models
+
+#### Chat Models
+- OpenAI Models: GPT-4o (default), GPT-4o-mini, O1, O1-mini
+- Anthropic Models: Sonnet, Opus
+- OpenAI-Compatible APIs: Any provider offering OpenAI-compatible chat endpoints (via --openai-api-base)
+
 #### Embedding Models
 - OpenAI Models: text-embedding-3-small (default, 1536 dimensions)
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
@@ -135,7 +147,7 @@ While chatting with Elroy, commands can be used by typing a forward slash (/) fo
 #### User-Only Commands
 These commands can only be used by human users:
 
-- `/print_available_commands` - Show all available commands
+- `/help` - Show all available commands
 - `/print_system_instruction` - View current system instructions
 - `/refresh_system_instructions` - Refresh system instructions
 - `/reset_system_context` - Reset conversation context
@@ -201,7 +213,7 @@ You can customize Elroy's appearance with these options:
 * `--user-token TEXT`: User token to use for Elroy [env var: ELROY_USER_TOKEN]
 
 ### Database Configuration
-* `--postgres-url TEXT`: Postgres URL to use for Elroy. [env var: ELROY_POSTGRES_URL]
+* `--database-url TEXT`: Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed. [env var: ELROY_DATABASE_URL]
 
 ### API Configuration
 * `--openai-api-key TEXT`: OpenAI API key, required for OpenAI (or OpenAI compatible) models. [env var: OPENAI_API_KEY]
@@ -212,7 +224,7 @@ You can customize Elroy's appearance with these options:
 
 ### Model Configuration
 * `--chat-model TEXT`: The model to use for chat completions. [env var: ELROY_CHAT_MODEL] [default: gpt-4o]
-* `--embedding-model TEXT`: The model to use for text embeddings. [default: text-embedding-3-small]
+* `--embedding-model TEXT`: The model to use for text embeddings. [env var: ELROY_EMBEDDING_MODEL] [default: text-embedding-3-small]
 * `--embedding-model-size INTEGER`: The size of the embedding model. [default: 1536]
 * `--enable-caching / --no-enable-caching`: Whether to enable caching for the LLM, both for embeddings and completions. [default: True]
 * `--sonnet`: Use Anthropic's Sonnet model
