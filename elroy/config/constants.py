@@ -3,7 +3,14 @@ MEMORY_WORD_COUNT_LIMIT = 300
 DEFAULT_USER_TOKEN = "DEFAULT"
 
 INNER_THOUGHT_TAG = "INNER_THOUGHT_MONOLOGUE"
-SYSTEM_INSTRUCTION_LABEL = "*Elroy System Instruction*"
+
+# In system persona, the string to replace with the actual user alias
+USER_ALIAS_STRING = "$USER_ALIAS"
+
+ASSISTANT_ALIAS_STRING = "$ASSISTANT_ALIAS"
+
+SYSTEM_INSTRUCTION_LABEL = "*System Instruction*"
+
 
 UNKNOWN = "Unknown"
 
@@ -31,9 +38,6 @@ LIST_MODELS_FLAG = "--list-models"
 MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
-
-# In system persona, the string to replace with the actual user alias
-USER_ALIAS_STRING = "$USER_ALIAS"
 
 
 class MissingAssistantToolCallError(Exception):

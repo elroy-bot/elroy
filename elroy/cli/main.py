@@ -45,6 +45,11 @@ def common(
         help="Default persona to use for assistants.",
         rich_help_panel="Basic Configuration",
     ),
+    default_assistant_name: str = CliOption(
+        "default_assistant_name",
+        help="Default name for the assistant.",
+        rich_help_panel="Basic Configuration",
+    ),
     debug: bool = CliOption(
         "debug",
         help="Whether to fail fast when errors occur, and emit more verbose logging.",

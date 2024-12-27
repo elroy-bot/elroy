@@ -132,9 +132,7 @@ def _validate_system_instruction_correctly_placed(debug_mode: bool, context_mess
             else:
                 logging.error(f"First message is not system instruction, repairing by inserting system instruction")
                 validated_messages += [
-                    ContextMessage(
-                        role=SYSTEM, content=f"{SYSTEM_INSTRUCTION_LABEL}\nYou are Elroy, a helpful assistant.", chat_model=None
-                    ),
+                    ContextMessage(role=SYSTEM, content=f"{SYSTEM_INSTRUCTION_LABEL}\nYou are a helpful assistant.", chat_model=None),
                     message,
                 ]
         elif idx != 0 and is_system_instruction(message):

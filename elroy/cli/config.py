@@ -16,7 +16,7 @@ from ..db.sqlite.sqlite_manager import SqliteManager
 from ..db.sqlite.utils import path_to_sqlite_url
 from ..io.base import IOType, StdIO
 from ..io.cli import CliIO
-from ..llm.persona import get_persona
+from ..llm.persona import get_assistant_name, get_persona
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from ..logging_config import setup_logging
 from ..messaging.context import get_refreshed_system_message
@@ -63,6 +63,7 @@ def init_config(ctx: typer.Context) -> ElroyConfig:
         openai_organization=p["openai_organization"],
         log_file_path=os.path.abspath(p["log_file_path"]),
         default_persona=p["default_persona"],
+        default_assistant_name=p["default_assistant_name"],
         enable_caching=p["enable_caching"],
     )
 
@@ -76,7 +77,9 @@ async def onboard_user_interactive(context: ElroyContext[CliIO]) -> None:
 
     assert isinstance(context.io, CliIO)
 
-    preferred_name = await context.io.prompt_user("Welcome to Elroy! What should I call you?")
+    preferred_name = await context.io.prompt_user(
+        f"Welcome! I'm an assistant named {get_assistant_name(context.db, context.config, context.user_id)}. What should I call you?"
+    )
 
     set_user_preferred_name(context, preferred_name)
 
@@ -97,7 +100,7 @@ async def onboard_user_interactive(context: ElroyContext[CliIO]) -> None:
     await process_and_deliver_msg(
         SYSTEM,
         context,
-        f"Elroy user {preferred_name} has been onboarded. Say hello and introduce yourself.",
+        f"User {preferred_name} has been onboarded. Say hello and introduce yourself.",
     )
 
 

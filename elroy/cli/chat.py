@@ -172,11 +172,14 @@ def print_memory_panel(context: ElroyContext, context_messages: Iterable[Context
 
 
 async def onboard_interactive(context: ElroyContext[CliIO]):
+    from ..llm.persona import get_assistant_name
     from .chat import process_and_deliver_msg
 
     assert isinstance(context.io, CliIO)
 
-    preferred_name = await context.io.prompt_user("Welcome to Elroy! What should I call you?")
+    preferred_name = await context.io.prompt_user(
+        f"Welcome! I'm assistant named {get_assistant_name(context.db, context.config, context.user_id)}. What should I call you?"
+    )
 
     set_user_preferred_name(context, preferred_name)
 
@@ -197,5 +200,5 @@ async def onboard_interactive(context: ElroyContext[CliIO]):
     await process_and_deliver_msg(
         SYSTEM,
         context,
-        f"Elroy user {preferred_name} has been onboarded. Say hello and introduce yourself.",
+        f"User {preferred_name} has been onboarded. Say hello and introduce yourself.",
     )

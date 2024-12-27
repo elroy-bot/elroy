@@ -9,7 +9,6 @@ from toolz.curried import map
 
 from .config.config import ElroyContext
 from .db.db_models import SYSTEM, Goal, Memory
-from .io.cli import CliIO
 from .llm import client
 from .llm.prompts import contemplate_prompt
 from .messaging.context import (
@@ -42,6 +41,7 @@ from .tools.developer import create_bug_report, print_elroy_config, tail_elroy_l
 from .tools.user_preferences import (
     get_user_full_name,
     get_user_preferred_name,
+    set_assistant_name,
     set_user_full_name,
     set_user_preferred_name,
 )
@@ -93,6 +93,8 @@ def help(context: ElroyContext) -> None:
     Returns:
         str: The available system commands
     """
+    from .io.cli import CliIO
+
     if isinstance(context.io, CliIO):
         from rich.table import Table
 
@@ -344,6 +346,7 @@ USER_ONLY_COMMANDS = {
     refresh_system_instructions,
     help,
     create_bug_report,
+    set_assistant_name,
 }
 
 
