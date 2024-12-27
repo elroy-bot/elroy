@@ -3,8 +3,9 @@ from typing import List, Optional, Tuple
 
 from sqlmodel import select
 
-from ..config.config import ChatModel, ElroyContext
+from ..config.config import ChatModel
 from ..config.constants import MEMORY_WORD_COUNT_LIMIT
+from ..config.ctx import ElroyContext
 from ..db.db_models import Memory
 from ..llm.client import query_llm
 from .data_models import ContextMessage
@@ -12,7 +13,7 @@ from .data_models import ContextMessage
 MAX_MEMORY_LENGTH = 12000  # Characters
 
 
-def manually_record_user_memory(context: ElroyContext, text: str, name: Optional[str] = None) -> None:
+def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:
     """Manually record a memory for the user.
 
     Args:
@@ -29,13 +30,13 @@ def manually_record_user_memory(context: ElroyContext, text: str, name: Optional
 
     if not name:
         name = query_llm(
-            context.config.chat_model,
+            ctx.chat_model,
             system="Given text representing a memory, your task is to come up with a short title for a memory. "
             "If the title mentions dates, it should be specific dates rather than relative ones.",
             prompt=text,
         )
 
-    create_memory(context, name, text)
+    create_memory(ctx, name, text)
 
 
 async def formulate_memory(
@@ -51,16 +52,16 @@ async def formulate_memory(
     )
 
 
-async def consolidate_memories(context: ElroyContext, memory1: Memory, memory2: Memory):
+async def consolidate_memories(ctx: ElroyContext, memory1: Memory, memory2: Memory):
 
     if memory1.text == memory2.text:
         logging.info(f"Memories are identical, marking memory with id {memory2.id} as inactive.")
         memory2.is_active = False
-        context.db.add(memory2)
-        context.db.commit()
+        ctx.db.add(memory2)
+        ctx.db.commit()
     else:
 
-        context.io.internal_thought_msg(f"Consolidating memories '{memory1.name}' and '{memory2.name}'")
+        ctx.io.internal_thought_msg(f"Consolidating memories '{memory1.name}' and '{memory2.name}'")
         response = query_llm(
             system=f"""# Memory Consolidation Task
 
@@ -190,7 +191,7 @@ Currently, UserFoo is focused on developing a web application using Python while
                     f"{memory2.text}",
                 ],
             ),
-            model=context.config.chat_model,
+            model=ctx.chat_model,
         )
 
         new_ids = []
@@ -235,7 +236,7 @@ Currently, UserFoo is focused on developing a web application using Python while
                 if current_title and current_content:
                     content = "\n".join(current_content).strip()
                     try:
-                        new_id = create_memory(context, current_title, content)
+                        new_id = create_memory(ctx, current_title, content)
                         new_ids.append(new_id)
                     except Exception as e:
                         logging.warning(f"Failed to create memory '{current_title}': {e}")
@@ -250,7 +251,7 @@ Currently, UserFoo is focused on developing a web application using Python while
         if current_title and current_content:
             content = "\n".join(current_content).strip()
             try:
-                new_id = create_memory(context, current_title, content)
+                new_id = create_memory(ctx, current_title, content)
                 new_ids.append(new_id)
             except Exception as e:
                 logging.warning(f"Failed to create memory '{current_title}': {e}")
@@ -259,23 +260,23 @@ Currently, UserFoo is focused on developing a web application using Python while
             logging.info(f"Created {len(new_ids)} new memories with ids: {new_ids}")
             # Only mark old memories inactive if we successfully created new ones
             logging.info(f"Marking memories with ids {memory1.id} and {memory2.id} as inactive.")
-            mark_memory_inactive(context, memory1)
-            mark_memory_inactive(context, memory2)
+            mark_memory_inactive(ctx, memory1)
+            mark_memory_inactive(ctx, memory2)
         else:
             logging.warning("No new memories were created from consolidation response. Original memories left unchanged.")
             logging.debug(f"Original response was: {response}")
 
 
-def mark_memory_inactive(context: ElroyContext, memory: Memory):
+def mark_memory_inactive(ctx: ElroyContext, memory: Memory):
     from ..messaging.context import remove_from_context
 
     memory.is_active = False
-    context.db.add(memory)
-    context.db.commit()
-    remove_from_context(context, memory)
+    ctx.db.add(memory)
+    ctx.db.commit()
+    remove_from_context(ctx, memory)
 
 
-def create_memory(context: ElroyContext, name: str, text: str) -> int:
+def create_memory(ctx: ElroyContext, name: str, text: str) -> int:
     """Creates a new memory for the assistant.
 
     Examples of good and bad memory titles are below. Note, the BETTER examples, some titles have been split into two.:
@@ -310,27 +311,27 @@ def create_memory(context: ElroyContext, name: str, text: str) -> int:
     """
     from ..messaging.context import add_to_context
 
-    memory = Memory(user_id=context.user_id, name=name, text=text)
-    context.db.add(memory)
-    context.db.commit()
-    context.db.refresh(memory)
+    memory = Memory(user_id=ctx.user_id, name=name, text=text)
+    ctx.db.add(memory)
+    ctx.db.commit()
+    ctx.db.refresh(memory)
     from ..repository.embeddings import upsert_embedding_if_needed
 
     memory_id = memory.id
     assert memory_id
 
-    upsert_embedding_if_needed(context, memory)
-    add_to_context(context, memory)
+    upsert_embedding_if_needed(ctx, memory)
+    add_to_context(ctx, memory)
 
     return memory_id
 
 
-def get_active_memories(context: ElroyContext) -> List[Memory]:
+def get_active_memories(ctx: ElroyContext) -> List[Memory]:
     """Fetch all active memories for the user"""
     return list(
-        context.db.exec(
+        ctx.db.exec(
             select(Memory).where(
-                Memory.user_id == context.user_id,
+                Memory.user_id == ctx.user_id,
                 Memory.is_active == True,
             )
         ).all()

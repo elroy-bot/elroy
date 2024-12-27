@@ -6,7 +6,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from ...config.config import ElroyContext
+from ...config.ctx import ElroyContext
 from ...db.db_models import SYSTEM, Goal
 from ...messaging.context import drop_goal_from_current_context, remove_from_context
 from ...utils.clock import get_utc_now, string_to_timedelta
@@ -18,7 +18,7 @@ from .queries import get_active_goals
 
 
 def create_goal(
-    context: ElroyContext,
+    ctx: ElroyContext,
     goal_name: str,
     strategy: Optional[str] = None,
     description: Optional[str] = None,
@@ -43,18 +43,18 @@ def create_goal(
     if is_blank(goal_name):
         raise ValueError("Goal name cannot be empty")
 
-    existing_goal = context.db.exec(
+    existing_goal = ctx.db.exec(
         select(Goal).where(
-            Goal.user_id == context.user_id,
+            Goal.user_id == ctx.user_id,
             Goal.name == goal_name,
             Goal.is_active == True,
         )
     ).one_or_none()
     if existing_goal:
-        raise Exception(f"Active goal {goal_name} already exists for user {context.user_id}")
+        raise Exception(f"Active goal {goal_name} already exists for user {ctx.user_id}")
     else:
         goal = Goal(
-            user_id=context.user_id,
+            user_id=ctx.user_id,
             name=goal_name,
             description=description,
             strategy=strategy,
@@ -62,28 +62,28 @@ def create_goal(
             priority=priority,
             target_completion_time=get_utc_now() + string_to_timedelta(time_to_completion) if time_to_completion else None,
         )  # type: ignore
-        context.db.add(goal)
-        context.db.commit()
-        context.db.refresh(goal)
+        ctx.db.add(goal)
+        ctx.db.commit()
+        ctx.db.refresh(goal)
 
         add_context_messages(
-            context,
+            ctx,
             [
                 ContextMessage(
                     role=SYSTEM,
                     content=f"New goal created: {goal.to_fact()}",
                     memory_metadata=[goal.to_memory_metadata()],
-                    chat_model=context.config.chat_model.name,
+                    chat_model=ctx.chat_model.name,
                 )
             ],
         )
 
-        upsert_embedding_if_needed(context, goal)
+        upsert_embedding_if_needed(ctx, goal)
 
         return f"Goal '{goal_name}' has been created."
 
 
-def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -> str:
+def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> str:
     """Renames an existing active goal.
 
     Args:
@@ -95,7 +95,7 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
         Exception: If the goal with old_goal_name doesn't exist or if a goal with new_goal_name already exists.
     """
     # Check if the old goal exists and is active
-    active_goals = get_active_goals(context)
+    active_goals = get_active_goals(ctx)
     old_goal = pipe(
         active_goals,
         filter(lambda g: g.name == old_goal_name),
@@ -104,8 +104,7 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
 
     if not old_goal:
         raise Exception(
-            f"Active goal '{old_goal_name}' not found for user {context.user_id}. Active goals: "
-            + ", ".join([g.name for g in active_goals])
+            f"Active goal '{old_goal_name}' not found for user {ctx.user_id}. Active goals: " + ", ".join([g.name for g in active_goals])
         )
 
     existing_goal_with_new_name = pipe(
@@ -117,36 +116,36 @@ def rename_goal(context: ElroyContext, old_goal_name: str, new_goal_name: str) -
     assert isinstance(old_goal, Goal)
 
     if existing_goal_with_new_name:
-        raise Exception(f"Active goal '{new_goal_name}' already exists for user {context.user_id}")
+        raise Exception(f"Active goal '{new_goal_name}' already exists for user {ctx.user_id}")
 
     # we need to drop the goal from context as the metadata includes the goal name.
-    drop_goal_from_current_context(context, old_goal.name)
+    drop_goal_from_current_context(ctx, old_goal.name)
 
     # Rename the goal
     old_goal.name = new_goal_name
     old_goal.updated_at = get_utc_now()
 
-    context.db.commit()
-    context.db.refresh(old_goal)
+    ctx.db.commit()
+    ctx.db.refresh(old_goal)
 
-    upsert_embedding_if_needed(context, old_goal)
+    upsert_embedding_if_needed(ctx, old_goal)
 
     add_context_messages(
-        context,
+        ctx,
         [
             ContextMessage(
                 role=SYSTEM,
                 content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
                 memory_metadata=[old_goal.to_memory_metadata()],
-                chat_model=context.config.chat_model.name,
+                chat_model=ctx.chat_model.name,
             )
         ],
     )
     return f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}'."
 
 
-def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
-    active_goals = get_active_goals(context)
+def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
+    active_goals = get_active_goals(ctx)
 
     goal = pipe(
         active_goals,
@@ -158,7 +157,7 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
         raise Exception(f"Active goal {goal_name} not found for user. Active goals: " + ", ".join([g.name for g in active_goals]))
     assert isinstance(goal, Goal)
 
-    logging.info(f"Updating goal {goal_name} for user {context.user_id}")
+    logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
     logging.info(f"Current status updates: {goal.status_updates}")
 
     # Get current status updates and append new one
@@ -172,19 +171,19 @@ def _update_goal_status(context: ElroyContext, goal_name: str, is_terminal: bool
 
     logging.info(f"Updated status updates: {goal.status_updates}")
 
-    context.db.commit()
-    context.db.refresh(goal)
+    ctx.db.commit()
+    ctx.db.refresh(goal)
 
     if status:
         assert status in goal.status_updates, "Status update not found in goal status updates"
 
-    upsert_embedding_if_needed(context, goal)
+    upsert_embedding_if_needed(ctx, goal)
 
     if not goal.is_active:
-        remove_from_context(context, goal)
+        remove_from_context(ctx, goal)
 
 
-def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_or_note: str) -> str:
+def add_goal_status_update(ctx: ElroyContext, goal_name: str, status_update_or_note: str) -> str:
     """Captures either a progress update or note relevant to the goal.
 
     Args:
@@ -195,16 +194,16 @@ def add_goal_status_update(context: ElroyContext, goal_name: str, status_update_
     Returns:
         str: Confirmation message
     """
-    logging.info(f"Updating goal {goal_name} for user {context.user_id}")
-    _update_goal_status(context, goal_name, False, status_update_or_note)
+    logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
+    _update_goal_status(ctx, goal_name, False, status_update_or_note)
 
     return f"Status update added to goal '{goal_name}'."
 
 
-def create_onboarding_goal(context: ElroyContext, preferred_name: str) -> None:
+def create_onboarding_goal(ctx: ElroyContext, preferred_name: str) -> None:
 
     create_goal(
-        context=context,
+        ctx=ctx,
         goal_name=f"Introduce myself to {preferred_name}",
         description="Introduce myself - a few things that make me unique are my ability to form long term memories, and the ability to set and track goals.",
         strategy=f"After exchanging some pleasantries, tell {preferred_name} about my ability to form long term memories, including goals. Use function {add_goal_status_update.__name__} with any progress or learnings.",
@@ -214,7 +213,7 @@ def create_onboarding_goal(context: ElroyContext, preferred_name: str) -> None:
     )
 
 
-def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments: Optional[str] = None) -> str:
+def mark_goal_completed(ctx: ElroyContext, goal_name: str, closing_comments: Optional[str] = None) -> str:
     """Marks a goal as completed, with closing comments.
 
     Args:
@@ -226,7 +225,7 @@ def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments:
         str: Confirmation message
     """
     _update_goal_status(
-        context,
+        ctx,
         goal_name,
         True,
         closing_comments,
@@ -235,7 +234,7 @@ def mark_goal_completed(context: ElroyContext, goal_name: str, closing_comments:
     return f"Goal '{goal_name}' has been marked as completed."
 
 
-def delete_goal_permanently(context: ElroyContext, goal_name: str) -> str:
+def delete_goal_permanently(ctx: ElroyContext, goal_name: str) -> str:
     """Closes the goal.
 
     Args:
@@ -247,7 +246,7 @@ def delete_goal_permanently(context: ElroyContext, goal_name: str) -> str:
     """
 
     _update_goal_status(
-        context,
+        ctx,
         goal_name,
         True,
         "Goal has been deleted",

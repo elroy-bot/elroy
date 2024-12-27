@@ -3,22 +3,23 @@ import platform
 import sys
 import urllib.parse
 import webbrowser
-from dataclasses import asdict
 from datetime import datetime
 from pprint import pformat
 from typing import Optional
 
 import scrubadub
+from toolz import pipe
+from toolz.curried import keyfilter
 
 from .. import __version__
-from ..config.config import ElroyContext
 from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL
+from ..config.ctx import ElroyContext
 from ..utils.ops import experimental
 from ..utils.utils import obscure_sensitive_info
 
 
 @experimental
-def tail_elroy_logs(context: ElroyContext, lines: int = 10) -> str:
+def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
     """
     Returns the last `lines` of the Elroy logs.
     Useful for troubleshooting in cases where errors occur (especially with tool calling).
@@ -30,11 +31,11 @@ def tail_elroy_logs(context: ElroyContext, lines: int = 10) -> str:
     Returns:
         str: The last `lines` of the Elroy logs
     """
-    with open(context.config.log_file_path, "r") as f:
+    with open(ctx.log_file_path, "r") as f:
         return "".join(f.readlines()[-lines:])
 
 
-def print_elroy_config(context: ElroyContext) -> str:
+def print_elroy_config(ctx: ElroyContext) -> str:
     """
     Prints the current Elroy configuration.
     Useful for troubleshooting and verifying the current configuration.
@@ -45,11 +46,16 @@ def print_elroy_config(context: ElroyContext) -> str:
     Returns:
         str: The current Elroy configuration
     """
-    return pformat(asdict(context.config), indent=2, width=80)
+    return pipe(
+        vars(ctx),
+        obscure_sensitive_info,
+        keyfilter(lambda k: not k.startswith("_")),
+        lambda x: pformat(x, indent=2, width=80),
+    )  # type: ignore
 
 
 def create_bug_report(
-    context: ElroyContext,
+    ctx: ElroyContext,
     title: str,
     description: Optional[str],
 ) -> None:
@@ -79,19 +85,9 @@ def create_bug_report(
         ]
     )
 
-    report.append("\n## Elroy Configuration")
-    try:
-        report.append("```")
-        # Convert to dict and recursively obscure sensitive info
-        config_dict = obscure_sensitive_info(asdict(context.config))
-        report.append(pformat(config_dict, indent=2, width=80))
-        report.append("```")
-    except Exception as e:
-        report.append(f"Error fetching config: {str(e)}")
-
     report.append(f"\n## Recent Logs (last {BUG_REPORT_LOG_LINES} lines)")
     try:
-        logs = tail_elroy_logs(context, BUG_REPORT_LOG_LINES)
+        logs = tail_elroy_logs(ctx, BUG_REPORT_LOG_LINES)
         report.append("```")
         report.append(logs)
         report.append("```")

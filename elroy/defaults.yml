@@ -37,6 +37,7 @@ openai_api_base: null
 openai_embedding_api_base: null
 openai_organization: null
 anthropic_api_key: null
+enable_tools: true
 
 # Debug settings
 debug: false

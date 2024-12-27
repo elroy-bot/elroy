@@ -114,8 +114,6 @@ def run_tests(errors: Errors):
         subprocess.run(
             [
                 "pytest",
-                "-n",
-                "auto",
                 "-x",
                 "--chat-models",
                 "claude-3-5-haiku-20241022,gpt-4o-mini",

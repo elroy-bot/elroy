@@ -4,12 +4,12 @@ from typing import Any, Optional, Union, get_args, get_origin
 from toolz import pipe
 from toolz.curried import map, valfilter
 
-from ..config.config import ElroyContext
+from ..config.ctx import ElroyContext
 from ..io.cli import CliIO
 from ..system_commands import SYSTEM_COMMANDS
 
 
-async def invoke_system_command(context: ElroyContext[CliIO], msg: str) -> str:
+async def invoke_system_command(ctx: ElroyContext, msg: str) -> str:
     """
     Takes user input and executes a system command
 
@@ -17,6 +17,8 @@ async def invoke_system_command(context: ElroyContext[CliIO], msg: str) -> str:
 
     In the future, the execute system command should surface a form
     """
+    io = ctx.io
+    assert isinstance(io, CliIO)
     if msg.startswith("/"):
         msg = msg[1:]
 
@@ -35,13 +37,13 @@ async def invoke_system_command(context: ElroyContext[CliIO], msg: str) -> str:
     input_used = False
     for param in params:
         if param.annotation == ElroyContext:
-            func_args[param.name] = context
+            func_args[param.name] = ctx
         elif input_arg and not input_used:
-            argument = await context.io.prompt_user(_get_prompt_for_param(param), prefill=input_arg)
+            argument = await io.prompt_user(_get_prompt_for_param(param), prefill=input_arg)
             func_args[param.name] = _get_casted_value(param, argument)
             input_used = True
         elif input_used or not input_arg:
-            argument = await context.io.prompt_user(_get_prompt_for_param(param))
+            argument = await io.prompt_user(_get_prompt_for_param(param))
             func_args[param.name] = _get_casted_value(param, argument)
 
     return pipe(

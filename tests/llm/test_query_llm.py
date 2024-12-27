@@ -1,13 +1,13 @@
 from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
-from elroy.config.config import ElroyContext
+from elroy.config.ctx import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, query_llm
 from elroy.repository.data_models import ContextMessage
 
 
-def test_query_hello_world(elroy_context: ElroyContext):
+def test_query_hello_world(ctx: ElroyContext):
     response = query_llm(
-        model=elroy_context.config.chat_model,
+        model=ctx.chat_model,
         system="This is part of an automated test. Repeat the input text, specifically and without any extra text",
         prompt="Hello world",
     )
@@ -15,7 +15,7 @@ def test_query_hello_world(elroy_context: ElroyContext):
     assert "hello world" in response.lower()
 
 
-def test_model_fallback(elroy_context: ElroyContext, mocker):
+def test_model_fallback(ctx: ElroyContext, mocker):
     from litellm.exceptions import RateLimitError
 
     # Mock completion to fail first time with rate limit error
@@ -26,12 +26,12 @@ def test_model_fallback(elroy_context: ElroyContext, mocker):
     ]
 
     messages = [
-        ContextMessage(role="system", content="You are a test assistant", chat_model=elroy_context.config.chat_model.name),
-        ContextMessage(role="user", content="Say hello", chat_model=elroy_context.config.chat_model.name),
+        ContextMessage(role="system", content="You are a test assistant", chat_model=ctx.chat_model.name),
+        ContextMessage(role="user", content="Say hello", chat_model=ctx.chat_model.name),
     ]
 
     # This should trigger fallback from gpt-4 to gpt-3.5-turbo
-    list(generate_chat_completion_message(elroy_context.config.chat_model, messages))
+    list(generate_chat_completion_message(ctx.chat_model, messages))
 
     # Verify completion was called twice - once with gpt-4, once with fallback
     assert mock_completion.call_count == 2

@@ -8,12 +8,12 @@ T = TypeVar("T")
 def experimental(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(*args, **kwargs):
-        context = next((arg for arg in args if hasattr(arg, "io")), None)
-        if not context:
-            context = next((value for value in kwargs.values() if hasattr(value, "io")), None)
+        ctx = next((arg for arg in args if hasattr(arg, "io")), None)
+        if not ctx:
+            ctx = next((value for value in kwargs.values() if hasattr(value, "io")), None)
 
-        if context and hasattr(context, "io"):
-            io = context.io
+        if ctx and hasattr(ctx, "io"):
+            io = ctx.io
             from ..io.base import ElroyIO
 
             assert isinstance(io, ElroyIO)

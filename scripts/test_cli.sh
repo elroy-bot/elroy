@@ -16,7 +16,7 @@ echo "Running CLI tests..."
 
 # Version check
 echo "Testing version command..."
-elroy --version
+elroy version
 
 # Basic chat test
 echo "Testing basic chat functionality..."
@@ -27,7 +27,7 @@ echo "This is an installation test. Repeat the following text, and only the foll
 
 # Memory creation and recall tests
 echo "Testing memory creation and recall..."
-echo "This is an installation test. The secret number is 3928" | elroy --remember || {
+echo "This is an installation test. The secret number is 3928" | elroy remember || {
     echo "❌ Memory creation failed"
     exit 1
 }
@@ -41,7 +41,7 @@ echo "This is an installation test. What is the secret number? Respond with the 
 # File-based memory tests
 echo "Testing file-based memory operations..."
 echo "This is an installation test. The secret number is now 2931" > test.txt
-elroy --remember < test.txt || {
+elroy remember < test.txt || {
     echo "❌ File-based memory creation failed"
     exit 1
 }
@@ -55,41 +55,41 @@ elroy < prompt.txt | grep -q "2931" || {
 
 # Config tests
 echo "Testing configuration display..."
-elroy --show-config || {
+elroy show-config || {
     echo "❌ Config display failed"
     exit 1
 }
 
 echo "Testing model alias resolution..."
-elroy --sonnet --show-config | grep -q "claude.*sonnet" || {
+elroy --sonnet show-config | grep -q "claude.*sonnet" || {
     echo "❌ Model alias resolution failed"
     exit 1
 }
 
 # Model listing test
 echo "Testing model listing..."
-elroy --list-models || {
+elroy list-models || {
     echo "❌ Model listing failed"
     exit 1
 }
 
 # Test setting persona
 echo "Testing default persona listing..."
-elroy --show-persona || grep -q "Elroy" || {
+elroy show-persona || grep -q "Elroy" || {
     echo "❌ Persona display failed"
     exit 1
 }
 
 echo "Testing setting custom persona..."
-elroy --set-persona "You are a helpful assistant, your name is Jimbo" --user-token=foobarbaz
-elroy --show-persona --user-token=foobarbaz | grep -q "Jimbo" || {
+elroy set-persona "You are a helpful assistant, your name is Jimbo" --user-token=foobarbaz
+elroy show-persona --user-token=foobarbaz | grep -q "Jimbo" || {
     echo "❌ Persona setting failed"
     exit 1
 }
 
 echo "Testing resetting persona..."
-elroy --reset-persona --user-token=foobarbaz
-elroy --show-persona --user-token=foobarbaz | grep -q "Elroy" || {
+elroy reset-persona --user-token=foobarbaz
+elroy show-persona --user-token=foobarbaz | grep -q "Elroy" || {
     echo "❌ Persona reset failed"
     exit 1
 }

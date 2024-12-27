@@ -8,8 +8,8 @@ from sqlmodel import select
 from toolz import first, pipe
 from toolz.curried import filter, map, pipe
 
-from ..config.config import ElroyContext
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
+from ..config.ctx import ElroyContext
 from ..db.db_models import (
     SYSTEM,
     USER,
@@ -68,29 +68,29 @@ def db_message_to_context_message(db_message: Message) -> ContextMessage:
     )
 
 
-def get_current_context_message_set_db(context: ElroyContext) -> Optional[ContextMessageSet]:
-    return context.db.exec(
+def get_current_context_message_set_db(ctx: ElroyContext) -> Optional[ContextMessageSet]:
+    return ctx.db.exec(
         select(ContextMessageSet).where(
-            ContextMessageSet.user_id == context.user_id,
+            ContextMessageSet.user_id == ctx.user_id,
             ContextMessageSet.is_active == True,
         )
     ).first()
 
 
-def get_time_since_context_message_creation(context: ElroyContext) -> Optional[timedelta]:
-    row = get_current_context_message_set_db(context)
+def get_time_since_context_message_creation(ctx: ElroyContext) -> Optional[timedelta]:
+    row = get_current_context_message_set_db(ctx)
 
     if row:
         return get_utc_now() - ensure_utc(row.created_at)
 
 
-def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage]:
+def _get_context_messages_iter(ctx: ElroyContext) -> Iterable[ContextMessage]:
     """
     Gets context messages from db, in order of their position in ContextMessageSet
     """
 
     message_ids = pipe(
-        get_current_context_message_set_db(context),
+        get_current_context_message_set_db(ctx),
         lambda x: x.message_ids if x else "[]",
         json.loads,
     )
@@ -98,15 +98,15 @@ def _get_context_messages_iter(context: ElroyContext) -> Iterable[ContextMessage
     assert isinstance(message_ids, list)
 
     return pipe(
-        context.db.exec(select(Message).where(Message.id.in_(message_ids))),  # type: ignore
+        ctx.db.exec(select(Message).where(Message.id.in_(message_ids))),  # type: ignore
         lambda messages: sorted(messages, key=lambda m: message_ids.index(m.id)),
         map(db_message_to_context_message),
     )  # type: ignore
 
 
-def get_current_system_message(context: ElroyContext) -> Optional[ContextMessage]:
+def get_current_system_message(ctx: ElroyContext) -> Optional[ContextMessage]:
     try:
-        return first(_get_context_messages_iter(context))
+        return first(_get_context_messages_iter(ctx))
     except StopIteration:
         return None
 
@@ -122,58 +122,58 @@ def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMe
 
 
 @logged_exec_time
-def get_context_messages(context: ElroyContext) -> List[ContextMessage]:
-    return list(_get_context_messages_iter(context))
+def get_context_messages(ctx: ElroyContext) -> List[ContextMessage]:
+    return list(_get_context_messages_iter(ctx))
 
 
-def persist_messages(context: ElroyContext, messages: List[ContextMessage]) -> List[int]:
+def persist_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> List[int]:
     msg_ids = []
     for msg in messages:
         if msg.id:
             msg_ids.append(msg.id)
         else:
-            db_message = context_message_to_db_message(context.user_id, msg)
-            context.db.add(db_message)
-            context.db.commit()
-            context.db.refresh(db_message)
+            db_message = context_message_to_db_message(ctx.user_id, msg)
+            ctx.db.add(db_message)
+            ctx.db.commit()
+            ctx.db.refresh(db_message)
             msg_ids.append(db_message.id)
     return msg_ids
 
 
-def remove_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
+def remove_context_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> None:
     assert all(m.id is not None for m in messages), "All messages must have an id to be removed"
 
     msg_ids = [m.id for m in messages]
 
-    replace_context_messages(context, [m for m in get_context_messages(context) if m.id not in msg_ids])
+    replace_context_messages(ctx, [m for m in get_context_messages(ctx) if m.id not in msg_ids])
 
 
-def add_context_messages(context: ElroyContext, messages: Union[ContextMessage, List[ContextMessage]]) -> None:
+def add_context_messages(ctx: ElroyContext, messages: Union[ContextMessage, List[ContextMessage]]) -> None:
     pipe(
         messages,
         lambda x: x if isinstance(x, List) else [x],
-        lambda x: get_context_messages(context) + x,
-        partial(replace_context_messages, context),
+        lambda x: get_context_messages(ctx) + x,
+        partial(replace_context_messages, ctx),
     )
 
 
-def replace_context_messages(context: ElroyContext, messages: List[ContextMessage]) -> None:
-    msg_ids = persist_messages(context, messages)
+def replace_context_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> None:
+    msg_ids = persist_messages(ctx, messages)
 
-    existing_context = context.db.exec(
+    existing_context = ctx.db.exec(
         select(ContextMessageSet).where(
-            ContextMessageSet.user_id == context.user_id,
+            ContextMessageSet.user_id == ctx.user_id,
             ContextMessageSet.is_active == True,
         )
     ).first()
 
     if existing_context:
         existing_context.is_active = None
-        context.db.add(existing_context)
+        ctx.db.add(existing_context)
     new_context = ContextMessageSet(
-        user_id=context.user_id,
+        user_id=ctx.user_id,
         message_ids=json.dumps(msg_ids),
         is_active=True,
     )
-    context.db.add(new_context)
-    context.db.commit()
+    ctx.db.add(new_context)
+    ctx.db.commit()

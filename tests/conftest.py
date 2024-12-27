@@ -1,20 +1,21 @@
 import asyncio
-import inspect
 import os
 import subprocess
 import uuid
 from typing import Any, Generator
 
+import click
 import pytest
 from sqlmodel import delete
 from tests.utils import TestCliIO
-from toolz import keyfilter, merge, pipe
-from toolz.curried import do, valfilter
+from toolz import merge, pipe
+from toolz.curried import do
 
-from elroy.cli.config import init_elroy_context, onboard_user_non_interactive
-from elroy.cli.options import load_config_if_exists
-from elroy.config.config import DEFAULTS_CONFIG, ElroyContext, get_config
+from elroy.cli.config import onboard_user_non_interactive
+from elroy.cli.options import get_config_params
 from elroy.config.constants import ASSISTANT, USER
+from elroy.config.ctx import ElroyContext
+from elroy.db.db_manager import DbManager
 from elroy.db.db_models import ContextMessageSet, Goal, Memory, User, UserPreference
 from elroy.db.postgres.postgres_manager import PostgresManager
 from elroy.db.sqlite.sqlite_manager import SqliteManager
@@ -67,34 +68,9 @@ def pytest_generate_tests(metafunc):
     if "chat_model_name" in metafunc.fixturenames:
         models = metafunc.config.getoption("--chat-models").split(",")
         metafunc.parametrize("chat_model_name", models, scope="session")
-    if "db" in metafunc.fixturenames:
+    if "db_type" in metafunc.fixturenames:
         db_types = metafunc.config.getoption("--db-type").split(",")
         metafunc.parametrize("db_type", db_types, scope="session")
-
-
-@pytest.fixture(scope="session")
-def elroy_config(db, chat_model_name):
-    env_vars_dict = pipe(
-        {
-            "openai_api_key": os.environ.get("OPENAI_API_KEY"),
-            "openai_organization": os.environ.get("OPENAI_ORGANIZATION"),
-            "openai_api_base": os.environ.get("OPENAI_API_BASE"),
-            "openai_embedding_api_base": os.environ.get("OPENAI_EMBEDDING_API_BASE"),
-            "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY"),
-        },
-        valfilter(lambda x: x is not None),
-    )
-
-    yield pipe(
-        merge(
-            DEFAULTS_CONFIG,
-            load_config_if_exists("xyz"),  # placeholder, if tests need to load a config it can be placed here
-            env_vars_dict,
-            {"chat_model_name": chat_model_name, "database_url": db.url},
-        ),
-        lambda x: keyfilter(lambda k: k in inspect.signature(get_config).parameters, x),
-        lambda x: get_config(**x),
-    )
 
 
 @pytest.fixture(scope="session")
@@ -123,11 +99,6 @@ def db(
 
 
 @pytest.fixture(scope="function")
-def user_token():
-    return str(uuid.uuid4())
-
-
-@pytest.fixture(scope="function")
 def user_id(db, user_token) -> Generator[int, Any, None]:
     yield create_user_id(db, user_token)
 
@@ -138,14 +109,7 @@ def io() -> Generator[ElroyIO, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def elroy_context(db, user_token, io, elroy_config) -> Generator[ElroyContext, Any, None]:
-    context, _new_user_created = init_elroy_context(db, io, elroy_config, user_token)
-    asyncio.run(onboard_user_non_interactive(context))
-    yield context
-
-
-@pytest.fixture(scope="function")
-def george_user_id(elroy_context) -> int:
+def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
     messages = [
         ContextMessage(
             role=USER,
@@ -199,10 +163,10 @@ def george_user_id(elroy_context) -> int:
         ),
     ]
 
-    add_context_messages(elroy_context, messages)
+    add_context_messages(ctx, messages)
 
     create_goal(
-        elroy_context,
+        ctx,
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
         "George is working to improve his basketball game, in particular his shooting form.",
@@ -212,7 +176,7 @@ def george_user_id(elroy_context) -> int:
     )
 
     create_goal(
-        elroy_context,
+        ctx,
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",
         "George has a loan that he needs to pay off by the end of the year.",
@@ -221,17 +185,41 @@ def george_user_id(elroy_context) -> int:
         0,
     )
 
-    return elroy_context.user_id
+    yield ctx
 
 
 @pytest.fixture(scope="function")
-def george_context(db, george_user_id, io, elroy_config) -> Generator[ElroyContext, None, None]:
-    yield ElroyContext(
-        db=db,
-        user_id=george_user_id,
-        io=io,
-        config=elroy_config,
+def user_token() -> Generator[str, None, None]:
+    yield str(uuid.uuid4())
+
+
+@pytest.fixture(scope="function")
+def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
+    """Create an ElroyContext for testing, using the same defaults as the CLI"""
+
+    params = get_config_params()
+
+    params = merge(
+        params,
+        {
+            "user_token": user_token,
+            "config_file": None,
+            "database_url": db.url,
+            "chat_model": chat_model_name,
+            "openai_api_key": os.environ.get("OPENAI_API_KEY"),
+            "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY"),
+            "tool": None,
+        },
     )
+
+    # Create new context with all parameters
+    ctx = ElroyContext(command=click.Command("test"), **params)
+    io = TestCliIO()
+    ctx._io = io
+
+    with ctx.with_db(db):
+        asyncio.run(onboard_user_non_interactive(ctx))
+        yield ctx
 
 
 def is_docker_running():

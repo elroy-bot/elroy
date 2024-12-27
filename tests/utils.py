@@ -7,8 +7,8 @@ from rich.pretty import Pretty
 from toolz import pipe
 from toolz.curried import do, map
 
-from elroy.config.config import ElroyContext
 from elroy.config.constants import USER
+from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import EmbeddableSqlModel
 from elroy.io.cli import CliIO
 from elroy.llm.client import get_embedding, query_llm
@@ -60,26 +60,26 @@ class TestCliIO(CliIO):
         return self._user_responses.pop(0)
 
 
-def process_test_message(context: ElroyContext, msg: str, force_tool: Optional[str] = None) -> str:
+def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] = None) -> str:
     logging.info(f"USER MESSAGE: {msg}")
 
     return pipe(
-        process_message(USER, context, msg, force_tool),
+        process_message(USER, ctx, msg, force_tool),
         list,
         "".join,
         do(lambda x: logging.info(f"ASSISTANT MESSAGE: {x}")),
     )  # type: ignore
 
 
-def vector_search_by_text(context: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
+def vector_search_by_text(ctx: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
     return pipe(
-        get_embedding(context.config.embedding_model, query),
-        partial(query_vector, table, context),
+        get_embedding(ctx.embedding_model, query),
+        partial(query_vector, table, ctx),
         first_or_none,
     )  # type: ignore
 
 
-def quiz_assistant_bool(expected_answer: bool, context: ElroyContext, question: str) -> None:
+def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str) -> None:
     def get_boolean(response: str, attempt: int = 1) -> bool:
         if attempt > 3:
             raise ValueError("Too many attempts")
@@ -98,7 +98,7 @@ def quiz_assistant_bool(expected_answer: bool, context: ElroyContext, question: 
         logging.info("Retrying boolean answer parsing")
         return get_boolean(
             query_llm(
-                model=context.config.chat_model,
+                model=ctx.chat_model,
                 system="You are an AI assistant, who converts text responses to boolean. "
                 "Given a piece of text, respond with TRUE if intention of the answer is to be affirmative, "
                 "and FALSE if the intention of the answer is to be in the negative."
@@ -113,10 +113,10 @@ def quiz_assistant_bool(expected_answer: bool, context: ElroyContext, question: 
 
     question += " Your response to this question is being evaluated as part of an automated test. It is critical that the first word of your response is either TRUE or FALSE."
 
-    full_response = "".join(process_test_message(context, question))
+    full_response = "".join(process_test_message(ctx, question))
 
     # evict question and answer from context
-    context_messages = get_context_messages(context)
+    context_messages = get_context_messages(ctx)
     assert isinstance(context_messages, list)
     endpoint_index = -1
     for idx, message in enumerate(context_messages[::-1]):
@@ -131,7 +131,7 @@ def quiz_assistant_bool(expected_answer: bool, context: ElroyContext, question: 
         map(lambda _: _),
         list,
         lambda _: _[: -(endpoint_index + 1)],
-        lambda _: replace_context_messages(context, _),
+        lambda _: replace_context_messages(ctx, _),
     )
 
     bool_answer = get_boolean(full_response)
