@@ -2,13 +2,14 @@ import contextlib
 import logging
 import os
 from functools import partial
+from pathlib import Path
 from typing import Any, Generator, Tuple
 
 import typer
 from toolz import pipe
 
 from ..config.config import ElroyConfig, ElroyContext, get_config
-from ..config.constants import DEFAULT_USER_TOKEN
+from ..config.constants import CONFIG_FILE_KEY, DEFAULT_USER_TOKEN
 from ..db.db_manager import DbManager
 from ..db.db_models import SYSTEM
 from ..db.postgres.postgres_manager import PostgresManager
@@ -143,9 +144,14 @@ def init_elroy_context(db: DbManager, io: IOType, config: ElroyConfig, user_toke
 
 def handle_show_config(ctx: typer.Context):
     config = init_config(ctx)
-
     for key, value in config.__dict__.items():
         print(f"{key}={value}")
+
+    config_file_path = ctx.params.get(CONFIG_FILE_KEY)
+    assert config_file_path
+    value = config_file_path if Path(config_file_path).is_file() else f"{config_file_path} (Not present)"
+    print(f"{CONFIG_FILE_KEY}={value}")
+
     raise typer.Exit()
 
 

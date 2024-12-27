@@ -2,7 +2,7 @@ from tests.utils import process_test_message, quiz_assistant_bool
 
 from elroy.repository.goals.operations import create_goal
 from elroy.repository.goals.queries import get_active_goals_summary
-from elroy.system_commands import reset_system_context
+from elroy.system_commands import reset_messages
 
 
 def test_goal(elroy_context):
@@ -54,7 +54,7 @@ def test_goal(elroy_context):
 
 def test_goal_update_goal_slight_difference(elroy_context):
     create_goal(elroy_context, "Run 100 miles this year")
-    reset_system_context(elroy_context)
+    reset_messages(elroy_context)
 
     reply = process_test_message(
         elroy_context,

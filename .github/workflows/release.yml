@@ -40,7 +40,7 @@ jobs:
 
     - name: Run Tests
       run: |
-        pytest --chat-models gpt-4o-mini
+        pytest --chat-models gpt-4o-mini --db-type "postgres,sqlite"
       env:
         PYTHONWARNINGS: "ignore::DeprecationWarning"
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
