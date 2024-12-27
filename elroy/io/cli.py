@@ -1,5 +1,6 @@
 import logging
 from contextlib import contextmanager
+from html import escape
 from itertools import product
 from typing import Generator, Iterator, List, Text, Union
 
@@ -17,15 +18,11 @@ from rich.text import Text
 from toolz import concatv, pipe
 from toolz.curried import map
 
-from ..config.config import ElroyContext
 from ..config.constants import REPO_ISSUES_URL
 from ..config.paths import get_prompt_history_path
-from ..db.db_models import FunctionCall
+from ..db.db_models import FunctionCall, Goal, Memory
 from ..io.base import ElroyIO
-from ..messaging.context import is_memory_in_context
 from ..repository.data_models import ContextMessage
-from ..repository.goals.queries import get_active_goals
-from ..repository.memory import get_active_memories
 
 
 class SlashCompleter(FuzzyWordCompleter):
@@ -105,7 +102,9 @@ class CliIO(ElroyIO):
         if isinstance(message, Pretty):
             self.console.print(message)
         else:
-            print_formatted_text(HTML(f'<style fg="{self.system_message_color}">{message}\n</style>'))
+            # Escape special characters in the message
+            escaped_message = escape(str(message))
+            print_formatted_text(HTML(f'<style fg="{self.system_message_color}">{escaped_message}\n</style>'))
 
     def notify_function_call(self, function_call: FunctionCall) -> None:
         self.console.print()
@@ -115,11 +114,6 @@ class CliIO(ElroyIO):
             self.console.print(msg + f" with arguments:[/]", Pretty(function_call.arguments))
         else:
             self.console.print(msg + "[/]")
-
-    def notify_function_call_error(self, function_call: FunctionCall, error: Exception) -> None:
-        self.console.print(f"[{self.system_message_color}]Error executing function call: [bold]{function_call.function_name}[/bold][/]")
-        self.console.print(f"[{self.system_message_color}]{error}[/]")
-        self.console.print()
 
     def notify_warning(self, message: str) -> None:
         self.console.print(Text(message, justify="center", style=self.warning_color))  # type: ignore
@@ -158,7 +152,8 @@ class CliIO(ElroyIO):
                 raise EOFError
             return await self.prompt_user(prompt, prefill, keyboard_interrupt_count)
 
-    def update_completer(self, context: ElroyContext, context_messages: List[ContextMessage]) -> None:
+    def update_completer(self, goals: List[Goal], memories: List[Memory], context_messages: List[ContextMessage]) -> None:
+        from ..messaging.context import is_memory_in_context
         from ..system_commands import (
             ALL_ACTIVE_GOAL_COMMANDS,
             ALL_ACTIVE_MEMORY_COMMANDS,
@@ -170,11 +165,9 @@ class CliIO(ElroyIO):
             USER_ONLY_COMMANDS,
         )
 
-        goals = get_active_goals(context)
         in_context_goal_names = sorted([g.get_name() for g in goals if is_memory_in_context(context_messages, g)])
         non_context_goal_names = sorted([g.get_name() for g in goals if g.get_name() not in in_context_goal_names])
 
-        memories = get_active_memories(context)
         in_context_memories = sorted([m.get_name() for m in memories if is_memory_in_context(context_messages, m)])
         non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
 

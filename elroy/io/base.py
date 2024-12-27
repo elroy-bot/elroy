@@ -25,10 +25,6 @@ class ElroyIO(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def notify_function_call_error(self, function_call: FunctionCall, error: Exception) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
     def notify_warning(self, message: str) -> None:
         raise NotImplementedError
 
@@ -63,9 +59,6 @@ class StdIO(ElroyIO):
 
     def notify_function_call(self, function_call: FunctionCall) -> None:
         logging.info(f"[{datetime.now()}] FUNCTION CALL: {function_call.function_name}({function_call.arguments})")
-
-    def notify_function_call_error(self, function_call: FunctionCall, error: Exception) -> None:
-        logging.error(f"[{datetime.now()}] FUNCTION ERROR: {function_call.function_name} - {str(error)}")
 
     def notify_warning(self, message: str) -> None:
         logging.warning(message)

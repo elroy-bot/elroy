@@ -3,6 +3,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from elroy.cli.main import app
+from elroy.config.ctx import ElroyContext
 from elroy.llm.persona import get_persona
 from elroy.tools.user_preferences import reset_system_persona, set_system_persona
 
@@ -18,7 +19,7 @@ def test_persona(user_token):
             config_path,
             "--user-token",
             user_token,
-            "--show-persona",
+            "show-persona",
         ],
         env={},
         catch_exceptions=True,
@@ -28,8 +29,8 @@ def test_persona(user_token):
     assert "jimbo" in result.stdout.lower()
 
 
-def test_persona_assistant_specific_persona(elroy_context):
-    set_system_persona(elroy_context, "You are a helpful assistant. Your name is Billy.")
-    assert "Billy" in get_persona(elroy_context.db, elroy_context.config, elroy_context.user_id)
-    reset_system_persona(elroy_context)
-    assert "Elroy" in get_persona(elroy_context.db, elroy_context.config, elroy_context.user_id)
+def test_persona_assistant_specific_persona(ctx: ElroyContext):
+    set_system_persona(ctx, "You are a helpful assistant. Your name is Billy.")
+    assert "Billy" in get_persona(ctx)
+    reset_system_persona(ctx)
+    assert "Elroy" in get_persona(ctx)

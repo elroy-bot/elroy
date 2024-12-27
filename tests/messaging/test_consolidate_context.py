@@ -8,7 +8,7 @@ from elroy.messaging.context import compress_context_messages, count_tokens
 from elroy.repository.data_models import ContextMessage
 
 
-def test_compress_context_messages(george_context):
+def test_compress_context_messages(george_ctx):
     # create a very long context to test consolidation
     system_message = ContextMessage(role=SYSTEM, content=f"{SYSTEM_INSTRUCTION_LABEL}\nSystem message", chat_model=None)
     original_messages = [system_message]
@@ -19,17 +19,15 @@ def test_compress_context_messages(george_context):
             ContextMessage(
                 role=ASSISTANT,
                 content=f"{i}\n" + lorem.paragraph(),
-                chat_model=george_context.config.chat_model,
+                chat_model=george_ctx.chat_model,
                 created_at=datetime.now(UTC),
             ),
         ]
 
-    compressed_messages = compress_context_messages(george_context, original_messages)
+    compressed_messages = compress_context_messages(george_ctx, original_messages)
 
     # Test token count
-    assert (
-        count_tokens(george_context.config.chat_model.name, compressed_messages) < george_context.config.context_refresh_token_target * 1.5
-    )
+    assert count_tokens(george_ctx.chat_model.name, compressed_messages) < george_ctx.context_refresh_target_tokens * 1.5
 
     # Test message ordering
     assert compressed_messages[0] == system_message, "System message should be kept"

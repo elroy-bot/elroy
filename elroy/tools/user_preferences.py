@@ -4,14 +4,13 @@ from typing import Optional
 import typer
 from toolz import do
 
-from ..config.config import ElroyContext
 from ..config.constants import UNKNOWN
-from ..db.db_manager import DbManager
+from ..config.ctx import ElroyContext
 from ..db.db_models import UserPreference
 from ..utils.utils import is_blank
 
 
-def set_system_persona(context: ElroyContext, system_persona: str) -> str:
+def set_system_persona(ctx: ElroyContext, system_persona: str) -> str:
     """
     Sets the system instruction for the user
     """
@@ -22,41 +21,41 @@ def set_system_persona(context: ElroyContext, system_persona: str) -> str:
     if is_blank(system_persona):
         raise typer.BadParameter("System persona cannot be blank.")
 
-    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference = get_or_create_user_preference(ctx)
 
     if user_preference.system_persona == system_persona:
         return do(logging.warning, "New system persona and old system persona are identical")
 
     user_preference.system_persona = system_persona
 
-    context.db.add(user_preference)
-    context.db.commit()
+    ctx.db.add(user_preference)
+    ctx.db.commit()
 
-    refresh_system_instructions(context)
+    refresh_system_instructions(ctx)
     return "System persona updated."
 
 
-def reset_system_persona(context: ElroyContext) -> str:
+def reset_system_persona(ctx: ElroyContext) -> str:
     """
     Clears the system instruction for the user
     """
     from ..system_commands import refresh_system_instructions
 
-    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference = get_or_create_user_preference(ctx)
     if not user_preference.system_persona:
         # Re-clear the persona even if it was already blank, in case some malformed value has been set
         logging.warning("System persona was already set to default")
 
     user_preference.system_persona = None
 
-    context.db.add(user_preference)
-    context.db.commit()
+    ctx.db.add(user_preference)
+    ctx.db.commit()
 
-    refresh_system_instructions(context)
+    refresh_system_instructions(ctx)
     return "System persona cleared, will now use default persona."
 
 
-def set_user_preferred_name(context: ElroyContext, preferred_name: str, override_existing: Optional[bool] = False) -> str:
+def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_existing: Optional[bool] = False) -> str:
     """
     Set the user's preferred name. Should predominantly be used relatively early in first conversations, and relatively rarely afterward.
 
@@ -66,7 +65,7 @@ def set_user_preferred_name(context: ElroyContext, preferred_name: str, override
         override_existing: Whether to override the an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect.
     """
 
-    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference = get_or_create_user_preference(ctx)
 
     old_preferred_name = user_preference.preferred_name or UNKNOWN
 
@@ -75,11 +74,11 @@ def set_user_preferred_name(context: ElroyContext, preferred_name: str, override
     else:
         user_preference.preferred_name = preferred_name
 
-        context.db.commit()
+        ctx.db.commit()
         return f"Set user preferred name to {preferred_name}. Was {old_preferred_name}."
 
 
-def get_user_preferred_name(context: ElroyContext) -> str:
+def get_user_preferred_name(ctx: ElroyContext) -> str:
     """Returns the user's preferred name.
 
     Args:
@@ -89,12 +88,12 @@ def get_user_preferred_name(context: ElroyContext) -> str:
         str: String representing the user's preferred name.
     """
 
-    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference = get_or_create_user_preference(ctx)
 
     return user_preference.preferred_name or UNKNOWN
 
 
-def set_user_full_name(context: ElroyContext, full_name: str, override_existing: Optional[bool] = False) -> str:
+def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: Optional[bool] = False) -> str:
     """Sets the user's full name.
 
     Guidance for usage:
@@ -110,19 +109,19 @@ def set_user_full_name(context: ElroyContext, full_name: str, override_existing:
         str: result of the attempt to set the user's full name
     """
 
-    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference = get_or_create_user_preference(ctx)
 
     old_full_name = user_preference.full_name or UNKNOWN
     if old_full_name != UNKNOWN and not override_existing:
         return f"Full name already set to {user_preference.full_name}. If this should be changed, set override_existing=True."
     else:
         user_preference.full_name = full_name
-        context.db.commit()
+        ctx.db.commit()
 
         return f"Full name set to {full_name}. Previous value was {old_full_name}."
 
 
-def get_user_full_name(context: ElroyContext) -> str:
+def get_user_full_name(ctx: ElroyContext) -> str:
     """Returns the user's full name.
 
     Args:
@@ -132,38 +131,38 @@ def get_user_full_name(context: ElroyContext) -> str:
         str: String representing the user's full name.
     """
 
-    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference = get_or_create_user_preference(ctx)
 
     return user_preference.full_name or "Unknown name"
 
 
-def get_or_create_user_preference(db: DbManager, user_id: int) -> UserPreference:
+def get_or_create_user_preference(ctx: ElroyContext) -> UserPreference:
     from sqlmodel import select
 
-    user_preference = db.exec(
+    user_preference = ctx.db.exec(
         select(UserPreference).where(
-            UserPreference.user_id == user_id,
+            UserPreference.user_id == ctx.user_id,
             UserPreference.is_active == True,
         )
     ).first()
 
     if user_preference is None:
-        user_preference = UserPreference(user_id=user_id, is_active=True)
-        db.add(user_preference)
-        db.commit()
-        db.refresh(user_preference)
+        user_preference = UserPreference(user_id=ctx.user_id, is_active=True)
+        ctx.db.add(user_preference)
+        ctx.db.commit()
+        ctx.db.refresh(user_preference)
     return user_preference
 
 
-def set_assistant_name(context: ElroyContext, assistant_name: str) -> str:
+def set_assistant_name(ctx: ElroyContext, assistant_name: str) -> str:
     """
     Sets the assistant name for the user
     """
     from ..system_commands import refresh_system_instructions
 
-    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference = get_or_create_user_preference(ctx)
     user_preference.assistant_name = assistant_name
-    context.db.add(user_preference)
-    context.db.commit()
-    refresh_system_instructions(context)
+    ctx.db.add(user_preference)
+    ctx.db.commit()
+    refresh_system_instructions(ctx)
     return f"Assistant name updated to {assistant_name}."

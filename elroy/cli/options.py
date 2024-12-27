@@ -1,15 +1,27 @@
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 import typer
 import yaml
 from click import get_current_context
+from toolz import merge
 from typer import Option
 
 from ..config.config import DEFAULTS_CONFIG
 from ..config.constants import CONFIG_FILE_KEY, MODEL_SELECTION_CONFIG_PANEL
+from ..config.paths import get_default_config_path
+
+
+@lru_cache
+def get_config_params(config_path: Optional[str] = None) -> Dict:
+    ctx = get_current_context(True)
+    ctx_path = ctx.params.get(CONFIG_FILE_KEY) if ctx else None
+
+    user_config_path = config_path or ctx_path or get_default_config_path()
+
+    return merge(DEFAULTS_CONFIG, load_config_if_exists(user_config_path))
 
 
 def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs: Any):
@@ -20,19 +32,10 @@ def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs:
     3. defaults.yml value
     """
 
-    def get_default():
-        ctx = get_current_context()
-        config_file = ctx.params.get(CONFIG_FILE_KEY)
-        config_values = load_config_if_exists(config_file)
-        return config_values.get(yaml_key) or DEFAULTS_CONFIG.get(yaml_key)
-
-    if not envvar:
-        envvar = f"ELROY_{yaml_key.upper()}"
-
     return Option(
         *args,
-        default_factory=get_default,
-        envvar=envvar,
+        default_factory=lambda: get_config_params().get(yaml_key),
+        envvar=envvar or f"ELROY_{yaml_key.upper()}",
         show_default=str(DEFAULTS_CONFIG.get(yaml_key)),
         **kwargs,
     )
@@ -42,10 +45,7 @@ def model_alias_typer_option(model_alias: str, description: str, resolver: Calla
     def set_chat_model(ctx: typer.Context, value: bool):
         if not value:
             return
-        if not ctx.obj:
-            ctx.obj = {}
-
-        ctx.obj["chat_model"] = resolver()
+        ctx.params["chat_model"] = resolver()
 
     return typer.Option(
         False,
@@ -58,12 +58,15 @@ def model_alias_typer_option(model_alias: str, description: str, resolver: Calla
 
 
 @lru_cache
-def load_config_if_exists(user_config_path: str) -> dict:
+def load_config_if_exists(user_config_path: Optional[str]) -> dict:
     """
     Load configuration values in order of precedence:
     1. defaults.yml (base defaults)
     2. User config file (if provided)
     """
+
+    if not user_config_path:
+        return {}
 
     if not Path(user_config_path).exists():
         logging.info(f"User config file {user_config_path} not found")

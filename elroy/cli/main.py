@@ -1,48 +1,55 @@
-from functools import partial
+import asyncio
+import logging
+import sys
+from datetime import datetime
+from pprint import pformat
 from typing import Optional
 
+import click
 import typer
-from toolz import first, pipe
-from toolz.curried import filter
+from toolz import merge, pipe
+from toolz.curried import keyfilter
 
-from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
+from ..config.constants import CONFIG_FILE_KEY, MODEL_SELECTION_CONFIG_PANEL
+from ..config.ctx import ElroyContext, elroy_context, with_db
 from ..config.models import resolve_anthropic
 from ..config.paths import get_default_config_path, get_default_sqlite_url
-from ..utils.utils import is_truthy
-from .chat import handle_chat, handle_message
-from .config import (
-    handle_list_models,
-    handle_reset_persona,
-    handle_set_persona,
-    handle_show_config,
-    handle_show_persona,
-    handle_show_version,
+from ..io.base import StdIO
+from ..io.cli import CliIO
+from ..llm.persona import get_persona
+from ..repository.memory import manually_record_user_memory
+from ..repository.user import get_user_id_if_exists
+from ..tools.user_preferences import reset_system_persona, set_system_persona
+from ..utils.utils import datetime_to_string
+from .bug_report import create_bug_report_from_exception_if_confirmed
+from .chat import (
+    handle_message_interactive,
+    handle_message_stdio,
+    onboard_interactive,
+    run_chat,
 )
-from .options import CliOption, model_alias_typer_option
-from .remember import handle_remember
+from .options import CliOption, get_config_params, model_alias_typer_option
+from .updater import check_latest_version
+
+MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
 app = typer.Typer(
     help="Elroy CLI",
-    context_settings={"obj": {}},
-    no_args_is_help=False,  # Don't show help when no args provided
-    callback=None,  # Important - don't use a default command
+    context_settings={
+        "obj": {},
+    },
+    no_args_is_help=False,
 )
 
 
 @app.callback(invoke_without_command=True)
 def common(
-    # Basic Configuration
     ctx: typer.Context,
-    config_file: Optional[str] = typer.Option(
+    config_file: str = typer.Option(
         get_default_config_path(),
         "--config",
-        "-c",
+        envvar="ELROY_CONFIG_FILE",
         help="Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.",
-        rich_help_panel="Basic Configuration",
-    ),
-    default_persona: str = CliOption(
-        "default_persona",
-        help="Default persona to use for assistants.",
         rich_help_panel="Basic Configuration",
     ),
     default_assistant_name: str = CliOption(
@@ -104,6 +111,11 @@ def common(
         envvar="ELROY_CHAT_MODEL",
         help="The model to use for chat completions.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    enable_tools: bool = typer.Option(
+        True,
+        "--enable-tools",
+        help="Whether to enable tool calls for the assistant",
     ),
     embedding_model: str = CliOption(
         "embedding_model",
@@ -204,67 +216,11 @@ def common(
         help="Where to write logs.",
         rich_help_panel="Logging",
     ),
-    # Commmands
-    chat: bool = typer.Option(
-        False,
-        "--chat",
-        help="Opens an interactive chat session, or generates a response to stdin input. The default command.",
-        rich_help_panel="Commands",
-    ),
-    message: str = typer.Option(
-        None,
-        "--message",
-        "-m",
-        help="If provided, the Elroy will generate a response and then exit.",
-    ),
     tool: str = typer.Option(
         None,
         "--tool",
         "-t",
         help="Specifies the tool to use in responding to a message. Only valid when processing a single message",
-    ),
-    remember: bool = typer.Option(
-        False,
-        "--remember",
-        "-r",
-        help="Create a new memory from stdin or interactively",
-        rich_help_panel="Commands",
-    ),
-    list_models: bool = typer.Option(
-        False,
-        LIST_MODELS_FLAG,
-        help="Lists supported chat models and exits",
-        rich_help_panel="Commands",
-    ),
-    show_config: bool = typer.Option(
-        False,
-        "--show-config",
-        help="Shows current configuration and exits.",
-        rich_help_panel="Commands",
-    ),
-    version: bool = typer.Option(
-        None,
-        "--version",
-        help="Show version and exit.",
-        rich_help_panel="Commands",
-    ),
-    set_persona: str = typer.Option(
-        None,
-        "--set-persona",
-        help="Path to a persona file to user for the assistant",
-        rich_help_panel="Commands",
-    ),
-    reset_persona: bool = typer.Option(
-        False,
-        "--reset-persona",
-        help="Removes any custom persona, reverting to the default",
-        rich_help_panel="Commands",
-    ),
-    show_persona: bool = typer.Option(
-        False,
-        "--show-persona",
-        help="Print the system persona and exit",
-        rich_help_panel="Commands",
     ),
     sonnet: bool = model_alias_typer_option("sonnet", "Use Anthropic's Sonnet model", lambda: resolve_anthropic("sonnet")),
     opus: bool = model_alias_typer_option("opus", "Use Anthropic's Opus model", lambda: resolve_anthropic("opus")),
@@ -274,22 +230,178 @@ def common(
     o1_mini: bool = model_alias_typer_option("o1-mini", "Use OpenAI's o1-mini model", lambda: "o1-mini"),
 ):
     """Common parameters."""
-    pipe(
-        [
-            (show_config, partial(handle_show_config, ctx)),
-            (version, handle_show_version),
-            (list_models, handle_list_models),
-            (message, partial(handle_message, ctx)),
-            (remember, partial(handle_remember, ctx)),
-            (set_persona, partial(handle_set_persona, ctx)),
-            (reset_persona, partial(handle_reset_persona, ctx)),
-            (show_persona, partial(handle_show_persona, ctx)),
-            (True, partial(handle_chat, ctx)),  # Chat is default
-        ],
-        filter(lambda x: is_truthy(x[0])),
-        first,
-        lambda x: x[1](),
+
+    # ctx.params["parent"] = ctx
+
+    if ctx.invoked_subcommand is None:
+        ctx.params["command"] = click.Command("chat")
+    else:
+        ctx.params["command"] = ctx.command
+
+    ctx.obj = pipe(
+        ctx.params,
+        # lambda x: assoc(x, 'command', ctx.invoked_subcommand or next(c for c in app.registered_commands if c.name == 'chat')),
+        lambda x: merge(get_config_params(ctx.params.get(CONFIG_FILE_KEY)), x),
+        keyfilter(lambda k: k not in MODEL_ALIASES),
+        dict,
+        lambda x: ElroyContext(parent=ctx, **x),
     )
+
+    if ctx.invoked_subcommand is None:
+        chat(ctx.obj)
+
+
+@app.command(name="chat")
+@elroy_context
+@with_db
+def chat(ctx: ElroyContext):
+    """Opens an interactive chat session."""
+    if sys.stdin.isatty():
+        try:
+            if not get_user_id_if_exists(ctx.db, ctx.user_token):
+                asyncio.run(onboard_interactive(ctx))
+            asyncio.run(run_chat(ctx))
+        except Exception as e:
+            create_bug_report_from_exception_if_confirmed(ctx, e)
+    else:
+        message = sys.stdin.read()
+        handle_message_stdio(ctx, StdIO(), message, ctx.tool)
+
+
+@app.command(name="message")
+@elroy_context
+@with_db
+def message(
+    ctx: ElroyContext,
+    message: Optional[str] = typer.Argument(..., help="The message to process"),
+    tool: str = typer.Option(None, "--tool", "-t", help="Specifies the tool to use in responding to a message"),
+):
+    """Process a single message and exit."""
+    if sys.stdin.isatty() and not message:
+        io = ctx.io
+        assert isinstance(io, CliIO)
+        handle_message_interactive(ctx, io, tool)
+    else:
+        assert message
+        handle_message_stdio(ctx, StdIO(), message, tool)
+
+
+@app.command(name="remember")
+@elroy_context
+@with_db
+def remember(
+    ctx: ElroyContext,
+    text: Optional[str] = typer.Argument(
+        None,
+        help="Text to remember. If not provided, will prompt interactively",
+    ),
+):
+    """Create a new memory from text or interactively."""
+
+    if ctx.is_new_user:
+        ctx.io.notify_warning("Creating memory for new user")
+
+    if text:
+        memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
+        manually_record_user_memory(ctx, text, memory_name)
+        ctx.io.sys_message(f"Memory created: {memory_name}")
+        raise typer.Exit()
+
+    elif sys.stdin.isatty():
+        io = ctx.io
+        assert isinstance(io, CliIO)
+        memory_text = asyncio.run(io.prompt_user("Enter the memory text:"))
+        memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
+        # Optionally get memory name
+        memory_name = asyncio.run(io.prompt_user("Enter memory name (optional, press enter to skip):"))
+        try:
+            manually_record_user_memory(ctx, memory_text, memory_name)
+            ctx.io.sys_message(f"Memory created: {memory_name}")
+            raise typer.Exit()
+        except ValueError as e:
+            ctx.io.assistant_msg(f"Error creating memory: {e}")
+            raise typer.Exit(1)
+    else:
+        memory_text = sys.stdin.read()
+        metadata = "Memory ingested from stdin\n" f"Ingested at: {datetime_to_string(datetime.now())}\n"
+        memory_text = f"{metadata}\n{memory_text}"
+        memory_name = f"Memory from stdin, ingested {datetime_to_string(datetime.now())}"
+        manually_record_user_memory(ctx, memory_text, memory_name)
+        ctx.io.sys_message(f"Memory created: {memory_name}")
+        raise typer.Exit()
+
+
+@app.command(name="list-models")
+def list_models():
+    """Lists supported chat models and exits."""
+    from ..config.models import (
+        get_supported_anthropic_models,
+        get_supported_openai_models,
+    )
+
+    for m in get_supported_openai_models():
+        print(f"{m} (OpenAI)")
+    for m in get_supported_anthropic_models():
+        print(f"{m} (Anthropic)")
+    raise typer.Exit()
+
+
+@app.command(name="show-config")
+@elroy_context
+@with_db
+def show_config(ctx: ElroyContext):
+    """Shows current configuration and exits."""
+    print(pformat(vars(ctx), indent=2, width=80))
+
+
+@app.command()
+def version():
+    """Show version and exit."""
+    current_version, latest_version = check_latest_version()
+    if latest_version > current_version:
+        typer.echo(f"Elroy version: {current_version} (newer version {latest_version} available)")
+        typer.echo("\nTo upgrade, run:")
+        typer.echo(f"    pip install --upgrade elroy=={latest_version}")
+    else:
+        typer.echo(f"Elroy version: {current_version} (up to date)")
+
+    raise typer.Exit()
+
+
+@app.command(name="set-persona")
+@elroy_context
+@with_db
+def set_persona(ctx: ElroyContext, persona_path: str = typer.Argument(..., help="Path to a persona file to use for the assistant")):
+    """Set a custom persona for the assistant."""
+    with open(persona_path, "r") as f:
+        persona_text = f.read()
+
+    if ctx.is_new_user:
+        logging.info(f"No user found for token {ctx.user_token}, creating one")
+    set_system_persona(ctx, persona_text)
+    raise typer.Exit()
+
+
+@app.command(name="reset-persona")
+@elroy_context
+@with_db
+def reset_persona(ctx: ElroyContext):
+    """Removes any custom persona, reverting to the default."""
+    if not get_user_id_if_exists(ctx.db, ctx.user_token):
+        logging.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
+        return typer.Exit()
+    else:
+        reset_system_persona(ctx)
+    raise typer.Exit()
+
+
+@app.command(name="show-persona")
+@elroy_context
+@with_db
+def show_persona(ctx: ElroyContext):
+    """Print the system persona and exit."""
+    print(get_persona(ctx))
+    raise typer.Exit()
 
 
 if __name__ == "__main__":

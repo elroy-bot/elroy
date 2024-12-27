@@ -146,9 +146,6 @@ class DbManager(ABC):
         config = Config(cls._get_config_path())
         config.set_main_option("sqlalchemy.url", engine.url.render_as_string(hide_password=False))
 
-        # Configure alembic logging to use Python's logging
-        logging.getLogger("alembic").setLevel(logging.INFO)
-
         script = ScriptDirectory.from_config(config)
 
         with engine.connect() as connection:

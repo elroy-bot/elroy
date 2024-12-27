@@ -16,9 +16,9 @@ from typing import (
 
 from docstring_parser import parse
 from toolz import concat, concatv, merge, pipe
-from toolz.curried import filter, map, remove
+from toolz.curried import do, filter, map, remove
 
-from ..config.config import ElroyContext
+from ..config.ctx import ElroyContext
 from ..db.db_models import FunctionCall
 from ..utils.utils import first_or_none
 
@@ -53,15 +53,15 @@ def get_modules():
 ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
-def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> str:
+def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
 
-    context.io.notify_function_call(function_call)
+    ctx.io.notify_function_call(function_call)
 
     try:
         function_to_call = get_functions()[function_call.function_name]
 
         return pipe(
-            {"context": context} if "context" in function_to_call.__code__.co_varnames else {},
+            {"ctx": ctx} if "ctx" in function_to_call.__code__.co_varnames else {},
             lambda d: merge(function_call.arguments, d),
             lambda args: function_to_call.__call__(**args),
             lambda result: str(result) if result is not None else "Success",
@@ -71,10 +71,12 @@ def exec_function_call(context: ElroyContext, function_call: FunctionCall) -> st
     except Exception as e:
         verbose_error = f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__))
 
-        if context.config.debug_mode:
-            context.io.notify_function_call_error(function_call, verbose_error)
-        else:
-            context.io.notify_function_call_error(function_call, e)
+        return pipe(
+            f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__)),
+            do(ctx.io.notify_warning),
+            ERROR_PREFIX.__add__,
+        )
+        ctx.io.notify_warning(verbose_error)
         return f"{ERROR_PREFIX}{verbose_error}"
 
 
@@ -114,7 +116,7 @@ def get_function_schema(function: FunctionType) -> Dict:
 
         return parameter
 
-    def validate_first_param_is_elroy_context(parameters: Iterator[Parameter]) -> Iterator[Parameter]:
+    def validate_first_param_is_elroy_ctx(parameters: Iterator[Parameter]) -> Iterator[Parameter]:
         """
         If the function accepts parameters, the first parameter must be ElroyContext.
 
@@ -135,8 +137,8 @@ def get_function_schema(function: FunctionType) -> Dict:
                 first_param.type == ElroyContext
             ), f"First parameter for function {function.__name__} must be ElroyContext, but is instead {first_param.type}"
             assert (
-                first_param.name == "context"
-            ), f"First parameter for function {function.__name__} must be named 'context', but is instead {first_param.name}"
+                first_param.name == "ctx"
+            ), f"First parameter for function {function.__name__} must be named 'ctx', but is instead {first_param.name}"
             yield from concatv([first_param], parameters)
 
     assert function.__doc__ is not None, f"Function {function.__name__} has no docstring"
@@ -156,7 +158,7 @@ def get_function_schema(function: FunctionType) -> Dict:
                 default=_[1].default,
             )
         ),
-        validate_first_param_is_elroy_context,
+        validate_first_param_is_elroy_ctx,
         remove(lambda _: _.type == ElroyContext),
         map(validate_parameter),
         map(

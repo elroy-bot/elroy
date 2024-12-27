@@ -7,7 +7,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import map
 
-from .config.config import ElroyContext
+from .config.ctx import ElroyContext
 from .db.db_models import SYSTEM, Goal, Memory
 from .llm import client
 from .llm.prompts import contemplate_prompt
@@ -46,7 +46,7 @@ from .tools.user_preferences import (
 )
 
 
-def refresh_system_instructions(context: ElroyContext) -> str:
+def refresh_system_instructions(ctx: ElroyContext) -> str:
     """Refreshes the system instructions
 
     Args:
@@ -56,21 +56,21 @@ def refresh_system_instructions(context: ElroyContext) -> str:
         str: The result of the system instruction refresh
     """
 
-    context_messages = get_context_messages(context)
+    context_messages = get_context_messages(ctx)
     if len(context_messages) == 0:
         context_messages.append(
-            get_refreshed_system_message(context, []),
+            get_refreshed_system_message(ctx, []),
         )
     else:
         context_messages[0] = get_refreshed_system_message(
-            context,
+            ctx,
             context_messages[1:],
         )
-    replace_context_messages(context, context_messages)
+    replace_context_messages(ctx, context_messages)
     return "System instruction refresh complete"
 
 
-def print_system_instruction(context: ElroyContext) -> Optional[str]:
+def print_system_instruction(ctx: ElroyContext) -> Optional[str]:
     """Prints the current system instruction for the assistant
 
     Args:
@@ -81,12 +81,12 @@ def print_system_instruction(context: ElroyContext) -> Optional[str]:
     """
 
     return pipe(
-        get_current_system_message(context),
+        get_current_system_message(ctx),
         lambda _: _.content if _ else None,
     )  # type: ignore
 
 
-def help(context: ElroyContext) -> None:
+def help(ctx: ElroyContext) -> None:
     """Prints the available system commands
 
     Returns:
@@ -94,7 +94,7 @@ def help(context: ElroyContext) -> None:
     """
     from .io.cli import CliIO
 
-    if isinstance(context.io, CliIO):
+    if isinstance(ctx.io, CliIO):
         from rich.table import Table
 
         commands = pipe(
@@ -116,14 +116,14 @@ def help(context: ElroyContext) -> None:
         for command, description in commands:  # type: ignore
             table.add_row(command, description)
 
-        context.io.print(table)
+        ctx.io.print(table)
     else:
         # not really expecting to use this function outside of CLI, but just in case
         for f in SYSTEM_COMMANDS:
-            context.io.print(f.__name__)
+            ctx.io.print(f.__name__)
 
 
-def add_internal_thought(context: ElroyContext, thought: str) -> str:
+def add_internal_thought(ctx: ElroyContext, thought: str) -> str:
     """Inserts internal thought for the assistant. Useful for guiding the assistant's thoughts in a specific direction.
 
     Args:
@@ -135,12 +135,12 @@ def add_internal_thought(context: ElroyContext, thought: str) -> str:
     """
 
     add_context_messages(
-        context,
+        ctx,
         [
             ContextMessage(
                 role=SYSTEM,
                 content=thought,
-                chat_model=context.config.chat_model.name,
+                chat_model=ctx.chat_model.name,
             )
         ],
     )
@@ -148,7 +148,7 @@ def add_internal_thought(context: ElroyContext, thought: str) -> str:
     return f"Internal thought added: {thought}"
 
 
-def reset_messages(context: ElroyContext) -> str:
+def reset_messages(ctx: ElroyContext) -> str:
     """Resets the context for the user, removing all messages from the context except the system message.
     This should be used sparingly, only at the direct request of the user.
 
@@ -160,14 +160,14 @@ def reset_messages(context: ElroyContext) -> str:
     """
 
     replace_context_messages(
-        context,
-        [get_refreshed_system_message(context, [])],
+        ctx,
+        [get_refreshed_system_message(ctx, [])],
     )
 
     return "Context reset complete"
 
 
-def print_context_messages(context: ElroyContext) -> Pretty:
+def print_context_messages(ctx: ElroyContext) -> Pretty:
     """Logs all of the current context messages to stdout
 
     Args:
@@ -175,10 +175,10 @@ def print_context_messages(context: ElroyContext) -> Pretty:
         user_id (int): _description_
     """
 
-    return Pretty(get_context_messages(context))
+    return Pretty(get_context_messages(ctx))
 
 
-def print_goal(context: ElroyContext, goal_name: str) -> str:
+def print_goal(ctx: ElroyContext, goal_name: str) -> str:
     """Prints the goal with the given name. This does NOT create a goal, it only prints the existing goal with the given name if it has been created already.
 
     Args:
@@ -188,9 +188,9 @@ def print_goal(context: ElroyContext, goal_name: str) -> str:
     Returns:
         str: Information for the goal with the given name
     """
-    goal = context.db.exec(
+    goal = ctx.db.exec(
         select(Goal).where(
-            Goal.user_id == context.user_id,
+            Goal.user_id == ctx.user_id,
             Goal.name == goal_name,
             Goal.is_active == True,
         )
@@ -201,12 +201,12 @@ def print_goal(context: ElroyContext, goal_name: str) -> str:
         return f"Goal '{goal_name}' not found for the current user."
 
 
-def get_active_goal_names(context: ElroyContext) -> List[str]:
+def get_active_goal_names(ctx: ElroyContext) -> List[str]:
 
-    return [goal.name for goal in get_active_goals(context)]
+    return [goal.name for goal in get_active_goals(ctx)]
 
 
-def print_memory(context: ElroyContext, memory_name: str) -> str:
+def print_memory(ctx: ElroyContext, memory_name: str) -> str:
     """Prints the memory with the given name
 
     Args:
@@ -216,9 +216,9 @@ def print_memory(context: ElroyContext, memory_name: str) -> str:
     Returns:
         str: Information for the memory with the given name
     """
-    memory = context.db.exec(
+    memory = ctx.db.exec(
         select(Memory).where(
-            Memory.user_id == context.user_id,
+            Memory.user_id == ctx.user_id,
             Memory.name == memory_name,
             Memory.is_active == True,
         )
@@ -229,7 +229,7 @@ def print_memory(context: ElroyContext, memory_name: str) -> str:
         return f"Memory '{memory_name}' not found for the current user."
 
 
-def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = None) -> str:
+def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -> str:
     """Contemplate the current context and return a response
 
     Args:
@@ -242,29 +242,29 @@ def contemplate(context: ElroyContext, contemplation_prompt: Optional[str] = Non
 
     logging.info("Contemplating...")
 
-    user_preferred_name = get_user_preferred_name(context)
-    context_messages = get_context_messages(context)
+    user_preferred_name = get_user_preferred_name(ctx)
+    context_messages = get_context_messages(ctx)
 
     msgs_input = format_context_messages(context_messages, user_preferred_name)
 
     response = client.query_llm(
         prompt=msgs_input,
         system=contemplate_prompt(user_preferred_name, contemplation_prompt),
-        model=context.config.chat_model,
+        model=ctx.chat_model,
     )
 
     add_context_messages(
-        context,
+        ctx,
         [
             ContextMessage(
                 role=SYSTEM,
                 content=response,
-                chat_model=context.config.chat_model.name,
+                chat_model=ctx.chat_model.name,
             )
         ],
     )
 
-    context.io.internal_thought_msg(response)
+    ctx.io.internal_thought_msg(response)
 
     return response
 

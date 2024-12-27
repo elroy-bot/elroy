@@ -9,39 +9,37 @@ from elroy.tools.user_preferences import (
 )
 
 
-def test_update_user_preferred_name(elroy_context):
+def test_update_user_preferred_name(ctx):
 
     process_test_message(
-        elroy_context,
+        ctx,
         "Please call me TestUser500 from now on.",
     )
 
-    assert get_user_preferred_name(elroy_context) == "TestUser500"
+    assert get_user_preferred_name(ctx) == "TestUser500"
 
 
-def test_update_persona(elroy_context):
-    reply = process_test_message(elroy_context, "What is your name?")
+def test_update_persona(ctx):
+    reply = process_test_message(ctx, "What is your name?")
 
     assert "elroy" in reply.lower()
 
-    set_system_persona(
-        elroy_context, "You are a helpful assistant." "Your name is Jarvis" "If asked what your name is, be sure to reply with Jarvis"
-    )
+    set_system_persona(ctx, "You are a helpful assistant." "Your name is Jarvis" "If asked what your name is, be sure to reply with Jarvis")
 
-    reply = process_test_message(elroy_context, "What is your name?")
+    reply = process_test_message(ctx, "What is your name?")
 
     assert "jarvis" in reply.lower()
     assert "elroy" not in reply.lower()
 
-    reply = process_test_message(elroy_context, "What is your name?")
+    reply = process_test_message(ctx, "What is your name?")
 
-    reset_system_persona(elroy_context)
+    reset_system_persona(ctx)
 
 
-def test_assistant_name(elroy_context):
-    assert "elroy" in process_test_message(elroy_context, "What is your name?").lower()
+def test_assistant_name(ctx):
+    assert "elroy" in process_test_message(ctx, "What is your name?").lower()
 
-    set_assistant_name(elroy_context, "Jimbo")
-    reset_messages(elroy_context)
+    set_assistant_name(ctx, "Jimbo")
+    reset_messages(ctx)
 
-    assert "jimbo" in process_test_message(elroy_context, "What is your name?").lower()
+    assert "jimbo" in process_test_message(ctx, "What is your name?").lower()

@@ -3,9 +3,11 @@ import threading
 import time
 from datetime import datetime
 from functools import partial
-from typing import Any, Dict, Iterator, Optional, TypeVar
+from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
 
 from pytz import UTC
+
+from ..config.ctx import ElroyContext, clone_ctx_with_db
 
 T = TypeVar("T")
 
@@ -82,16 +84,18 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def run_in_background_thread(fn, context, *args):
-    from ..config.config import ElroyContext
+def run_in_background_thread(fn: Callable, ctx: ElroyContext, *args):
+    from ..config.ctx import ElroyContext
 
-    assert isinstance(context, ElroyContext)
+    assert isinstance(ctx, ElroyContext)
 
     # hack to get a new session for the thread
-    with context.db.get_new_session() as db:
+    with ctx.db.get_new_session() as db:
+        new_ctx = clone_ctx_with_db(ctx, db)
+
         thread = threading.Thread(
             target=fn,
-            args=(ElroyContext(user_id=context.user_id, db=db, config=context.config, io=context.io), *args),
+            args=(new_ctx, *args),
             daemon=True,
         )
         thread.start()

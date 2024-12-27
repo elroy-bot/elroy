@@ -5,7 +5,6 @@ from typing import Iterator, List, Optional
 from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
-from ..config.config import ElroyConfig, ElroyContext
 from ..config.constants import (
     SYSTEM,
     SYSTEM_INSTRUCTION_LABEL,
@@ -16,6 +15,7 @@ from ..config.constants import (
     MissingSystemInstructError,
     MissingToolCallMessageError,
 )
+from ..config.ctx import ElroyContext
 from ..db.db_models import ASSISTANT
 from ..llm.client import generate_chat_completion_message, get_embedding
 from ..repository.data_models import ContentItem, ContextMessage
@@ -30,15 +30,15 @@ from ..tools.function_caller import FunctionCall, exec_function_call
 from ..utils.utils import last_or_none, logged_exec_time
 
 
-def process_message(role: str, context: ElroyContext, msg: str, force_tool: Optional[str] = None) -> Iterator[str]:
+def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional[str] = None) -> Iterator[str]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
     context_messages = pipe(
-        get_context_messages(context),
-        partial(validate, context.config),
+        get_context_messages(ctx),
+        partial(validate, ctx),
         list,
         lambda x: x + [ContextMessage(role=role, content=msg, chat_model=None)],
-        lambda x: x + get_relevant_memories(context, x),
+        lambda x: x + get_relevant_memories(ctx, x),
         list,
     )
 
@@ -48,7 +48,7 @@ def process_message(role: str, context: ElroyContext, msg: str, force_tool: Opti
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        for stream_chunk in generate_chat_completion_message(context.config.chat_model, context_messages, force_tool):
+        for stream_chunk in generate_chat_completion_message(ctx.chat_model, context_messages, ctx.enable_tools, force_tool):
             if isinstance(stream_chunk, ContentItem):
                 full_content += stream_chunk.content
                 yield stream_chunk.content
@@ -59,8 +59,8 @@ def process_message(role: str, context: ElroyContext, msg: str, force_tool: Opti
                     lambda x: ContextMessage(
                         role=TOOL,
                         tool_call_id=x.id,
-                        content=exec_function_call(context, x),
-                        chat_model=context.config.chat_model.name,
+                        content=exec_function_call(ctx, x),
+                        chat_model=ctx.chat_model.name,
                     ),
                     tool_context_messages.append,
                 )
@@ -69,7 +69,7 @@ def process_message(role: str, context: ElroyContext, msg: str, force_tool: Opti
                 role=ASSISTANT,
                 content=full_content,
                 tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
-                chat_model=context.config.chat_model.name,
+                chat_model=ctx.chat_model.name,
             )
         )
 
@@ -79,7 +79,7 @@ def process_message(role: str, context: ElroyContext, msg: str, force_tool: Opti
                 logging.warning(f"With force tool {force_tool}, expected one tool message, but found {len(tool_context_messages)}")
 
             context_messages += tool_context_messages
-            replace_context_messages(context, context_messages)
+            replace_context_messages(ctx, context_messages)
 
             content = tool_context_messages[-1].content
             assert isinstance(content, str)
@@ -89,20 +89,18 @@ def process_message(role: str, context: ElroyContext, msg: str, force_tool: Opti
         elif tool_context_messages:
             context_messages += tool_context_messages
         else:
-            replace_context_messages(context, context_messages)
+            replace_context_messages(ctx, context_messages)
             break
 
 
-def validate(config: ElroyConfig, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def validate(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     return pipe(
         context_messages,
-        partial(_validate_system_instruction_correctly_placed, config.debug_mode),
-        partial(_validate_assistant_tool_calls_followed_by_tool, config.debug_mode),
-        partial(_validate_tool_messages_have_assistant_tool_call, config.debug_mode),
+        partial(_validate_system_instruction_correctly_placed, ctx.debug),
+        partial(_validate_assistant_tool_calls_followed_by_tool, ctx.debug),
+        partial(_validate_tool_messages_have_assistant_tool_call, ctx.debug),
         lambda msgs: (
-            msgs
-            if not config.chat_model.ensure_alternating_roles
-            else validate_first_user_precedes_first_assistant(config.debug_mode, msgs)
+            msgs if not ctx.chat_model.ensure_alternating_roles else validate_first_user_precedes_first_assistant(ctx.debug, msgs)
         ),
         list,
     )
@@ -124,7 +122,6 @@ def validate_first_user_precedes_first_assistant(debug_mode: bool, context_messa
 
 def _validate_system_instruction_correctly_placed(debug_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     validated_messages = []
-
     for idx, message in enumerate(context_messages):
         if idx == 0 and not is_system_instruction(message):
             if debug_mode:
@@ -206,7 +203,7 @@ def _has_assistant_tool_call(tool_call_id: Optional[str], context_messages: List
 
 
 @logged_exec_time
-def get_relevant_memories(context: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def get_relevant_memories(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     from .context import is_memory_in_context
 
     message_content = pipe(
@@ -226,8 +223,8 @@ def get_relevant_memories(context: ElroyContext, context_messages: List[ContextM
 
     new_memory_messages = pipe(
         message_content,
-        partial(get_embedding, context.config.embedding_model),
-        lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(context, x),
+        partial(get_embedding, ctx.embedding_model),
+        lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(ctx, x),
         filter(lambda x: x is not None),
         remove(partial(is_memory_in_context, context_messages)),
         map(

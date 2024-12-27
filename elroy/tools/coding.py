@@ -2,12 +2,12 @@ import logging
 import os
 import subprocess
 
-from ..config.config import ElroyContext
+from ..config.ctx import ElroyContext
 from ..utils.ops import experimental
 
 
 @experimental
-def make_coding_edit(context: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
+def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
     """Instructs a delegated coding LLM to make an edit to code. As context is being passed transferred to the assistant, care must be taken to ensure the assistant has all necessary context.
 
     Args:
@@ -33,7 +33,7 @@ def make_coding_edit(context: ElroyContext, working_dir: str, instruction: str, 
         os.chdir(working_dir)
 
         coder = Coder.create(
-            main_model=Model(context.config.chat_model.name),
+            main_model=Model(ctx.chat_model.name),
             fnames=[file_name],
             io=InputOutput(yes=True),
             auto_commits=False,

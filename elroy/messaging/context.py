@@ -9,8 +9,8 @@ from sqlmodel import select
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
-from ..config.config import ElroyContext
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
+from ..config.ctx import ElroyContext
 from ..db.db_models import (
     ASSISTANT,
     SYSTEM,
@@ -37,10 +37,10 @@ from ..utils.clock import get_utc_now
 from ..utils.utils import datetime_to_string, logged_exec_time
 
 
-def get_refreshed_system_message(context: ElroyContext, context_messages: List[ContextMessage]) -> ContextMessage:
+def get_refreshed_system_message(ctx: ElroyContext, context_messages: List[ContextMessage]) -> ContextMessage:
     from ..llm.persona import get_persona
 
-    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference = get_or_create_user_preference(ctx)
 
     assert isinstance(context_messages, list)
     if len(context_messages) > 0 and context_messages[0].role == SYSTEM:
@@ -53,7 +53,7 @@ def get_refreshed_system_message(context: ElroyContext, context_messages: List[C
         conversation_summary = pipe(
             context_messages,
             lambda msgs: format_context_messages(msgs, user_preference.preferred_name),
-            partial(summarize_conversation, context.config.chat_model),
+            partial(summarize_conversation, ctx.chat_model),
             lambda _: f"<conversational_summary>{_}</conversational_summary>",
             str,
         )
@@ -61,7 +61,7 @@ def get_refreshed_system_message(context: ElroyContext, context_messages: List[C
     return pipe(
         [
             SYSTEM_INSTRUCTION_LABEL,
-            f"<persona>{get_persona(context.db, context.config, context.user_id)}</persona>",
+            f"<persona>{get_persona(ctx)}</persona>",
             conversation_summary,
             "From now on, converse as your persona.",
         ],  # type: ignore
@@ -120,8 +120,8 @@ def count_tokens(chat_model_name: str, context_messages: Union[List[ContextMessa
         )  # type: ignore
 
 
-def is_context_refresh_needed(context: ElroyContext) -> bool:
-    context_messages = get_context_messages(context)
+def is_context_refresh_needed(ctx: ElroyContext) -> bool:
+    context_messages = get_context_messages(ctx)
 
     if sum(1 for m in context_messages if m.role == USER) == 0:
         logging.info("No user messages in context, skipping context refresh")
@@ -136,14 +136,14 @@ def is_context_refresh_needed(context: ElroyContext) -> bool:
     )
     assert isinstance(token_count, int)
 
-    if token_count > context.config.context_refresh_token_trigger_limit:
-        logging.info(f"Token count {token_count} exceeds threshold {context.config.context_refresh_token_trigger_limit}")
+    if token_count > ctx.context_refresh_trigger_tokens:
+        logging.info(f"Token count {token_count} exceeds threshold {ctx.context_refresh_trigger_tokens}")
         return True
     else:
-        logging.info(f"Token count {token_count} does not exceed threshold {context.config.context_refresh_token_trigger_limit}")
+        logging.info(f"Token count {token_count} does not exceed threshold {ctx.context_refresh_trigger_tokens}")
 
-    elapsed_time = get_time_since_context_message_creation(context)
-    threshold = context.config.context_refresh_interval
+    elapsed_time = get_time_since_context_message_creation(ctx)
+    threshold = ctx.context_refresh_interval
     if not elapsed_time or elapsed_time > threshold:
         logging.info(f"Context watermark age {elapsed_time} exceeds threshold {threshold}")
         return True
@@ -153,7 +153,7 @@ def is_context_refresh_needed(context: ElroyContext) -> bool:
     return False
 
 
-def compress_context_messages(context: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def compress_context_messages(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     """
     Compresses messages in the context window by summarizing old messages, while keeping new messages intact.
     """
@@ -162,7 +162,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
     assert is_system_instruction(system_message)
     assert not any(is_system_instruction(msg) for msg in prev_messages)
 
-    current_token_count = count_tokens(context.config.chat_model.name, system_message)
+    current_token_count = count_tokens(ctx.chat_model.name, system_message)
 
     kept_messages = deque()
 
@@ -172,7 +172,7 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
         msg_created_at = msg.created_at
         assert isinstance(msg_created_at, datetime)
 
-        candidate_message_count = count_tokens(context.config.chat_model.name, msg)
+        candidate_message_count = count_tokens(ctx.chat_model.name, msg)
 
         if len(kept_messages) > 0 and kept_messages[0].role == TOOL:
             # if the last message kept was a tool call, we must keep the corresponding assistant message that came before it.
@@ -180,9 +180,9 @@ def compress_context_messages(context: ElroyContext, context_messages: List[Cont
             current_token_count += candidate_message_count
             continue
 
-        if current_token_count > context.config.context_refresh_token_target:
+        if current_token_count > ctx.context_refresh_target_tokens:
             break
-        elif msg_created_at < get_utc_now() - context.config.max_in_context_message_age:
+        elif msg_created_at < get_utc_now() - ctx.max_in_context_message_age:
             logging.info(f"Dropping old message {msg.id}")
             continue
         else:
@@ -228,29 +228,29 @@ def replace_system_instruction(context_messages: List[ContextMessage], new_syste
 
 
 @logged_exec_time
-async def context_refresh(context: ElroyContext) -> None:
+async def context_refresh(ctx: ElroyContext) -> None:
     from ..repository.memory import create_memory, formulate_memory
     from ..tools.user_preferences import get_user_preferred_name
 
-    context_messages = get_context_messages(context)
-    user_preferred_name = get_user_preferred_name(context)
+    context_messages = get_context_messages(ctx)
+    user_preferred_name = get_user_preferred_name(ctx)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
-    memory_title, memory_text = await formulate_memory(context.config.chat_model, user_preferred_name, context_messages)
-    create_memory(context, memory_title, memory_text)
+    memory_title, memory_text = await formulate_memory(ctx.chat_model, user_preferred_name, context_messages)
+    create_memory(ctx, memory_title, memory_text)
 
-    for mem1, mem2 in context.db.find_redundant_pairs(
+    for mem1, mem2 in ctx.db.find_redundant_pairs(
         Memory,
-        context.config.l2_memory_consolidation_distance_threshold,
-        context.user_id,
+        ctx.l2_memory_consolidation_distance_threshold,
+        ctx.user_id,
     ):
-        await consolidate_memories(context, mem1, mem2)
+        await consolidate_memories(ctx, mem1, mem2)
 
     pipe(
-        get_refreshed_system_message(context, context_messages),
+        get_refreshed_system_message(ctx, context_messages),
         partial(replace_system_instruction, context_messages),
-        partial(compress_context_messages, context),
-        partial(replace_context_messages, context),
+        partial(compress_context_messages, ctx),
+        partial(replace_context_messages, ctx),
     )
 
 
@@ -260,21 +260,21 @@ def is_memory_in_context_message(memory: EmbeddableSqlModel, context_message: Co
     return any(x.memory_type == memory.__class__.__name__ and x.id == memory.id for x in context_message.memory_metadata)
 
 
-def remove_from_context(context: ElroyContext, memory: EmbeddableSqlModel):
+def remove_from_context(ctx: ElroyContext, memory: EmbeddableSqlModel):
     pipe(
-        get_context_messages(context),
+        get_context_messages(ctx),
         filter(partial(is_memory_in_context_message, memory)),
         list,
-        partial(remove_context_messages, context),
+        partial(remove_context_messages, ctx),
     )
 
 
-def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
+def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
     memory_id = memory.id
     assert memory_id
 
     add_context_messages(
-        context,
+        ctx,
         [
             ContextMessage(
                 role=SYSTEM,
@@ -286,7 +286,7 @@ def add_to_context(context: ElroyContext, memory: EmbeddableSqlModel) -> None:
     )
 
 
-def add_memory_to_current_context(context: ElroyContext, memory_name: str) -> str:
+def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     """Adds memory with the given name to the current conversation context
 
     Args:
@@ -296,10 +296,10 @@ def add_memory_to_current_context(context: ElroyContext, memory_name: str) -> st
     Returns:
         str: The result of the attempt to add the memory to current context.
     """
-    return _add_to_current_context_by_name(context, memory_name, Memory)
+    return _add_to_current_context_by_name(ctx, memory_name, Memory)
 
 
-def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
+def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
     """Adds goal with the given name to the current conversation context
 
     Args:
@@ -309,14 +309,14 @@ def add_goal_to_current_context(context: ElroyContext, goal_name: str) -> str:
     Returns:
         str: The result of the attempt to add the goal to current context.
     """
-    return _add_to_current_context_by_name(context, goal_name, Goal)
+    return _add_to_current_context_by_name(ctx, goal_name, Goal)
 
 
-def _add_to_current_context_by_name(context: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
-    item = context.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
+def _add_to_current_context_by_name(ctx: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
+    item = ctx.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
 
     if item:
-        add_to_context(context, item)
+        add_to_context(ctx, item)
         return f"{memory_type.__name__} '{name}' added to context."
     else:
         return f"{memory_type.__name__} '{name}' not found."
@@ -334,7 +334,7 @@ def is_memory_in_context(context_messages: List[ContextMessage], memory: Embedda
     )
 
 
-def drop_goal_from_current_context(context: ElroyContext, goal_name: str) -> str:
+def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
     """Drops the goal with the given name. Does NOT delete or mark the goal completed.
 
     Args:
@@ -344,10 +344,10 @@ def drop_goal_from_current_context(context: ElroyContext, goal_name: str) -> str
     Returns:
         str: Information for the goal with the given name
     """
-    return _drop_from_context_by_name(context, goal_name, Goal)
+    return _drop_from_context_by_name(ctx, goal_name, Goal)
 
 
-def drop_memory_from_current_context(context: ElroyContext, memory_name: str) -> str:
+def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str:
     """Drops the memory with the given name. Does NOT delete the memory.
 
     Args:
@@ -357,14 +357,14 @@ def drop_memory_from_current_context(context: ElroyContext, memory_name: str) ->
     Returns:
         str: Information for the memory with the given name
     """
-    return _drop_from_context_by_name(context, memory_name, Memory)
+    return _drop_from_context_by_name(ctx, memory_name, Memory)
 
 
-def _drop_from_context_by_name(context: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
-    item = context.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
+def _drop_from_context_by_name(ctx: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
+    item = ctx.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
 
     if item:
-        remove_from_context(context, item)
+        remove_from_context(ctx, item)
         return f"{memory_type.__name__} '{name}' dropped from context."
     else:
         return f"{memory_type.__name__} '{name}' not found."

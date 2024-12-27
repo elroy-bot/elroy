@@ -25,6 +25,7 @@ from ..utils.utils import logged_exec_time
 def generate_chat_completion_message(
     chat_model: ChatModel,
     context_messages: List[ContextMessage],
+    enable_tools: bool = True,
     force_tool: Optional[str] = None,
     retry_number: int = 0,
 ) -> Iterator[Dict]:
@@ -69,7 +70,7 @@ def generate_chat_completion_message(
                 message["role"] = USER
                 message["content"] = f"{USER_HIDDEN_PREFIX} {message['content']}"
 
-    if chat_model.has_tool_support:
+    if enable_tools:
         from ..tools.function_caller import get_function_schemas
 
         if force_tool:
@@ -122,7 +123,9 @@ def generate_chat_completion_message(
                     logging.info(
                         f"Rate limit or internal server error for model {chat_model.name}, falling back to model {fallback_model.name}"
                     )
-                    yield from generate_chat_completion_message(fallback_model, context_messages, force_tool, retry_number + 1)
+                    yield from generate_chat_completion_message(
+                        fallback_model, context_messages, enable_tools, force_tool, retry_number + 1
+                    )
                 else:
                     logging.error(f"No fallback model available for {chat_model.name}, aborting")
                     raise e
