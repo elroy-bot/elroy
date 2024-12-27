@@ -71,21 +71,35 @@ def get_refreshed_system_message(context: ElroyContext, context_messages: List[C
     )
 
 
-def format_message(message: ContextMessage, user_preferred_name: Optional[str]) -> Optional[str]:
+def format_message(message: ContextMessage, user_preferred_name: Optional[str]) -> List[str]:
     datetime_str = datetime_to_string(message.created_at)
     if message.role == SYSTEM:
-        return f"SYSTEM ({datetime_str}): {message.content}"
+        return [f"SYSTEM ({datetime_str}): {message.content}"]
     elif message.role == USER:
         user_name = user_preferred_name.upper() if user_preferred_name else "USER"
 
-        return f"{user_name} ({datetime_str}): {message.content}"
+        return [f"{user_name} ({datetime_str}): {message.content}"]
     elif message.role == ASSISTANT:
+        msgs = []
+
         if message.content:
-            return f"ELROY ({datetime_str}): {message.content}"
-        elif message.tool_calls:
-            return f"ELROY TOOL CALL ({datetime_str}): {message.tool_calls[0].function['name']}"
-        else:
+            msgs.append(f"ELROY ({datetime_str}): {message.content}")
+        if message.tool_calls:
+            pipe(
+                message.tool_calls,
+                map(lambda x: x.function),
+                map(lambda x: f"ELROY TOOL CALL REQUEST ({datetime_str}): function name: {x['name']}, arguments: {x['arguments']}"),
+                list,
+                msgs.extend,
+            )
+        if not message.content and not message.tool_calls:
             raise ValueError(f"Expected either message text or tool call: {message}")
+        return msgs
+    elif message.role == TOOL:
+        return [f"TOOL CALL RESULT ({datetime_str}): {message.content}"]
+    else:
+        logging.warning(f"Cannot format message: {message}")
+        return []
 
 
 # passing message content is an approximation, tool calls may not be accounted for.
@@ -192,7 +206,7 @@ def format_context_messages(context_messages: List[ContextMessage], user_preferr
         pipe(
             context_messages,
             map(lambda msg: format_message(msg, user_preferred_name)),
-            remove(lambda _: _ is None),
+            concat,
             list,
             "\n".join,
             str,
