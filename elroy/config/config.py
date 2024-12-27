@@ -84,6 +84,7 @@ class ElroyConfig:
     debug_mode: bool
     log_file_path: str
     default_persona: str
+    default_assistant_name: str
 
 
 def get_config(
@@ -108,6 +109,7 @@ def get_config(
     openai_organization: Optional[str],
     log_file_path: str,
     default_persona: str,
+    default_assistant_name: str,
     enable_caching: bool,
 ) -> ElroyConfig:
     from litellm import open_ai_embedding_models
@@ -174,6 +176,7 @@ def get_config(
         initial_refresh_wait=timedelta(seconds=initial_context_refresh_wait_seconds),
         log_file_path=log_file_path,
         default_persona=default_persona,
+        default_assistant_name=default_assistant_name,
     )
 
 

@@ -153,3 +153,17 @@ def get_or_create_user_preference(db: DbManager, user_id: int) -> UserPreference
         db.commit()
         db.refresh(user_preference)
     return user_preference
+
+
+def set_assistant_name(context: ElroyContext, assistant_name: str) -> str:
+    """
+    Sets the assistant name for the user
+    """
+    from ..system_commands import refresh_system_instructions
+
+    user_preference = get_or_create_user_preference(context.db, context.user_id)
+    user_preference.assistant_name = assistant_name
+    context.db.add(user_preference)
+    context.db.commit()
+    refresh_system_instructions(context)
+    return f"Assistant name updated to {assistant_name}."

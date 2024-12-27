@@ -45,8 +45,9 @@ show_internal_thought: false
 # Logging
 log_file_path: "logs/elroy.log"
 
+default_assistant_name: "Elroy"
 default_persona: |
-  I am Elroy.
+  I am $ASSISTANT_ALIAS.
 
   I am an AI personal assistant. I converse exclusively with $USER_ALIAS.
 

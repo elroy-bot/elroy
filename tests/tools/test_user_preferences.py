@@ -3,6 +3,7 @@ from tests.utils import process_test_message
 from elroy.tools.user_preferences import (
     get_user_preferred_name,
     reset_system_persona,
+    set_assistant_name,
     set_system_persona,
 )
 
@@ -34,3 +35,15 @@ def test_update_persona(elroy_context):
     reply = process_test_message(elroy_context, "What is your name?")
 
     reset_system_persona(elroy_context)
+
+
+def test_assistant_name(elroy_context):
+    reply = process_test_message(elroy_context, "What is your name?")
+
+    assert "elroy" in reply.lower()
+
+    set_assistant_name(elroy_context, "Jimbo")
+
+    reply = process_test_message(elroy_context, "What is your name?")
+
+    assert "jimbo" in reply.lower()
