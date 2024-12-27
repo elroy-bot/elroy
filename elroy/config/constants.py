@@ -39,6 +39,8 @@ MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
+CONFIG_FILE_KEY = "config_file"
+
 
 class MissingAssistantToolCallError(Exception):
     pass

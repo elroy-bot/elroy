@@ -7,7 +7,7 @@ from toolz.curried import filter
 
 from ..config.constants import LIST_MODELS_FLAG, MODEL_SELECTION_CONFIG_PANEL
 from ..config.models import resolve_anthropic
-from ..config.paths import get_default_sqlite_url
+from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..utils.utils import is_truthy
 from .chat import handle_chat, handle_message
 from .config import (
@@ -34,7 +34,7 @@ def common(
     # Basic Configuration
     ctx: typer.Context,
     config_file: Optional[str] = typer.Option(
-        None,
+        get_default_config_path(),
         "--config",
         "-c",
         help="Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.",

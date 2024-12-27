@@ -1,10 +1,6 @@
-import logging
-from copy import deepcopy
 from dataclasses import dataclass
 from datetime import timedelta
-from functools import lru_cache
 from importlib.resources import open_text
-from pathlib import Path
 from typing import Generic, Optional
 
 import typer
@@ -17,31 +13,6 @@ from .paths import APP_NAME
 
 with open_text(APP_NAME, "defaults.yml") as f:
     DEFAULTS_CONFIG = yaml.safe_load(f)
-
-
-@lru_cache
-def load_defaults(user_config_path: Optional[str] = None) -> dict:
-    """
-    Load configuration values in order of precedence:
-    1. defaults.yml (base defaults)
-    2. User config file (if provided)
-    """
-
-    config = deepcopy(DEFAULTS_CONFIG)
-
-    if user_config_path:
-        if not Path(user_config_path).exists():
-            logging.error(f"User config file {user_config_path} not found, using default values")
-        elif not Path(user_config_path).is_file():
-            logging.error(f"User config path {user_config_path} is not a file, using default values")
-        else:
-            try:
-                with open(user_config_path, "r") as user_config_file:
-                    user_config = yaml.safe_load(user_config_file)
-                config.update(user_config)
-            except Exception as e:
-                logging.error(f"Failed to load user config file {user_config_path}: {e}")
-    return config
 
 
 @dataclass

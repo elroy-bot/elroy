@@ -12,7 +12,8 @@ from toolz import keyfilter, merge, pipe
 from toolz.curried import do, valfilter
 
 from elroy.cli.config import init_elroy_context, onboard_user_non_interactive
-from elroy.config.config import ElroyContext, get_config, load_defaults
+from elroy.cli.options import load_config_if_exists
+from elroy.config.config import DEFAULTS_CONFIG, ElroyContext, get_config
 from elroy.config.constants import ASSISTANT, USER
 from elroy.db.db_models import ContextMessageSet, Goal, Memory, User, UserPreference
 from elroy.db.postgres.postgres_manager import PostgresManager
@@ -85,8 +86,12 @@ def elroy_config(db, chat_model_name):
     )
 
     yield pipe(
-        load_defaults(),
-        lambda x: merge(x, env_vars_dict, {"chat_model_name": chat_model_name, "database_url": db.url}),
+        merge(
+            DEFAULTS_CONFIG,
+            load_config_if_exists("xyz"),  # placeholder, if tests need to load a config it can be placed here
+            env_vars_dict,
+            {"chat_model_name": chat_model_name, "database_url": db.url},
+        ),
         lambda x: keyfilter(lambda k: k in inspect.signature(get_config).parameters, x),
         lambda x: get_config(**x),
     )

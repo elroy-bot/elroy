@@ -19,6 +19,10 @@ def get_elroy_home() -> Path:
     return data_dir
 
 
+def get_default_config_path() -> Path:
+    return get_elroy_home() / "elroy.conf.yaml"
+
+
 def get_elroy_cache() -> Path:
     """Get the Elroy cache directory, creating it if it doesn't exist.
 

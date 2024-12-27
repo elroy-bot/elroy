@@ -33,7 +33,6 @@ from .repository.message import (
     add_context_messages,
     get_context_messages,
     get_current_system_message,
-    is_system_instruction,
     replace_context_messages,
 )
 from .tools.coding import make_coding_edit
@@ -149,7 +148,7 @@ def add_internal_thought(context: ElroyContext, thought: str) -> str:
     return f"Internal thought added: {thought}"
 
 
-def reset_system_context(context: ElroyContext) -> str:
+def reset_messages(context: ElroyContext) -> str:
     """Resets the context for the user, removing all messages from the context except the system message.
     This should be used sparingly, only at the direct request of the user.
 
@@ -160,22 +159,9 @@ def reset_system_context(context: ElroyContext) -> str:
         str: The result of the context reset
     """
 
-    current_sys_message = get_current_system_message(context)
-
-    if not is_system_instruction(current_sys_message):
-        logging.warning(
-            f"Current first message is not a system message: " + f"has role {current_sys_message.role}"
-            if current_sys_message
-            else "No first message found"
-        )
-        current_sys_message = get_refreshed_system_message(
-            context,
-            get_context_messages(context),
-        )
-
     replace_context_messages(
         context,
-        [current_sys_message],  # type: ignore
+        [get_refreshed_system_message(context, [])],
     )
 
     return "Context reset complete"
@@ -340,7 +326,7 @@ ASSISTANT_VISIBLE_COMMANDS = (
 # User only commands are commands that are only available to the user, via CLI.
 USER_ONLY_COMMANDS = {
     add_internal_thought,
-    reset_system_context,
+    reset_messages,
     print_context_messages,
     print_system_instruction,
     refresh_system_instructions,

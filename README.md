@@ -150,7 +150,7 @@ These commands can only be used by human users:
 - `/help` - Show all available commands
 - `/print_system_instruction` - View current system instructions
 - `/refresh_system_instructions` - Refresh system instructions
-- `/reset_system_context` - Reset conversation context
+- `/reset_messages` - Reset conversation context
 - `/print_context_messages` - View current conversation context
 - `/add_internal_thought` - Insert an internal thought for the assistant
 - `/exit` - Exit the chat
