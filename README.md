@@ -38,7 +38,26 @@ docker compose run --rm elroy --sonnet
 
 The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 
-### Option 2: Using pip
+### Option 3: Using UV
+
+#### Prerequisites
+- UV [Local Install](https://docs.astral.sh/uv/getting-started/installation/)
+- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
+- Database (SQLite or PostgreSQL with pgvector extension)
+
+Install - ``uv tool install elroy``
+Run - ``uv tool run elroy``
+
+For the database, you can either:
+- Use SQLite (default)
+- Use PostgreSQL with pgvector extension.
+
+
+Either a valid Postgres url (i.e. `postgresql://{your connection params}`) or SQLite url (i.e. `sqlite:///{your path}))`) are can be provided.
+
+You can provide your database url either via the `ELROY_DATABASE_URL`, the `database_url` config value, or via the `--database-url` startup flag.
+
+### Option 3: Using pip
 
 #### Prerequisites
 - Python 3.9 or higher
@@ -58,7 +77,7 @@ Either a valid Postgres url (i.e. `postgresql://{your connection params}`) or SQ
 
 You can provide your database url either via the `ELROY_DATABASE_URL`, the `database_url` config value, or via the `--database-url` startup flag.
 
-### Option 3: Installing from Source
+### Option 4: Installing from Source
 
 #### Prerequisites
 - Python 3.11 or higher
