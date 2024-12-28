@@ -38,7 +38,7 @@ docker compose run --rm elroy --sonnet
 
 The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 
-### Option 3: Using UV
+### Option 2: Using UV
 
 #### Prerequisites
 - UV [Local Install](https://docs.astral.sh/uv/getting-started/installation/)
