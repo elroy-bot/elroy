@@ -13,11 +13,20 @@ Elroy is a CLI AI personal assistant with long term memory and goal tracking cap
 
 ## Installation & Usage
 
+### Prerequisites
+
+- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
+- Database, either:
+    - SQLite (sqlite-vec will be installed)
+    - PostgreSQL with pgvector extension
+
+By default, Elroy will use SQLite. To add a custom DB, you can provide your database url either via the `ELROY_DATABASE_URL`, the `database_url` config value, or via the `--database-url` startup flag.
+
+
 ### Option 1: Using Docker (Recommended)
 
 #### Prerequisites
 - Docker and Docker Compose
-- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 
 This option automatically sets up everything you need, including the required PostgreSQL database with pgvector extension.
 
@@ -48,15 +57,6 @@ The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 Install - ``uv tool install elroy``
 Run - ``uv tool run elroy``
 
-For the database, you can either:
-- Use SQLite (default)
-- Use PostgreSQL with pgvector extension.
-
-
-Either a valid Postgres url (i.e. `postgresql://{your connection params}`) or SQLite url (i.e. `sqlite:///{your path}))`) are can be provided.
-
-You can provide your database url either via the `ELROY_DATABASE_URL`, the `database_url` config value, or via the `--database-url` startup flag.
-
 ### Option 3: Using pip
 
 #### Prerequisites
@@ -67,15 +67,6 @@ You can provide your database url either via the `ELROY_DATABASE_URL`, the `data
 ```bash
 pip install elroy
 ```
-
-For the database, you can either:
-- Use SQLite (default)
-- Use PostgreSQL with pgvector extension.
-
-
-Either a valid Postgres url (i.e. `postgresql://{your connection params}`) or SQLite url (i.e. `sqlite:///{your path}))`) are can be provided.
-
-You can provide your database url either via the `ELROY_DATABASE_URL`, the `database_url` config value, or via the `--database-url` startup flag.
 
 ### Option 4: Installing from Source
 
@@ -96,10 +87,6 @@ poetry install
 # Run Elroy
 poetry run elroy
 ```
-
-For the database, you have the same options as with pip installation:
-- Let Elroy manage PostgreSQL via Docker (default)
-- Provide your own PostgreSQL connection string
 
 ### Basic Usage
 
