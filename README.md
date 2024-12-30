@@ -189,6 +189,7 @@ These commands can be used by both users and Elroy:
 - `/set_user_full_name` - Set your full name
 - `/get_user_preferred_name` - Get your preferred name
 - `/set_user_preferred_name` - Set your preferred name
+- `/set_assistant_name` - Set a custom name for the assistant
 
 ##### Development Tools
 - `/tail_elroy_logs` - View Elroy's log output
