@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.56] - 2024-12-30
+
+### Improved
+- Fixes for command autocomplete
+
 ## [0.0.55] - 2024-12-29
 
 ### Added
