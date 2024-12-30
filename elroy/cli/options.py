@@ -1,17 +1,29 @@
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
-import typer
 import yaml
 from click import get_current_context
 from toolz import merge
 from typer import Option
 
 from ..config.config import DEFAULTS_CONFIG
-from ..config.constants import CONFIG_FILE_KEY, MODEL_SELECTION_CONFIG_PANEL
+from ..config.constants import CONFIG_FILE_KEY
+from ..config.models import resolve_anthropic
 from ..config.paths import get_default_config_path
+
+
+def resolve_model_alias(alias: str) -> Optional[str]:
+    if alias in ["sonnet", "opus", "haiku"]:
+        return resolve_anthropic(alias)
+    else:
+        return {
+            "4o": "gpt-4o",
+            "4o-mini": "gpt-4o-mini",
+            "o1": "o1",
+            "o1-mini": "o1-mini",
+        }.get(alias)
 
 
 @lru_cache
@@ -38,22 +50,6 @@ def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs:
         envvar=envvar or f"ELROY_{yaml_key.upper()}",
         show_default=str(DEFAULTS_CONFIG.get(yaml_key)),
         **kwargs,
-    )
-
-
-def model_alias_typer_option(model_alias: str, description: str, resolver: Callable[[], str]):
-    def set_chat_model(ctx: typer.Context, value: bool):
-        if not value:
-            return
-        ctx.params["chat_model"] = resolver()
-
-    return typer.Option(
-        False,
-        f"--{model_alias}",
-        help=f"Use {description}",
-        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-        callback=set_chat_model,
-        is_eager=True,
     )
 
 

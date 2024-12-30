@@ -69,7 +69,6 @@ class ElroyContext(typer.Context):
         **kwargs,
     ):
         super().__init__(command, parent=parent, **kwargs)
-
         # Store all constructor params
         self.config_file = config_file
         self.database_url = database_url
