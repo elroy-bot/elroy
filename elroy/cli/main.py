@@ -298,7 +298,7 @@ def remember(
 ):
     """Create a new memory from text or interactively."""
 
-    if ctx.is_new_user:
+    if not get_user_id_if_exists(ctx.db, ctx.user_token):
         ctx.io.notify_warning("Creating memory for new user")
 
     if text:
