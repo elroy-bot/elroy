@@ -81,15 +81,15 @@ elroy show-persona || grep -q "Elroy" || {
 }
 
 echo "Testing setting custom persona..."
-elroy set-persona "You are a helpful assistant, your name is Jimbo" --user-token=foobarbaz
-elroy show-persona --user-token=foobarbaz | grep -q "Jimbo" || {
+elroy --user-token=foobarbaz set-persona "You are a helpful assistant, your name is Jimbo"
+elroy --user-token=foobarbaz show-persona | grep -q "Jimbo" || {
     echo "❌ Persona setting failed"
     exit 1
 }
 
 echo "Testing resetting persona..."
-elroy reset-persona --user-token=foobarbaz
-elroy show-persona --user-token=foobarbaz | grep -q "Elroy" || {
+elroy --user-token=foobarbaz reset-persona
+elroy --user-token=foobarbaz show-persona  | grep -q "Elroy" || {
     echo "❌ Persona reset failed"
     exit 1
 }

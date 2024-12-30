@@ -403,14 +403,11 @@ def version():
 @app.command(name="set-persona")
 @elroy_context
 @with_db
-def set_persona(ctx: ElroyContext, persona_path: str = typer.Argument(..., help="Path to a persona file to use for the assistant")):
+def set_persona(ctx: ElroyContext, persona: str = typer.Argument(..., help="Persona text to set")):
     """Set a custom persona for the assistant."""
-    with open(persona_path, "r") as f:
-        persona_text = f.read()
-
-    if ctx.is_new_user:
+    if get_user_id_if_exists(ctx.db, ctx.user_token):
         logging.info(f"No user found for token {ctx.user_token}, creating one")
-    set_system_persona(ctx, persona_text)
+    set_system_persona(ctx, persona)
     raise typer.Exit()
 
 
