@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.0.55] - 2024-12-29
+
+### Added
+- Custom assistant name configuration via new command
+- Default configuration file location for easier setup
+- UV package manager installation instructions
+
+### Improved
+- Enhanced conversation context management and summarization
+- Streamlined database setup documentation
+- More comprehensive conversation summaries including tool interactions
+- Enable or disable tools via explicit parameter rather than introspection of model settings (enabled by default)
+
+
+### Documentation
+- Expanded README with additional installation options
+- Clearer database setup instructions
+
 ## [0.0.54] - 2024-12-26
 
 ### Added
