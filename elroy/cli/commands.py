@@ -11,11 +11,8 @@ from ..system_commands import SYSTEM_COMMANDS
 
 async def invoke_system_command(ctx: ElroyContext, msg: str) -> str:
     """
-    Takes user input and executes a system command
-
-    Currently only works well for commands that take 1 non-context argument
-
-    In the future, the execute system command should surface a form
+    Takes user input and executes a system command. For commands with a single non-context argument,
+    executes directly with provided argument. For multi-argument commands, prompts for each argument.
     """
     io = ctx.io
     assert isinstance(io, CliIO)
@@ -32,8 +29,22 @@ async def invoke_system_command(ctx: ElroyContext, msg: str) -> str:
 
     params = list(signature(func).parameters.values())
 
+    # Count non-context parameters
+    non_ctx_params = [p for p in params if p.annotation != ElroyContext]
+
     func_args = {}
 
+    # If exactly one non-context parameter and we have input, execute directly
+    if len(non_ctx_params) == 1 and input_arg:
+        func_args["ctx"] = ctx
+        func_args[non_ctx_params[0].name] = _get_casted_value(non_ctx_params[0], input_arg)
+        return pipe(
+            func_args,
+            valfilter(lambda _: _ is not None and _ != ""),
+            lambda _: func(**_),
+        )  # type: ignore
+
+    # Otherwise, fall back to interactive parameter collection
     input_used = False
     for param in params:
         if param.annotation == ElroyContext:

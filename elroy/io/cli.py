@@ -5,9 +5,9 @@ from itertools import product
 from typing import Generator, Iterator, List, Text, Union
 
 from prompt_toolkit import HTML, Application, PromptSession, print_formatted_text
-from prompt_toolkit.document import Document
 from prompt_toolkit.application import get_app
 from prompt_toolkit.completion import FuzzyWordCompleter
+from prompt_toolkit.document import Document
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
@@ -34,29 +34,23 @@ class SlashCompleter(FuzzyWordCompleter):
 
         # Split the input into command and argument parts
         parts = text.split()
-        
+
         if len(parts) <= 1:
             # If we're just typing the command, yield command completions
             yield from super().get_completions(document, complete_event)
         else:
             # If we have a command and are typing an argument, only yield matching argument completions
             command = parts[0][1:]  # Remove the leading /
-            arg_text = ' '.join(parts[1:])
-            
+            arg_text = " ".join(parts[1:])
+
             # Find the matching completions that start with this command
-            matching_completions = [
-                c for c in self.words 
-                if c.startswith(f"/{command} ")
-            ]
-            
+            matching_completions = [c for c in self.words if c.startswith(f"/{command} ")]  # type: ignore
+
             # Extract just the argument portions and offer those as completions
-            args = [c.split(' ', 1)[1] for c in matching_completions]
+            args = [c.split(" ", 1)[1] for c in matching_completions]
             for arg in args:
                 if arg.startswith(arg_text):
-                    yield from super().get_completions(
-                        Document(arg_text, len(arg_text)),
-                        complete_event
-                    )
+                    yield from super().get_completions(Document(arg_text, len(arg_text)), complete_event)
 
 
 class CliIO(ElroyIO):
