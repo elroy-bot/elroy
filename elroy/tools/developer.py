@@ -15,7 +15,6 @@ from .. import __version__
 from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL
 from ..config.ctx import ElroyContext
 from ..utils.ops import experimental
-from ..utils.utils import obscure_sensitive_info
 
 
 @experimental
@@ -48,7 +47,7 @@ def print_elroy_config(ctx: ElroyContext) -> str:
     """
     return pipe(
         vars(ctx),
-        obscure_sensitive_info,
+        # lambda d: obscure_sensitive_info(d) if scrub else d,
         keyfilter(lambda k: not k.startswith("_")),
         lambda x: pformat(x, indent=2, width=80),
     )  # type: ignore

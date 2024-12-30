@@ -2,7 +2,6 @@ import asyncio
 import logging
 import sys
 from datetime import datetime
-from pprint import pformat
 from typing import Optional
 
 import click
@@ -12,13 +11,13 @@ from toolz.curried import keyfilter
 
 from ..config.constants import CONFIG_FILE_KEY, MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext, elroy_context, with_db
-from ..config.models import resolve_anthropic
 from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
 from ..repository.memory import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
+from ..tools.developer import print_elroy_config
 from ..tools.user_preferences import reset_system_persona, set_system_persona
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
@@ -28,7 +27,7 @@ from .chat import (
     onboard_interactive,
     run_chat,
 )
-from .options import CliOption, get_config_params, model_alias_typer_option
+from .options import CliOption, get_config_params, resolve_model_alias
 from .updater import check_latest_version
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
@@ -222,12 +221,42 @@ def common(
         "-t",
         help="Specifies the tool to use in responding to a message. Only valid when processing a single message",
     ),
-    sonnet: bool = model_alias_typer_option("sonnet", "Use Anthropic's Sonnet model", lambda: resolve_anthropic("sonnet")),
-    opus: bool = model_alias_typer_option("opus", "Use Anthropic's Opus model", lambda: resolve_anthropic("opus")),
-    gpt4o: bool = model_alias_typer_option("4o", "Use OpenAI's GPT-4o model", lambda: "gpt-4o"),
-    gpt4o_mini: bool = model_alias_typer_option("4o-mini", "Use OpenAI's GPT-4o-mini model", lambda: "gpt-4o-mini"),
-    o1: bool = model_alias_typer_option("o1", "OpenAI's o1 model", lambda: "o1-preview"),
-    o1_mini: bool = model_alias_typer_option("o1-mini", "Use OpenAI's o1-mini model", lambda: "o1-mini"),
+    sonnet: bool = typer.Option(
+        False,
+        help="Use Anthropic's Sonnet model",
+        show_default=False,
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    opus: bool = typer.Option(
+        False,
+        help="Use Anthropic's Opus model",
+        show_default=False,
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    gpt4o: bool = typer.Option(
+        False,
+        help="Use OpenAI's GPT-4o model",
+        show_default=False,
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    gpt4o_mini: bool = typer.Option(
+        False,
+        help="Use OpenAI's GPT-4o-mini model",
+        show_default=False,
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    o1: bool = typer.Option(
+        False,
+        help="Use OpenAI's o1 model",
+        show_default=False,
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    o1_mini: bool = typer.Option(
+        False,
+        help="Use OpenAI's o1-mini model",
+        show_default=False,
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
 ):
     """Common parameters."""
 
@@ -238,9 +267,12 @@ def common(
     else:
         ctx.params["command"] = ctx.command
 
+    for m in MODEL_ALIASES:
+        if ctx.params.get(m):
+            ctx.params["chat_model"] = resolve_model_alias(m)
+
     ctx.obj = pipe(
         ctx.params,
-        # lambda x: assoc(x, 'command', ctx.invoked_subcommand or next(c for c in app.registered_commands if c.name == 'chat')),
         lambda x: merge(get_config_params(ctx.params.get(CONFIG_FILE_KEY)), x),
         keyfilter(lambda k: k not in MODEL_ALIASES),
         dict,
@@ -351,7 +383,7 @@ def list_models():
 @with_db
 def show_config(ctx: ElroyContext):
     """Shows current configuration and exits."""
-    print(pformat(vars(ctx), indent=2, width=80))
+    print(print_elroy_config(ctx))
 
 
 @app.command()
