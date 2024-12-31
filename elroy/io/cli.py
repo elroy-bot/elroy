@@ -6,8 +6,7 @@ from typing import Generator, Iterator, List, Text, Union
 
 from prompt_toolkit import HTML, Application, PromptSession, print_formatted_text
 from prompt_toolkit.application import get_app
-from prompt_toolkit.completion import Completion, FuzzyWordCompleter
-from prompt_toolkit.document import Document
+from prompt_toolkit.completion import Completion, WordCompleter
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
@@ -17,7 +16,7 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.text import Text
 from toolz import concatv, pipe
-from toolz.curried import map, remove
+from toolz.curried import map
 
 from ..config.constants import REPO_ISSUES_URL
 from ..config.paths import get_prompt_history_path
@@ -26,41 +25,40 @@ from ..io.base import ElroyIO
 from ..repository.data_models import ContextMessage
 
 
-class SlashCompleter(FuzzyWordCompleter):
+class SlashCompleter(WordCompleter):
     def get_completions(self, document, complete_event):
         text = document.text
         if not text.startswith("/"):
             return
 
-        # Split the input into command and argument parts
-        parts = pipe(
-            text.split(),
-            map(str.strip),
-            remove(lambda x: x == ""),
-            list,
-        )
+        words = text.split()
 
-        if len(parts) <= 1:
-            # If the stripped text exactly matches a command, yield it
-            if parts[0] in self.words:  # type: ignore
-                yield Completion(parts[0], start_position=-len(text))
+        exact_cmd_prefix = False
+        # If we just have "/" or are typing the command part
+        if len(words) <= 1:
+            cmds = {c.split()[0] for c in self.words}  # type: ignore # Get just the command parts
+            for cmd in cmds:
+                if cmd.startswith(text) and text != cmd:
+                    yield Completion(cmd, start_position=-len(text))
+                    exact_cmd_prefix = True
+            if exact_cmd_prefix:
                 return
 
-            # If we're just typing the command, yield command completions
-            yield from super().get_completions(document, complete_event)
-        else:
-            # If we have a command and are typing an argument, only yield matching argument completions
-            command = parts[0][1:]  # Remove the leading /
-            arg_text = " ".join(parts[1:])
-
-            # Find the matching completions that start with this command
-            matching_completions = [c for c in self.words if c.startswith(f"/{command} ")]  # type: ignore
-
-            # Extract just the argument portions and offer those as completions
-            args = [c.split(" ", 1)[1] for c in matching_completions]
-            for arg in args:
-                if arg.startswith(arg_text):
-                    yield from super().get_completions(Document(arg_text, len(arg_text)), complete_event)
+        # If we have a command and are typing arguments
+        cmd = words[0]
+        # Get the full command templates that start with this command
+        matching_commands = [w for w in self.words if w.startswith(cmd)]  # type: ignore
+        if matching_commands:
+            # Create a completer just for the arguments of this command
+            arg_text = " ".join(words[1:])
+            # Extract just the argument parts from the matching commands
+            arg_options = [" ".join(m.split()[1:]) for m in matching_commands if len(m.split()) > 1]
+            if arg_options:
+                # Complete from the start of the argument portion
+                arg_start_position = -len(arg_text) if arg_text else 0
+                for arg in arg_options:
+                    if arg.startswith(arg_text):
+                        yield Completion(arg, start_position=arg_start_position)
 
 
 class CliIO(ElroyIO):
