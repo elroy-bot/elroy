@@ -6,7 +6,7 @@ from typing import Generator, Iterator, List, Text, Union
 
 from prompt_toolkit import HTML, Application, PromptSession, print_formatted_text
 from prompt_toolkit.application import get_app
-from prompt_toolkit.completion import FuzzyWordCompleter
+from prompt_toolkit.completion import Completion, FuzzyWordCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
@@ -17,7 +17,7 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.text import Text
 from toolz import concatv, pipe
-from toolz.curried import map
+from toolz.curried import map, remove
 
 from ..config.constants import REPO_ISSUES_URL
 from ..config.paths import get_prompt_history_path
@@ -33,9 +33,19 @@ class SlashCompleter(FuzzyWordCompleter):
             return
 
         # Split the input into command and argument parts
-        parts = text.split()
+        parts = pipe(
+            text.split(),
+            map(str.strip),
+            remove(lambda x: x == ""),
+            list,
+        )
 
         if len(parts) <= 1:
+            # If the stripped text exactly matches a command, yield it
+            if parts[0] in self.words:  # type: ignore
+                yield Completion(parts[0], start_position=-len(text))
+                return
+
             # If we're just typing the command, yield command completions
             yield from super().get_completions(document, complete_event)
         else:
