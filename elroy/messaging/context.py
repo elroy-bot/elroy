@@ -22,7 +22,7 @@ from ..db.db_models import (
 )
 from ..llm.prompts import summarize_conversation
 from ..repository.data_models import ContextMessage
-from ..repository.memory import consolidate_memories
+from ..repository.memories.operations import formulate_memory
 from ..repository.message import (
     MemoryMetadata,
     add_context_messages,
@@ -229,7 +229,7 @@ def replace_system_instruction(context_messages: List[ContextMessage], new_syste
 
 @logged_exec_time
 async def context_refresh(ctx: ElroyContext) -> None:
-    from ..repository.memory import create_memory, formulate_memory
+    from ..repository.memories.operations import create_memory
     from ..tools.user_preferences import get_user_preferred_name
 
     context_messages = get_context_messages(ctx)
@@ -238,13 +238,6 @@ async def context_refresh(ctx: ElroyContext) -> None:
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
     memory_title, memory_text = await formulate_memory(ctx.chat_model, user_preferred_name, context_messages)
     create_memory(ctx, memory_title, memory_text)
-
-    for mem1, mem2 in ctx.db.find_redundant_pairs(
-        Memory,
-        ctx.l2_memory_consolidation_distance_threshold,
-        ctx.user_id,
-    ):
-        await consolidate_memories(ctx, mem1, mem2)
 
     pipe(
         get_refreshed_system_message(ctx, context_messages),

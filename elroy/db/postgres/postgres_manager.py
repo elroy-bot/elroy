@@ -1,18 +1,16 @@
-import logging
 import re
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple, Type
+from typing import Iterable, List, Optional, Type
 
 from sqlalchemy import Engine, NullPool, create_engine, select
-from sqlalchemy.orm import aliased
-from sqlmodel import Session, and_, func, select, text
+from sqlmodel import Session, and_, select, text
 from toolz import pipe
-from toolz.curried import do, map
+from toolz.curried import map
 
 from ... import PACKAGE_ROOT
 from ...config.constants import RESULT_SET_LIMIT_COUNT
 from ..db_manager import DbManager
-from ..db_models import EmbeddableSqlModel, EmbeddableType, VectorStorage
+from ..db_models import EmbeddableSqlModel, VectorStorage
 
 
 class PostgresManager(DbManager):
@@ -45,55 +43,6 @@ class PostgresManager(DbManager):
         return self.session.exec(
             select(VectorStorage).where(VectorStorage.source_type == row.__class__.__name__, VectorStorage.source_id == row.id)
         ).first()
-
-    def find_redundant_pairs(
-        self,
-        table: Type[EmbeddableType],
-        l2_distance_threshold: float,
-        user_id: int,
-        limit: int = 1,
-    ) -> Iterable[Tuple[EmbeddableType, EmbeddableType]]:
-        """
-        Query an EmbeddableSqlModel using a self-join and return the closest pair of rows in similarity
-        over the L2_PERCENT_CLOSER_THAN_RANDOM_THRESHOLD.
-
-        Args:
-            context (ElroyContext): The Elroy context.
-            table (Type[EmbeddableSqlModel]): The table to query.
-            filter_clause (Any, optional): Additional filter clause. Defaults to lambda: True.
-
-        Returns:
-            Optional[Tuple[EmbeddableSqlModel, EmbeddableSqlModel, float]]:
-            A tuple containing the two closest rows and their similarity score,
-            or None if no pair is found above the threshold.
-        """
-        t1 = aliased(table, name="t1")
-        t2 = aliased(table, name="t2")
-
-        v1 = aliased(VectorStorage, name="v1")
-        v2 = aliased(VectorStorage, name="v2")
-
-        distance_exp = v1.embedding_data.l2_distance(v2.embedding_data).label("distance")  # type: ignore
-
-        yield from pipe(
-            self.exec(
-                select(t1, t2, distance_exp)
-                .join(t2, t1.id < t2.id)  # type: ignore Ensure we don't compare a row with itself
-                .join(v1, (v1.source_type == table.__name__) & (v1.source_id == t1.id))  # type: ignore
-                .join(v2, (v2.source_type == table.__name__) & (v2.source_id == t2.id))  # type: ignore
-                .where(
-                    t1.user_id == user_id,
-                    t2.user_id == user_id,
-                    t1.is_active == True,
-                    t2.is_active == True,
-                    distance_exp < l2_distance_threshold,
-                )
-                .order_by(func.random())  # order by random to lessen chance of infinite loops
-                .limit(limit)
-            ),
-            map(do(lambda row: logging.info(f"Found redundant pair: {row[0].id} and {row[1].id}. Distance = {row[2]}"))),
-            map(lambda row: (row[0], row[1])),
-        )  # type: ignore
 
     def update_embedding(self, vector_storage: VectorStorage, embedding: List[float], embedding_text_md5: str):
         vector_storage.embedding_data = embedding

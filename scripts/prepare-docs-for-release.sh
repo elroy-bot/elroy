@@ -23,6 +23,15 @@ aider --read .aider.elroy.help.txt --file README.md --no-auto-commit -m '
 Review the output of `elroy --help` and README.md. Make any edits that would make the document more complete and accurate.
 '
 
+# Keep defaults.yml comments in sync with --help output
+# ./elroy/defaults.yml
+aider --file elroy/cli/main.py elroy/defaults.yml elroy/config/ctx.py --no-auto-commit -m '
+Review main.py and elroy/defaults.yml. The configuration options in defaults.yml correspond to the command line options in main.py.
+Make sure the comments in defaults.yml are in sync with the command line options in main.py.
+The headings should be the same, ie the YAML should have comments corresponding to the name of the rich_help_panel of the main.py options
+These headings should also be present in ctx.py for the ElroyContext constructor.
+'
+
 # First update documentation
 aider --read elroy/cli/main.py --read elroy/system_commands.py  --file README.md --no-auto-commit -m '
 Review main.py, system_commands.py and README.md. Make any edits that would make the document more complete.

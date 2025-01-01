@@ -164,6 +164,16 @@ class Goal(EmbeddableSqlModel, table=True):
         return self.name
 
 
+class MemoryOperationTracker(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(..., description="User associated with the memory operations")
+    memories_since_consolidation: int = Field(
+        default=0, description="Number of new memories created since the last consolidation operation"
+    )
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+
+
 class Message(SQLModel, table=True):
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)

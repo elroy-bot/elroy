@@ -21,7 +21,7 @@ from ..messaging.messenger import process_message, validate
 from ..repository.data_models import ContextMessage
 from ..repository.goals.operations import create_onboarding_goal
 from ..repository.goals.queries import get_active_goals
-from ..repository.memory import get_active_memories
+from ..repository.memories.operations import get_active_memories
 from ..repository.message import (
     get_context_messages,
     get_time_since_most_recent_user_message,

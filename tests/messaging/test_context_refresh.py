@@ -2,7 +2,7 @@ import asyncio
 
 from elroy.cli.context import get_user_logged_in_message
 from elroy.messaging.context import context_refresh
-from elroy.repository.memory import get_active_memories
+from elroy.repository.memories.operations import get_active_memories
 
 
 def test_context_refresh(george_ctx):

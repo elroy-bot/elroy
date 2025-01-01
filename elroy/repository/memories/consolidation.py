@@ -1,67 +1,188 @@
 import logging
-from typing import List, Optional, Tuple
+from dataclasses import dataclass
+from functools import cached_property, partial, wraps
+from typing import Any, Callable, List
 
+import numpy as np
+from scipy.spatial.distance import cosine
+from sklearn.cluster import DBSCAN
 from sqlmodel import select
+from toolz import pipe, unique
+from toolz.curried import map, take
 
-from ..config.config import ChatModel
-from ..config.constants import MEMORY_WORD_COUNT_LIMIT
-from ..config.ctx import ElroyContext
-from ..db.db_models import Memory
-from ..llm.client import query_llm
-from .data_models import ContextMessage
-
-MAX_MEMORY_LENGTH = 12000  # Characters
-
-
-def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:
-    """Manually record a memory for the user.
-
-    Args:
-        context (ElroyContext): The context of the user.
-        name (str): The name of the memory. Should be specific and discuss one topic.
-        text (str): The text of the memory.
-    """
-
-    if not text:
-        raise ValueError("Memory text cannot be empty.")
-
-    if len(text) > MAX_MEMORY_LENGTH:
-        raise ValueError(f"Memory text exceeds maximum length of {MAX_MEMORY_LENGTH} characters.")
-
-    if not name:
-        name = query_llm(
-            ctx.chat_model,
-            system="Given text representing a memory, your task is to come up with a short title for a memory. "
-            "If the title mentions dates, it should be specific dates rather than relative ones.",
-            prompt=text,
-        )
-
-    create_memory(ctx, name, text)
+from ...config.constants import MEMORY_WORD_COUNT_LIMIT
+from ...config.ctx import ElroyContext
+from ...db.db_models import Memory, MemoryOperationTracker
+from ...llm.client import query_llm
+from ...utils.utils import run_in_background_thread
 
 
-async def formulate_memory(
-    chat_model: ChatModel, user_preferred_name: Optional[str], context_messages: List[ContextMessage]
-) -> Tuple[str, str]:
-    from ..llm.prompts import summarize_for_memory
-    from ..messaging.context import format_context_messages
+@dataclass
+class MemoryCluster:
+    memories: List[Memory]
+    embeddings: np.ndarray
 
-    return await summarize_for_memory(
-        chat_model,
-        format_context_messages(context_messages, user_preferred_name),
-        user_preferred_name,
+    def __len__(self):
+        return len(self.memories)
+
+    def __str__(self) -> str:
+        # Return a string representation of the object
+        return pipe(
+            self.memories,
+            map(lambda x: "\n".join(["## Memory Title:", x.name, x.text])),
+            list,
+            "\n".join,
+            lambda x: "#Memory Cluster:\n" + x,
+        )  # type: ignore
+
+    def __lt__(self, other: "MemoryCluster") -> bool:
+        """Define default sorting behavior.
+        First sort by cluster size (larger clusters first)
+        Then by mean distance (tighter clusters first)"""
+
+        return self._sort_key < other._sort_key
+
+    @property
+    def _sort_key(self):
+        # Sort such that clusters early in a list are those that are most in need of consolidation.
+        # Sort by: cluster size and then mean distance (ie tightness of cluster)
+        return (-len(self), self.mean_distance)
+
+    def token_count(self, chat_model_name: str):
+        from litellm.utils import token_counter
+
+        return token_counter(chat_model_name, text=str(self))
+
+    @cached_property
+    def distance_matrix(self) -> np.ndarray:
+        """Lazily compute and cache the distance matrix."""
+        size = len(self)
+        _distance_matrix = np.zeros((size, size))
+        for i in range(size):
+            for j in range(i + 1, size):
+                dist = cosine(self.embeddings[i], self.embeddings[j])
+                _distance_matrix[i, j] = dist
+                _distance_matrix[j, i] = dist
+        return _distance_matrix
+
+    @cached_property
+    def mean_distance(self) -> float:
+        """Calculate the mean intra cluster distance between all pairs of embeddings in the cluster using cosine similarity"""
+        if len(self) < 2:
+            return 0.0
+
+        dist_matrix = self.distance_matrix
+        # Get upper triangle of matrix (excluding diagonal of zeros)
+        upper_triangle = dist_matrix[np.triu_indices_from(dist_matrix, k=1)]
+        return float(np.mean(upper_triangle))
+
+    def get_densest_n(self, n: int = 2) -> "MemoryCluster":
+        """Get a new MemoryCluster containing the n members with lowest mean distance to other cluster members.
+
+        Args:
+            n: Number of members to return. Defaults to 2.
+
+        Returns:
+            A new MemoryCluster containing the n members with lowest mean distance to other members.
+        """
+        if len(self) <= n:
+            return self
+
+        dist_matrix = self.distance_matrix
+        # Calculate mean distance for each member (excluding self-distance on diagonal)
+        mean_distances = []
+        for i in range(len(self)):
+            # Get all distances except the diagonal (which is 0)
+            member_distances = np.concatenate([dist_matrix[i, :i], dist_matrix[i, i + 1 :]])
+            mean_dist = np.mean(member_distances)
+            mean_distances.append((mean_dist, i))
+
+        # Sort by mean distance and take top n indices
+        mean_distances.sort(key=lambda x: x[0])
+        closest_indices = [idx for _, idx in mean_distances[:n]]
+
+        # Create new cluster with selected memories and embeddings
+        return MemoryCluster(memories=[self.memories[i] for i in closest_indices], embeddings=self.embeddings[closest_indices])
+
+
+def find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryCluster]:
+    embeddings = []
+    valid_memories = []
+    for memory in memories:
+        embedding = ctx.db.get_embedding(memory)
+        if embedding is not None:
+            embeddings.append(embedding)
+            valid_memories.append(memory)
+
+    if not embeddings:
+        raise ValueError("No embeddings found for memories")
+
+    embeddings_array = np.array(embeddings)
+
+    # Perform DBSCAN clustering
+    clustering = DBSCAN(
+        eps=0.21125,
+        metric="cosine",
+        min_samples=2,
+    ).fit(embeddings_array)
+
+    # Group memories by cluster
+    clusters = {}
+    for idx, label in enumerate(clustering.labels_):
+        if label == -1:  # Skip noise points
+            continue
+        if label not in clusters:
+            clusters[label] = []
+        clusters[label].append(idx)
+
+    # Create MemoryCluster objects
+    clusters = pipe(
+        [
+            MemoryCluster(
+                embeddings=embeddings_array[indices],
+                memories=[valid_memories[i] for i in indices],
+            )
+            for indices in clusters.values()
+        ],
+        map(lambda x: x.get_densest_n(ctx.max_memory_cluster_size)),
+        list,
+        partial(sorted),
     )
 
+    return clusters
 
-async def consolidate_memories(ctx: ElroyContext, memory1: Memory, memory2: Memory):
 
-    if memory1.text == memory2.text:
-        logging.info(f"Memories are identical, marking memory with id {memory2.id} as inactive.")
-        memory2.is_active = False
-        ctx.db.add(memory2)
-        ctx.db.commit()
+async def consolidate_memories(ctx: ElroyContext):
+    from .operations import get_active_memories
+
+    clusters = pipe(
+        get_active_memories(ctx),
+        partial(find_clusters, ctx),
+        take(3),
+    )
+
+    for cluster in clusters:
+        assert isinstance(cluster, MemoryCluster)
+        await consolidate_memory_cluster(ctx, cluster)
+
+
+async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
+    from .operations import create_memory, mark_memory_inactive
+
+    if pipe(
+        cluster.memories,
+        map(lambda m: m.to_fact()),
+        unique,
+        list,
+        lambda x: len(x) == 1,
+    ):
+
+        discarded_memories = cluster.memories[1:]
+        logging.info(f"Memories in cluster are identical, marking {len(discarded_memories)} memories as inactive.")
+
+        [mark_memory_inactive(ctx, m) for m in discarded_memories]
     else:
-
-        ctx.io.internal_thought_msg(f"Consolidating memories '{memory1.name}' and '{memory2.name}'")
+        ctx.io.internal_thought_msg(f"Consolidating memories {len(cluster)} memories in cluster.")
         response = query_llm(
             system=f"""# Memory Consolidation Task
 
@@ -181,16 +302,7 @@ UserFoo enjoys programming with Python and JavaScript. They are interested in ex
 Currently, UserFoo is focused on developing a web application using Python while also expressing a desire to contribute to an open-source JavaScript library. These projects reflect their interest in leveraging their preferred languages in practical contexts.
 ```
 """,
-            prompt="\n".join(
-                [
-                    "# Memory Consolidation Input",
-                    f"## {memory1.name}",
-                    f"{memory1.text}",
-                    "\n",
-                    f"## {memory2.name}",
-                    f"{memory2.text}",
-                ],
-            ),
+            prompt=str(cluster),
             model=ctx.chat_model,
         )
 
@@ -259,80 +371,39 @@ Currently, UserFoo is focused on developing a web application using Python while
         if new_ids:
             logging.info(f"Created {len(new_ids)} new memories with ids: {new_ids}")
             # Only mark old memories inactive if we successfully created new ones
-            logging.info(f"Marking memories with ids {memory1.id} and {memory2.id} as inactive.")
-            mark_memory_inactive(ctx, memory1)
-            mark_memory_inactive(ctx, memory2)
+            logging.info(f"Marking {len(cluster)} old memories as inactive.")
+            [mark_memory_inactive(ctx, m) for m in cluster.memories]
         else:
             logging.warning("No new memories were created from consolidation response. Original memories left unchanged.")
             logging.debug(f"Original response was: {response}")
 
 
-def mark_memory_inactive(ctx: ElroyContext, memory: Memory):
-    from ..messaging.context import remove_from_context
+def memory_consolidation_check(func) -> Callable[..., Any]:
+    @wraps(func)  # Add this line
+    def wrapper(ctx: ElroyContext, *args, **kwargs):
+        result = func(ctx, *args, **kwargs)
 
-    memory.is_active = False
-    ctx.db.add(memory)
-    ctx.db.commit()
-    remove_from_context(ctx, memory)
+        tracker = get_or_create_memory_op_tracker(ctx)
 
+        tracker.memories_since_consolidation += 1
 
-def create_memory(ctx: ElroyContext, name: str, text: str) -> int:
-    """Creates a new memory for the assistant.
+        if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
+            # Run consolidate_memories in a background thread
+            run_in_background_thread(consolidate_memories, ctx)
+            tracker.memories_since_consolidation = 0
+        ctx.db.add(tracker)
+        ctx.db.commit()
+        return result
 
-    Examples of good and bad memory titles are below. Note, the BETTER examples, some titles have been split into two.:
-
-    BAD:
-    - [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
-
-    BETTER:
-    - [User Name]'s project on building a treehouse: More specific, and describes a single topic.
-    - [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.
-
-    BAD:
-    - [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.
-
-    BETTER:
-    - [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.
-
-    BAD:
-    - [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.
-
-    BETTER:
-    - [User Name]'s preferred name: Describes a specific topic.
-    - [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.
-
-    Args:
-        context (ElroyContext): _description_
-        name (str): The name of the memory. Should be specific and discuss one topic.
-        text (str): The text of the memory.
-
-    Returns:
-        int: The database ID of the memory.
-    """
-    from ..messaging.context import add_to_context
-
-    memory = Memory(user_id=ctx.user_id, name=name, text=text)
-    ctx.db.add(memory)
-    ctx.db.commit()
-    ctx.db.refresh(memory)
-    from ..repository.embeddings import upsert_embedding_if_needed
-
-    memory_id = memory.id
-    assert memory_id
-
-    upsert_embedding_if_needed(ctx, memory)
-    add_to_context(ctx, memory)
-
-    return memory_id
+    return wrapper
 
 
-def get_active_memories(ctx: ElroyContext) -> List[Memory]:
-    """Fetch all active memories for the user"""
-    return list(
-        ctx.db.exec(
-            select(Memory).where(
-                Memory.user_id == ctx.user_id,
-                Memory.is_active == True,
-            )
-        ).all()
-    )
+def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker:
+    tracker = ctx.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == ctx.user_id)).one_or_none()
+
+    if tracker:
+        return tracker
+    else:
+        # Create a new tracker for the user if it doesn't exist
+        tracker = MemoryOperationTracker(user_id=ctx.user_id, memories_since_consolidation=0)
+        return tracker
