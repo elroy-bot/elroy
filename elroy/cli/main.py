@@ -17,7 +17,7 @@ from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
 from ..logging_config import setup_logging
-from ..repository.memory import manually_record_user_memory
+from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
 from ..tools.developer import print_elroy_config
 from ..tools.user_preferences import reset_system_persona, set_system_persona
@@ -169,21 +169,36 @@ def common(
         help="Whether to allow the assistant to send the first message",
         rich_help_panel="Context Management",
     ),
-    # Memory Management
+    # Memory Consolidation
+    memories_between_consolidation: int = CliOption(
+        "memories_between_consolidation",
+        help="How many memories to create before triggering a memory consolidation operation.",
+        rich_help_panel="Memory Consolidation",
+    ),
     l2_memory_relevance_distance_threshold: float = CliOption(
         "l2_memory_relevance_distance_threshold",
         help="L2 distance threshold for memory relevance.",
-        rich_help_panel="Memory Management",
+        rich_help_panel="Memory Consolidation",
     ),
-    l2_memory_consolidation_distance_threshold: float = CliOption(
-        "l2_memory_consolidation_distance_threshold",
-        help="L2 distance threshold for memory consolidation.",
-        rich_help_panel="Memory Management",
+    memory_cluster_similarity_threshold: float = CliOption(
+        "memory_cluster_similarity_threshold",
+        help="Threshold for memory cluster similarity.",
+        rich_help_panel="Memory Consolidation",
+    ),
+    max_memory_cluster_size: int = CliOption(
+        "max_memory_cluster_size",
+        help="The maximum number of memories that can be consolidated into a single memory at once.",
+        rich_help_panel="Memory Consolidation",
+    ),
+    min_memory_cluster_size: int = CliOption(
+        "min_memory_cluster_size",
+        help="The minimum number of memories that can be consolidated into a single memory at once.",
+        rich_help_panel="Memory Consolidation",
     ),
     initial_context_refresh_wait_seconds: int = CliOption(
         "initial_context_refresh_wait_seconds",
         help="Initial wait time in seconds after login before the initial context refresh and compression.",
-        rich_help_panel="Memory Management",
+        rich_help_panel="Memory Consolidation",
     ),
     # UI Configuration
     show_internal_thought: bool = CliOption(

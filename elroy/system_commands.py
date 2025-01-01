@@ -28,7 +28,7 @@ from .repository.goals.operations import (
     rename_goal,
 )
 from .repository.goals.queries import get_active_goals
-from .repository.memory import create_memory
+from .repository.memories.operations import create_memory
 from .repository.message import (
     add_context_messages,
     get_context_messages,

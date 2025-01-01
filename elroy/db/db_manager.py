@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
-from typing import Any, Generator, Iterable, List, Optional, Tuple, Type
+from typing import Any, Generator, Iterable, List, Optional, Type
 
 import typer
 from alembic import command
@@ -14,7 +14,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import Engine
 from sqlmodel import Session, select, text
 
-from .db_models import EmbeddableSqlModel, EmbeddableType, VectorStorage
+from .db_models import EmbeddableSqlModel, VectorStorage
 
 
 class DbManager(ABC):
@@ -45,16 +45,6 @@ class DbManager(ABC):
         raise NotImplementedError
 
     def update_embedding(self, vector_storage: VectorStorage, embedding: List[float], embedding_text_md5: str):
-        raise NotImplementedError
-
-    @abstractmethod
-    def find_redundant_pairs(
-        self,
-        table: Type[EmbeddableType],
-        l2_distance_threshold: float,
-        user_id: int,
-        limit: int = 1,
-    ) -> Iterable[Tuple[EmbeddableType, EmbeddableType]]:
         raise NotImplementedError
 
     @abstractmethod

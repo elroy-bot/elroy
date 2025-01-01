@@ -3,7 +3,7 @@ import re
 import sqlite3
 from pathlib import Path
 from struct import unpack
-from typing import Iterable, List, Optional, Tuple, Type
+from typing import Iterable, List, Optional, Type
 
 import sqlite_vec
 from sqlalchemy import Engine, create_engine, text
@@ -13,7 +13,7 @@ from toolz.curried import map
 from ... import PACKAGE_ROOT
 from ...config.constants import EMBEDDING_SIZE, RESULT_SET_LIMIT_COUNT
 from ..db_manager import DbManager
-from ..db_models import EmbeddableSqlModel, EmbeddableType, VectorStorage
+from ..db_models import EmbeddableSqlModel, VectorStorage
 
 
 class SqliteManager(DbManager):
@@ -159,77 +159,6 @@ class SqliteManager(DbManager):
             results,
             map(lambda row: dict(row._mapping)),  # Convert SQLAlchemy Row to dict
             map(table.model_validate),  # Convert dict to model instance
-            list,
-            iter,
-        )
-
-    def find_redundant_pairs(
-        self,
-        table: Type[EmbeddableType],
-        l2_distance_threshold: float,
-        user_id: int,
-        limit: int = 1,
-    ) -> Iterable[Tuple[EmbeddableType, EmbeddableType]]:
-        """
-        Find redundant pairs of rows in the given table using vector similarity.
-        """
-
-        def _split_row_data(row_dict: dict, table: Type[EmbeddableType]) -> Tuple[dict, dict]:
-            """Split a joined row into two separate dictionaries for t1 and t2"""
-            # Get the column names from the table
-            columns = table.model_fields.keys()
-
-            # Split the data into t1 and t2
-            t1_data = {}
-            t2_data = {}
-
-            for key, value in row_dict.items():
-                if key == "distance":
-                    continue
-                # SQLite returns columns as "t1_column" and "t2_column"
-                if key.startswith("t1_"):
-                    real_key = key[3:]  # Remove 't1_' prefix
-                    if real_key in columns:
-                        t1_data[real_key] = value
-                elif key.startswith("t2_"):
-                    real_key = key[3:]  # Remove 't2_' prefix
-                    if real_key in columns:
-                        t2_data[real_key] = value
-
-            return t1_data, t2_data
-
-        results = self.session.exec(
-            text(
-                f"""
-                WITH pairs AS (
-                    SELECT
-                        t1.*,
-                        t2.*,
-                        vec_distance_L2(v1.embedding_data, v2.embedding_data) as distance
-                    FROM {table.__name__} t1
-                    JOIN {table.__name__} t2 ON t1.id < t2.id
-                    JOIN vectorstorage v1 ON v1.source_type = :source_type AND v1.source_id = t1.id
-                    JOIN vectorstorage v2 ON v2.source_type = :source_type AND v2.source_id = t2.id
-                    WHERE t1.user_id = :user_id
-                    AND t2.user_id = :user_id
-                    AND t1.is_active = 1
-                    AND t2.is_active = 1
-                    AND vec_distance_L2(v1.embedding_data, v2.embedding_data) < :threshold
-                    ORDER BY RANDOM()
-                    LIMIT :limit
-                )
-                SELECT * FROM pairs
-            """
-            ).bindparams(
-                source_type=table.__name__, user_id=user_id, threshold=l2_distance_threshold, limit=limit
-            )  # type: ignore
-        )
-
-        return pipe(
-            results,
-            map(lambda row: dict(row._mapping)),  # Convert SQLAlchemy Row to dict
-            map(lambda d: _split_row_data(d, table)),  # Split into t1 and t2 data
-            map(lambda pair: (table.model_validate(pair[0]), table.model_validate(pair[1]))),
             list,
             iter,
         )

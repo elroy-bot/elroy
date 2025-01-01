@@ -58,8 +58,11 @@ class ElroyContext(typer.Context):
         enable_assistant_greeting: bool,
         initial_context_refresh_wait_seconds: int,
         # Memory Management
+        memory_cluster_similarity_threshold: float,
+        max_memory_cluster_size: int,
+        min_memory_cluster_size: int,
+        memories_between_consolidation: int,
         l2_memory_relevance_distance_threshold: float,
-        l2_memory_consolidation_distance_threshold: float,
         # Basic Configuration
         debug: bool,
         log_file_path: str,
@@ -109,8 +112,11 @@ class ElroyContext(typer.Context):
         self.context_refresh_interval = timedelta(minutes=context_refresh_interval_minutes)
 
         # Memory Management
+        self.memory_cluster_similarity_threshold = memory_cluster_similarity_threshold
+        self.max_memory_cluster_size = max_memory_cluster_size
+        self.min_memory_cluster_size = min_memory_cluster_size
+        self.memories_between_consolidation = memories_between_consolidation
         self.l2_memory_relevance_distance_threshold = l2_memory_relevance_distance_threshold
-        self.l2_memory_consolidation_distance_threshold = l2_memory_consolidation_distance_threshold
         self.initial_context_refresh_wait_seconds = initial_context_refresh_wait_seconds
 
         # Basic Configuration
@@ -264,7 +270,6 @@ def clone_ctx_with_db(ctx: ElroyContext, db: DbManager) -> ElroyContext:
         enable_assistant_greeting=ctx.enable_assistant_greeting,
         initial_context_refresh_wait_seconds=ctx.initial_context_refresh_wait_seconds,
         l2_memory_relevance_distance_threshold=ctx.l2_memory_relevance_distance_threshold,
-        l2_memory_consolidation_distance_threshold=ctx.l2_memory_consolidation_distance_threshold,
         debug=ctx.debug,
         log_file_path=str(ctx.log_file_path),
         max_assistant_loops=ctx.max_assistant_loops,
@@ -272,6 +277,10 @@ def clone_ctx_with_db(ctx: ElroyContext, db: DbManager) -> ElroyContext:
         default_assistant_name=ctx.default_assistant_name,
         tool=ctx.tool,
         enable_tools=ctx.enable_tools,
+        memory_cluster_similarity_threshold=ctx.memory_cluster_similarity_threshold,
+        max_memory_cluster_size=ctx.max_memory_cluster_size,
+        min_memory_cluster_size=ctx.min_memory_cluster_size,
+        memories_between_consolidation=ctx.memories_between_consolidation,
     )
     new_ctx._db = db
     return new_ctx

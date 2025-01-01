@@ -200,7 +200,7 @@ def _has_assistant_tool_call(tool_call_id: Optional[str], context_messages: List
 
 @logged_exec_time
 def get_relevant_memories(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
-    from .context import is_memory_in_context
+    from ..repository.embeddable import is_in_context
 
     message_content = pipe(
         context_messages,
@@ -222,7 +222,7 @@ def get_relevant_memories(ctx: ElroyContext, context_messages: List[ContextMessa
         partial(get_embedding, ctx.embedding_model),
         lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(ctx, x),
         filter(lambda x: x is not None),
-        remove(partial(is_memory_in_context, context_messages)),
+        remove(partial(is_in_context, context_messages)),
         map(
             lambda x: ContextMessage(
                 role=SYSTEM,

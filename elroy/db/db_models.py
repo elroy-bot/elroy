@@ -100,7 +100,11 @@ class Memory(EmbeddableSqlModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the context")
     text: str = Field(..., description="The text of the message")
+    source_metadata: str = Field(sa_column=Column(Text), default="[]", description="Metadata for the memory as JSON string")
     is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
+
+    def get_source_metadata(self) -> List[Dict[str, Any]]:
+        return json.loads(self.source_metadata)
 
     def get_name(self) -> str:
         return self.name
@@ -162,6 +166,16 @@ class Goal(EmbeddableSqlModel, table=True):
 
     def get_name(self) -> str:
         return self.name
+
+
+class MemoryOperationTracker(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(..., description="User associated with the memory operations")
+    memories_since_consolidation: int = Field(
+        default=0, description="Number of new memories created since the last consolidation operation"
+    )
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
 
 
 class Message(SQLModel, table=True):
