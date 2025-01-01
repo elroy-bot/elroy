@@ -251,7 +251,6 @@ You can customize Elroy's appearance with these options:
 
 ### Memory Management
 * `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD] [default: 1.24]
-* `--l2-memory-consolidation-distance-threshold FLOAT`: L2 distance threshold for memory consolidation. [env var: ELROY_L2_MEMORY_CONSOLIDATION_DISTANCE_THRESHOLD] [default: 0.65]
 * `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [env var: ELROY_INITIAL_CONTEXT_REFRESH_WAIT_SECONDS] [default: 30]
 
 ### UI Configuration

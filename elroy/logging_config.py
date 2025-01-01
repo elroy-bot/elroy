@@ -1,11 +1,12 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import litellm
 
 
-def setup_logging(log_file_path: str):
+def setup_logging(log_file_path: Path):
     # Create the directory for the log file if it doesn't exist
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 

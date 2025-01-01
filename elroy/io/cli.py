@@ -181,7 +181,7 @@ class CliIO(ElroyIO):
             return await self.prompt_user(prompt, prefill, keyboard_interrupt_count)
 
     def update_completer(self, goals: List[Goal], memories: List[Memory], context_messages: List[ContextMessage]) -> None:
-        from ..messaging.context import is_memory_in_context
+        from ..repository.embeddable import is_in_context
         from ..system_commands import (
             ALL_ACTIVE_GOAL_COMMANDS,
             ALL_ACTIVE_MEMORY_COMMANDS,
@@ -193,10 +193,10 @@ class CliIO(ElroyIO):
             USER_ONLY_COMMANDS,
         )
 
-        in_context_goal_names = sorted([g.get_name() for g in goals if is_memory_in_context(context_messages, g)])
+        in_context_goal_names = sorted([g.get_name() for g in goals if is_in_context(context_messages, g)])
         non_context_goal_names = sorted([g.get_name() for g in goals if g.get_name() not in in_context_goal_names])
 
-        in_context_memories = sorted([m.get_name() for m in memories if is_memory_in_context(context_messages, m)])
+        in_context_memories = sorted([m.get_name() for m in memories if is_in_context(context_messages, m)])
         non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
 
         self.prompt_session.completer = pipe(  # type: ignore

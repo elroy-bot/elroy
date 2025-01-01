@@ -18,10 +18,8 @@ from ..config.constants import (
 from ..config.models import get_fallback_model
 from ..db.db_models import ASSISTANT, FunctionCall
 from ..repository.data_models import ContentItem, ContextMessage
-from ..utils.utils import logged_exec_time
 
 
-@logged_exec_time
 def generate_chat_completion_message(
     chat_model: ChatModel,
     context_messages: List[ContextMessage],
