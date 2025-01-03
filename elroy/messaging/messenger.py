@@ -99,24 +99,21 @@ def validate(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[
         partial(_validate_system_instruction_correctly_placed, ctx.debug),
         partial(_validate_assistant_tool_calls_followed_by_tool, ctx.debug),
         partial(_validate_tool_messages_have_assistant_tool_call, ctx.debug),
-        lambda msgs: (
-            msgs if not ctx.chat_model.ensure_alternating_roles else validate_first_user_precedes_first_assistant(ctx.debug, msgs)
-        ),
+        lambda msgs: (msgs if not ctx.chat_model.ensure_alternating_roles else validate_first_user_precedes_first_assistant(msgs)),
         list,
     )
 
 
-def validate_first_user_precedes_first_assistant(debug_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def validate_first_user_precedes_first_assistant(context_messages: List[ContextMessage]) -> List[ContextMessage]:
     user_and_assistant_messages = [m for m in context_messages if m.role in [USER, ASSISTANT]]
 
     if user_and_assistant_messages and user_and_assistant_messages[0].role != USER:
-        if debug_mode:
-            raise ValueError("First non-system message must be USER role for this model")
-        else:
-            context_messages = [
-                context_messages[0],
-                ContextMessage(role=USER, content="The user has begun the converstaion", chat_model=None),
-            ] + context_messages[1:]
+        logging.info("First non-system message is not user message, repairing by inserting user message")
+
+        context_messages = [
+            context_messages[0],
+            ContextMessage(role=USER, content="The user has begun the converstaion", chat_model=None),
+        ] + context_messages[1:]
     return context_messages
 
 

@@ -67,7 +67,7 @@ async def run_chat(ctx: ElroyContext):
 
     if context_messages != validated_messages:
         replace_context_messages(ctx, validated_messages)
-        logging.warning("Context messages were repaired")
+        logging.info("Context messages were repaired")
         context_messages = get_context_messages(ctx)
 
     print_memory_panel(ctx, context_messages)

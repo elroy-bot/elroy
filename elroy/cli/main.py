@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+from bdb import BdbQuit
 from datetime import datetime
 from typing import Optional
 
@@ -293,6 +294,8 @@ def chat(ctx: ElroyContext):
             if not get_user_id_if_exists(ctx.db, ctx.user_token):
                 asyncio.run(onboard_interactive(ctx))
             asyncio.run(run_chat(ctx))
+        except BdbQuit:
+            pass
         except Exception as e:
             create_bug_report_from_exception_if_confirmed(ctx, e)
     else:
