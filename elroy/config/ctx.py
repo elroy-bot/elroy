@@ -2,6 +2,7 @@ import sys
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import cached_property, wraps
+from pathlib import Path
 from typing import Any, Callable, Generator, Optional, TypeVar, Union
 
 import click
@@ -112,7 +113,7 @@ class ElroyContext(typer.Context):
 
         # Basic Configuration
         self.debug = debug
-        self.log_file_path = log_file_path
+        self.log_file_path = Path(log_file_path).resolve()
         self.default_persona = default_persona
         self.default_assistant_name = default_assistant_name
 
