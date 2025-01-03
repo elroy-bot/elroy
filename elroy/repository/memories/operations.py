@@ -1,10 +1,14 @@
-from typing import List, Optional, Tuple
+import json
+from functools import partial
+from typing import List, Optional, Sequence, Tuple
 
 from sqlmodel import select
+from toolz import pipe
+from toolz.curried import do, map
 
 from ...config.config import ChatModel
 from ...config.ctx import ElroyContext
-from ...db.db_models import Memory
+from ...db.db_models import EmbeddableSqlModel, Memory
 from ...llm.client import query_llm
 from ..data_models import ContextMessage
 from .consolidation import memory_consolidation_check
@@ -20,6 +24,34 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
             )
         ).all()
     )
+
+
+def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: Sequence[EmbeddableSqlModel]):
+    from ...repository.embeddings import upsert_embedding_if_needed
+    from ..embeddable import add_to_context
+
+    memory = pipe(
+        sources,
+        map(lambda x: {"source_id": x.id, "source_type": x.__class__.__name__}),
+        list,
+        json.dumps,
+        lambda x: Memory(user_id=ctx.user_id, name=name, text=text, source_metadata=x),
+        do(ctx.db.add),
+        do(lambda x: ctx.db.commit()),
+        do(ctx.db.refresh),
+        do(partial(upsert_embedding_if_needed, ctx)),
+        do(partial(add_to_context, ctx)),
+    )
+
+    mark_inactive(ctx, memory)
+    for source in sources:
+        source.is_active = False
+        ctx.db.add(source)
+        ctx.db.commit()
+
+    memory_id = memory.id
+    assert memory_id
+    return memory_id
 
 
 @memory_consolidation_check
@@ -56,8 +88,8 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> int:
     Returns:
         int: The database ID of the memory.
     """
-    from ...messaging.context import add_to_context
     from ...repository.embeddings import upsert_embedding_if_needed
+    from ..embeddable import add_to_context
 
     memory = Memory(user_id=ctx.user_id, name=name, text=text)
     ctx.db.add(memory)
@@ -115,10 +147,10 @@ async def formulate_memory(
     )
 
 
-def mark_memory_inactive(ctx: ElroyContext, memory: Memory):
-    from ...messaging.context import remove_from_context
+def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
+    from ..embeddable import remove_from_context
 
-    memory.is_active = False
-    ctx.db.add(memory)
+    item.is_active = False
+    ctx.db.add(item)
     ctx.db.commit()
-    remove_from_context(ctx, memory)
+    remove_from_context(ctx, item)

@@ -3,33 +3,26 @@ from collections import deque
 from datetime import datetime
 from functools import partial, reduce
 from operator import add
-from typing import List, Optional, Type, Union
+from typing import List, Optional, Union
 
-from sqlmodel import select
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
+from repository.embeddable import (
+    add_to_current_context_by_name,
+    drop_from_context_by_name,
+)
+
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
 from ..config.ctx import ElroyContext
-from ..db.db_models import (
-    ASSISTANT,
-    SYSTEM,
-    TOOL,
-    USER,
-    EmbeddableSqlModel,
-    Goal,
-    Memory,
-)
+from ..db.db_models import ASSISTANT, SYSTEM, TOOL, USER, Goal, Memory
 from ..llm.prompts import summarize_conversation
 from ..repository.data_models import ContextMessage
 from ..repository.memories.operations import formulate_memory
 from ..repository.message import (
-    MemoryMetadata,
-    add_context_messages,
     get_context_messages,
     get_time_since_context_message_creation,
     is_system_instruction,
-    remove_context_messages,
     replace_context_messages,
 )
 from ..tools.user_preferences import get_or_create_user_preference
@@ -247,38 +240,6 @@ async def context_refresh(ctx: ElroyContext) -> None:
     )
 
 
-def is_memory_in_context_message(memory: EmbeddableSqlModel, context_message: ContextMessage) -> bool:
-    if not context_message.memory_metadata:
-        return False
-    return any(x.memory_type == memory.__class__.__name__ and x.id == memory.id for x in context_message.memory_metadata)
-
-
-def remove_from_context(ctx: ElroyContext, memory: EmbeddableSqlModel):
-    pipe(
-        get_context_messages(ctx),
-        filter(partial(is_memory_in_context_message, memory)),
-        list,
-        partial(remove_context_messages, ctx),
-    )
-
-
-def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
-    memory_id = memory.id
-    assert memory_id
-
-    add_context_messages(
-        ctx,
-        [
-            ContextMessage(
-                role=SYSTEM,
-                memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
-                content=memory.to_fact(),
-                chat_model=None,
-            )
-        ],
-    )
-
-
 def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     """Adds memory with the given name to the current conversation context
 
@@ -289,7 +250,7 @@ def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     Returns:
         str: The result of the attempt to add the memory to current context.
     """
-    return _add_to_current_context_by_name(ctx, memory_name, Memory)
+    return add_to_current_context_by_name(ctx, memory_name, Memory)
 
 
 def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
@@ -302,29 +263,7 @@ def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
     Returns:
         str: The result of the attempt to add the goal to current context.
     """
-    return _add_to_current_context_by_name(ctx, goal_name, Goal)
-
-
-def _add_to_current_context_by_name(ctx: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
-    item = ctx.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
-
-    if item:
-        add_to_context(ctx, item)
-        return f"{memory_type.__name__} '{name}' added to context."
-    else:
-        return f"{memory_type.__name__} '{name}' not found."
-
-
-def is_memory_in_context(context_messages: List[ContextMessage], memory: EmbeddableSqlModel) -> bool:
-    return pipe(
-        context_messages,
-        map(lambda x: x.memory_metadata),
-        filter(lambda x: x is not None),
-        concat,
-        filter(lambda x: x.memory_type == memory.__class__.__name__ and x.id == memory.id),
-        list,
-        lambda x: len(x) > 0,
-    )
+    return add_to_current_context_by_name(ctx, goal_name, Goal)
 
 
 def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
@@ -337,7 +276,7 @@ def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
     Returns:
         str: Information for the goal with the given name
     """
-    return _drop_from_context_by_name(ctx, goal_name, Goal)
+    return drop_from_context_by_name(ctx, goal_name, Goal)
 
 
 def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str:
@@ -350,14 +289,4 @@ def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str
     Returns:
         str: Information for the memory with the given name
     """
-    return _drop_from_context_by_name(ctx, memory_name, Memory)
-
-
-def _drop_from_context_by_name(ctx: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
-    item = ctx.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
-
-    if item:
-        remove_from_context(ctx, item)
-        return f"{memory_type.__name__} '{name}' dropped from context."
-    else:
-        return f"{memory_type.__name__} '{name}' not found."
+    return drop_from_context_by_name(ctx, memory_name, Memory)

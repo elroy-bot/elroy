@@ -16,6 +16,7 @@ from ...config.ctx import ElroyContext
 from ...db.db_models import Memory, MemoryOperationTracker
 from ...llm.client import query_llm
 from ...utils.utils import run_in_background_thread
+from .operations import create_consolidated_memory
 
 
 @dataclass
@@ -168,7 +169,7 @@ def consolidate_memories(ctx: ElroyContext):
 
 
 async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
-    from .operations import create_memory, mark_memory_inactive
+    from .operations import mark_inactive
 
     if pipe(
         cluster.memories,
@@ -181,7 +182,7 @@ async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
         discarded_memories = cluster.memories[1:]
         logging.info(f"Memories in cluster are identical, marking {len(discarded_memories)} memories as inactive.")
 
-        [mark_memory_inactive(ctx, m) for m in discarded_memories]
+        [mark_inactive(ctx, m) for m in discarded_memories]
     else:
         ctx.io.internal_thought_msg(f"Consolidating memories {len(cluster)} memories in cluster.")
         response = query_llm(
@@ -349,7 +350,12 @@ Currently, UserFoo is focused on developing a web application using Python while
                 if current_title and current_content:
                     content = "\n".join(current_content).strip()
                     try:
-                        new_id = create_memory(ctx, current_title, content)
+                        new_id = create_consolidated_memory(
+                            ctx=ctx,
+                            name=current_title,
+                            text=content,
+                            sources=cluster.memories,
+                        )
                         new_ids.append(new_id)
                     except Exception as e:
                         logging.warning(f"Failed to create memory '{current_title}': {e}")
@@ -364,17 +370,17 @@ Currently, UserFoo is focused on developing a web application using Python while
         if current_title and current_content:
             content = "\n".join(current_content).strip()
             try:
-                new_id = create_memory(ctx, current_title, content)
+                new_id = create_consolidated_memory(
+                    ctx=ctx,
+                    name=current_title,
+                    text=content,
+                    sources=cluster.memories,
+                )
                 new_ids.append(new_id)
             except Exception as e:
                 logging.warning(f"Failed to create memory '{current_title}': {e}")
 
-        if new_ids:
-            logging.info(f"Created {len(new_ids)} new memories with ids: {new_ids}")
-            # Only mark old memories inactive if we successfully created new ones
-            logging.info(f"Marking {len(cluster)} old memories as inactive.")
-            [mark_memory_inactive(ctx, m) for m in cluster.memories]
-        else:
+        if not new_ids:
             logging.warning("No new memories were created from consolidation response. Original memories left unchanged.")
             logging.debug(f"Original response was: {response}")
 
