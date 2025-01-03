@@ -47,7 +47,7 @@ def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]
 def handle_message_stdio(ctx: ElroyContext, io: StdIO, message: str, tool: Optional[str]):
     pipe(
         process_message(USER, ctx, message, tool),
-        ctx.io.assistant_msg,
+        io.assistant_msg,
     )
 
 
