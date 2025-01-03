@@ -8,16 +8,15 @@ from typing import List, Optional, Union
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
-from repository.embeddable import (
-    add_to_current_context_by_name,
-    drop_from_context_by_name,
-)
-
 from ..config.constants import SYSTEM_INSTRUCTION_LABEL
 from ..config.ctx import ElroyContext
 from ..db.db_models import ASSISTANT, SYSTEM, TOOL, USER, Goal, Memory
 from ..llm.prompts import summarize_conversation
 from ..repository.data_models import ContextMessage
+from ..repository.embeddable import (
+    add_to_current_context_by_name,
+    drop_from_context_by_name,
+)
 from ..repository.memories.operations import formulate_memory
 from ..repository.message import (
     get_context_messages,

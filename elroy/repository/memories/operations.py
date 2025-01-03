@@ -43,12 +43,7 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
         do(partial(add_to_context, ctx)),
     )
 
-    mark_inactive(ctx, memory)
-    for source in sources:
-        source.is_active = False
-        ctx.db.add(source)
-        ctx.db.commit()
-
+    [mark_inactive(ctx, m) for m in sources]
     memory_id = memory.id
     assert memory_id
     return memory_id

@@ -8,7 +8,7 @@ import numpy as np
 from scipy.spatial.distance import cosine
 from sklearn.cluster import DBSCAN
 from sqlmodel import select
-from toolz import pipe, unique
+from toolz import pipe
 from toolz.curried import map, take
 
 from ...config.constants import MEMORY_WORD_COUNT_LIMIT
@@ -16,7 +16,6 @@ from ...config.ctx import ElroyContext
 from ...db.db_models import Memory, MemoryOperationTracker
 from ...llm.client import query_llm
 from ...utils.utils import run_in_background_thread
-from .operations import create_consolidated_memory
 
 
 @dataclass
@@ -147,6 +146,7 @@ def find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClust
             for indices in clusters.values()
         ],
         map(lambda x: x.get_densest_n(ctx.max_memory_cluster_size)),
+        # filter for at least 3 memories
         list,
         partial(sorted),
     )
@@ -169,24 +169,10 @@ def consolidate_memories(ctx: ElroyContext):
 
 
 async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
-    from .operations import mark_inactive
 
-    if pipe(
-        cluster.memories,
-        map(lambda m: m.to_fact()),
-        unique,
-        list,
-        lambda x: len(x) == 1,
-    ):
-
-        discarded_memories = cluster.memories[1:]
-        logging.info(f"Memories in cluster are identical, marking {len(discarded_memories)} memories as inactive.")
-
-        [mark_inactive(ctx, m) for m in discarded_memories]
-    else:
-        ctx.io.internal_thought_msg(f"Consolidating memories {len(cluster)} memories in cluster.")
-        response = query_llm(
-            system=f"""# Memory Consolidation Task
+    ctx.io.internal_thought_msg(f"Consolidating memories {len(cluster)} memories in cluster.")
+    response = query_llm(
+        system=f"""# Memory Consolidation Task
 
 Your task is to consolidate or reorganize two or more memory excerpts. These excerpts have been flagged as having overlapping or redundant content and require consolidation or reorganization.
 
@@ -304,85 +290,87 @@ UserFoo enjoys programming with Python and JavaScript. They are interested in ex
 Currently, UserFoo is focused on developing a web application using Python while also expressing a desire to contribute to an open-source JavaScript library. These projects reflect their interest in leveraging their preferred languages in practical contexts.
 ```
 """,
-            prompt=str(cluster),
-            model=ctx.chat_model,
-        )
+        prompt=str(cluster),
+        model=ctx.chat_model,
+    )
 
-        new_ids = []
-        current_title = ""
-        current_content = []
-        reasoning = None
+    from .operations import create_consolidated_memory
 
-        new_memory_parsing_line_start = 0
-        lines = response.split("\n")
-        for i, line in enumerate(lines):
-            if line.lstrip().startswith("#"):
-                first_header = line.strip()
-                # Check if it looks like a reasoning section
-                if "reason" in first_header.lower() or "consolidat" in first_header.lower():
-                    # Find next header
-                    next_header_idx = None
-                    for j in range(i + 1, len(lines)):
-                        if lines[j].lstrip().startswith("#"):
-                            next_header_idx = j
-                            break
+    new_ids = []
+    current_title = ""
+    current_content = []
+    reasoning = None
 
-                    if next_header_idx is None:
-                        # No more headers - reasoning goes to end
-                        logging.error("No content found after reasoning section, aborting memory consolidation")
-                        return
-
-                    else:
-                        reasoning = "\n".join(lines[i:next_header_idx]).strip()
-                        logging.info(f"Reasoning behind consolidation decisions: {reasoning}")
-                        new_memory_parsing_line_start = next_header_idx
+    new_memory_parsing_line_start = 0
+    lines = response.split("\n")
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("#"):
+            first_header = line.strip()
+            # Check if it looks like a reasoning section
+            if "reason" in first_header.lower() or "consolidat" in first_header.lower():
+                # Find next header
+                next_header_idx = None
+                for j in range(i + 1, len(lines)):
+                    if lines[j].lstrip().startswith("#"):
+                        next_header_idx = j
                         break
-        if not reasoning:
-            logging.error("No reasoning section found in consolidation response, interpreting all sections as memories")
 
-        for line in lines[new_memory_parsing_line_start:]:
-            line = line.strip()
-            if not line:
-                continue
-            # Look for anything that could be a title (lines starting with # or ##)
-            if line.startswith("#"):
-                # If we have accumulated content, save it as a memory
-                if current_title and current_content:
-                    content = "\n".join(current_content).strip()
-                    try:
-                        new_id = create_consolidated_memory(
-                            ctx=ctx,
-                            name=current_title,
-                            text=content,
-                            sources=cluster.memories,
-                        )
-                        new_ids.append(new_id)
-                    except Exception as e:
-                        logging.warning(f"Failed to create memory '{current_title}': {e}")
-                current_title = line.lstrip("#").strip()
-                current_content = []
-            else:
-                if not current_title:
-                    logging.warning(f"Found content without a title: {line}, making the first line as memory title")
-                    current_title = line
-                current_content.append(line)
+                if next_header_idx is None:
+                    # No more headers - reasoning goes to end
+                    logging.error("No content found after reasoning section, aborting memory consolidation")
+                    return
 
-        if current_title and current_content:
-            content = "\n".join(current_content).strip()
-            try:
-                new_id = create_consolidated_memory(
-                    ctx=ctx,
-                    name=current_title,
-                    text=content,
-                    sources=cluster.memories,
-                )
-                new_ids.append(new_id)
-            except Exception as e:
-                logging.warning(f"Failed to create memory '{current_title}': {e}")
+                else:
+                    reasoning = "\n".join(lines[i:next_header_idx]).strip()
+                    logging.info(f"Reasoning behind consolidation decisions: {reasoning}")
+                    new_memory_parsing_line_start = next_header_idx
+                    break
+    if not reasoning:
+        logging.error("No reasoning section found in consolidation response, interpreting all sections as memories")
 
-        if not new_ids:
-            logging.warning("No new memories were created from consolidation response. Original memories left unchanged.")
-            logging.debug(f"Original response was: {response}")
+    for line in lines[new_memory_parsing_line_start:]:
+        line = line.strip()
+        if not line:
+            continue
+        # Look for anything that could be a title (lines starting with # or ##)
+        if line.startswith("#"):
+            # If we have accumulated content, save it as a memory
+            if current_title and current_content:
+                content = "\n".join(current_content).strip()
+                try:
+                    new_id = create_consolidated_memory(
+                        ctx=ctx,
+                        name=current_title,
+                        text=content,
+                        sources=cluster.memories,
+                    )
+                    new_ids.append(new_id)
+                except Exception as e:
+                    logging.warning(f"Failed to create memory '{current_title}': {e}")
+            current_title = line.lstrip("#").strip()
+            current_content = []
+        else:
+            if not current_title:
+                logging.warning(f"Found content without a title: {line}, making the first line as memory title")
+                current_title = line
+            current_content.append(line)
+
+    if current_title and current_content:
+        content = "\n".join(current_content).strip()
+        try:
+            new_id = create_consolidated_memory(
+                ctx=ctx,
+                name=current_title,
+                text=content,
+                sources=cluster.memories,
+            )
+            new_ids.append(new_id)
+        except Exception as e:
+            logging.warning(f"Failed to create memory '{current_title}': {e}")
+
+    if not new_ids:
+        logging.warning("No new memories were created from consolidation response. Original memories left unchanged.")
+        logging.debug(f"Original response was: {response}")
 
 
 def memory_consolidation_check(func) -> Callable[..., Any]:

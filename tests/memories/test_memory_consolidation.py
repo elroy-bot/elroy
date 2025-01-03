@@ -31,6 +31,10 @@ async def test_identical_memories(ctx):
 
     await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]))
 
+    ctx.db.refresh(memory1)
+    ctx.db.refresh(memory2)
+
+    memory2_after = get_memory_by_id(ctx, memory2_id)
     memory2_after = get_memory_by_id(ctx, memory2_id)
     assert memory2_after and not memory2_after.is_active
 
@@ -182,7 +186,7 @@ async def test_trigger(ctx):
         ctx.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == ctx.user_id))
         .first()
         .memories_since_consolidation
-        == 1
+        == 0
     )
 
 
