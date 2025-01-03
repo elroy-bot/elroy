@@ -22,6 +22,7 @@ enable_assistant_greeting: true # If false, overrides any value for min_convo_ag
 min_convo_age_for_greeting_minutes: 10.0
 
 # Memory consolidation parameters
+memory_cluster_similarity_threshold: 0.21125 # similarity threshold for memory consolidation
 memories_between_consolidation: 4 # how many new memories will be created before memory consolidation is triggered
 l2_memory_relevance_distance_threshold: 1.24
 l2_memory_consolidation_distance_threshold: 0.65

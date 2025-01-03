@@ -16,6 +16,7 @@ from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
+from ..logging_config import setup_logging
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
 from ..tools.developer import print_elroy_config
@@ -299,6 +300,8 @@ def common(
         dict,
         lambda x: ElroyContext(parent=ctx, **x),
     )
+
+    setup_logging(ctx.obj.log_file_path)
 
     if ctx.invoked_subcommand is None:
         chat(ctx.obj)

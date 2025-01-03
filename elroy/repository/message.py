@@ -19,7 +19,7 @@ from ..db.db_models import (
     ToolCall,
 )
 from ..utils.clock import ensure_utc, get_utc_now
-from ..utils.utils import last_or_none, logged_exec_time
+from ..utils.utils import last_or_none
 from .data_models import ContextMessage
 
 
@@ -111,7 +111,6 @@ def get_current_system_message(ctx: ElroyContext) -> Optional[ContextMessage]:
         return None
 
 
-@logged_exec_time
 def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMessage]) -> Optional[timedelta]:
     return pipe(
         context_messages,
@@ -121,7 +120,6 @@ def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMe
     )  # type: ignore
 
 
-@logged_exec_time
 def get_context_messages(ctx: ElroyContext) -> List[ContextMessage]:
     return list(_get_context_messages_iter(ctx))
 

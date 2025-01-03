@@ -122,9 +122,9 @@ def find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClust
 
     # Perform DBSCAN clustering
     clustering = DBSCAN(
-        eps=0.21125,
+        eps=ctx.memory_cluster_similarity_threshold,
         metric="cosine",
-        min_samples=2,
+        min_samples=ctx.min_memory_cluster_size,
     ).fit(embeddings_array)
 
     # Group memories by cluster
@@ -146,7 +146,6 @@ def find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClust
             for indices in clusters.values()
         ],
         map(lambda x: x.get_densest_n(ctx.max_memory_cluster_size)),
-        # filter for at least 3 memories
         list,
         partial(sorted),
     )
@@ -378,13 +377,17 @@ def memory_consolidation_check(func) -> Callable[..., Any]:
     def wrapper(ctx: ElroyContext, *args, **kwargs):
         result = func(ctx, *args, **kwargs)
 
+        logging.info("Checking memory consolidation")
+
         tracker = get_or_create_memory_op_tracker(ctx)
 
         tracker.memories_since_consolidation += 1
 
         if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
             # Run consolidate_memories in a background thread
+            logging.info("Running memory consolidation")
             run_in_background_thread(consolidate_memories, ctx)
+            logging.info("Memory consolidation started in background thread")
             tracker.memories_since_consolidation = 0
         ctx.db.add(tracker)
         ctx.db.commit()

@@ -29,6 +29,8 @@ def check_latest_version() -> tuple[Version, Version]:
     Returns tuple of (current_version, latest_version)"""
     current_version = Version(__version__)
 
+    logging.info("Checking latest version of elroy on PyPI...")
+
     try:
         response = requests.get("https://pypi.org/pypi/elroy/json")
         latest_version = Version(response.json()["info"]["version"])
