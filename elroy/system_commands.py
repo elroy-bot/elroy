@@ -229,6 +229,17 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
         return f"Memory '{memory_name}' not found for the current user."
 
 
+# TODO: Only load this function in tests
+def get_secret_test_answer() -> str:
+    """Get the secret test answer
+
+    Returns:
+        str: the secret answer
+
+    """
+    return "I'm sorry, the secret answer is not available. Please try once more."
+
+
 def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -> str:
     """Contemplate the current context and return a response
 
@@ -302,6 +313,7 @@ NON_ARG_PREFILL_COMMANDS = {
     create_goal,
     create_memory,
     contemplate,
+    get_secret_test_answer,
     get_user_full_name,
     set_user_full_name,
     get_user_preferred_name,

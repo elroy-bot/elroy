@@ -49,6 +49,7 @@ class ElroyContext(typer.Context):
         embedding_model_size: int,
         enable_caching: bool = True,
         # Context Management
+        max_assistant_loops: int,
         context_refresh_trigger_tokens: int,
         context_refresh_target_tokens: int,
         max_context_age_minutes: float,
@@ -96,6 +97,7 @@ class ElroyContext(typer.Context):
         self.enable_tools = enable_tools
 
         # Context Management
+        self.max_assistant_loops = max_assistant_loops
         self.context_refresh_trigger_tokens = context_refresh_trigger_tokens
         self.context_refresh_target_tokens = context_refresh_target_tokens
         self.max_context_age_minutes = max_context_age_minutes
@@ -264,7 +266,8 @@ def clone_ctx_with_db(ctx: ElroyContext, db: DbManager) -> ElroyContext:
         l2_memory_relevance_distance_threshold=ctx.l2_memory_relevance_distance_threshold,
         l2_memory_consolidation_distance_threshold=ctx.l2_memory_consolidation_distance_threshold,
         debug=ctx.debug,
-        log_file_path=ctx.log_file_path,
+        log_file_path=str(ctx.log_file_path),
+        max_assistant_loops=ctx.max_assistant_loops,
         default_persona=ctx.default_persona,
         default_assistant_name=ctx.default_assistant_name,
         tool=ctx.tool,

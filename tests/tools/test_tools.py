@@ -16,6 +16,17 @@ from elroy.repository.data_models import ContextMessage, ToolCall
 from elroy.repository.message import add_context_messages
 
 
+def test_infinite_tool_call_ends(ctx: ElroyContext):
+    ctx.debug = False
+
+    process_test_message(
+        ctx,
+        "Please use the get_secret_test_answer to get the secret answer. The answer is not always available, so you may have to retry. Never give up, no matter how long it takes!",
+    )
+
+    # Not the most direct test, as the failure case is an infinite loop. However, if the test completes, it is a success.
+
+
 def test_missing_tool_message_recovers(ctx: ElroyContext):
     """
     Tests recovery when an assistant message is included without the corresponding subsequent tool message.

@@ -133,6 +133,11 @@ def common(
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     # Context Management
+    max_assistant_loops: int = CliOption(
+        "max_assistant_loops",
+        help="Maximum number of loops the assistant can run before tools are temporarily made unvailable (returning for the next user message).",
+        rich_help_panel="Context Management",
+    ),
     context_refresh_trigger_tokens: int = CliOption(
         "context_refresh_trigger_tokens",
         help="Number of tokens that triggers a context refresh and compresion of messages in the context window.",
