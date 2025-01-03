@@ -42,11 +42,17 @@ def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional
 
     full_content = ""
 
+    loops = 0
     while True:
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        for stream_chunk in generate_chat_completion_message(ctx.chat_model, context_messages, ctx.enable_tools, force_tool):
+        for stream_chunk in generate_chat_completion_message(
+            chat_model=ctx.chat_model,
+            context_messages=context_messages,
+            enable_tools=ctx.enable_tools and loops <= ctx.max_assistant_loops,
+            force_tool=force_tool,
+        ):
             if isinstance(stream_chunk, ContentItem):
                 full_content += stream_chunk.content
                 yield stream_chunk.content
@@ -89,6 +95,7 @@ def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional
         else:
             replace_context_messages(ctx, context_messages)
             break
+        loops += 1
 
 
 def validate(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:

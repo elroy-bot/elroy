@@ -35,6 +35,10 @@ def generate_chat_completion_message(
     tool: Force AI to invoke tool
     """
 
+    if force_tool and not enable_tools:
+        logging.error("Force tool requested, but tools are disabled. Ignoring force tool request")
+        force_tool = None
+
     from litellm import completion
     from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
 

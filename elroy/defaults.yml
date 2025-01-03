@@ -11,6 +11,7 @@ embedding_model_size: 1536
 enable_caching: true
 
 # Context management
+max_assistant_loops: 4
 context_refresh_trigger_tokens: 3300
 context_refresh_target_tokens: 1650
 max_context_age_minutes: 120.0
