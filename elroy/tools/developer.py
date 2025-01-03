@@ -14,10 +14,8 @@ from toolz.curried import keyfilter
 from .. import __version__
 from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL
 from ..config.ctx import ElroyContext
-from ..utils.ops import experimental
 
 
-@experimental
 def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
     """
     Returns the last `lines` of the Elroy logs.

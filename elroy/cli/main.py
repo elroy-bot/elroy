@@ -296,6 +296,8 @@ def chat(ctx: ElroyContext):
             asyncio.run(run_chat(ctx))
         except BdbQuit:
             pass
+        except EOFError:
+            pass
         except Exception as e:
             create_bug_report_from_exception_if_confirmed(ctx, e)
     else:

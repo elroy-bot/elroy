@@ -86,17 +86,14 @@ async def run_chat(ctx: ElroyContext):
         )
 
     while True:
-        try:
-            io.update_completer(get_active_goals(ctx), get_active_memories(ctx), context_messages)
+        io.update_completer(get_active_goals(ctx), get_active_memories(ctx), context_messages)
 
-            user_input = await io.prompt_user()
-            if user_input.lower().startswith("/exit") or user_input == "exit":
-                break
-            elif user_input:
-                await process_and_deliver_msg(USER, ctx, user_input)
-                run_in_background_thread(contemplate, ctx)
-        except EOFError:
+        user_input = await io.prompt_user()
+        if user_input.lower().startswith("/exit") or user_input == "exit":
             break
+        elif user_input:
+            await process_and_deliver_msg(USER, ctx, user_input)
+            run_in_background_thread(contemplate, ctx)
 
         io.rule()
         context_messages = get_context_messages(ctx)
