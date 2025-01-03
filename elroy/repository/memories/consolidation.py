@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from dataclasses import dataclass
 from functools import cached_property, partial, wraps
@@ -152,7 +153,7 @@ def find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClust
     return clusters
 
 
-async def consolidate_memories(ctx: ElroyContext):
+def consolidate_memories(ctx: ElroyContext):
     from .operations import get_active_memories
 
     clusters = pipe(
@@ -163,7 +164,7 @@ async def consolidate_memories(ctx: ElroyContext):
 
     for cluster in clusters:
         assert isinstance(cluster, MemoryCluster)
-        await consolidate_memory_cluster(ctx, cluster)
+        asyncio.run(consolidate_memory_cluster(ctx, cluster))
 
 
 async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):

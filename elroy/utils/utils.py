@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import threading
 import time
@@ -90,25 +89,13 @@ def run_in_background_thread(fn: Callable, ctx: ElroyContext, *args):
 
     assert isinstance(ctx, ElroyContext)
 
-    def run_async_function():
-        # Create a new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        # Run the async function in the event loop
-        loop.run_until_complete(fn(new_ctx, *args))
-        loop.close()
-
     # hack to get a new session for the thread
     with ctx.db.get_new_session() as db:
         new_ctx = clone_ctx_with_db(ctx, db)
 
-        if asyncio.iscoroutinefunction(fn):
-            # If the function is async, run it in a new thread with an event loop
-            thread = threading.Thread(target=run_async_function, daemon=True)
-        else:
-            thread = threading.Thread(
-                target=fn,
-                args=(new_ctx, *args),
-                daemon=True,
-            )
+        thread = threading.Thread(
+            target=fn,
+            args=(new_ctx, *args),
+            daemon=True,
+        )
         thread.start()
