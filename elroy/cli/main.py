@@ -257,12 +257,14 @@ def common(
     ),
     gpt4o: bool = typer.Option(
         False,
+        "--4o",
         help="Use OpenAI's GPT-4o model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     gpt4o_mini: bool = typer.Option(
         False,
+        "--4o-mini",
         help="Use OpenAI's GPT-4o-mini model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
