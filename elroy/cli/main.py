@@ -293,7 +293,12 @@ def common(
 
     for m in MODEL_ALIASES:
         if ctx.params.get(m):
-            ctx.params["chat_model"] = resolve_model_alias(m)
+            logging.info(f"Model alias {m} selected")
+            resolved = resolve_model_alias(m)
+            if not resolved:
+                logging.warning("Model alias not found")
+            else:
+                ctx.params["chat_model"] = resolved
 
     ctx.obj = pipe(
         ctx.params,
