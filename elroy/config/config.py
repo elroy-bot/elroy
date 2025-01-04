@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import timedelta
 from importlib.resources import open_text
 from typing import Optional
 
@@ -31,26 +30,6 @@ class EmbeddingModel:
     api_key: Optional[str] = None
     api_base: Optional[str] = None
     organization: Optional[str] = None
-
-
-@dataclass
-class ElroyConfig:
-    database_url: str
-    context_refresh_trigger_tokens: int
-    context_refresh_token_target: int
-    max_in_context_message_age: timedelta
-    context_refresh_interval: timedelta
-    min_convo_age_for_greeting: timedelta
-    enable_assistant_greeting: bool
-    l2_memory_relevance_distance_threshold: float
-    l2_memory_consolidation_distance_threshold: float
-    initial_refresh_wait: timedelta
-    chat_model: ChatModel
-    embedding_model: EmbeddingModel
-    debug_mode: bool
-    log_file_path: str
-    default_persona: str
-    default_assistant_name: str
 
 
 def get_chat_model(
