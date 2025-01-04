@@ -15,6 +15,7 @@ from ..config.constants import (
     InvalidForceToolError,
     MaxRetriesExceededError,
     MissingToolCallMessageError,
+    Provider,
 )
 from ..config.models import get_fallback_model
 from ..db.db_models import ASSISTANT, FunctionCall
@@ -93,7 +94,7 @@ def generate_chat_completion_message(
             raise ValueError(f"Requested tool {force_tool} but model {chat_model.name} does not support tools")
         else:
 
-            if chat_model.is_anthropic() and any(m.role == TOOL for m in context_messages):
+            if chat_model.provider == Provider.ANTHROPIC and any(m.role == TOOL for m in context_messages):
                 # If tool use is in the context window, anthropic requires tools to be enabled and provided
                 from ..system_commands import do_not_use
                 from ..tools.function_caller import get_function_schemas

@@ -4,6 +4,7 @@ from typing import Optional
 
 import yaml
 
+from .constants import KNOWN_MODELS, Provider
 from .paths import APP_NAME
 
 with open_text(APP_NAME, "defaults.yml") as f:
@@ -15,14 +16,35 @@ class ChatModel:
     name: str
     enable_caching: bool
     api_key: Optional[str]
+    provider: Provider
     ensure_alternating_roles: (
         bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
     )
     api_base: Optional[str] = None
     organization: Optional[str] = None
 
-    def is_anthropic(self) -> bool:
-        return self.name.startswith("claude")
+
+def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
+    # check a hard coded dict to short circuit API calls to list models, if possible:
+
+    for provider, models in KNOWN_MODELS.items():
+        if model_name in models:
+            return provider
+
+    from .models import get_supported_openai_models
+
+    if model_name in get_supported_openai_models():
+        return Provider.OPENAI
+
+    elif api_base:
+        return Provider.OTHER
+
+    from .models import get_supported_anthropic_models
+
+    if model_name in get_supported_anthropic_models():
+        return Provider.ANTHROPIC
+    else:
+        raise ValueError("Cannot determine provider for model")
 
 
 @dataclass
@@ -45,13 +67,14 @@ def get_chat_model(
 ) -> ChatModel:
     pass
 
-    from .models import get_supported_anthropic_models, get_supported_openai_models
 
-    if model_name in get_supported_anthropic_models():
+    provider = get_provider(model_name, api_base)
+
+    if provider == Provider.ANTHROPIC:
         assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
         ensure_alternating_roles = True
         api_key = anthropic_api_key
-    elif model_name in get_supported_openai_models():
+    elif provider == Provider.OPENAI:
         assert openai_api_key is not None, "OpenAI API key is required for OpenAI chat models"
         ensure_alternating_roles = False
         api_key = openai_api_key
@@ -66,6 +89,7 @@ def get_chat_model(
         api_base=api_base,
         organization=organization,
         enable_caching=enable_caching,
+        provider=provider,
     )
 
 
