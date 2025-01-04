@@ -30,7 +30,7 @@ from .chat import (
     run_chat,
 )
 from .options import CliOption, get_config_params, resolve_model_alias
-from .updater import check_latest_version
+from .updater import check_latest_version, check_updates
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
@@ -303,14 +303,15 @@ def common(
 def chat(ctx: ElroyContext):
     """Opens an interactive chat session."""
     if sys.stdin.isatty():
+        check_updates()
         try:
             if not get_user_id_if_exists(ctx.db, ctx.user_token):
                 asyncio.run(onboard_interactive(ctx))
             asyncio.run(run_chat(ctx))
         except BdbQuit:
-            pass
+            logging.info("Exiting...")
         except EOFError:
-            pass
+            logging.info("Exiting...")
         except Exception as e:
             create_bug_report_from_exception_if_confirmed(ctx, e)
     else:
