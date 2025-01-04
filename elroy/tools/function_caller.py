@@ -65,6 +65,7 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
             lambda d: merge(function_call.arguments, d),
             lambda args: function_to_call.__call__(**args),
             lambda result: str(result) if result is not None else "Success",
+            do(lambda x: ctx.io.sys_message(f"Function call result: {x}")),
             str,
         )  # type: ignore
 
@@ -76,8 +77,6 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
             do(ctx.io.notify_warning),
             ERROR_PREFIX.__add__,
         )
-        ctx.io.notify_warning(verbose_error)
-        return f"{ERROR_PREFIX}{verbose_error}"
 
 
 def get_module_functions(module: ModuleType) -> List[FunctionType]:
