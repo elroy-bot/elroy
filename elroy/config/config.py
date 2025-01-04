@@ -21,6 +21,9 @@ class ChatModel:
     api_base: Optional[str] = None
     organization: Optional[str] = None
 
+    def is_anthropic(self) -> bool:
+        return self.name.startswith("claude")
+
 
 @dataclass
 class EmbeddingModel:

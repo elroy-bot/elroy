@@ -10,6 +10,7 @@ from ..config.config import ChatModel, EmbeddingModel
 from ..config.constants import (
     MAX_CHAT_COMPLETION_RETRY_COUNT,
     SYSTEM,
+    TOOL,
     USER,
     InvalidForceToolError,
     MaxRetriesExceededError,
@@ -91,8 +92,17 @@ def generate_chat_completion_message(
         if force_tool:
             raise ValueError(f"Requested tool {force_tool} but model {chat_model.name} does not support tools")
         else:
-            tool_choice = None
-            tools = None
+
+            if chat_model.is_anthropic() and any(m.role == TOOL for m in context_messages):
+                # If tool use is in the context window, anthropic requires tools to be enabled and provided
+                from ..system_commands import do_not_use
+                from ..tools.function_caller import get_function_schemas
+
+                tool_choice = "auto"
+                tools = get_function_schemas([do_not_use])  # type: ignore
+            else:
+                tool_choice = None
+                tools = None
 
     try:
         completion_kwargs = _build_completion_kwargs(

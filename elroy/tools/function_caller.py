@@ -179,9 +179,9 @@ def get_function_schema(function: FunctionType) -> Dict:
     )  # type: ignore
 
 
-def get_function_schemas() -> List[Dict[str, Any]]:
+def get_function_schemas(funcs: Optional[List[FunctionType]] = None) -> List[Dict[str, Any]]:
     return pipe(
-        get_functions().values(),
+        funcs if funcs else get_functions().values(),
         map(get_function_schema),
         map(lambda _: {"type": "function", "function": _}),
         list,
