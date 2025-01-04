@@ -2,17 +2,7 @@ import inspect
 import traceback
 from dataclasses import dataclass
 from types import FunctionType, ModuleType
-from typing import (
-    Any,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Type,
-    Union,
-    get_args,
-    get_origin,
-)
+from typing import Any, Dict, List, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse
 from toolz import concat, concatv, merge, pipe
@@ -20,7 +10,6 @@ from toolz.curried import do, filter, map, remove
 
 from ..config.ctx import ElroyContext
 from ..db.db_models import FunctionCall
-from ..utils.utils import first_or_none
 
 PY_TO_JSON_TYPE = {
     int: "integer",
@@ -112,37 +101,12 @@ def get_function_schema(function: FunctionType) -> Dict:
 
         return parameter
 
-    def validate_first_param_is_elroy_ctx(parameters: Iterator[Parameter]) -> Iterator[Parameter]:
-        """
-        If the function accepts parameters, the first parameter must be ElroyContext.
-
-        This is because we need to filter out ElroyContext from parameters surfaced to the assistant.
-        """
-        parameters = iter(parameters)
-        first_param = first_or_none(parameters)
-
-        if not first_param:
-            # if a function takes no params, we don't need it to be ElroyContext
-            yield from []
-        else:
-
-            assert isinstance(
-                first_param, Parameter
-            ), f"expected Parameter for first arg to function {function.__name__} but instead is {type(first_param)}"
-            assert (
-                first_param.type == ElroyContext
-            ), f"First parameter for function {function.__name__} must be ElroyContext, but is instead {first_param.type}"
-            assert (
-                first_param.name == "ctx"
-            ), f"First parameter for function {function.__name__} must be named 'ctx', but is instead {first_param.name}"
-            yield from concatv([first_param], parameters)
-
     assert function.__doc__ is not None, f"Function {function.__name__} has no docstring"
     docstring_dict = {p.arg_name: p.description for p in parse(function.__doc__).params}
 
     signature = inspect.signature(function)
 
-    return pipe(
+    properties = pipe(
         signature.parameters.items(),
         map(
             lambda _: Parameter(
@@ -154,9 +118,13 @@ def get_function_schema(function: FunctionType) -> Dict:
                 default=_[1].default,
             )
         ),
-        validate_first_param_is_elroy_ctx,
         remove(lambda _: _.type == ElroyContext),
         map(validate_parameter),
+        list,
+    )
+
+    return pipe(
+        properties,
         map(
             lambda _: [
                 _.name,
@@ -164,17 +132,10 @@ def get_function_schema(function: FunctionType) -> Dict:
             ]
         ),
         dict,
-        lambda properties: {
+        lambda d: {
             "name": function.__name__,
-            "parameters": {"type": "object", "properties": properties},
-            "required": [
-                name
-                for name, param in signature.parameters.items()
-                if param.default == inspect.Parameter.empty
-                and get_origin(param.annotation) is not Union
-                and name not in ["user_id", "session"]
-                and param.annotation != ElroyContext
-            ],
+            "parameters": {"type": "object", "properties": d},
+            "required": [p.name for p in properties if not p.optional],  # type: ignore
         },
     )  # type: ignore
 

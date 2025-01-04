@@ -23,7 +23,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "goal_name",
         "status_update_or_note"
       ]
@@ -43,7 +42,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "goal_name"
       ]
     }
@@ -62,7 +60,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "memory_name"
       ]
     }
@@ -80,9 +77,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
           }
         }
       },
-      "required": [
-        "ctx"
-      ]
+      "required": []
     }
   },
   {
@@ -119,7 +114,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "goal_name"
       ]
     }
@@ -142,7 +136,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "name",
         "text"
       ]
@@ -162,7 +155,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "goal_name"
       ]
     }
@@ -181,7 +173,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "goal_name"
       ]
     }
@@ -200,9 +191,19 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "memory_name"
       ]
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_secret_test_answer",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "required": []
     }
   },
   {
@@ -213,9 +214,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         "type": "object",
         "properties": {}
       },
-      "required": [
-        "ctx"
-      ]
+      "required": []
     }
   },
   {
@@ -226,9 +225,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         "type": "object",
         "properties": {}
       },
-      "required": [
-        "ctx"
-      ]
+      "required": []
     }
   },
   {
@@ -253,7 +250,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "working_dir",
         "instruction",
         "file_name"
@@ -278,7 +274,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "goal_name"
       ]
     }
@@ -291,9 +286,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         "type": "object",
         "properties": {}
       },
-      "required": [
-        "ctx"
-      ]
+      "required": []
     }
   },
   {
@@ -310,7 +303,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "goal_name"
       ]
     }
@@ -329,7 +321,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "memory_name"
       ]
     }
@@ -352,7 +343,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "old_goal_name",
         "new_goal_name"
       ]
@@ -376,7 +366,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "full_name"
       ]
     }
@@ -399,7 +388,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         }
       },
       "required": [
-        "ctx",
         "preferred_name"
       ]
     }
@@ -417,9 +405,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
           }
         }
       },
-      "required": [
-        "ctx"
-      ]
+      "required": []
     }
   }
 ]

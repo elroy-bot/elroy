@@ -67,7 +67,6 @@ def get_chat_model(
 ) -> ChatModel:
     pass
 
-
     provider = get_provider(model_name, api_base)
 
     if provider == Provider.ANTHROPIC:

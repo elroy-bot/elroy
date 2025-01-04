@@ -118,7 +118,7 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 
 #### Chat Models
 - OpenAI Models: GPT-4o (default), GPT-4o-mini, O1, O1-mini
-- Anthropic Models: Sonnet, Opus
+- Anthropic Models: Sonnet, Opus, Haiku
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible chat endpoints (via --openai-api-base)
 
 #### Embedding Models
@@ -129,16 +129,16 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 ### CLI Commands
 These commands can be run directly from your terminal:
 
-- `elroy` - Opens an interactive chat session, or generates a response to stdin input (default command)
-- `elroy --chat` - Equivalent to `elroy`
-- `elroy --remember [-r]` - Create a new memory from stdin or interactively
-- `elroy --list-models` - Lists supported chat models and exits
-- `elroy --show-config` - Shows current configuration and exits
-- `elroy --version` - Show version and exit
-- `elroy --set-persona TEXT` - Path to a persona file to use for the assistant
-- `elroy --reset-persona` - Removes any custom persona, reverting to the default
-- `elroy --show-persona` - Print the system persona and exit
-- `elroy --help` - Show help information and all available options
+- `elroy chat` - Opens an interactive chat session (default command)
+- `elroy message` - Process a single message and exit
+- `elroy remember` - Create a new memory from text or interactively
+- `elroy list-models` - Lists supported chat models and exits
+- `elroy show-config` - Shows current configuration and exits
+- `elroy version` - Show version and exit
+- `elroy set-persona` - Set a custom persona for the assistant
+- `elroy reset-persona` - Removes any custom persona, reverting to the default
+- `elroy show-persona` - Print the system persona and exit
+- `elroy help` - Show help information and all available options
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
 
@@ -250,8 +250,12 @@ You can customize Elroy's appearance with these options:
 * `--enable-assistant-greeting / --no-enable-assistant-greeting`: Whether to allow the assistant to send the first message [default: True]
 
 ### Memory Management
-* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD] [default: 1.24]
-* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [env var: ELROY_INITIAL_CONTEXT_REFRESH_WAIT_SECONDS] [default: 30]
+* `--memories-between-consolidation INTEGER`: How many memories to create before triggering a memory consolidation operation. [default: 4]
+* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [default: 1.24]
+* `--l2-memory-consolidation-distance-threshold FLOAT`: L2 distance threshold for memory consolidation. [default: 0.65]
+* `--max-memory-cluster-size INTEGER`: The maximum number of memories that can be consolidated into a single memory at once. [default: 5]
+* `--min-memory-cluster-size INTEGER`: The minimum number of memories that can be consolidated into a single memory at once. [default: 3]
+* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [default: 30]
 
 ### UI Configuration
 * `--show-internal-thought`: Show the assistant's internal thought monologue. [default: False]
