@@ -54,7 +54,6 @@ ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
 def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
-
     ctx.io.notify_function_call(function_call)
 
     try:
@@ -70,8 +69,6 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
         )  # type: ignore
 
     except Exception as e:
-        verbose_error = f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__))
-
         return pipe(
             f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__)),
             do(ctx.io.notify_warning),
@@ -176,6 +173,7 @@ def get_function_schema(function: FunctionType) -> Dict:
                 if param.default == inspect.Parameter.empty
                 and get_origin(param.annotation) is not Union
                 and name not in ["user_id", "session"]
+                and param.annotation != ElroyContext
             ],
         },
     )  # type: ignore

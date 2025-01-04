@@ -16,6 +16,7 @@ from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
+from ..logging_config import setup_logging
 from ..repository.memory import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
 from ..tools.developer import print_elroy_config
@@ -221,7 +222,7 @@ def common(
         help="Where to write logs.",
         rich_help_panel="Logging",
     ),
-    tool: str = typer.Option(
+    tool: str = typer.Option(  # TODO: This should be moved to the message command
         None,
         "--tool",
         "-t",
@@ -241,12 +242,14 @@ def common(
     ),
     gpt4o: bool = typer.Option(
         False,
+        "--4o",
         help="Use OpenAI's GPT-4o model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     gpt4o_mini: bool = typer.Option(
         False,
+        "--4o-mini",
         help="Use OpenAI's GPT-4o-mini model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
@@ -266,8 +269,6 @@ def common(
 ):
     """Common parameters."""
 
-    # ctx.params["parent"] = ctx
-
     if ctx.invoked_subcommand is None:
         ctx.params["command"] = click.Command("chat")
     else:
@@ -275,7 +276,12 @@ def common(
 
     for m in MODEL_ALIASES:
         if ctx.params.get(m):
-            ctx.params["chat_model"] = resolve_model_alias(m)
+            logging.info(f"Model alias {m} selected")
+            resolved = resolve_model_alias(m)
+            if not resolved:
+                logging.warning("Model alias not found")
+            else:
+                ctx.params["chat_model"] = resolved
 
     ctx.obj = pipe(
         ctx.params,
@@ -284,6 +290,8 @@ def common(
         dict,
         lambda x: ElroyContext(parent=ctx, **x),
     )
+
+    setup_logging(ctx.obj.log_file_path)
 
     if ctx.invoked_subcommand is None:
         chat(ctx.obj)
