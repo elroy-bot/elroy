@@ -1,12 +1,18 @@
-from typing import Optional
+import asyncio
+import logging
+from typing import List, Optional
 from unittest.mock import AsyncMock
 
 import pytest
 from sqlmodel import select
 
 from elroy.config.ctx import ElroyContext
-from elroy.db.db_models import Memory
-from elroy.repository.memory import consolidate_memories, create_memory
+from elroy.db.db_models import Memory, MemoryOperationTracker
+from elroy.repository.memories.consolidation import (
+    MemoryCluster,
+    consolidate_memory_cluster,
+)
+from elroy.repository.memories.operations import create_memory, get_active_memories
 
 
 @pytest.mark.asyncio
@@ -23,8 +29,12 @@ async def test_identical_memories(ctx):
     memory2 = get_memory_by_id(ctx, memory2_id)
     assert memory1 and memory2
 
-    await consolidate_memories(ctx, memory1, memory2)
+    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]))
 
+    ctx.db.refresh(memory1)
+    ctx.db.refresh(memory2)
+
+    memory2_after = get_memory_by_id(ctx, memory2_id)
     memory2_after = get_memory_by_id(ctx, memory2_id)
     assert memory2_after and not memory2_after.is_active
 
@@ -51,7 +61,7 @@ The user is an avid hiker who enjoys both day hikes and overnight camping. They 
     memory2 = get_memory_by_id(ctx, memory2_id)
     assert memory1 and memory2
 
-    await consolidate_memories(ctx, memory1, memory2)
+    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]))
 
     memory1_after = get_memory_by_id(ctx, memory1_id)
     memory2_after = get_memory_by_id(ctx, memory2_id)
@@ -80,7 +90,7 @@ They enjoy lighter roasts in the afternoon, sometimes with a splash of oat milk.
     memory2 = get_memory_by_id(ctx, memory2_id)
     assert memory1 and memory2
 
-    await consolidate_memories(ctx, memory1, memory2)
+    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]))
 
     memory1_after = get_memory_by_id(ctx, memory1_id)
     memory2_after = get_memory_by_id(ctx, memory2_id)
@@ -111,7 +121,7 @@ The user played piano for 10 years during their childhood and recently started t
     memory2 = get_memory_by_id(ctx, memory2_id)
     assert memory1 and memory2
 
-    await consolidate_memories(ctx, memory1, memory2)
+    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]))
 
     memory1_after = get_memory_by_id(ctx, memory1_id)
     memory2_after = get_memory_by_id(ctx, memory2_id)
@@ -141,12 +151,50 @@ They have a precise brewing routine, using water at exactly 175°F for green tea
     memory2 = get_memory_by_id(ctx, memory2_id)
     assert memory1 and memory2
 
-    await consolidate_memories(ctx, memory1, memory2)
+    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]))
 
     memory1_after = get_memory_by_id(ctx, memory1_id)
     memory2_after = get_memory_by_id(ctx, memory2_id)
     assert memory1_after and not memory1_after.is_active
     assert memory2_after and not memory2_after.is_active
+
+
+@pytest.mark.asyncio
+async def test_trigger(ctx):
+    assert ctx.memories_between_consolidation == 4
+
+    for text in [
+        "I went to the store today, January 1",
+        "I went shopping at the store on New Year' Day",
+        "Today, New Year's Day, I went to the store",
+        "I bought some items on New Year's Day",
+    ]:
+        create_memory(ctx, "Shopping Trip", text)
+
+    # Polling mechanism to wait for consolidation to complete
+    max_retries = 10
+    retry_count = 0
+    while retry_count < max_retries:
+        await asyncio.sleep(0.5)  # Wait for a short period before checking again
+        if len(get_active_memories(ctx)) == 1:
+            break
+        retry_count += 1
+        logging.info("Waiting for consolidation to complete...")
+
+    assert len(get_active_memories(ctx)) == 1
+    assert (
+        ctx.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == ctx.user_id))
+        .first()
+        .memories_since_consolidation
+        == 0
+    )
+
+
+def get_cluster(ctx, memories: List[Memory]) -> MemoryCluster:
+    return MemoryCluster(
+        memories=memories,
+        embeddings=[ctx.db.get_embedding(memory) for memory in memories],  # type: ignore
+    )
 
 
 def get_memory_by_id(ctx: ElroyContext, memory_id: int) -> Optional[Memory]:

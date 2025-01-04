@@ -8,10 +8,11 @@ from toolz.curried import filter
 
 from ...config.ctx import ElroyContext
 from ...db.db_models import SYSTEM, Goal
-from ...messaging.context import drop_goal_from_current_context, remove_from_context
+from ...messaging.context import drop_goal_from_current_context
 from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import first_or_none, is_blank
 from ..data_models import ContextMessage
+from ..embeddable import remove_from_context
 from ..embeddings import upsert_embedding_if_needed
 from ..message import add_context_messages
 from .queries import get_active_goals

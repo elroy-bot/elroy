@@ -2,7 +2,7 @@ import logging
 import threading
 import time
 from datetime import datetime
-from functools import partial
+from functools import partial, wraps
 from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
 
 from pytz import UTC
@@ -25,6 +25,7 @@ def is_blank(input: Optional[str]) -> bool:
 
 
 def logged_exec_time(func, name: Optional[str] = None):
+    @wraps(func)
     def wrapper(*args, **kwargs):
         start_time = time.time()
         result = func(*args, **kwargs)
