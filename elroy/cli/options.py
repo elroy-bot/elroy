@@ -19,10 +19,10 @@ def resolve_model_alias(alias: str) -> Optional[str]:
         return resolve_anthropic(alias)
     else:
         return {
-            "4o": "gpt-4o",
-            "4o-mini": "gpt-4o-mini",
+            "gpt4o": "gpt-4o",
+            "gpt4o_mini": "gpt-4o-mini",
             "o1": "o1",
-            "o1-mini": "o1-mini",
+            "o1_mini": "o1-mini",
         }.get(alias)
 
 
