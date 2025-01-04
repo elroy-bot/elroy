@@ -280,6 +280,15 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
     return response
 
 
+def do_not_use() -> str:
+    """This is a dummy function that should not be used. It is only for testing purposes.
+
+    Returns:
+        str: A message indicating that this function should not be used
+    """
+    return "This function should not be used."
+
+
 IN_CONTEXT_GOAL_COMMANDS: Set[Callable] = {
     drop_goal_from_current_context,
 }
