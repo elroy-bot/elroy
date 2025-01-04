@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.57] - 2025-01-04
+
+### Added
+- Memory consolidation overhaul: Consolidation is now based on how many memories have been created since the last consolidation operation, rather than time.
+- Consolidated memoires now store source metadata
+- Maximum limit on consecutive tool calls to prevent infinite loops
+
+### Improved
+- Commands are now regular CLI commands, rather than flags
+- Autocomplete improvements
+- Results from assistant function calls are now printed to the console
+
+
 ## [0.0.56] - 2024-12-30
 
 ### Improved

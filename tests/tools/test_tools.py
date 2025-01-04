@@ -1,7 +1,10 @@
 import json
 
 import pytest
+from scripts.release_patch import get_function_schemas
 from tests.utils import process_test_message
+from toolz import pipe
+from toolz.curried import map
 
 from elroy.config.constants import (
     ASSISTANT,
@@ -77,6 +80,17 @@ def test_missing_tool_call_throws(ctx: ElroyContext):
 
     with pytest.raises(MissingAssistantToolCallError):
         process_test_message(ctx, "Tell me more!")
+
+
+def test_tool_schema_does_not_have_elroy_ctx():
+
+    argument_names = pipe(
+        get_function_schemas(),
+        map(lambda x: (x["function"]["name"], list(x["function"]["parameters"]["properties"].keys()))),
+        dict,
+    )
+
+    assert not any("ctx" in vals for key, vals in argument_names.items())  # type: ignore
 
 
 def _missing_tool_message(ctx: ElroyContext):

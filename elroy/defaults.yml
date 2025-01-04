@@ -1,57 +1,50 @@
-# User settings
-user_token: DEFAULT # Identifies a distinct user/use case
+# Basic Configuration
+user_token: DEFAULT  # User token to use for Elroy
+database_url: null  # Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.
+debug: false  # Whether to fail fast when errors occur, and emit more verbose logging
+default_assistant_name: "Elroy"  # Default name for the assistant
 
-# Database settings
-database_url: null  # Required to be valid SQLite or Postgres db URL. Can be provided via the ELROY_DATABASE_URL environment variable. If non is created, a SQLite db will be created in the user's home directory.
+# API Configuration
+openai_api_key: null  # OpenAI API key, required for OpenAI (or OpenAI compatible) models
+openai_api_base: null  # OpenAI API (or OpenAI compatible) base URL
+openai_embedding_api_base: null  # OpenAI API (or OpenAI compatible) base URL for embeddings
+openai_organization: null  # OpenAI (or OpenAI compatible) organization ID
+anthropic_api_key: null  # Anthropic API key, required for Anthropic models
+enable_tools: true  # Whether to enable tool calls for the assistant
 
-# Model settings
-chat_model: "gpt-4o"
-embedding_model: "text-embedding-3-small"
-embedding_model_size: 1536
-enable_caching: true
+# Model Selection Configuration
+chat_model: "gpt-4o"  # The model to use for chat completions
+embedding_model: "text-embedding-3-small"  # The model to use for text embeddings
+embedding_model_size: 1536  # The size of the embedding model
+enable_caching: true  # Whether to enable caching for the LLM, both for embeddings and completions
 
-# Context management
-max_assistant_loops: 4
-context_refresh_trigger_tokens: 3300
-context_refresh_target_tokens: 1650
-max_context_age_minutes: 120.0
-context_refresh_interval_minutes: 10.0
+# Context Management
+max_assistant_loops: 4  # Maximum number of loops the assistant can run before tools are temporarily made unavailable
+context_refresh_trigger_tokens: 3300  # Number of tokens that triggers a context refresh and compression
+context_refresh_target_tokens: 1650  # Target number of tokens after context refresh / compression
+max_context_age_minutes: 120.0  # Maximum age in minutes to keep messages in context
+context_refresh_interval_minutes: 10.0  # How often in minutes to refresh system message and compress context
+enable_assistant_greeting: true  # Whether to allow the assistant to send the first message
+min_convo_age_for_greeting_minutes: 10.0  # Minimum age in minutes before assistant greeting on login
+initial_context_refresh_wait_seconds: 30  # Initial wait time in seconds before context refresh
 
-initial_context_refresh_wait_seconds: 30
-enable_assistant_greeting: true # If false, overrides any value for min_convo_age_for_greeting_minutes
-min_convo_age_for_greeting_minutes: 10.0
+# Memory Consolidation
+memory_cluster_similarity_threshold: 0.21125  # Threshold for memory cluster similarity
+memories_between_consolidation: 4  # How many memories to create before triggering consolidation
+l2_memory_relevance_distance_threshold: 1.24  # L2 distance threshold for memory relevance
+max_memory_cluster_size: 5  # Maximum number of memories that can be consolidated at once
+min_memory_cluster_size: 3  # Minimum number of memories that can be consolidated at once
 
-# Memory consolidation parameters
-memory_cluster_similarity_threshold: 0.21125 # similarity threshold for memory consolidation
-memories_between_consolidation: 4 # how many new memories will be created before memory consolidation is triggered
-l2_memory_relevance_distance_threshold: 1.24
-max_memory_cluster_size: 5 # maximum number of memories that can be consolidated into a single memory at once.
-min_memory_cluster_size: 3 # minimum number of memories that can be consolidated into a single memory at once.
-
-
-# UI colors
-system_message_color: "#9ACD32"
-user_input_color: "#FFE377"
-assistant_color: "#77DFD8"
-warning_color: "yellow"
-internal_thought_color: "#708090"
-
-# API settings
-openai_api_key: null
-openai_api_base: null
-openai_embedding_api_base: null
-openai_organization: null
-anthropic_api_key: null
-enable_tools: true
-
-# Debug settings
-debug: false
-show_internal_thought: false
+# UI Configuration  
+show_internal_thought: false  # Show the assistant's internal thought monologue
+system_message_color: "#9ACD32"  # Color for system messages
+user_input_color: "#FFE377"  # Color for user input
+assistant_color: "#77DFD8"  # Color for assistant output
+warning_color: "yellow"  # Color for warning messages
+internal_thought_color: "#708090"  # Color for internal thought messages
 
 # Logging
-log_file_path: "logs/elroy.log"
-
-default_assistant_name: "Elroy"
+log_file_path: "logs/elroy.log"  # Where to write logs
 default_persona: |
   I am $ASSISTANT_ALIAS.
 
