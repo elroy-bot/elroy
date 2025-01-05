@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, NamedTuple, Optional, Union
 
-from ..db.db_models import ASSISTANT, TOOL, FunctionCall, MemoryMetadata, ToolCall
+from ..config.constants import ASSISTANT, TOOL
+from ..db.db_models import FunctionCall, MemoryMetadata, ToolCall
 
 
 @dataclass

@@ -5,9 +5,9 @@ from typing import Any, Generator
 
 import typer
 
+from ..config.constants import SYSTEM
 from ..config.ctx import ElroyContext
 from ..db.db_manager import DbManager
-from ..db.db_models import SYSTEM
 from ..db.postgres.postgres_manager import PostgresManager
 from ..db.sqlite.sqlite_manager import SqliteManager
 from ..db.sqlite.utils import path_to_sqlite_url

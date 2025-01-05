@@ -8,6 +8,7 @@ from toolz.curried import keyfilter, map
 
 from ..config.config import ChatModel, EmbeddingModel
 from ..config.constants import (
+    ASSISTANT,
     MAX_CHAT_COMPLETION_RETRY_COUNT,
     SYSTEM,
     TOOL,
@@ -18,7 +19,7 @@ from ..config.constants import (
     Provider,
 )
 from ..config.models import get_fallback_model
-from ..db.db_models import ASSISTANT, FunctionCall
+from ..db.db_models import FunctionCall
 from ..repository.data_models import ContentItem, ContextMessage
 
 

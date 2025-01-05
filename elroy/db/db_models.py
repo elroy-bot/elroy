@@ -13,8 +13,6 @@ from toolz.curried import filter
 from ..config.constants import EMBEDDING_SIZE
 from ..utils.clock import get_utc_now
 
-USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
-
 
 @dataclass
 class ToolCall:
