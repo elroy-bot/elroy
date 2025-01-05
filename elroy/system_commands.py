@@ -328,7 +328,6 @@ NON_ARG_PREFILL_COMMANDS = {
     get_user_preferred_name,
     set_user_preferred_name,
     tail_elroy_logs,
-    print_config,
     make_coding_edit,
 }
 
@@ -346,6 +345,7 @@ ASSISTANT_VISIBLE_COMMANDS = (
 
 # User only commands are commands that are only available to the user, via CLI.
 USER_ONLY_COMMANDS = {
+    print_config,
     add_internal_thought,
     reset_messages,
     print_context_messages,

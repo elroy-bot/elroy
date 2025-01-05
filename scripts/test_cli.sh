@@ -55,13 +55,13 @@ elroy < prompt.txt | grep -q "2931" || {
 
 # Config tests
 echo "Testing configuration display..."
-elroy show-config || {
+elroy print-config || {
     echo "❌ Config display failed"
     exit 1
 }
 
 echo "Testing model alias resolution..."
-elroy --sonnet show-config | grep -q "claude.*sonnet" || {
+elroy --sonnet print-config | grep -q "claude.*sonnet" || {
     echo "❌ Model alias resolution failed"
     exit 1
 }

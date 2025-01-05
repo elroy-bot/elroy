@@ -133,7 +133,7 @@ These commands can be run directly from your terminal:
 - `elroy message` - Process a single message and exit
 - `elroy remember` - Create a new memory from text or interactively
 - `elroy list-models` - Lists supported chat models and exits
-- `elroy show-config` - Shows current configuration and exits
+- `elroy print-config` - Shows current configuration and exits
 - `elroy version` - Show version and exit
 - `elroy set-persona` - Set a custom persona for the assistant
 - `elroy reset-persona` - Removes any custom persona, reverting to the default

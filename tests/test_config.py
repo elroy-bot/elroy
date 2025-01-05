@@ -20,7 +20,7 @@ def test_config_precedence(capsys: pytest.CaptureFixture):
         # Test 1: CLI args override everything
         result = runner.invoke(
             app,
-            args=["--config", str(config_path), "--chat-model", "gpt-4o-mini", "show-config"],
+            args=["--config", str(config_path), "--chat-model", "gpt-4o-mini", "print-config"],
             env={"ELROY_CHAT_MODEL": "env_model"},
             catch_exceptions=True,
         )
@@ -32,7 +32,7 @@ def test_config_precedence(capsys: pytest.CaptureFixture):
         # Test 2: Environment variables override config file
         result = runner.invoke(
             app,
-            ["--config", str(config_path), "show-config"],
+            ["--config", str(config_path), "print-config"],
             env={"ELROY_CHAT_MODEL": "gpt-4o-mini"},
             catch_exceptions=False,
         )
@@ -43,7 +43,7 @@ def test_config_precedence(capsys: pytest.CaptureFixture):
         # Test 3: Config file overrides defaults
         result = runner.invoke(
             app,
-            ["--config", str(config_path), "show-config"],
+            ["--config", str(config_path), "print-config"],
             env={},  # No environment variables
             catch_exceptions=False,
         )

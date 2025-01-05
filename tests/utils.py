@@ -4,6 +4,8 @@ from functools import partial
 from typing import List, Optional, Type, Union
 
 from rich.pretty import Pretty
+from rich.table import Table
+from rich.text import Text
 from toolz import pipe
 from toolz.curried import do, map
 
@@ -31,7 +33,7 @@ class TestCliIO(CliIO):
         self._user_responses: List[str] = []
         self._sys_messages: List[str] = []
 
-    def sys_message(self, message: Union[str, Pretty]) -> None:
+    def sys_message(self, message: Union[str, Text, Pretty, Table]) -> None:
         """Override sys_message to store messages"""
         self._sys_messages.append(str(message))
         return super().sys_message(message)

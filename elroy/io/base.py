@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Generator, Iterator, TypeVar, Union
 
@@ -31,11 +30,6 @@ class ElroyIO(ABC):
     @abstractmethod
     def internal_thought_msg(self, message: str) -> None:
         raise NotImplementedError
-
-    @contextmanager
-    def status(self, message: str) -> Generator[None, None, None]:
-        logging.info(message)
-        yield
 
 
 IOType = TypeVar("IOType", bound=ElroyIO)
