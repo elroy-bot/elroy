@@ -1,6 +1,5 @@
 import logging
 from contextlib import contextmanager
-from html import escape
 from itertools import product
 from typing import Generator, Iterator, List, Text, Union
 
@@ -14,6 +13,7 @@ from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
 from rich.pretty import Pretty
+from rich.table import Table
 from rich.text import Text
 from toolz import concatv, pipe
 from toolz.curried import map
@@ -112,7 +112,7 @@ class CliIO(ElroyIO):
             self.is_streaming_output = True
             try:
                 for chunk in message:
-                    self.console.print(f"[{self.assistant_message_color}]{chunk}[/]", end="")
+                    self.console.print(chunk, style=self.assistant_message_color, end="")
             except KeyboardInterrupt:
                 self.console.print()
                 return
@@ -123,16 +123,13 @@ class CliIO(ElroyIO):
         elif isinstance(message, Pretty):
             self.console.print(message)
         else:
-            self.console.print(f"[{self.assistant_message_color}]{message}[/]", end="")
+            self.console.print(message, style=self.assistant_message_color, end="")
         self.console.print()  # New line after complete response
 
-    def sys_message(self, message: Union[str, Pretty]) -> None:
-        if isinstance(message, Pretty):
-            self.console.print(message)
-        else:
-            # Escape special characters in the message
-            escaped_message = escape(str(message))
-            print_formatted_text(HTML(f'<style fg="{self.system_message_color}">{escaped_message}\n</style>'))
+    def sys_message(self, message: Union[str, Text, Pretty, Table]) -> None:
+        if isinstance(message, str):
+            message = Text(str(message), style=self.system_message_color)
+        self.console.print(message)
 
     def notify_function_call(self, function_call: FunctionCall) -> None:
         self.console.print()
@@ -145,19 +142,13 @@ class CliIO(ElroyIO):
 
     def notify_warning(self, message: str) -> None:
         self.console.print(Text(message, justify="center", style=self.warning_color))  # type: ignore
-        self.console.print(f"[{self.warning_color}]Please provide feedback at {REPO_ISSUES_URL}[/]")
+        self.console.print(Text(f"Please provide feedback at {REPO_ISSUES_URL}", style=self.warning_color))
         self.console.print()
 
     def print_memory_panel(self, titles: List[str]):
         if titles:
             panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
-
-    @contextmanager
-    def status(self, message: str) -> Generator[None, None, None]:
-        self.console.print(f"[{self.system_message_color}]{message}[/]")
-        yield
-        self.console.print(f"[{self.system_message_color}]Done![/]")
 
     def print_title_ruler(self):
         self.console.rule(

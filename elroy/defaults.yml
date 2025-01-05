@@ -4,15 +4,13 @@ database_url: null  # Valid SQLite or Postgres URL for the database. If Postgres
 debug: false  # Whether to fail fast when errors occur, and emit more verbose logging
 default_assistant_name: "Elroy"  # Default name for the assistant
 
-# API Configuration
+# Model Configuration
 openai_api_key: null  # OpenAI API key, required for OpenAI (or OpenAI compatible) models
 openai_api_base: null  # OpenAI API (or OpenAI compatible) base URL
 openai_embedding_api_base: null  # OpenAI API (or OpenAI compatible) base URL for embeddings
 openai_organization: null  # OpenAI (or OpenAI compatible) organization ID
 anthropic_api_key: null  # Anthropic API key, required for Anthropic models
 enable_tools: true  # Whether to enable tool calls for the assistant
-
-# Model Selection Configuration
 chat_model: "gpt-4o"  # The model to use for chat completions
 embedding_model: "text-embedding-3-small"  # The model to use for text embeddings
 embedding_model_size: 1536  # The size of the embedding model
@@ -35,7 +33,7 @@ l2_memory_relevance_distance_threshold: 1.24  # L2 distance threshold for memory
 max_memory_cluster_size: 5  # Maximum number of memories that can be consolidated at once
 min_memory_cluster_size: 3  # Minimum number of memories that can be consolidated at once
 
-# UI Configuration  
+# UI Configuration
 show_internal_thought: false  # Show the assistant's internal thought monologue
 system_message_color: "#9ACD32"  # Color for system messages
 user_input_color: "#FFE377"  # Color for user input

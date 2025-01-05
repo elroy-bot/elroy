@@ -3,6 +3,7 @@ import logging
 import sys
 from bdb import BdbQuit
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -10,6 +11,7 @@ import typer
 from toolz import merge, pipe
 from toolz.curried import keyfilter
 
+from ..config.config import DEFAULTS_CONFIG
 from ..config.constants import CONFIG_FILE_KEY, MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext, elroy_context, with_db
 from ..config.paths import get_default_config_path, get_default_sqlite_url
@@ -19,7 +21,7 @@ from ..llm.persona import get_persona
 from ..logging_config import setup_logging
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
-from ..tools.developer import print_config
+from ..tools.developer import print_config as do_print_config
 from ..tools.user_preferences import reset_system_persona, set_system_persona
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
@@ -60,6 +62,7 @@ def common(
     ),
     debug: bool = CliOption(
         "debug",
+        "--debug",
         help="Whether to fail fast when errors occur, and emit more verbose logging.",
         rich_help_panel="Basic Configuration",
     ),
@@ -80,31 +83,31 @@ def common(
         "openai_api_key",
         envvar="OPENAI_API_KEY",
         help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
-        rich_help_panel="API Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     openai_api_base: Optional[str] = CliOption(
         "openai_api_base",
         envvar="OPENAI_API_BASE",
         help="OpenAI API (or OpenAI compatible) base URL.",
-        rich_help_panel="API Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     openai_embedding_api_base: Optional[str] = CliOption(
         "openai_embedding_api_base",
         envvar="OPENAI_API_BASE",
         help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
-        rich_help_panel="API Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     openai_organization: Optional[str] = CliOption(
         "openai_organization",
         envvar="OPENAI_ORGANIZATION",
         help="OpenAI (or OpenAI compatible) organization ID.",
-        rich_help_panel="API Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     anthropic_api_key: Optional[str] = CliOption(
         "anthropic_api_key",
         envvar="ANTHROPIC_API_KEY",
         help="Anthropic API key, required for Anthropic models.",
-        rich_help_panel="API Configuration",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     # Model Configuration
     chat_model: str = CliOption(
@@ -232,8 +235,10 @@ def common(
         rich_help_panel="UI Configuration",
     ),
     # Logging
-    log_file_path: str = CliOption(
-        "log_file_path",
+    log_file_path: str = typer.Option(
+        default_factory=lambda: get_config_params().get("log_file_path"),
+        envvar="ELROY_LOG_FILE_PATH",
+        show_default=str(Path(DEFAULTS_CONFIG.get("log_file_path")).resolve()),
         help="Where to write logs.",
         rich_help_panel="Logging",
     ),
@@ -245,12 +250,14 @@ def common(
     ),
     sonnet: bool = typer.Option(
         False,
+        "--sonnet",
         help="Use Anthropic's Sonnet model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     opus: bool = typer.Option(
         False,
+        "--opus",
         help="Use Anthropic's Opus model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
@@ -271,12 +278,14 @@ def common(
     ),
     o1: bool = typer.Option(
         False,
+        "--o1",
         help="Use OpenAI's o1 model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     o1_mini: bool = typer.Option(
         False,
+        "--o1-mini",
         help="Use OpenAI's o1-mini model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
@@ -412,12 +421,12 @@ def list_models():
     raise typer.Exit()
 
 
-@app.command(name="show-config")
+@app.command(name="print-config")
 @elroy_context
 @with_db
 def print_config(ctx: ElroyContext):
     """Shows current configuration and exits."""
-    print(print_config(ctx))
+    ctx.io.print(do_print_config(ctx))
 
 
 @app.command()

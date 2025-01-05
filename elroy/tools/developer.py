@@ -4,12 +4,11 @@ import sys
 import urllib.parse
 import webbrowser
 from datetime import datetime
-from pprint import pformat
 from typing import Optional
 
 import scrubadub
-from toolz import pipe
-from toolz.curried import keyfilter
+from rich.table import Table
+from rich.text import Text
 
 from .. import __version__
 from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL
@@ -32,7 +31,7 @@ def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
         return "".join(f.readlines()[-lines:])
 
 
-def print_config(ctx: ElroyContext) -> None:
+def print_config(ctx: ElroyContext) -> Table:
     """
     Prints the current Elroy configuration in a formatted table.
     Useful for troubleshooting and verifying the current configuration.
@@ -40,8 +39,6 @@ def print_config(ctx: ElroyContext) -> None:
     Args:
         ctx (ElroyContext): context obj
     """
-    from rich.table import Table
-    from rich.console import Console
 
     sections = {
         "Basic Configuration": {
@@ -78,15 +75,14 @@ def print_config(ctx: ElroyContext) -> None:
         },
         "UI Configuration": {
             "Show Internal Thought": ctx.show_internal_thought,
-            "System Message Color": ctx.system_message_color,
-            "Assistant Color": ctx.assistant_color,
-            "User Input Color": ctx.user_input_color,
-            "Warning Color": ctx.warning_color,
-            "Internal Thought Color": ctx.internal_thought_color,
-        }
+            "System Message Color": Text(ctx.system_message_color, style=ctx.system_message_color),
+            "Assistant Color": Text(ctx.assistant_color, style=ctx.assistant_color),
+            "User Input Color": Text(ctx.user_input_color, style=ctx.user_input_color),
+            "Warning Color": Text(ctx.warning_color, style=ctx.warning_color),
+            "Internal Thought Color": Text(ctx.internal_thought_color, style=ctx.internal_thought_color),
+        },
     }
 
-    console = Console()
     table = Table(title="Elroy Configuration", show_header=True, header_style="bold magenta")
     table.add_column("Section")
     table.add_column("Setting")
@@ -97,11 +93,10 @@ def print_config(ctx: ElroyContext) -> None:
             table.add_row(
                 section if setting == list(settings.keys())[0] else "",  # Only show section name once
                 setting,
-                str(value)
+                value if isinstance(value, Text) else str(value),
             )
-        table.add_row("", "", "")  # Add empty row between sections
 
-    console.print(table)
+    return table
 
 
 def create_bug_report(

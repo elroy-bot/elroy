@@ -50,7 +50,7 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
 
 
 @memory_consolidation_check
-def create_memory(ctx: ElroyContext, name: str, text: str) -> int:
+def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     """Creates a new memory for the assistant.
 
     Examples of good and bad memory titles are below. Note, the BETTER examples, some titles have been split into two.:
@@ -97,7 +97,7 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> int:
     upsert_embedding_if_needed(ctx, memory)
     add_to_context(ctx, memory)
 
-    return memory_id
+    return f"New memory created: {name}"
 
 
 MAX_MEMORY_LENGTH = 12000  # Characters
