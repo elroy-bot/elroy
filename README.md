@@ -193,7 +193,7 @@ These commands can be used by both users and Elroy:
 
 ##### Development Tools
 - `/tail_elroy_logs` - View Elroy's log output
-- `/print_elroy_config` - Display current configuration
+- `/print_config` - Display current configuration
 - `/create_bug_report` - Create a bug report with current context
 - `/make_coding_edit` - Make changes to code files in the current repository
 
@@ -214,6 +214,7 @@ You can customize Elroy's appearance with these options:
 ## Configuration Options
 
 ### Basic Configuration
+* `--tool TEXT`: Specifies the tool to use in responding to a message. If specified, the assistant MUST use the tool in responding. Only valid when processing a single message.
 * `--config TEXT`: Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.
 * `--default-persona TEXT`: Default persona to use for assistants. [env var: ELROY_DEFAULT_PERSONA]
 * `--debug / --no-debug`: Whether to fail fast when errors occur, and emit more verbose logging. [env var: ELROY_DEBUG]
@@ -230,7 +231,7 @@ You can customize Elroy's appearance with these options:
 * `--anthropic-api-key TEXT`: Anthropic API key, required for Anthropic models. [env var: ANTHROPIC_API_KEY]
 
 ### Model Configuration
-* `--chat-model TEXT`: The model to use for chat completions. [env var: ELROY_CHAT_MODEL] [default: gpt-4o]
+* `--chat-model TEXT`: The model to use for chat completions. [env var: ELROY_CHAT_MODEL] [default: (gpt-4o)]
 * `--embedding-model TEXT`: The model to use for text embeddings. [env var: ELROY_EMBEDDING_MODEL] [default: text-embedding-3-small]
 * `--embedding-model-size INTEGER`: The size of the embedding model. [default: 1536]
 * `--enable-caching / --no-enable-caching`: Whether to enable caching for the LLM, both for embeddings and completions. [default: True]
@@ -243,6 +244,7 @@ You can customize Elroy's appearance with these options:
 
 ### Context Management
 * `--context-refresh-trigger-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages in the context window. [default: 3300]
+* `--max-assistant-loops INTEGER`: Maximum number of loops the assistant can run before tools are temporarily made unavailable. [default: 4]
 * `--context-refresh-target-tokens INTEGER`: Target number of tokens after context refresh / compression, how many tokens to aim to keep in context. [default: 1650]
 * `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep. Messages older than this will be dropped from context, regardless of token limits. [default: 120.0]
 * `--context-refresh-interval-minutes FLOAT`: How often in minutes to refresh system message and compress context. [default: 10.0]
@@ -252,7 +254,7 @@ You can customize Elroy's appearance with these options:
 ### Memory Management
 * `--memories-between-consolidation INTEGER`: How many memories to create before triggering a memory consolidation operation. [default: 4]
 * `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [default: 1.24]
-* `--l2-memory-consolidation-distance-threshold FLOAT`: L2 distance threshold for memory consolidation. [default: 0.65]
+* `--memory-cluster-similarity-threshold FLOAT`: Threshold for memory cluster similarity. [default: 0.21125]
 * `--max-memory-cluster-size INTEGER`: The maximum number of memories that can be consolidated into a single memory at once. [default: 5]
 * `--min-memory-cluster-size INTEGER`: The minimum number of memories that can be consolidated into a single memory at once. [default: 3]
 * `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [default: 30]
