@@ -5,8 +5,9 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
+from ..config.constants import SYSTEM
 from ..config.ctx import ElroyContext
-from ..db.db_models import SYSTEM, EmbeddableSqlModel
+from ..db.db_models import EmbeddableSqlModel
 from .data_models import ContextMessage
 from .message import (
     MemoryMetadata,

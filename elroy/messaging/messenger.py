@@ -6,6 +6,7 @@ from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
 
 from ..config.constants import (
+    ASSISTANT,
     SYSTEM,
     TOOL,
     USER,
@@ -13,7 +14,6 @@ from ..config.constants import (
     MissingToolCallMessageError,
 )
 from ..config.ctx import ElroyContext
-from ..db.db_models import ASSISTANT
 from ..llm.client import generate_chat_completion_message, get_embedding
 from ..repository.data_models import ContentItem, ContextMessage
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory

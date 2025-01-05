@@ -8,9 +8,9 @@ from typing import List, Optional, Union
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
-from ..config.constants import SYSTEM_INSTRUCTION_LABEL
+from ..config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
 from ..config.ctx import ElroyContext
-from ..db.db_models import ASSISTANT, SYSTEM, TOOL, USER, Goal, Memory
+from ..db.db_models import Goal, Memory
 from ..llm.prompts import summarize_conversation
 from ..repository.data_models import ContextMessage
 from ..repository.embeddable import (

@@ -337,6 +337,7 @@ Currently, UserFoo is focused on developing a web application using Python while
             if current_title and current_content:
                 content = "\n".join(current_content).strip()
                 try:
+
                     new_id = create_consolidated_memory(
                         ctx=ctx,
                         name=current_title,
@@ -357,13 +358,13 @@ Currently, UserFoo is focused on developing a web application using Python while
     if current_title and current_content:
         content = "\n".join(current_content).strip()
         try:
-            new_id = create_consolidated_memory(
+            logging.info("Creating consolidated memory")
+            create_consolidated_memory(
                 ctx=ctx,
                 name=current_title,
                 text=content,
                 sources=cluster.memories,
             )
-            new_ids.append(new_id)
         except Exception as e:
             logging.warning(f"Failed to create memory '{current_title}': {e}")
 
@@ -382,6 +383,7 @@ def memory_consolidation_check(func) -> Callable[..., Any]:
         tracker = get_or_create_memory_op_tracker(ctx)
 
         tracker.memories_since_consolidation += 1
+        logging.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
 
         if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
             # Run consolidate_memories in a background thread
@@ -389,6 +391,8 @@ def memory_consolidation_check(func) -> Callable[..., Any]:
             run_in_background_thread(consolidate_memories, ctx)
             logging.info("Memory consolidation started in background thread")
             tracker.memories_since_consolidation = 0
+        else:
+            logging.info("Not running memory consolidation")
         ctx.db.add(tracker)
         ctx.db.commit()
         return result

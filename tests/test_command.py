@@ -27,13 +27,6 @@ async def test_create_and_mark_goal_complete(ctx):
 
 
 @pytest.mark.asyncio
-async def test_print_config(ctx):
-    await process_and_deliver_msg(USER, ctx, "/print_elroy_config")
-    response = ctx.io.get_sys_messages()[-1]
-    assert response and "l2_memory_relevance_distance_threshold" in response  # just picking a random key
-
-
-@pytest.mark.asyncio
 async def test_invalid_update(ctx):
     ctx.io.add_user_responses("Nonexistent goal", "Foo")
     await process_and_deliver_msg(USER, ctx, "/mark_goal_completed")

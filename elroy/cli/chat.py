@@ -27,7 +27,7 @@ from ..repository.message import (
     get_time_since_most_recent_user_message,
     replace_context_messages,
 )
-from ..system_commands import SYSTEM_COMMANDS, contemplate
+from ..system_commands import SYSTEM_COMMANDS
 from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
 from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
@@ -93,7 +93,6 @@ async def run_chat(ctx: ElroyContext):
             break
         elif user_input:
             await process_and_deliver_msg(USER, ctx, user_input)
-            run_in_background_thread(contemplate, ctx)
 
         io.rule()
         context_messages = get_context_messages(ctx)

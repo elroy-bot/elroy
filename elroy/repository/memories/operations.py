@@ -1,10 +1,11 @@
 import json
+import logging
 from functools import partial
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from sqlmodel import select
 from toolz import pipe
-from toolz.curried import do, map
+from toolz.curried import map
 
 from ...config.config import ChatModel
 from ...config.ctx import ElroyContext
@@ -27,23 +28,20 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
 
 
 def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: Sequence[EmbeddableSqlModel]):
-    from ...repository.embeddings import upsert_embedding_if_needed
-    from ..embeddable import add_to_context
+    pass
+
+    logging.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
 
     memory = pipe(
         sources,
         map(lambda x: {"source_id": x.id, "source_type": x.__class__.__name__}),
         list,
-        json.dumps,
-        lambda x: Memory(user_id=ctx.user_id, name=name, text=text, source_metadata=x),
-        do(ctx.db.add),
-        do(lambda x: ctx.db.commit()),
-        do(ctx.db.refresh),
-        do(partial(upsert_embedding_if_needed, ctx)),
-        do(partial(add_to_context, ctx)),
+        partial(_do_create_memory, ctx, name, text),
+        # Do NOT add this memory to context, it's not necessarrily relevant to the conversation
     )
 
     [mark_inactive(ctx, m) for m in sources]
+    assert isinstance(memory, Memory)
     memory_id = memory.id
     assert memory_id
     return memory_id
@@ -83,21 +81,28 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     Returns:
         int: The database ID of the memory.
     """
+    _do_create_memory(ctx, name, text)
+
+    return f"New memory created: {name}"
+
+
+def _do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[Dict] = []) -> Memory:
     from ...repository.embeddings import upsert_embedding_if_needed
     from ..embeddable import add_to_context
 
-    memory = Memory(user_id=ctx.user_id, name=name, text=text)
+    memory = Memory(
+        user_id=ctx.user_id,
+        name=name,
+        text=text,
+        source_metadata=json.dumps(source_metadata),
+    )
     ctx.db.add(memory)
     ctx.db.commit()
     ctx.db.refresh(memory)
 
-    memory_id = memory.id
-    assert memory_id
-
     upsert_embedding_if_needed(ctx, memory)
     add_to_context(ctx, memory)
-
-    return f"New memory created: {name}"
+    return memory
 
 
 MAX_MEMORY_LENGTH = 12000  # Characters

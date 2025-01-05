@@ -6,8 +6,9 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
+from ...config.constants import SYSTEM
 from ...config.ctx import ElroyContext
-from ...db.db_models import SYSTEM, Goal
+from ...db.db_models import Goal
 from ...messaging.context import drop_goal_from_current_context
 from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import first_or_none, is_blank

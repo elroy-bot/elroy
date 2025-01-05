@@ -1,14 +1,18 @@
 import inspect
+import json
 import logging
 from typing import Callable, List, Optional, Set
 
+from rich.console import Group
 from rich.pretty import Pretty
+from rich.table import Table
 from sqlmodel import select
 from toolz import pipe
 from toolz.curried import map
 
+from .config.constants import ASSISTANT, SYSTEM, TOOL, USER
 from .config.ctx import ElroyContext
-from .db.db_models import SYSTEM, Goal, Memory
+from .db.db_models import Goal, Memory
 from .llm import client
 from .llm.prompts import contemplate_prompt
 from .messaging.context import (
@@ -158,6 +162,7 @@ def reset_messages(ctx: ElroyContext) -> str:
     Returns:
         str: The result of the context reset
     """
+    logging.info("Resetting messages: Dropping all conversation messages and recalculating system message")
 
     replace_context_messages(
         ctx,
@@ -167,15 +172,56 @@ def reset_messages(ctx: ElroyContext) -> str:
     return "Context reset complete"
 
 
-def print_context_messages(ctx: ElroyContext) -> Pretty:
+def print_context_messages(ctx: ElroyContext) -> Table:
     """Logs all of the current context messages to stdout
 
     Args:
         session (Session): _description_
         user_id (int): _description_
     """
+    messages = get_context_messages(ctx)
 
-    return Pretty(get_context_messages(ctx))
+    table = Table(show_header=True, padding=(0, 2), show_lines=True)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Message Details")
+
+    for idx, message in enumerate(messages, 1):
+        # Determine style based on role
+
+        # Create message details
+        details = [
+            f"[bold]ID[/]: {message.id}",
+            f"[bold]Role[/]: {message.role}",
+            f"[bold]Model[/]: {message.chat_model or ''}",
+        ]
+
+        if message.created_at:
+            details.append(f"[bold]Created[/]: {message.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+
+        if message.content:
+            details.append(f"\n[bold]Content[/]:\n{message.content}")
+
+        if message.tool_calls:
+            details.append("[bold]Tool Calls:[/]")
+            for tc in message.tool_calls:
+                try:
+                    tc.function["arguments"] = json.loads(tc.function["arguments"])
+                except json.JSONDecodeError:
+                    logging.info("Couldn't decode arguments for tool call")
+                details.append(Pretty(tc, expand_all=True))  # type: ignore
+
+        table.add_row(
+            str(idx),
+            Group(*details),
+            style={
+                ASSISTANT: ctx.assistant_color,
+                USER: ctx.user_input_color,
+                SYSTEM: ctx.system_message_color,
+                TOOL: ctx.system_message_color,
+            }.get(message.role, "white"),
+        )
+
+    return table
 
 
 def print_goal(ctx: ElroyContext, goal_name: str) -> str:

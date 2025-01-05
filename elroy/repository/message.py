@@ -8,16 +8,9 @@ from sqlmodel import select
 from toolz import first, pipe
 from toolz.curried import filter, map, pipe
 
-from ..config.constants import SYSTEM_INSTRUCTION_LABEL
+from ..config.constants import SYSTEM, SYSTEM_INSTRUCTION_LABEL, USER
 from ..config.ctx import ElroyContext
-from ..db.db_models import (
-    SYSTEM,
-    USER,
-    ContextMessageSet,
-    MemoryMetadata,
-    Message,
-    ToolCall,
-)
+from ..db.db_models import ContextMessageSet, MemoryMetadata, Message, ToolCall
 from ..utils.clock import ensure_utc, get_utc_now
 from ..utils.utils import last_or_none
 from .data_models import ContextMessage
