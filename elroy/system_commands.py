@@ -36,7 +36,7 @@ from .repository.message import (
     replace_context_messages,
 )
 from .tools.coding import make_coding_edit
-from .tools.developer import create_bug_report, print_elroy_config, tail_elroy_logs
+from .tools.developer import create_bug_report, print_config, tail_elroy_logs
 from .tools.user_preferences import (
     get_user_full_name,
     get_user_preferred_name,
@@ -328,7 +328,7 @@ NON_ARG_PREFILL_COMMANDS = {
     get_user_preferred_name,
     set_user_preferred_name,
     tail_elroy_logs,
-    print_elroy_config,
+    print_config,
     make_coding_edit,
 }
 

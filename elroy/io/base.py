@@ -13,7 +13,7 @@ class ElroyIO(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sys_message(self, message: str) -> None:
+    def sys_message(self, message) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -110,7 +110,7 @@ async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str)
             try:
                 result = await invoke_system_command(ctx, user_input)
                 if result:
-                    ctx.io.sys_message(str(result))
+                    ctx.io.sys_message(result)
             except Exception as e:
                 pipe(
                     traceback.format_exception(type(e), e, e.__traceback__),
