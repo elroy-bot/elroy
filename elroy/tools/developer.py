@@ -32,23 +32,76 @@ def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
         return "".join(f.readlines()[-lines:])
 
 
-def print_config(ctx: ElroyContext) -> Pretty:
+def print_config(ctx: ElroyContext) -> None:
     """
-    Prints the current Elroy configuration.
+    Prints the current Elroy configuration in a formatted table.
     Useful for troubleshooting and verifying the current configuration.
 
     Args:
-        context (ElroyContext): context obj
-
-    Returns:
-        str: The current Elroy configuration
+        ctx (ElroyContext): context obj
     """
-    return pipe(
-        vars(ctx),
-        # lambda d: obscure_sensitive_info(d) if scrub else d,
-        keyfilter(lambda k: not k.startswith("_")),
-        lambda x: pformat(x, indent=2, width=80),
-    )  # type: ignore
+    from rich.table import Table
+    from rich.console import Console
+
+    sections = {
+        "Basic Configuration": {
+            "Debug Mode": ctx.debug,
+            "Log File": str(ctx.log_file_path),
+            "Default Assistant Name": ctx.default_assistant_name,
+            "User Token": ctx.user_token,
+            "User ID": ctx.user_id,
+        },
+        "Model Configuration": {
+            "Chat Model": ctx.chat_model_name,
+            "Embedding Model": ctx.embedding_model_name,
+            "Embedding Model Size": ctx.embedding_model_size,
+            "Caching Enabled": ctx.enable_caching,
+        },
+        "API Configuration": {
+            "OpenAI API Base": ctx.openai_api_base or "default",
+            "OpenAI Embedding API Base": ctx.openai_embedding_api_base or "default",
+            "OpenAI Organization": ctx.openai_organization or "none",
+        },
+        "Context Management": {
+            "Max Assistant Loops": ctx.max_assistant_loops,
+            "Context Refresh Trigger Tokens": ctx.context_refresh_trigger_tokens,
+            "Context Refresh Target Tokens": ctx.context_refresh_target_tokens,
+            "Max Context Age (minutes)": ctx.max_context_age_minutes,
+            "Context Refresh Interval (minutes)": ctx.context_refresh_interval_minutes,
+        },
+        "Memory Management": {
+            "Memory Cluster Similarity": ctx.memory_cluster_similarity_threshold,
+            "Max Memory Cluster Size": ctx.max_memory_cluster_size,
+            "Min Memory Cluster Size": ctx.min_memory_cluster_size,
+            "Memories Between Consolidation": ctx.memories_between_consolidation,
+            "L2 Memory Relevance Distance": ctx.l2_memory_relevance_distance_threshold,
+        },
+        "UI Configuration": {
+            "Show Internal Thought": ctx.show_internal_thought,
+            "System Message Color": ctx.system_message_color,
+            "Assistant Color": ctx.assistant_color,
+            "User Input Color": ctx.user_input_color,
+            "Warning Color": ctx.warning_color,
+            "Internal Thought Color": ctx.internal_thought_color,
+        }
+    }
+
+    console = Console()
+    table = Table(title="Elroy Configuration", show_header=True, header_style="bold magenta")
+    table.add_column("Section")
+    table.add_column("Setting")
+    table.add_column("Value")
+
+    for section, settings in sections.items():
+        for setting, value in settings.items():
+            table.add_row(
+                section if setting == list(settings.keys())[0] else "",  # Only show section name once
+                setting,
+                str(value)
+            )
+        table.add_row("", "", "")  # Add empty row between sections
+
+    console.print(table)
 
 
 def create_bug_report(
