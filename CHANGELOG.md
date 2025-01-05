@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.58] - 2025-01-05
+
+### Improved
+- Improve readability of /print_config and /print_context_messages commands
+- Bugfixes to declutter conversation history
+
 ## [0.0.57] - 2025-01-04
 
 ### Added

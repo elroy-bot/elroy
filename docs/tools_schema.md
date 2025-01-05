@@ -281,17 +281,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
-      "name": "print_elroy_config",
-      "parameters": {
-        "type": "object",
-        "properties": {}
-      },
-      "required": []
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "print_goal",
       "parameters": {
         "type": "object",
