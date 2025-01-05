@@ -32,7 +32,7 @@ def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
         return "".join(f.readlines()[-lines:])
 
 
-def print_elroy_config(ctx: ElroyContext) -> str:
+def print_config(ctx: ElroyContext) -> Pretty:
     """
     Prints the current Elroy configuration.
     Useful for troubleshooting and verifying the current configuration.

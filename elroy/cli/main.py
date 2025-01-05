@@ -19,7 +19,7 @@ from ..llm.persona import get_persona
 from ..logging_config import setup_logging
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
-from ..tools.developer import print_elroy_config
+from ..tools.developer import print_config
 from ..tools.user_preferences import reset_system_persona, set_system_persona
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
@@ -415,9 +415,9 @@ def list_models():
 @app.command(name="show-config")
 @elroy_context
 @with_db
-def show_config(ctx: ElroyContext):
+def print_config(ctx: ElroyContext):
     """Shows current configuration and exits."""
-    print(print_elroy_config(ctx))
+    print(print_config(ctx))
 
 
 @app.command()
