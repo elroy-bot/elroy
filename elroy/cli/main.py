@@ -423,7 +423,6 @@ def list_models():
 
 @app.command(name="print-config")
 @elroy_context
-@with_db
 def print_config(ctx: ElroyContext):
     """Shows current configuration and exits."""
     ctx.io.print(do_print_config(ctx))

@@ -46,7 +46,6 @@ def print_config(ctx: ElroyContext) -> Table:
             "Log File": str(ctx.log_file_path),
             "Default Assistant Name": ctx.default_assistant_name,
             "User Token": ctx.user_token,
-            "User ID": ctx.user_id,
         },
         "Model Configuration": {
             "Chat Model": ctx.chat_model_name,
