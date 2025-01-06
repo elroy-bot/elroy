@@ -257,7 +257,7 @@ You can customize Elroy's appearance with these options:
 * `--memory-cluster-similarity-threshold FLOAT`: Threshold for memory cluster similarity. [default: 0.21125]
 * `--max-memory-cluster-size INTEGER`: The maximum number of memories that can be consolidated into a single memory at once. [default: 5]
 * `--min-memory-cluster-size INTEGER`: The minimum number of memories that can be consolidated into a single memory at once. [default: 3]
-* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [default: 30]
+* `--initial-context-refresh-wait-seconds INTEGER`: Initial wait time in seconds after login before the initial context refresh and compression. [default: 600]
 
 ### UI Configuration
 * `--show-internal-thought`: Show the assistant's internal thought monologue. [default: False]

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.59] - 2025-01-06
+
+### Improved
+- print-config now works without requiring database connection for basic operations like viewing settings
+
 ## [0.0.58] - 2025-01-05
 
 ### Improved
