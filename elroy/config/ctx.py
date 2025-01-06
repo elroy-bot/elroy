@@ -1,4 +1,3 @@
-import sys
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import cached_property, wraps
@@ -11,6 +10,7 @@ import typer
 from ..db.db_manager import DbManager
 from ..db.postgres.postgres_manager import PostgresManager
 from ..db.sqlite.sqlite_manager import SqliteManager
+from ..io.cli import CliIO
 from ..repository.user import create_user_id, get_user_id_if_exists
 from .config import ChatModel, EmbeddingModel, get_chat_model, get_embedding_model
 
@@ -174,25 +174,20 @@ class ElroyContext(typer.Context):
 
     @property
     def io(self) -> ElroyIO:
-        from ..io.base import StdIO
-
         if not self._io:
-            if sys.stdin.isatty():
-                from ..io.cli import CliIO
 
-                self._io = CliIO(
-                    show_internal_thought=self.show_internal_thought,
-                    system_message_color=self.system_message_color,
-                    assistant_message_color=self.assistant_color,
-                    user_input_color=self.user_input_color,
-                    warning_color=self.warning_color,
-                    internal_thought_color=self.internal_thought_color,
-                )
-
-            else:
-                self._io = StdIO()
-
+            self._io = CliIO(
+                show_internal_thought=self.show_internal_thought,
+                system_message_color=self.system_message_color,
+                assistant_message_color=self.assistant_color,
+                user_input_color=self.user_input_color,
+                warning_color=self.warning_color,
+                internal_thought_color=self.internal_thought_color,
+            )
         return self._io
+
+    def set_io(self, io: ElroyIO) -> None:
+        self._io = io
 
     @property
     def db(self) -> DbManager:

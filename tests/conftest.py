@@ -215,7 +215,7 @@ def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyConte
     # Create new context with all parameters
     ctx = ElroyContext(command=click.Command("test"), **params)
     io = TestCliIO()
-    ctx._io = io
+    ctx.set_io(io)
 
     with ctx.with_db(db):
         asyncio.run(onboard_user_non_interactive(ctx))
