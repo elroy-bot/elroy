@@ -26,7 +26,7 @@ class ElroyContext(typer.Context):
         self,
         command: click.Command,
         *,
-        # Required attributes
+        # Basic Configuration
         config_file: str,
         database_url: str,
         show_internal_thought: bool,
@@ -42,12 +42,12 @@ class ElroyContext(typer.Context):
         openai_embedding_api_base: Optional[str] = None,
         openai_organization: Optional[str] = None,
         anthropic_api_key: Optional[str] = None,
-        enable_tools: bool,
         # Model Configuration
         chat_model: str,
         embedding_model: str,
         embedding_model_size: int,
         enable_caching: bool = True,
+        enable_tools: bool,
         # Context Management
         max_assistant_loops: int,
         context_refresh_trigger_tokens: int,

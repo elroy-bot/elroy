@@ -1,4 +1,4 @@
-__version__ = "0.0.58"
+__version__ = "0.0.59"
 
 from importlib_resources import files
 
