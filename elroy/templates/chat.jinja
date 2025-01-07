@@ -1,0 +1,62 @@
+{%- if messages[0]["role"] == "system" %}
+    {%- set system_message = messages[0]["content"] %}
+    {%- set loop_messages = messages[1:] %}
+{%- else %}
+    {%- set system_message = "You are a helpful assistant." %}
+    {%- set loop_messages = messages %}
+{%- endif %}
+{%- if parallel_tool_calls is undefined %}
+    {%- set parallel_tool_calls = false %}
+{%- endif %}
+{%- if language is undefined or language != "zh" %}
+    {%- set language = "en" %}
+{%- endif %}
+
+{{- "<|im_start|>system\n" + system_message|trim }}
+{%- if tools is defined %}
+    {{- "\n\n## Tools\n\nYou have access to the following tools:\n\n" }}
+    {%- set functions = tools|map(attribute="function")|list %}
+    {%- set function_names = functions|map(attribute="name")|join(",") %}
+    {%- for function in functions %}
+        {{- "### " + function.name + "\n\n" + function.name + ": " + function.description + " Parameters: " + function.parameters|tojson + " Format the arguments as a JSON object.\n\n" }}
+    {%- endfor %}
+    {%- if parallel_tool_calls %}
+        {{- "## Insert the following command in your reply when you need to call N tools in parallel:\n\n✿FUNCTION✿: The name of tool 1, should be one of [" + function_names + "]\n✿ARGS✿: The input of tool 1\n✿FUNCTION✿: The name of tool 2\n✿ARGS✿: The input of tool 2\n...\n✿FUNCTION✿: The name of tool N\n✿ARGS✿: The input of tool N\n✿RESULT✿: The result of tool 1\n✿RESULT✿: The result of tool 2\n...\n✿RESULT✿: The result of tool N\n✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)" }}
+    {%- else %}
+        {{- "## When you need to call a tool, please insert the following command in your reply, which can be called zero or multiple times according to your needs:\n\n✿FUNCTION✿: The tool to use, should be one of [" + function_names + "]\n✿ARGS✿: The input of the tool\n✿RESULT✿: Tool results\n✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)" }}
+    {%- endif %}
+{%- endif %}
+{{- "<|im_end|>" }}
+
+{%- for message in loop_messages %}
+    {%- if message.role == "user" %}
+        {{- "\n<|im_start|>" + message.role + "\n" + message.content + "<|im_end|>" }}
+        {%- if loop.last and add_generation_prompt %}
+            {{- "\n<|im_start|>assistant\n" }}
+        {%- endif %}
+    {%- elif message.role == "tool" %}
+        {{- "✿RESULT✿: " + message.content + "\n" }}
+        {%- if loop.last and add_generation_prompt %}
+            {{- "✿RETURN✿:" }}
+        {%- endif %}
+    {%- elif message.role == "assistant" and message.tool_calls is defined %}
+        {%- if loop.previtem.role == "user" %}
+            {{- "\n<|im_start|>assistant\n" }}
+        {%- endif %}
+        {%- for function in message.tool_calls|map(attribute="function") %}
+            {{- "✿FUNCTION✿: " + function.name + "\n✿ARGS✿: " + function.arguments|tojson + "\n" }}
+        {%- endfor %}
+    {%- elif message.role == "assistant" %}
+        {%- if loop.previtem.role == "user" %}
+            {{- "\n<|im_start|>assistant\n" }}
+        {%- elif loop.previtem.role == "tool" %}
+            {{- "✿RETURN✿:" }}
+        {%- endif %}
+        {{- message.content }}
+        {%- if loop.nextitem is undefined or loop.nextitem.role == "user" %}
+            {{- "<|im_end|>" }}
+        {%- endif %}
+    {%- else %}
+        {{- "\n<|im_start|>" + message.role + "\n" + message.content + "<|im_end|>" }}
+    {%- endif %}
+{%- endfor %}
