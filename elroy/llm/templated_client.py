@@ -25,7 +25,7 @@ from ..config.models import get_fallback_model
 from ..repository.data_models import ContentItem, ContextMessage
 from ..tools.function_caller import get_function_schemas
 
-@dataclass 
+@dataclass
 class ChatTemplate:
     """Base template for chat formatting"""
     parallel_tool_calls: bool = False
@@ -40,7 +40,7 @@ class JinjaTemplate(ChatTemplate):
     """Template using Jinja2 for message formatting"""
     template_path: str = str(Path(__file__).parent.parent / "templates" / "chat.jinja")
     add_generation_prompt: bool = True
-    
+
     def __post_init__(self):
         template_dir = os.path.dirname(self.template_path)
         env = Environment(loader=FileSystemLoader(template_dir))
@@ -62,11 +62,11 @@ class JinjaTemplate(ChatTemplate):
         """Parse tool calls from generated text using ✿FUNCTION✿ markers"""
         import re
         tool_calls = []
-        
+
         # Find function/args pairs
-        function_matches = re.finditer(r"✿FUNCTION✿:\s*(.+?)\n✿ARGS✿:\s*(.+?)(?=\n✿(?:FUNCTION|RESULT|RETURN)✿|$)", 
+        function_matches = re.finditer(r"✿FUNCTION✿:\s*(.+?)\n✿ARGS✿:\s*(.+?)(?=\n✿(?:FUNCTION|RESULT|RETURN)✿|$)",
                                      text, re.DOTALL)
-        
+
         for match in function_matches:
             try:
                 name = match.group(1).strip()
@@ -81,7 +81,7 @@ class JinjaTemplate(ChatTemplate):
             except json.JSONDecodeError:
                 logging.warning(f"Failed to parse function arguments: {match.group(2)}")
                 continue
-                
+
         return tool_calls
 
 class ToolCallAccumulator:
@@ -110,7 +110,7 @@ def generate_chat_completion_message(
     """
     # Use default Qwen2 template if none specified
     template = template or JinjaTemplate()
-    
+
     if force_tool and not enable_tools:
         logging.error("Force tool requested, but tools are disabled. Ignoring force tool request")
         force_tool = None
@@ -145,12 +145,12 @@ def generate_chat_completion_message(
     )
 
     tool_call_accumulator = ToolCallAccumulator(chat_model)
-    
+
     try:
         for chunk in completion(**completion_kwargs):
             if chunk.choices[0].delta.content:
                 yield ContentItem(content=chunk.choices[0].delta.content)
-                
+
             # Parse tool calls using template
             tool_calls = template.parse_tool_calls(chunk.choices[0].delta.content or "")
             if tool_calls:
