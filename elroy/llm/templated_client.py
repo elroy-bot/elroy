@@ -139,17 +139,18 @@ def generate_chat_completion_message(
     try:
         import openai
         client = openai.OpenAI(api_key=chat_model.api_key, base_url=chat_model.api_base)
-        response = client.chat.completions.create(
+        response = client.completions.create(
             model=chat_model.name,
-            messages=[{"role": "user", "content": formatted_messages}],
+            prompt=formatted_messages,
             stream=True
         )
         
         for chunk in response:
-            if chunk.choices[0].delta.content:
-                yield ContentItem(content=chunk.choices[0].delta.content)
+            if chunk.choices[0].text:
+                content = chunk.choices[0].text
+                yield ContentItem(content=content)
                 # Parse tool calls from content
-                tool_calls = template.parse_tool_calls(chunk.choices[0].delta.content)
+                tool_calls = template.parse_tool_calls(content)
                 if tool_calls:
                     for tool_call in tool_calls:
                         yield tool_call
@@ -258,9 +259,9 @@ def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
 
     import openai
     client = openai.OpenAI(api_key=model.api_key, base_url=model.api_base)
-    response = client.chat.completions.create(
+    response = client.completions.create(
         model=model.name,
-        messages=[{"role": "user", "content": formatted_messages}],
+        prompt=formatted_messages,
         stream=False
     )
-    return response.choices[0].message.content
+    return response.choices[0].text
