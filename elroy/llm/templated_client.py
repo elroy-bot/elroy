@@ -26,8 +26,6 @@ from ..tools.function_caller import get_function_schemas
 class ChatTemplate:
     """Base template for chat formatting"""
     parallel_tool_calls: bool = False
-    language: str = "en"
-
     def format_messages(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> str:
         raise NotImplementedError
 
@@ -48,43 +46,28 @@ class Qwen2Template(ChatTemplate):
 
         if tools:
             system_content += "\n\n## Tools\n\n"
-            if self.language == "zh":
-                system_content += "## 你拥有如下工具：\n\n"
-            else:
-                system_content += "You have access to the following tools:\n\n"
+            system_content += "You have access to the following tools:\n\n"
 
             # Format each tool
             for tool in tools:
                 fn = tool["function"]
                 system_content += f"### {fn['name']}\n\n"
                 system_content += f"{fn['name']}: {fn['description']} "
-                system_content += ("输入参数：" if self.language == "zh" else "Parameters: ")
+                system_content += "Parameters: "
                 system_content += json.dumps(fn['parameters'])
-                system_content += (" 此工具的输入应为JSON对象。\n\n" if self.language == "zh" else " Format the arguments as a JSON object.\n\n")
+                system_content += " Format the arguments as a JSON object.\n\n"
 
             # Add instructions for parallel/sequential tool calls
             if self.parallel_tool_calls:
-                if self.language == "zh":
-                    system_content += "## 你可以在回复中插入以下命令以并行调用N个工具：\n\n"
-                    system_content += "✿FUNCTION✿: 工具1的名称\n✿ARGS✿: 工具1的输入\n"
-                    system_content += "✿FUNCTION✿: 工具2的名称\n✿ARGS✿: 工具2的输入\n...\n"
-                    system_content += "✿RESULT✿: 工具1的结果\n✿RESULT✿: 工具2的结果\n...\n"
-                    system_content += "✿RETURN✿: 根据工具结果进行回复，需将图片用![](url)渲染出来"
-                else:
-                    system_content += "## Insert the following command in your reply when you need to call N tools in parallel:\n\n"
-                    system_content += "✿FUNCTION✿: The name of tool 1\n✿ARGS✿: The input of tool 1\n"
-                    system_content += "✿FUNCTION✿: The name of tool 2\n✿ARGS✿: The input of tool 2\n...\n"
-                    system_content += "✿RESULT✿: The result of tool 1\n✿RESULT✿: The result of tool 2\n...\n"
-                    system_content += "✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)"
+                system_content += "## Insert the following command in your reply when you need to call N tools in parallel:\n\n"
+                system_content += "✿FUNCTION✿: The name of tool 1\n✿ARGS✿: The input of tool 1\n"
+                system_content += "✿FUNCTION✿: The name of tool 2\n✿ARGS✿: The input of tool 2\n...\n"
+                system_content += "✿RESULT✿: The result of tool 1\n✿RESULT✿: The result of tool 2\n...\n"
+                system_content += "✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)"
             else:
-                if self.language == "zh":
-                    system_content += "## 你可以在回复中插入零次、一次或多次以下命令以调用工具：\n\n"
-                    system_content += "✿FUNCTION✿: 工具名称\n✿ARGS✿: 工具输入\n✿RESULT✿: 工具结果\n"
-                    system_content += "✿RETURN✿: 根据工具结果进行回复，需将图片用![](url)渲染出来"
-                else:
-                    system_content += "## When you need to call a tool, please insert the following command in your reply:\n\n"
-                    system_content += "✿FUNCTION✿: The tool to use\n✿ARGS✿: The input of the tool\n✿RESULT✿: Tool results\n"
-                    system_content += "✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)"
+                system_content += "## When you need to call a tool, please insert the following command in your reply:\n\n"
+                system_content += "✿FUNCTION✿: The tool to use\n✿ARGS✿: The input of the tool\n✿RESULT✿: Tool results\n"
+                system_content += "✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)"
 
         output.append(f"<|im_start|>system\n{system_content}<|im_end|>")
 
