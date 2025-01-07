@@ -15,10 +15,15 @@
 {{- "<|im_start|>system\n" + system_message|trim }}
 {%- if tools is defined %}
     {{- "\n\n## Tools\n\nYou have access to the following tools:\n\n" }}
-    {%- set functions = tools|map(attribute="function")|list %}
-    {%- set function_names = functions|map(attribute="name")|join(",") %}
-    {%- for function in functions %}
-        {{- "### " + function.name + "\n\n" + function.name + ": " + function.description + " Parameters: " + function.parameters|tojson + " Format the arguments as a JSON object.\n\n" }}
+    {%- for tool in tools %}
+        {%- set function = tool.function %}
+        {%- set param_descriptions = [] %}
+        {%- for prop_name, prop in function.parameters.properties.items() %}
+            {%- if prop.description is defined %}
+                {%- do param_descriptions.append(prop_name + ": " + prop.description) %}
+            {%- endif %}
+        {%- endfor %}
+        {{- "### " + function.name + "\n\n" + function.name + ": " + (param_descriptions|join(", ")) + "\nParameters: " + function.parameters|tojson + " Format the arguments as a JSON object.\n\n" }}
     {%- endfor %}
     {%- if parallel_tool_calls %}
         {{- "## Insert the following command in your reply when you need to call N tools in parallel:\n\n✿FUNCTION✿: The name of tool 1, should be one of [" + function_names + "]\n✿ARGS✿: The input of tool 1\n✿FUNCTION✿: The name of tool 2\n✿ARGS✿: The input of tool 2\n...\n✿FUNCTION✿: The name of tool N\n✿ARGS✿: The input of tool N\n✿RESULT✿: The result of tool 1\n✿RESULT✿: The result of tool 2\n...\n✿RESULT✿: The result of tool N\n✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)" }}
