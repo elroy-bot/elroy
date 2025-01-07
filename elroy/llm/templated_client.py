@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
@@ -17,7 +18,8 @@ from ..config.constants import (
     MissingToolCallMessageError,
 )
 from ..config.models import get_fallback_model
-from ..repository.data_models import ContentItem, ContextMessage
+from ..db.db_models import FunctionCall
+from ..repository.data_models import ContentItem, ContextMessage, StreamItem
 from ..tools.function_caller import get_function_schemas
 
 
@@ -30,7 +32,7 @@ class ChatTemplate:
     def format_messages(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> str:
         raise NotImplementedError
 
-    def parse_tool_calls(self, text: str) -> List[Dict[str, Any]]:
+    def parse_tool_calls(self, text: str) -> List[FunctionCall]:
         raise NotImplementedError
 
 
@@ -59,7 +61,7 @@ class JinjaTemplate(ChatTemplate):
             logging.error(f"Error rendering Jinja template: {e}")
             raise
 
-    def parse_tool_calls(self, text: str) -> List[Dict[str, Any]]:
+    def parse_tool_calls(self, text: str) -> List[FunctionCall]:
         """Parse tool calls from generated text using ✿FUNCTION✿ markers"""
         import re
 
@@ -70,9 +72,10 @@ class JinjaTemplate(ChatTemplate):
 
         for match in function_matches:
             try:
+                id = str(uuid.uuid4())
                 name = match.group(1).strip()
                 args = json.loads(match.group(2).strip())
-                tool_calls.append({"type": "function", "function": {"name": name, "arguments": args}})
+                tool_calls.append(FunctionCall(function_name=name, arguments=args, id=id))
             except json.JSONDecodeError:
                 logging.warning(f"Failed to parse function arguments: {match.group(2)}")
                 continue
@@ -102,7 +105,7 @@ def generate_chat_completion_message(
     force_tool: Optional[str] = None,
     retry_number: int = 0,
     template: Optional[ChatTemplate] = None,
-) -> Iterator[Dict]:
+) -> Iterator[StreamItem]:
     """
     Generates a chat completion message.
     """
@@ -136,17 +139,14 @@ def generate_chat_completion_message(
         import openai
 
         client = openai.OpenAI(api_key=chat_model.api_key, base_url=chat_model.api_base)
-        response = client.completions.create(model=chat_model.name, prompt=formatted_messages, stream=True)
-
-        for chunk in response:
-            if chunk.choices[0].text:
-                content = chunk.choices[0].text
-                yield ContentItem(content=content)
-                # Parse tool calls from content
-                tool_calls = template.parse_tool_calls(content)
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        yield tool_call
+        response = client.completions.create(model=chat_model.name, prompt=formatted_messages, stream=False)
+        content = response.choices[0].text
+        yield ContentItem(content=content)
+        # Parse tool calls from content
+        tool_calls = template.parse_tool_calls(content)
+        if tool_calls:
+            for tool_call in tool_calls:
+                yield tool_call
 
     except Exception as e:
         if isinstance(e, BadRequestError):
