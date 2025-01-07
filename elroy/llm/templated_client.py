@@ -1,8 +1,11 @@
 import json
 import logging
+import os
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 
+from jinja2 import Environment, FileSystemLoader, Template
 from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
@@ -33,62 +36,27 @@ class ChatTemplate:
         raise NotImplementedError
 
 @dataclass
-class Qwen2Template(ChatTemplate):
-    """
-    Qwen2 template using ✿FUNCTION✿ markers
-    """
+class JinjaTemplate(ChatTemplate):
+    """Template using Jinja2 for message formatting"""
+    template_path: str = str(Path(__file__).parent.parent / "templates" / "chat.jinja")
+    add_generation_prompt: bool = True
+    
+    def __post_init__(self):
+        template_dir = os.path.dirname(self.template_path)
+        env = Environment(loader=FileSystemLoader(template_dir))
+        self.template = env.get_template(os.path.basename(self.template_path))
     def format_messages(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> str:
-        output = []
-
-        # Start with system message
-        system_msg = next((m for m in messages if m["role"] == "system"), {"content": "You are a helpful assistant."})
-        system_content = system_msg["content"]
-
-        if tools:
-            system_content += "\n\n## Tools\n\n"
-            system_content += "You have access to the following tools:\n\n"
-
-            # Format each tool
-            for tool in tools:
-                fn = tool["function"]
-                system_content += f"### {fn['name']}\n\n"
-                system_content += f"{fn['name']}: {fn['description']} "
-                system_content += "Parameters: "
-                system_content += json.dumps(fn['parameters'])
-                system_content += " Format the arguments as a JSON object.\n\n"
-
-            # Add instructions for parallel/sequential tool calls
-            if self.parallel_tool_calls:
-                system_content += "## Insert the following command in your reply when you need to call N tools in parallel:\n\n"
-                system_content += "✿FUNCTION✿: The name of tool 1\n✿ARGS✿: The input of tool 1\n"
-                system_content += "✿FUNCTION✿: The name of tool 2\n✿ARGS✿: The input of tool 2\n...\n"
-                system_content += "✿RESULT✿: The result of tool 1\n✿RESULT✿: The result of tool 2\n...\n"
-                system_content += "✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)"
-            else:
-                system_content += "## When you need to call a tool, please insert the following command in your reply:\n\n"
-                system_content += "✿FUNCTION✿: The tool to use\n✿ARGS✿: The input of the tool\n✿RESULT✿: Tool results\n"
-                system_content += "✿RETURN✿: Reply based on tool results. Images need to be rendered as ![](url)"
-
-        output.append(f"<|im_start|>system\n{system_content}<|im_end|>")
-
-        # Add remaining messages
-        for msg in messages:
-            if msg["role"] == "system":
-                continue
-
-            if msg["role"] == "assistant" and msg.get("function_call"):
-                # Format function calls
-                content = f"✿FUNCTION✿: {msg['function_call']['name']}\n"
-                content += f"✿ARGS✿: {msg['function_call']['arguments']}\n"
-            elif msg["role"] == "function":
-                # Format function results
-                content = f"✿RESULT✿: {msg['content']}\n"
-            else:
-                content = msg["content"]
-
-            output.append(f"<|im_start|>{msg['role']}\n{content}<|im_end|>")
-
-        return "\n".join(output)
+        """Format messages using Jinja template"""
+        try:
+            return self.template.render(
+                messages=messages,
+                tools=tools,
+                parallel_tool_calls=self.parallel_tool_calls,
+                add_generation_prompt=self.add_generation_prompt
+            )
+        except Exception as e:
+            logging.error(f"Error rendering Jinja template: {e}")
+            raise
 
     def parse_tool_calls(self, text: str) -> List[Dict[str, Any]]:
         """Parse tool calls from generated text using ✿FUNCTION✿ markers"""
@@ -141,7 +109,7 @@ def generate_chat_completion_message(
     Generates a chat completion message.
     """
     # Use default Qwen2 template if none specified
-    template = template or Qwen2Template()
+    template = template or JinjaTemplate()
     
     if force_tool and not enable_tools:
         logging.error("Force tool requested, but tools are disabled. Ignoring force tool request")
