@@ -136,8 +136,7 @@ def generate_chat_completion_message(
     from litellm import completion
     from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
 
-    # Make direct API call based on provider
-    if chat_model.provider == Provider.OPENAI:
+    try:
         import openai
         client = openai.OpenAI(api_key=chat_model.api_key, base_url=chat_model.api_base)
         response = client.chat.completions.create(
@@ -149,30 +148,8 @@ def generate_chat_completion_message(
         for chunk in response:
             if chunk.choices[0].delta.content:
                 yield ContentItem(content=chunk.choices[0].delta.content)
-            
-            # Parse tool calls from content
-            if chunk.choices[0].delta.content:
-                tool_calls = template.parse_tool_calls(chunk.choices[0].delta.content)
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        yield tool_call
-
-    elif chat_model.provider == Provider.ANTHROPIC:
-        import anthropic
-        client = anthropic.Anthropic(api_key=chat_model.api_key)
-        response = client.messages.create(
-            model=chat_model.name,
-            messages=[{"role": "user", "content": formatted_messages}],
-            stream=True
-        )
-        
-        for chunk in response:
-            if chunk.content:
-                content = chunk.content[0].text
-                yield ContentItem(content=content)
-                
                 # Parse tool calls from content
-                tool_calls = template.parse_tool_calls(content)
+                tool_calls = template.parse_tool_calls(chunk.choices[0].delta.content)
                 if tool_calls:
                     for tool_call in tool_calls:
                         yield tool_call
@@ -279,22 +256,11 @@ def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
         ]
     )
 
-    if model.provider == Provider.OPENAI:
-        import openai
-        client = openai.OpenAI(api_key=model.api_key, base_url=model.api_base)
-        response = client.chat.completions.create(
-            model=model.name,
-            messages=[{"role": "user", "content": formatted_messages}],
-            stream=False
-        )
-        return response.choices[0].message.content
-
-    elif model.provider == Provider.ANTHROPIC:
-        import anthropic
-        client = anthropic.Anthropic(api_key=model.api_key)
-        response = client.messages.create(
-            model=model.name,
-            messages=[{"role": "user", "content": formatted_messages}],
-            stream=False
-        )
-        return response.content[0].text
+    import openai
+    client = openai.OpenAI(api_key=model.api_key, base_url=model.api_base)
+    response = client.chat.completions.create(
+        model=model.name,
+        messages=[{"role": "user", "content": formatted_messages}],
+        stream=False
+    )
+    return response.choices[0].message.content
