@@ -43,7 +43,7 @@ class JinjaTemplate(ChatTemplate):
 
     def __post_init__(self):
         template_dir = os.path.dirname(self.template_path)
-        env = Environment(loader=FileSystemLoader(template_dir))
+        env = Environment(loader=FileSystemLoader(template_dir), extensions=['jinja2.ext.do'])
         self.template = env.get_template(os.path.basename(self.template_path))
     def format_messages(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> str:
         """Format messages using Jinja template"""
