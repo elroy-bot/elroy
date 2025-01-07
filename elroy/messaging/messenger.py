@@ -14,7 +14,7 @@ from ..config.constants import (
     MissingToolCallMessageError,
 )
 from ..config.ctx import ElroyContext
-from ..llm.client import generate_chat_completion_message, get_embedding
+from ..llm.templated_client import generate_chat_completion_message, get_embedding
 from ..repository.data_models import ContentItem, ContextMessage
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
 from ..repository.message import (

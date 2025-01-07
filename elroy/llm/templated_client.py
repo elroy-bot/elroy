@@ -5,46 +5,47 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 
-from jinja2 import Environment, FileSystemLoader, Template
-from toolz import dissoc, pipe
-from toolz.curried import keyfilter, map
+from jinja2 import Environment, FileSystemLoader
 
 from ..config.config import ChatModel, EmbeddingModel
 from ..config.constants import (
     ASSISTANT,
     MAX_CHAT_COMPLETION_RETRY_COUNT,
     SYSTEM,
-    TOOL,
     USER,
-    InvalidForceToolError,
     MaxRetriesExceededError,
     MissingToolCallMessageError,
-    Provider,
 )
 from ..config.models import get_fallback_model
 from ..repository.data_models import ContentItem, ContextMessage
 from ..tools.function_caller import get_function_schemas
 
+
 @dataclass
 class ChatTemplate:
     """Base template for chat formatting"""
+
     parallel_tool_calls: bool = False
+
     def format_messages(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> str:
         raise NotImplementedError
 
     def parse_tool_calls(self, text: str) -> List[Dict[str, Any]]:
         raise NotImplementedError
 
+
 @dataclass
 class JinjaTemplate(ChatTemplate):
     """Template using Jinja2 for message formatting"""
+
     template_path: str = str(Path(__file__).parent.parent / "templates" / "chat.jinja")
     add_generation_prompt: bool = True
 
     def __post_init__(self):
         template_dir = os.path.dirname(self.template_path)
-        env = Environment(loader=FileSystemLoader(template_dir), extensions=['jinja2.ext.do'])
+        env = Environment(loader=FileSystemLoader(template_dir), extensions=["jinja2.ext.do"])
         self.template = env.get_template(os.path.basename(self.template_path))
+
     def format_messages(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> str:
         """Format messages using Jinja template"""
         try:
@@ -52,7 +53,7 @@ class JinjaTemplate(ChatTemplate):
                 messages=messages,
                 tools=tools,
                 parallel_tool_calls=self.parallel_tool_calls,
-                add_generation_prompt=self.add_generation_prompt
+                add_generation_prompt=self.add_generation_prompt,
             )
         except Exception as e:
             logging.error(f"Error rendering Jinja template: {e}")
@@ -61,31 +62,27 @@ class JinjaTemplate(ChatTemplate):
     def parse_tool_calls(self, text: str) -> List[Dict[str, Any]]:
         """Parse tool calls from generated text using ✿FUNCTION✿ markers"""
         import re
+
         tool_calls = []
 
         # Find function/args pairs
-        function_matches = re.finditer(r"✿FUNCTION✿:\s*(.+?)\n✿ARGS✿:\s*(.+?)(?=\n✿(?:FUNCTION|RESULT|RETURN)✿|$)",
-                                     text, re.DOTALL)
+        function_matches = re.finditer(r"✿FUNCTION✿:\s*(.+?)\n✿ARGS✿:\s*(.+?)(?=\n✿(?:FUNCTION|RESULT|RETURN)✿|$)", text, re.DOTALL)
 
         for match in function_matches:
             try:
                 name = match.group(1).strip()
                 args = json.loads(match.group(2).strip())
-                tool_calls.append({
-                    "type": "function",
-                    "function": {
-                        "name": name,
-                        "arguments": args
-                    }
-                })
+                tool_calls.append({"type": "function", "function": {"name": name, "arguments": args}})
             except json.JSONDecodeError:
                 logging.warning(f"Failed to parse function arguments: {match.group(2)}")
                 continue
 
         return tool_calls
 
+
 class ToolCallAccumulator:
     """Accumulates and parses tool calls from streamed responses"""
+
     def __init__(self, chat_model: ChatModel):
         self.chat_model = chat_model
         self.current_tool_calls: List[Dict[str, Any]] = []
@@ -96,6 +93,7 @@ class ToolCallAccumulator:
             if tool_call not in self.current_tool_calls:
                 self.current_tool_calls.append(tool_call)
                 yield tool_call
+
 
 def generate_chat_completion_message(
     chat_model: ChatModel,
@@ -129,22 +127,17 @@ def generate_chat_completion_message(
 
     # Format messages using template
     formatted_messages = template.format_messages(
-        messages=[asdict(m) for m in context_messages],
-        tools=get_function_schemas() if enable_tools else None
+        messages=[asdict(m) for m in context_messages], tools=get_function_schemas() if enable_tools else None
     )
 
-    from litellm import completion
     from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
 
     try:
         import openai
+
         client = openai.OpenAI(api_key=chat_model.api_key, base_url=chat_model.api_base)
-        response = client.completions.create(
-            model=chat_model.name,
-            prompt=formatted_messages,
-            stream=True
-        )
-        
+        response = client.completions.create(model=chat_model.name, prompt=formatted_messages, stream=True)
+
         for chunk in response:
             if chunk.choices[0].text:
                 content = chunk.choices[0].text
@@ -179,11 +172,13 @@ def generate_chat_completion_message(
         else:
             raise e
 
+
 def query_llm(model: ChatModel, prompt: str, system: str) -> str:
     """Query LLM with a single prompt and system message"""
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return _query_llm(model=model, prompt=prompt, system=system)
+
 
 def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
     """Query LLM with a word limit constraint"""
@@ -199,6 +194,7 @@ def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_l
         model=model,
         system=system,
     )
+
 
 def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     """Generate an embedding for the given text"""
@@ -220,6 +216,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
 
     response = embedding(**embedding_kwargs)
     return response.data[0]["embedding"]
+
 
 def _build_completion_kwargs(
     model: ChatModel,
@@ -247,21 +244,14 @@ def _build_completion_kwargs(
 
     return kwargs
 
+
 def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
     """Internal function to query LLM"""
     template = JinjaTemplate(add_generation_prompt=False)
-    formatted_messages = template.format_messages(
-        messages=[
-            {"role": SYSTEM, "content": system},
-            {"role": USER, "content": prompt}
-        ]
-    )
+    formatted_messages = template.format_messages(messages=[{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}])
 
     import openai
+
     client = openai.OpenAI(api_key=model.api_key, base_url=model.api_base)
-    response = client.completions.create(
-        model=model.name,
-        prompt=formatted_messages,
-        stream=False
-    )
+    response = client.completions.create(model=model.name, prompt=formatted_messages, stream=False)
     return response.choices[0].text
