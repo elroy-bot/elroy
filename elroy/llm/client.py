@@ -20,7 +20,7 @@ from ..config.constants import (
 )
 from ..config.models import get_fallback_model
 from ..db.db_models import FunctionCall
-from ..repository.data_models import ContentItem, ContextMessage
+from ..repository.data_models import AssistantResponseChunk, ContextMessage
 
 
 def generate_chat_completion_message(
@@ -118,7 +118,7 @@ def generate_chat_completion_message(
         tool_call_accumulator = ToolCallAccumulator(chat_model)
         for chunk in completion(**completion_kwargs):
             if chunk.choices[0].delta.content:  # type: ignore
-                yield ContentItem(content=chunk.choices[0].delta.content)  # type: ignore
+                yield AssistantResponseChunk(content=chunk.choices[0].delta.content)  # type: ignore
             if chunk.choices[0].delta.tool_calls:  # type: ignore
                 yield from tool_call_accumulator.update(chunk.choices[0].delta.tool_calls)  # type: ignore
 

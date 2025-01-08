@@ -32,8 +32,12 @@ class ContextMessage:
             raise ValueError(f"Tool messages must have tool call ids, found tool message without tool call id. ID = {self.id}")
 
 
-class ContentItem(NamedTuple):
+class AssistantResponseChunk(NamedTuple):
     content: str
 
 
-StreamItem = Union[ContentItem, FunctionCall]
+class AssistantInternalThoughtChunk(NamedTuple):
+    content: str
+
+
+StreamItem = Union[AssistantResponseChunk, AssistantInternalThoughtChunk, FunctionCall]

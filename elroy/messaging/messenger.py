@@ -15,7 +15,7 @@ from ..config.constants import (
 )
 from ..config.ctx import ElroyContext
 from ..llm.templated_client import generate_chat_completion_message, get_embedding
-from ..repository.data_models import ContentItem, ContextMessage
+from ..repository.data_models import AssistantResponseChunk, ContextMessage
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
 from ..repository.message import (
     MemoryMetadata,
@@ -53,7 +53,7 @@ def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional
             enable_tools=ctx.enable_tools and loops <= ctx.max_assistant_loops,
             force_tool=force_tool,
         ):
-            if isinstance(stream_chunk, ContentItem):
+            if isinstance(stream_chunk, AssistantResponseChunk):
                 full_content += stream_chunk.content
                 yield stream_chunk.content
             elif isinstance(stream_chunk, FunctionCall):
