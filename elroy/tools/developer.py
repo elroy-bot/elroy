@@ -41,6 +41,12 @@ def print_config(ctx: ElroyContext) -> Table:
     """
 
     sections = {
+        "System Information": {
+            "OS": f"{platform.system()} {platform.release()}",
+            "Python Verion": platform.python_version(),
+            "Python Location": sys.executable,
+            "Elroy Version": __version__,
+        },
         "Basic Configuration": {
             "Debug Mode": ctx.debug,
             "Log File": str(ctx.log_file_path),
@@ -54,9 +60,11 @@ def print_config(ctx: ElroyContext) -> Table:
             "Caching Enabled": ctx.enable_caching,
         },
         "API Configuration": {
-            "OpenAI API Base": ctx.openai_api_base or "default",
-            "OpenAI Embedding API Base": ctx.openai_embedding_api_base or "default",
-            "OpenAI Organization": ctx.openai_organization or "none",
+            "OpenAI API Base": ctx.openai_api_base or "None",
+            "OpenAI Embedding API Base": ctx.openai_embedding_api_base or "None",
+            "OpenAI Organization": ctx.openai_organization or "None",
+            "OpenAI API key": "*" * 8 if ctx.openai_api_key else "None",
+            "Anthropic API key": "*" * 8 if ctx.anthropic_api_key else "None",
         },
         "Context Management": {
             "Max Assistant Loops": ctx.max_assistant_loops,
