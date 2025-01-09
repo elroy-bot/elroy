@@ -7,6 +7,9 @@ from ..repository.data_models import StreamItem
 
 T = TypeVar("T", str, StreamItem)
 
+# TODO: Convert existing parsing into this class
+# the template should also influence the system message
+
 
 @dataclass
 class ParsedContent:
