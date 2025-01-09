@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.60] - 2025-01-09
+
+### Improved
+- Added some debug info to print-config
+
 ## [0.0.59] - 2025-01-06
 
 ### Improved
