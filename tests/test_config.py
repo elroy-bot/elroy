@@ -64,7 +64,7 @@ def test_cli_params_match_defaults():
         # - application commands
         # - parameters that are relevant to one specific invocation
         not in [
-            "config_file",
+            "config_path",
             "tool",
             "ctx",
         ]

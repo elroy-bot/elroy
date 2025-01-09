@@ -8,11 +8,11 @@ import click
 import pytest
 from sqlmodel import delete
 from tests.utils import TestCliIO
-from toolz import merge, pipe
+from toolz import pipe
 from toolz.curried import do
 
 from elroy.cli.config import onboard_user_non_interactive
-from elroy.cli.options import get_config_params, resolve_model_alias
+from elroy.cli.options import get_resolved_params, resolve_model_alias
 from elroy.config.constants import ASSISTANT, USER
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
@@ -198,19 +198,10 @@ def user_token() -> Generator[str, None, None]:
 def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext for testing, using the same defaults as the CLI"""
 
-    params = get_config_params()
-
-    params = merge(
-        params,
-        {
-            "user_token": user_token,
-            "config_file": None,
-            "database_url": db.url,
-            "chat_model": chat_model_name,
-            "openai_api_key": os.environ.get("OPENAI_API_KEY"),
-            "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY"),
-            "tool": None,
-        },
+    params = get_resolved_params(
+        user_token=user_token,
+        database_url=db.url,
+        chat_model=chat_model_name,
     )
 
     # Create new context with all parameters
@@ -218,7 +209,7 @@ def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyConte
     io = TestCliIO()
     ctx.set_io(io)
 
-    with ctx.with_db(db):
+    with ctx.dbsession():
         asyncio.run(onboard_user_non_interactive(ctx))
         yield ctx
 
