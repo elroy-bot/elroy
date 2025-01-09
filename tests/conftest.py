@@ -12,7 +12,7 @@ from toolz import merge, pipe
 from toolz.curried import do
 
 from elroy.cli.config import onboard_user_non_interactive
-from elroy.cli.options import get_config_params
+from elroy.cli.options import get_config_params, resolve_model_alias
 from elroy.config.constants import ASSISTANT, USER
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
@@ -66,8 +66,9 @@ def postgres_url(request):
 
 def pytest_generate_tests(metafunc):
     if "chat_model_name" in metafunc.fixturenames:
-        models = metafunc.config.getoption("--chat-models").split(",")
+        models = [resolve_model_alias(m) or m for m in metafunc.config.getoption("--chat-models").split(",")]
         metafunc.parametrize("chat_model_name", models, scope="session")
+
     if "db_type" in metafunc.fixturenames:
         db_types = metafunc.config.getoption("--db-type").split(",")
         metafunc.parametrize("db_type", db_types, scope="session")
