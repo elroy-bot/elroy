@@ -116,7 +116,7 @@ def run_tests(errors: Errors):
                 "pytest",
                 "-x",
                 "--chat-models",
-                "claude-3-5-haiku-20241022,gpt-4o-mini",
+                "haiku,4o-mini",
                 "--db-type",
                 "sqlite,postgres",
             ],
