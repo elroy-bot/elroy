@@ -59,7 +59,7 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
             "Python Location": sys.executable,
             "Elroy Version": __version__,
             "Elroy Home Dir": get_home_dir(),
-            "Config file": ctx.config_file,
+            "Config Path": ctx.config_path,
         },
         "Basic Configuration": {
             "Debug Mode": ctx.debug,

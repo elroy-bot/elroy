@@ -1,17 +1,16 @@
 import logging
+import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import yaml
-from click import get_current_context
-from toolz import merge
+from toolz import merge, pipe
+from toolz.curried import map, valfilter
 from typer import Option
 
 from ..config.config import DEFAULTS_CONFIG
-from ..config.constants import CONFIG_FILE_KEY
 from ..config.models import resolve_anthropic
-from ..config.paths import get_default_config_path
 
 
 def resolve_model_alias(alias: str) -> Optional[str]:
@@ -27,17 +26,26 @@ def resolve_model_alias(alias: str) -> Optional[str]:
 
 
 @lru_cache
-def get_config_params(config_path: Optional[str] = None) -> Dict:
-    ctx = get_current_context(True)
-    ctx_path = ctx.params.get(CONFIG_FILE_KEY) if ctx else None
+def load_config_file_params(config_path: Optional[str] = None) -> Dict:
+    # Looks for user specified config path, then merges with default values packaged with the lib
 
-    user_config_path = config_path or ctx_path or get_default_config_path()
+    user_config_path = config_path or os.environ.get(get_env_var_name("config_path"))
 
-    return merge(DEFAULTS_CONFIG, load_config_if_exists(user_config_path))
+    if not user_config_path:
+        return {}
+    else:
+
+        if user_config_path and not Path(user_config_path).is_absolute():
+            logging.info("Resolving relative user config path")
+            # convert to absolute path if not already, relative to lib root
+            user_config_path = Path(user_config_path).resolve()
+        return load_config_if_exists(user_config_path)
 
 
-def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs: Any):
+def ElroyOption(key: str, rich_help_panel: str, help: str, default_factory: Optional[Callable] = None, *args):
     """
+    Typer options that have values in the user config file
+
     Creates a typer Option with value priority:
     1. CLI provided value (handled by typer)
     2. User config file value (if provided)
@@ -46,11 +54,38 @@ def CliOption(yaml_key: str, envvar: Optional[str] = None, *args: Any, **kwargs:
 
     return Option(
         *args,
-        default_factory=lambda: get_config_params().get(yaml_key),
-        envvar=envvar or f"ELROY_{yaml_key.upper()}",
-        show_default=str(DEFAULTS_CONFIG.get(yaml_key)),
-        **kwargs,
+        default_factory=default_factory if default_factory else lambda: load_config_file_params().get(key),
+        envvar=get_env_var_name(key),
+        rich_help_panel=rich_help_panel,
+        help=help,
+        show_default=str(DEFAULTS_CONFIG.get(key)),
     )
+
+
+def get_env_var_name(parameter_name: str):
+    return {
+        "openai_api_key": "OPENAI_API_KEY",
+        "openai_api_base": "OPENAI_API_BASE",
+        "openai_embedding_api_base": "OPENAI_API_BASE",
+        "openai_organization": "OPENAI_ORGANIZATION",
+        "anthropic_api_key": "ANTHROPIC_API_KEY",
+    }.get(parameter_name, "ELROY_" + parameter_name.upper())
+
+
+def get_resolved_params(**kwargs) -> Dict[str, Any]:
+    """Get resolved parameter values from environment and config."""
+    # n.b merge priority is lib default < user config file < env var < explicit CLI arg
+
+    return pipe(
+        [
+            DEFAULTS_CONFIG,  # package defaults
+            load_config_file_params(kwargs.get("config_path")),  # user specified config file
+            {k: os.environ.get(get_env_var_name(k)) for k in DEFAULTS_CONFIG.keys()},  # env vars
+            kwargs,  # explicit params
+        ],
+        map(valfilter(lambda x: x is not None)),
+        merge,
+    )  # type: ignore
 
 
 @lru_cache

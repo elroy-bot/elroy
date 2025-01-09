@@ -7,10 +7,8 @@ from typing import Optional
 
 import click
 import typer
-from toolz import merge, pipe
-from toolz.curried import keyfilter
 
-from ..config.constants import CONFIG_FILE_KEY, MODEL_SELECTION_CONFIG_PANEL
+from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext, elroy_context, with_db
 from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..io.base import StdIO
@@ -29,7 +27,7 @@ from .chat import (
     onboard_interactive,
     run_chat,
 )
-from .options import CliOption, get_config_params, resolve_model_alias
+from .options import ElroyOption, get_resolved_params, resolve_model_alias
 from .updater import check_latest_version, check_updates
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
@@ -46,197 +44,184 @@ app = typer.Typer(
 @app.callback(invoke_without_command=True)
 def common(
     ctx: typer.Context,
-    config_file: str = typer.Option(
+    config_path: str = typer.Option(
         get_default_config_path(),
         "--config",
         envvar="ELROY_CONFIG_FILE",
         help="Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.",
         rich_help_panel="Basic Configuration",
     ),
-    default_assistant_name: str = CliOption(
+    default_assistant_name: str = ElroyOption(
         "default_assistant_name",
         help="Default name for the assistant.",
         rich_help_panel="Basic Configuration",
     ),
-    debug: bool = CliOption(
+    debug: bool = ElroyOption(
         "debug",
-        "--debug",
         help="Whether to fail fast when errors occur, and emit more verbose logging.",
         rich_help_panel="Basic Configuration",
     ),
-    user_token: str = CliOption(
+    user_token: str = ElroyOption(
         "user_token",
         help="User token to use for Elroy",
         rich_help_panel="Basic Configuration",
     ),
     # Database Configuration
-    database_url: Optional[str] = typer.Option(
-        get_default_sqlite_url(),
-        envvar="ELROY_DATABASE_URL",
+    database_url: Optional[str] = ElroyOption(
+        "database_url",
+        default_factory=get_default_sqlite_url,
         help="Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.",
         rich_help_panel="Basic Configuration",
     ),
     # API Configuration
-    openai_api_key: Optional[str] = CliOption(
+    openai_api_key: Optional[str] = ElroyOption(
         "openai_api_key",
-        envvar="OPENAI_API_KEY",
         help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    openai_api_base: Optional[str] = CliOption(
+    openai_api_base: Optional[str] = ElroyOption(
         "openai_api_base",
-        envvar="OPENAI_API_BASE",
         help="OpenAI API (or OpenAI compatible) base URL.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    openai_embedding_api_base: Optional[str] = CliOption(
+    openai_embedding_api_base: Optional[str] = ElroyOption(
         "openai_embedding_api_base",
-        envvar="OPENAI_API_BASE",
         help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    openai_organization: Optional[str] = CliOption(
+    openai_organization: Optional[str] = ElroyOption(
         "openai_organization",
-        envvar="OPENAI_ORGANIZATION",
         help="OpenAI (or OpenAI compatible) organization ID.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    anthropic_api_key: Optional[str] = CliOption(
+    anthropic_api_key: Optional[str] = ElroyOption(
         "anthropic_api_key",
-        envvar="ANTHROPIC_API_KEY",
         help="Anthropic API key, required for Anthropic models.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     # Model Configuration
-    chat_model: str = CliOption(
+    chat_model: str = ElroyOption(
         "chat_model",
-        envvar="ELROY_CHAT_MODEL",
         help="The model to use for chat completions.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    enable_tools: bool = typer.Option(
-        True,
-        "--enable-tools",
+    enable_tools: bool = ElroyOption(
+        "enable-tools",
         help="Whether to enable tool calls for the assistant",
+        rich_help_panel="Basic Configuration",
     ),
-    embedding_model: str = CliOption(
+    embedding_model: str = ElroyOption(
         "embedding_model",
         help="The model to use for text embeddings.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    embedding_model_size: int = CliOption(
+    embedding_model_size: int = ElroyOption(
         "embedding_model_size",
         help="The size of the embedding model.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    enable_caching: bool = CliOption(
+    enable_caching: bool = ElroyOption(
         "enable_caching",
         help="Whether to enable caching for the LLM, both for embeddings and completions.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     # Context Management
-    max_assistant_loops: int = CliOption(
+    max_assistant_loops: int = ElroyOption(
         "max_assistant_loops",
         help="Maximum number of loops the assistant can run before tools are temporarily made unvailable (returning for the next user message).",
         rich_help_panel="Context Management",
     ),
-    context_refresh_trigger_tokens: int = CliOption(
+    context_refresh_trigger_tokens: int = ElroyOption(
         "context_refresh_trigger_tokens",
         help="Number of tokens that triggers a context refresh and compresion of messages in the context window.",
         rich_help_panel="Context Management",
     ),
-    context_refresh_target_tokens: int = CliOption(
+    context_refresh_target_tokens: int = ElroyOption(
         "context_refresh_target_tokens",
         help="Target number of tokens after context refresh / context compression, how many tokens to aim to keep in context.",
         rich_help_panel="Context Management",
     ),
-    max_context_age_minutes: float = CliOption(
+    max_context_age_minutes: float = ElroyOption(
         "max_context_age_minutes",
         help="Maximum age in minutes to keep. Messages older tha this will be dropped from context, regardless of token limits",
         rich_help_panel="Context Management",
     ),
-    context_refresh_interval_minutes: float = CliOption(
+    context_refresh_interval_minutes: float = ElroyOption(
         "context_refresh_interval_minutes",
         help="How often in minutes to refresh system message and compress context.",
         rich_help_panel="Context Management",
     ),
-    min_convo_age_for_greeting_minutes: Optional[float] = CliOption(
+    min_convo_age_for_greeting_minutes: Optional[float] = ElroyOption(
         "min_convo_age_for_greeting_minutes",
         help="Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set enable_assistant_greeting=False (This will override any value for min_convo_age_for_greeting_minutes)",
         rich_help_panel="Context Management",
     ),
-    enable_assistant_greeting: bool = CliOption(
+    enable_assistant_greeting: bool = ElroyOption(
         "enable_assistant_greeting",
         help="Whether to allow the assistant to send the first message",
         rich_help_panel="Context Management",
     ),
     # Memory Consolidation
-    memories_between_consolidation: int = CliOption(
+    memories_between_consolidation: int = ElroyOption(
         "memories_between_consolidation",
         help="How many memories to create before triggering a memory consolidation operation.",
         rich_help_panel="Memory Consolidation",
     ),
-    l2_memory_relevance_distance_threshold: float = CliOption(
+    l2_memory_relevance_distance_threshold: float = ElroyOption(
         "l2_memory_relevance_distance_threshold",
         help="L2 distance threshold for memory relevance.",
         rich_help_panel="Memory Consolidation",
     ),
-    memory_cluster_similarity_threshold: float = CliOption(
+    memory_cluster_similarity_threshold: float = ElroyOption(
         "memory_cluster_similarity_threshold",
         help="Threshold for memory cluster similarity.",
         rich_help_panel="Memory Consolidation",
     ),
-    max_memory_cluster_size: int = CliOption(
+    max_memory_cluster_size: int = ElroyOption(
         "max_memory_cluster_size",
         help="The maximum number of memories that can be consolidated into a single memory at once.",
         rich_help_panel="Memory Consolidation",
     ),
-    min_memory_cluster_size: int = CliOption(
+    min_memory_cluster_size: int = ElroyOption(
         "min_memory_cluster_size",
         help="The minimum number of memories that can be consolidated into a single memory at once.",
         rich_help_panel="Memory Consolidation",
     ),
-    initial_context_refresh_wait_seconds: int = CliOption(
+    initial_context_refresh_wait_seconds: int = ElroyOption(
         "initial_context_refresh_wait_seconds",
         help="Initial wait time in seconds after login before the initial context refresh and compression.",
         rich_help_panel="Memory Consolidation",
     ),
     # UI Configuration
-    show_internal_thought: bool = CliOption(
+    show_internal_thought: bool = ElroyOption(
         "show_internal_thought",
         help="Show the assistant's internal thought monologue like memory consolidation and internal reflection.",
         rich_help_panel="UI Configuration",
     ),
-    system_message_color: str = CliOption(
+    system_message_color: str = ElroyOption(
         "system_message_color",
         help="Color for system messages.",
         rich_help_panel="UI Configuration",
     ),
-    user_input_color: str = CliOption(
+    user_input_color: str = ElroyOption(
         "user_input_color",
         help="Color for user input.",
         rich_help_panel="UI Configuration",
     ),
-    assistant_color: str = CliOption(
+    assistant_color: str = ElroyOption(
         "assistant_color",
         help="Color for assistant output.",
         rich_help_panel="UI Configuration",
     ),
-    warning_color: str = CliOption(
+    warning_color: str = ElroyOption(
         "warning_color",
         help="Color for warning messages.",
         rich_help_panel="UI Configuration",
     ),
-    internal_thought_color: str = CliOption(
+    internal_thought_color: str = ElroyOption(
         "internal_thought_color",
         help="Color for internal thought messages.",
         rich_help_panel="UI Configuration",
-    ),
-    tool: str = typer.Option(  # TODO: This should be moved to the message command
-        None,
-        "--tool",
-        "-t",
-        help="Specifies the tool to use in responding to a message. Only valid when processing a single message",
     ),
     sonnet: bool = typer.Option(
         False,
@@ -296,13 +281,11 @@ def common(
                 logging.warning("Model alias not found")
             else:
                 ctx.params["chat_model"] = resolved
+        del ctx.params[m]
 
-    ctx.obj = pipe(
-        ctx.params,
-        lambda x: merge(get_config_params(ctx.params.get(CONFIG_FILE_KEY)), x),
-        keyfilter(lambda k: k not in MODEL_ALIASES),
-        dict,
-        lambda x: ElroyContext(parent=ctx, **x),
+    ctx.obj = ElroyContext(
+        parent=ctx,
+        **get_resolved_params(**ctx.params),
     )
 
     setup_logging()
@@ -330,7 +313,7 @@ def chat(ctx: ElroyContext):
             create_bug_report_from_exception_if_confirmed(ctx, e)
     else:
         message = sys.stdin.read()
-        handle_message_stdio(ctx, StdIO(), message, ctx.tool)
+        handle_message_stdio(ctx, StdIO(), message, None)
 
 
 @app.command(name="message")
@@ -339,7 +322,12 @@ def chat(ctx: ElroyContext):
 def message(
     ctx: ElroyContext,
     message: Optional[str] = typer.Argument(..., help="The message to process"),
-    tool: str = typer.Option(None, "--tool", "-t", help="Specifies the tool to use in responding to a message"),
+    tool: str = typer.Option(
+        None,
+        "--tool",
+        "-t",
+        help="Specifies the tool to use in responding to a message",
+    ),
 ):
     """Process a single message and exit."""
     if sys.stdin.isatty() and not message:

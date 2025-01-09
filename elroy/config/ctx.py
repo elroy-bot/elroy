@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import cached_property, wraps
+from pathlib import Path
 from typing import Any, Callable, Generator, Optional, TypeVar, Union
 
 import click
@@ -12,6 +13,7 @@ from ..db.sqlite.sqlite_manager import SqliteManager
 from ..io.cli import CliIO
 from ..repository.user import create_user_id, get_user_id_if_exists
 from .config import ChatModel, EmbeddingModel, get_chat_model, get_embedding_model
+from .paths import get_default_config_path
 
 
 class ElroyContext(typer.Context):
@@ -26,7 +28,7 @@ class ElroyContext(typer.Context):
         command: click.Command,
         *,
         # Basic Configuration
-        config_file: str,
+        config_path: Optional[str] = None,
         database_url: str,
         show_internal_thought: bool,
         system_message_color: str,
@@ -66,14 +68,13 @@ class ElroyContext(typer.Context):
         debug: bool,
         default_persona: str,
         default_assistant_name: str,
-        tool: Optional[str],
         # Typer context params
         parent: Optional[typer.Context] = None,
         **kwargs,
     ):
         super().__init__(command, parent=parent, **kwargs)
         # Store all constructor params
-        self.config_file = config_file
+        self.config_path = Path(config_path) if config_path else get_default_config_path()
         self.database_url = database_url
         self.show_internal_thought = show_internal_thought
         self.system_message_color = system_message_color
@@ -121,8 +122,6 @@ class ElroyContext(typer.Context):
         self.debug = debug
         self.default_persona = default_persona
         self.default_assistant_name = default_assistant_name
-
-        self.tool = tool
 
     @property
     def min_convo_age_for_greeting(self) -> timedelta:
@@ -194,13 +193,23 @@ class ElroyContext(typer.Context):
             return self._db
 
     @contextmanager
-    def with_db(self, db: DbManager) -> Generator[None, None, None]:
+    def dbsession(self) -> Generator[None, None, None]:
         """Context manager for database sessions"""
-        try:
-            self._db = db
-            yield
-        finally:
-            self._db = None
+        assert self.database_url, "Database URL not set"
+
+        if self.database_url.startswith("postgresql://"):
+            db_manager = PostgresManager
+        elif self.database_url.startswith("sqlite:///"):
+            db_manager = SqliteManager
+        else:
+            raise ValueError(f"Unsupported database URL: {self.database_url}. Must be either a postgresql:// or sqlite:/// URL")
+
+        with db_manager.open_session(self.database_url, True) as db:
+            try:
+                self._db = db
+                yield
+            finally:
+                self._db = None
 
 
 def get_ctx(typer_ctx: Union[typer.Context, ElroyContext]) -> ElroyContext:
@@ -236,7 +245,7 @@ def clone_ctx_with_db(ctx: ElroyContext, db: DbManager) -> ElroyContext:
     new_ctx = ElroyContext(
         command=ctx.command,
         parent=ctx.parent,  # type: ignore
-        config_file=ctx.config_file,
+        config_path=str(ctx.config_path),
         database_url=ctx.database_url,
         show_internal_thought=ctx.show_internal_thought,
         system_message_color=ctx.system_message_color,
@@ -266,7 +275,6 @@ def clone_ctx_with_db(ctx: ElroyContext, db: DbManager) -> ElroyContext:
         max_assistant_loops=ctx.max_assistant_loops,
         default_persona=ctx.default_persona,
         default_assistant_name=ctx.default_assistant_name,
-        tool=ctx.tool,
         enable_tools=ctx.enable_tools,
         memory_cluster_similarity_threshold=ctx.memory_cluster_similarity_threshold,
         max_memory_cluster_size=ctx.max_memory_cluster_size,
@@ -283,16 +291,7 @@ def with_db(func):
 
     @wraps(func)
     def wrapper(ctx: ElroyContext, *args, **kwargs):
-
-        if ctx.database_url.startswith("postgresql://"):
-            db_manager = PostgresManager
-        elif ctx.database_url.startswith("sqlite:///"):
-            db_manager = SqliteManager
-        else:
-            raise ValueError(f"Unsupported database URL: {ctx.database_url}. Must be either a postgresql:// or sqlite:/// URL")
-
-        with db_manager.open_session(ctx.database_url, True) as db:
-            with ctx.with_db(db):
-                return func(ctx, *args, **kwargs)
+        with ctx.dbsession():
+            return func(ctx, *args, **kwargs)
 
     return wrapper
