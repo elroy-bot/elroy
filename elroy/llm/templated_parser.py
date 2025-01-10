@@ -24,7 +24,7 @@ class StreamParser(ABC, Generic[T]):
     """Abstract base class for parsing streaming LLM output content"""
 
     @abstractmethod
-    def process(self, chunks: Iterator[T]) -> Iterator[StreamItem]:
+    def process(self, chunk: T) -> Iterator[StreamItem]:
         """Process a chunk of content and yield parsed items
 
         Args:
@@ -33,5 +33,15 @@ class StreamParser(ABC, Generic[T]):
         Returns:
             Iterator of ContentItem (for main content and thoughts)
             or FunctionCall objects
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_parsed_content(self) -> ParsedContent:
+        """Get the current accumulated parsed content
+
+        Returns:
+            ParsedContent containing accumulated main content,
+            internal thought, and function calls
         """
         raise NotImplementedError

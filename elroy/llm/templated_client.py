@@ -136,11 +136,17 @@ def generate_chat_completion_message(
     from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
 
     try:
+        import pdb
+
         import openai
 
+        pdb.set_trace()
         client = openai.OpenAI(api_key=chat_model.api_key, base_url=chat_model.api_base)
         response = client.completions.create(model=chat_model.name, prompt=formatted_messages, stream=False)
         content = response.choices[0].text
+        import pdb
+
+        pdb.set_trace()
         yield AssistantResponseChunk(content=content)
         # Parse tool calls from content
         tool_calls = template.parse_tool_calls(content)
@@ -199,6 +205,10 @@ def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_l
 def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     """Generate an embedding for the given text"""
     from litellm import embedding
+
+    # import pdb; pdb.set_trace()
+    # model.api_key = os.environ['OPENAI_API_KEY']
+    # model.api_base = None
 
     if not text:
         raise ValueError("Text cannot be empty")
