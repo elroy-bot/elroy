@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.61] - 2025-01-10
+
+### Fixed
+- Improved handling of system paths
+
 ## [0.0.60] - 2025-01-09
 
 ### Improved
