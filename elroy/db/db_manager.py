@@ -128,7 +128,7 @@ class DbManager(ABC):
         except Exception as e:
             logging.error(f"Database connectivity check failed: {e}")
             raise typer.BadParameter(
-                f"Could not connect to database at {engine.url.render_as_string(hide_password=True)}. Please check if database is running and connection URL is correct."
+                f"Could not connect to database at {engine.url.render_as_string(hide_password=True)}. Please check if database is running and connection URL is correct. Error: {e}"
             )
 
         """Check if all migrations have been run.

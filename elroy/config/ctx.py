@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import cached_property, wraps
-from pathlib import Path
 from typing import Any, Callable, Generator, Optional, TypeVar, Union
 
 import click
@@ -65,7 +64,6 @@ class ElroyContext(typer.Context):
         l2_memory_relevance_distance_threshold: float,
         # Basic Configuration
         debug: bool,
-        log_file_path: str,
         default_persona: str,
         default_assistant_name: str,
         tool: Optional[str],
@@ -121,7 +119,6 @@ class ElroyContext(typer.Context):
 
         # Basic Configuration
         self.debug = debug
-        self.log_file_path = Path(log_file_path).resolve()
         self.default_persona = default_persona
         self.default_assistant_name = default_assistant_name
 
@@ -266,7 +263,6 @@ def clone_ctx_with_db(ctx: ElroyContext, db: DbManager) -> ElroyContext:
         initial_context_refresh_wait_seconds=ctx.initial_context_refresh_wait_seconds,
         l2_memory_relevance_distance_threshold=ctx.l2_memory_relevance_distance_threshold,
         debug=ctx.debug,
-        log_file_path=str(ctx.log_file_path),
         max_assistant_loops=ctx.max_assistant_loops,
         default_persona=ctx.default_persona,
         default_assistant_name=ctx.default_assistant_name,

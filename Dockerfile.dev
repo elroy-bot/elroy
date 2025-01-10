@@ -13,14 +13,13 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Install specific elroy version
-ARG ELROY_VERSION
-RUN if [ -z "$ELROY_VERSION" ] ; then \
-        pip install --no-cache-dir elroy ; \
-    else \
-        pip install --no-cache-dir elroy==${ELROY_VERSION} ; \
-    fi
+# Copy the local repository into the container
+COPY . /app/
 
+RUN pip install poetry-core
+
+# Install the local version of elroy
+RUN pip install -e . --no-cache-dir
 
 ENV ELROY_HOME=/app/data
 

@@ -98,6 +98,27 @@ def check_local_tag(errors: Errors):
         errors.messages.append(f"Error: Git tag v{current_version} not found locally")
 
 
+def validate_docker_build(errors: Errors):
+    try:
+        # Build docker image
+        subprocess.run(["docker", "compose", "build", "--no-cache"], check=True)
+
+        # Run test message
+        result = subprocess.run(
+            ["docker", "compose", "run", "--rm", "elroy-dev", "message", "This is a test, repeat: Hello world"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        # Check if output contains "hello world" (case insensitive)
+        if "hello world" not in result.stdout.lower():
+            errors.messages.append("Error: Docker test message did not contain expected response")
+
+    except subprocess.CalledProcessError as e:
+        errors.messages.append(f"Error: Docker build/run failed:\n{e.stdout}\n{e.stderr}")
+
+
 def run_tests(errors: Errors):
     """Run pytest with specified chat models and cache results"""
     # Get current HEAD SHA
@@ -213,6 +234,7 @@ def _get_version_from_pyproject() -> str:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Release a new patch version")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
+    parser.add_argument("--skip-docker", action="store_true", help="Skip running docker build test")
     args = parser.parse_args()
 
     errors = Errors([])
@@ -229,6 +251,11 @@ if __name__ == "__main__":
         print("Skipping tests")
     else:
         run_tests(errors)
+
+    if args.skip_docker:
+        print("Skipping docker build test")
+    else:
+        validate_docker_build(errors)
 
     if errors.messages:
         for message in errors.messages:

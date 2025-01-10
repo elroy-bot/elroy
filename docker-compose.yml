@@ -38,6 +38,25 @@ services:
     entrypoint: ["elroy"]
     command: []
 
+
+  elroy-dev:
+    container_name: elroy-dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ELROY_DATABASE_URL=postgresql://elroy:password@db:5432/elroy
+      - PYTHONPATH=/app
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    stdin_open: true
+    tty: true
+    entrypoint: ["elroy"]
+    command: []
+
 volumes:
   elroy_postgres-data:
     name: elroy_postgres-data
