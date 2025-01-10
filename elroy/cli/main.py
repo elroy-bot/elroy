@@ -3,7 +3,6 @@ import logging
 import sys
 from bdb import BdbQuit
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 import click
@@ -11,7 +10,6 @@ import typer
 from toolz import merge, pipe
 from toolz.curried import keyfilter
 
-from ..config.config import DEFAULTS_CONFIG
 from ..config.constants import CONFIG_FILE_KEY, MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext, elroy_context, with_db
 from ..config.paths import get_default_config_path, get_default_sqlite_url
@@ -234,14 +232,6 @@ def common(
         help="Color for internal thought messages.",
         rich_help_panel="UI Configuration",
     ),
-    # Logging
-    log_file_path: str = typer.Option(
-        default_factory=lambda: get_config_params().get("log_file_path"),
-        envvar="ELROY_LOG_FILE_PATH",
-        show_default=str(Path(DEFAULTS_CONFIG.get("log_file_path")).resolve()),
-        help="Where to write logs.",
-        rich_help_panel="Logging",
-    ),
     tool: str = typer.Option(  # TODO: This should be moved to the message command
         None,
         "--tool",
@@ -315,7 +305,7 @@ def common(
         lambda x: ElroyContext(parent=ctx, **x),
     )
 
-    setup_logging(ctx.obj.log_file_path)
+    setup_logging()
 
     if ctx.invoked_subcommand is None:
         chat(ctx.obj)

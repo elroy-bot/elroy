@@ -1,44 +1,43 @@
+import os
 from pathlib import Path
-
-from platformdirs import user_cache_dir, user_data_dir
 
 APP_NAME = "elroy"
 APP_AUTHOR = "elroy-bot"
 
 
-def get_elroy_home() -> Path:
-    """Get the Elroy home directory, creating it if it doesn't exist.
+def get_home_dir() -> Path:
+    """Get the Elroy home directory (~/.elroy), creating it if it doesn't exist.
 
-    Returns platform-appropriate path:
-    - Windows: C:\\Users\\<username>\\AppData\\Local\\elroy-bot\\elroy
-    - macOS: ~/Library/Application Support/elroy
-    - Linux: ~/.local/share/elroy
+    Can be overridden with ELROY_HOME environment variable.
     """
-    data_dir = Path(user_data_dir(APP_NAME))
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir
+    if env_home := os.environ.get("ELROY_HOME"):
+        home_dir = Path(env_home)
+    else:
+        home_dir = Path.home() / ".elroy"
+
+    home_dir.mkdir(parents=True, exist_ok=True)
+    return home_dir
 
 
 def get_default_config_path() -> Path:
-    return get_elroy_home() / "elroy.conf.yaml"
+    return get_home_dir() / "elroy.conf.yaml"
 
 
-def get_elroy_cache() -> Path:
-    """Get the Elroy cache directory, creating it if it doesn't exist.
-
-    Returns platform-appropriate path:
-    - Windows: C:\\Users\\<username>\\AppData\\Local\\elroy-bot\\elroy\\Cache
-    - macOS: ~/Library/Caches/elroy
-    - Linux: ~/.cache/elroy
-    """
-    cache_dir = Path(user_cache_dir(APP_NAME))
+def get_cache_dir() -> Path:
+    cache_dir = get_home_dir() / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir
 
 
 def get_prompt_history_path():
-    return get_elroy_cache() / ".history"
+    return get_cache_dir() / "history"
 
 
 def get_default_sqlite_url():
-    return f"sqlite:///{get_elroy_cache() / 'elroy.db'}"
+    return f"sqlite:///{get_home_dir() / 'elroy.db'}"
+
+
+def get_log_file_path():
+    logs_dir = get_home_dir() / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return logs_dir / "elroy.log"

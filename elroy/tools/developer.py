@@ -13,6 +13,7 @@ from rich.text import Text
 from .. import __version__
 from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL
 from ..config.ctx import ElroyContext
+from ..config.paths import get_home_dir, get_log_file_path
 
 
 def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
@@ -27,7 +28,7 @@ def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
     Returns:
         str: The last `lines` of the Elroy logs
     """
-    with open(ctx.log_file_path, "r") as f:
+    with open(get_log_file_path(), "r") as f:
         return "".join(f.readlines()[-lines:])
 
 
@@ -46,10 +47,11 @@ def print_config(ctx: ElroyContext) -> Table:
             "Python Verion": platform.python_version(),
             "Python Location": sys.executable,
             "Elroy Version": __version__,
+            "Elroy Home Dir": get_home_dir(),
+            "Config file": ctx.config_file,
         },
         "Basic Configuration": {
             "Debug Mode": ctx.debug,
-            "Log File": str(ctx.log_file_path),
             "Default Assistant Name": ctx.default_assistant_name,
             "User Token": ctx.user_token,
         },
