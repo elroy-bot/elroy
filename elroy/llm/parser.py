@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Generic, Iterator, List, Optional, TypeVar
 
 from ..db.db_models import FunctionCall
@@ -17,7 +17,7 @@ class ParsedContent:
 
     main_content: str = ""
     internal_thought: Optional[str] = None
-    function_calls: List[FunctionCall] = []
+    function_calls: List[FunctionCall] = field(default_factory=list)
 
 
 class StreamParser(ABC, Generic[T]):

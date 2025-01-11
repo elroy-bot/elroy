@@ -68,6 +68,13 @@ def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional
                     ),
                     tool_context_messages.append,
                 )
+            else:
+                import pdb
+
+                pdb.set_trace()
+        import pdb
+
+        pdb.set_trace()
         context_messages.append(
             ContextMessage(
                 role=ASSISTANT,

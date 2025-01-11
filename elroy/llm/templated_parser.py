@@ -1,14 +1,21 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Generic, Iterator, List, Optional, TypeVar
+import re
+from dataclasses import dataclass, field
+from typing import Iterator, List, Optional, TypeVar
+
+from openai.types.completion import Completion
 
 from ..db.db_models import FunctionCall
-from ..repository.data_models import StreamItem
+from ..repository.data_models import AssistantResponseChunk, StreamItem
+from .parser import StreamParser
 
 T = TypeVar("T", str, StreamItem)
 
 # TODO: Convert existing parsing into this class
 # the template should also influence the system message
+
+FUNCTION_START_SEQ = "✿"
+# FUNCTION_START_SEQ = "✿FUNCTION✿"
+FUNCTION_END_EXP = r"^✿RESULT✿.*\n"
 
 
 @dataclass
@@ -17,14 +24,17 @@ class ParsedContent:
 
     main_content: str = ""
     internal_thought: Optional[str] = None
-    function_calls: List[FunctionCall] = []
+    function_calls: List[FunctionCall] = field(default_factory=list)
 
 
-class StreamParser(ABC, Generic[T]):
+class TemplateParser(StreamParser):
     """Abstract base class for parsing streaming LLM output content"""
 
-    @abstractmethod
-    def process(self, chunk: T) -> Iterator[StreamItem]:
+    def __init__(self):
+        self.function_str = None
+        super().__init__()
+
+    def process(self, chunks: Iterator[Completion]) -> Iterator[StreamItem]:
         """Process a chunk of content and yield parsed items
 
         Args:
@@ -34,14 +44,28 @@ class StreamParser(ABC, Generic[T]):
             Iterator of ContentItem (for main content and thoughts)
             or FunctionCall objects
         """
-        raise NotImplementedError
+        for completion_chunk in chunks:
+            choice = completion_chunk.choices[0]
+            if choice.finish_reason == "stop":
+                return
+            else:
+                chunk = choice.text
+            if self.function_str:
+                if chunk is None:
+                    import pdb
 
-    @abstractmethod
-    def get_parsed_content(self) -> ParsedContent:
-        """Get the current accumulated parsed content
+                    pdb.set_trace()
+                self.function_str += chunk
+                if re.search(FUNCTION_END_EXP, self.function_str):
+                    yield self.get_function_call(self.function_str)
+                    self.function_str = None
+            elif FUNCTION_START_SEQ in chunk:
+                self.function_str = chunk
+            else:
+                yield AssistantResponseChunk(content=chunk)
 
-        Returns:
-            ParsedContent containing accumulated main content,
-            internal thought, and function calls
-        """
-        raise NotImplementedError
+    def get_function_call(self, function_str: str) -> FunctionCall:
+        import pdb
+
+        pdb.set_trace()
+        raise ValueError

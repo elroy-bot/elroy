@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 
 from jinja2 import Environment, FileSystemLoader
+from litellm import text_completion
 
 from ..config.config import ChatModel, EmbeddingModel
 from ..config.constants import (
@@ -21,6 +22,7 @@ from ..config.models import get_fallback_model
 from ..db.db_models import FunctionCall
 from ..repository.data_models import AssistantResponseChunk, ContextMessage, StreamItem
 from ..tools.function_caller import get_function_schemas
+from .templated_parser import TemplateParser
 
 
 @dataclass
@@ -136,17 +138,16 @@ def generate_chat_completion_message(
     from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
 
     try:
-        import pdb
 
         import openai
 
-        pdb.set_trace()
-        client = openai.OpenAI(api_key=chat_model.api_key, base_url=chat_model.api_base)
-        response = client.completions.create(model=chat_model.name, prompt=formatted_messages, stream=False)
-        content = response.choices[0].text
-        import pdb
+        text_completion()
 
-        pdb.set_trace()
+        client = openai.OpenAI(api_key=chat_model.api_key, base_url=chat_model.api_base)
+        response = client.completions.create(model=chat_model.name, prompt=formatted_messages, stream=True)
+        yield from TemplateParser().process(response)
+
+        return
         yield AssistantResponseChunk(content=content)
         # Parse tool calls from content
         tool_calls = template.parse_tool_calls(content)
