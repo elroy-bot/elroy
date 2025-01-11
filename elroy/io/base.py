@@ -1,38 +1,45 @@
 import logging
-from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import Any, Generator, Iterator, TypeVar, Union
+from typing import Iterator, Union
+
+from rich.console import Console, RenderableType
 
 from ..db.db_models import FunctionCall
+from ..llm.stream_parser import (
+    AssistantInternalThought,
+    SystemMessage,
+    SystemWarning,
+    TextOutput,
+)
 
 
-class ElroyIO(ABC):
-    @abstractmethod
-    def print(self, message) -> None:
-        raise NotImplementedError
+class ElroyIO:
+    console: Console
 
-    @abstractmethod
-    def sys_message(self, message) -> None:
-        raise NotImplementedError
+    def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
+        for message in messages:
+            self.print(message, end="")
+        self.console.print("")
 
-    @abstractmethod
-    def assistant_msg(self, message: Union[str, Iterator[str], Generator[str, None, None]]) -> None:
-        raise NotImplementedError
+    def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
+        if hasattr(message, "__rich__") or isinstance(message, str):
+            self.console.print(message, end)
+        else:
+            raise NotImplementedError(f"Invalid message type: {type(message)}")
 
-    @abstractmethod
-    def notify_function_call(self, function_call: FunctionCall) -> None:
-        raise NotImplementedError
+    def internal_thought(self, message: str):
+        self.print(AssistantInternalThought(message))
 
-    @abstractmethod
-    def notify_warning(self, message: str) -> None:
-        raise NotImplementedError
+    def info(self, message: Union[str, RenderableType]):
+        if isinstance(message, str):
+            self.print(SystemMessage(message))
+        else:
+            self.print(message)
 
-    @abstractmethod
-    def internal_thought_msg(self, message: str) -> None:
-        raise NotImplementedError
-
-
-IOType = TypeVar("IOType", bound=ElroyIO)
+    def warning(self, message: Union[str, RenderableType]):
+        if isinstance(message, str):
+            self.print(SystemWarning(message))
+        else:
+            self.print(message)
 
 
 class StdIO(ElroyIO):
@@ -40,22 +47,17 @@ class StdIO(ElroyIO):
     IO which emits plain text to stdin and stdout.
     """
 
-    def print(self, message: Any):
-        print(message)
+    def __init__(self):
+        self.console = Console(no_color=True)
 
-    def sys_message(self, message: str) -> None:
-        logging.info(f"[{datetime.now()}] SYSTEM: {message}")
-
-    def assistant_msg(self, message: Union[str, Iterator[str], Generator[str, None, None]]) -> None:
-        if isinstance(message, (Iterator, Generator)):
-            message = "".join(message)
-        print(message)
-
-    def notify_function_call(self, function_call: FunctionCall) -> None:
-        logging.info(f"[{datetime.now()}] FUNCTION CALL: {function_call.function_name}({function_call.arguments})")
-
-    def notify_warning(self, message: str) -> None:
-        logging.warning(message)
-
-    def internal_thought_msg(self, message: str) -> None:
-        logging.info(f"[{datetime.now()}] INTERNAL THOUGHT: {message}")
+    def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
+        if isinstance(message, AssistantInternalThought):
+            logging.info(f"{type(message)}: {message}")
+        elif isinstance(message, SystemWarning):
+            logging.warning(message)
+        elif isinstance(message, FunctionCall):
+            logging.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
+        elif isinstance(message, TextOutput):
+            self.console.print(message.content, end)
+        else:
+            super().print(message, end)

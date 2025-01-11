@@ -321,7 +321,7 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
         ],
     )
 
-    ctx.io.internal_thought_msg(response)
+    ctx.io.internal_thought(response)
 
     return response
 

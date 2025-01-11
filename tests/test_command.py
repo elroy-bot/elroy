@@ -15,7 +15,7 @@ async def test_create_and_mark_goal_complete(ctx):
 
     assert "Test Goal" in get_active_goal_names(ctx)
 
-    assert "Test Goal" in ctx.io.get_sys_messages()[-1]
+    assert "Test Goal" in ctx.io.get_sys_messages()
 
     ctx.io.add_user_responses("Test Goal", "The test was completed!")
 
@@ -23,7 +23,7 @@ async def test_create_and_mark_goal_complete(ctx):
 
     assert "Test Goal" not in get_active_goal_names(ctx)
 
-    assert re.search(r"Test Goal.*completed", ctx.io.get_sys_messages()[-1]) is not None
+    assert re.search(r"Test Goal.*completed", ctx.io.get_sys_messages()) is not None
 
 
 @pytest.mark.asyncio
@@ -31,12 +31,12 @@ async def test_invalid_update(ctx):
     ctx.io.add_user_responses("Nonexistent goal", "Foo")
     await process_and_deliver_msg(USER, ctx, "/mark_goal_completed")
 
-    response = ctx.io.get_sys_messages()[-1]
+    response = ctx.io.get_sys_messages()
     assert re.search(r"Error.*Nonexistent goal.*not found", response) is not None
 
 
 @pytest.mark.asyncio
 async def test_invalid_cmd(ctx):
     await process_and_deliver_msg(USER, ctx, "/foo")
-    response = ctx.io.get_sys_messages()[-1]
+    response = ctx.io.get_sys_messages()
     assert re.search(r"Unknown.*foo", response) is not None

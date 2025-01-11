@@ -43,7 +43,7 @@ ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
 def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
-    ctx.io.notify_function_call(function_call)
+    ctx.io.print(function_call)
 
     try:
         function_to_call = get_functions()[function_call.function_name]
@@ -53,14 +53,14 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
             lambda d: merge(function_call.arguments, d),
             lambda args: function_to_call.__call__(**args),
             lambda result: str(result) if result is not None else "Success",
-            do(lambda x: ctx.io.sys_message(f"Function call result: {x}")),
+            do(lambda x: ctx.io.info(f"Function call result: {x}")),
             str,
         )  # type: ignore
 
     except Exception as e:
         return pipe(
             f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__)),
-            do(ctx.io.notify_warning),
+            do(ctx.io.warning),
             ERROR_PREFIX.__add__,
         )
 

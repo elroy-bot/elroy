@@ -3,17 +3,17 @@ from contextlib import contextmanager
 from itertools import product
 from typing import Generator, Iterator, List, Text, Union
 
-from prompt_toolkit import HTML, Application, PromptSession, print_formatted_text
+from prompt_toolkit import HTML, Application, PromptSession
 from prompt_toolkit.application import get_app
 from prompt_toolkit.completion import Completion, WordCompleter
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
-from prompt_toolkit.styles import Style
+from prompt_toolkit.styles import Style as PTKStyle
 from pygments.lexers.special import TextLexer
-from rich.console import Console
+from rich.console import Console, RenderableType
 from rich.panel import Panel
 from rich.pretty import Pretty
-from rich.table import Table
+from rich.style import Style
 from rich.text import Text
 from toolz import concatv, pipe
 from toolz.curried import map
@@ -22,6 +22,13 @@ from ..config.constants import REPO_ISSUES_URL
 from ..config.paths import get_prompt_history_path
 from ..db.db_models import FunctionCall, Goal, Memory
 from ..io.base import ElroyIO
+from ..llm.stream_parser import (
+    AssistantInternalThought,
+    AssistantResponse,
+    AssistantToolResult,
+    SystemWarning,
+    TextOutput,
+)
 from ..repository.data_models import ContextMessage
 
 
@@ -78,7 +85,7 @@ class CliIO(ElroyIO):
         self.warning_color = warning_color
         self.user_input_color = user_input_color
         self.internal_thought_color = internal_thought_color
-        self.style = Style.from_dict(
+        self.style = PTKStyle.from_dict(
             {
                 "prompt": "bold",
                 "user-input": self.user_input_color + " bold",
@@ -92,46 +99,51 @@ class CliIO(ElroyIO):
             style=self.style,
             lexer=PygmentsLexer(TextLexer),
         )
-        self.is_streaming_output = False
 
-    def print(self, message) -> None:
-        self.console.print(message)
+        self.last_output_type = None
 
-    def internal_thought_msg(self, message):
-        if self.is_streaming_output:
-            # hack, should be replaced with a buffer
-            logging.info("Dropping internal monologue message since we are streaming assistant output")
-        elif not self.show_internal_thought:
-            logging.info("Not showing internal monologue since show_internal_thought is False")
+    def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
+        try:
+            for message in messages:
+                self.print(message, end="")
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self.console.print()
+
+    def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
+        if isinstance(message, AssistantInternalThought) and not self.show_internal_thought:
+            logging.debug(f"Internal thought: {message.content}")
+            return
+
+        if isinstance(message, SystemWarning):
+            self._notify_warning(message.content)
+        elif isinstance(message, FunctionCall):
+            self._notify_function_call(message)
+        elif isinstance(message, TextOutput):
+            style = {
+                AssistantInternalThought: Style(color=self.internal_thought_color, italic=True),
+                AssistantResponse: self.assistant_message_color,
+                AssistantToolResult: self.assistant_message_color,
+                FunctionCall: self.system_message_color,
+                SystemWarning: self.warning_color,
+                str: self.user_input_color,
+            }.get(
+                type(message)  # type: ignore
+            )
+            if not self.last_output_type:
+                message.content = message.content.lstrip()
+            elif not isinstance(message, self.last_output_type):
+                # If we are printing a new type of message, add a newline.
+                self.console.print("\n\n", end="")
+                message.content = message.content.lstrip()
+            self.console.print(message.content, style=style, end=end)
         else:
-            print_formatted_text(HTML(f'<style fg="{self.internal_thought_color}"><i>{message}</i></style>'))
+            self.console.print(message, end=end)
 
-    def assistant_msg(self, message: Union[str, Pretty, Iterator[str], Generator[str, None, None]]) -> None:
+        self.last_output_type = type(message)
 
-        if isinstance(message, (Iterator, Generator)):
-            self.is_streaming_output = True
-            try:
-                for chunk in message:
-                    self.console.print(chunk, style=self.assistant_message_color, end="")
-            except KeyboardInterrupt:
-                self.console.print()
-                return
-            finally:
-                self.console.print()
-                self.is_streaming_output = False
-
-        elif isinstance(message, Pretty):
-            self.console.print(message)
-        else:
-            self.console.print(message, style=self.assistant_message_color, end="")
-        self.console.print()  # New line after complete response
-
-    def sys_message(self, message: Union[str, Text, Pretty, Table]) -> None:
-        if isinstance(message, str):
-            message = Text(str(message), style=self.system_message_color)
-        self.console.print(message)
-
-    def notify_function_call(self, function_call: FunctionCall) -> None:
+    def _notify_function_call(self, function_call: FunctionCall) -> None:
         self.console.print()
         msg = f"[{self.system_message_color}]Executing function call: [bold]{function_call.function_name}[/bold]"
 
@@ -140,7 +152,7 @@ class CliIO(ElroyIO):
         else:
             self.console.print(msg + "[/]")
 
-    def notify_warning(self, message: str) -> None:
+    def _notify_warning(self, message: str) -> None:
         self.console.print(Text(message, justify="center", style=self.warning_color))  # type: ignore
         self.console.print(Text(f"Please provide feedback at {REPO_ISSUES_URL}", style=self.warning_color))
         self.console.print()
@@ -157,6 +169,7 @@ class CliIO(ElroyIO):
         )
 
     def rule(self):
+        self.last_output_type = None
         self.console.rule(style=self.user_input_color)
 
     async def prompt_user(self, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0) -> str:
@@ -165,7 +178,7 @@ class CliIO(ElroyIO):
         except KeyboardInterrupt:
             keyboard_interrupt_count += 1
             if keyboard_interrupt_count == 3:
-                self.assistant_msg("To exit, type /exit, exit, or press Ctrl-D.")
+                self.info("To exit, type /exit, exit, or press Ctrl-D.")
 
             elif keyboard_interrupt_count >= 5:
                 raise EOFError

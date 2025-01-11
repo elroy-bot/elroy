@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, NamedTuple, Optional, Union
+from typing import List, Optional
 
 from ..config.constants import ASSISTANT, TOOL
-from ..db.db_models import FunctionCall, MemoryMetadata, ToolCall
+from ..db.db_models import MemoryMetadata, ToolCall
 
 
 @dataclass
@@ -30,10 +30,3 @@ class ContextMessage:
             raise ValueError(f"Only tool messages can have tool call ids, found {self.role} message with tool call id. ID = {self.id}")
         elif self.role == TOOL and self.tool_call_id is None:
             raise ValueError(f"Tool messages must have tool call ids, found tool message without tool call id. ID = {self.id}")
-
-
-class ContentItem(NamedTuple):
-    content: str
-
-
-StreamItem = Union[ContentItem, FunctionCall]

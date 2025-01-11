@@ -85,6 +85,14 @@ def create_goal(
         return f"Goal '{goal_name}' has been created."
 
 
+def get_goal_by_name(ctx: ElroyContext, name: str) -> Optional[Goal]:
+    return pipe(
+        get_active_goals(ctx),
+        filter(lambda g: g.name == name),
+        first_or_none,
+    )  # type: ignore
+
+
 def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> str:
     """Renames an existing active goal.
 
@@ -170,6 +178,7 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
 
     if is_terminal:
         goal.is_active = None
+        remove_from_context(ctx, goal)
 
     logging.info(f"Updated status updates: {goal.status_updates}")
 
