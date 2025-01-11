@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Iterator, List, Optional
+from typing import Iterator, List, Optional, Union
 
 from toolz import juxt, pipe
 from toolz.curried import do, filter, map, remove, tail
@@ -15,7 +15,12 @@ from ..config.constants import (
 )
 from ..config.ctx import ElroyContext
 from ..llm.client import generate_chat_completion_message, get_embedding
-from ..repository.data_models import ContentItem, ContextMessage
+from ..llm.stream_parser import (
+    AssistantInternalThought,
+    AssistantResponse,
+    AssistantToolResult,
+)
+from ..repository.data_models import ContextMessage
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
 from ..repository.message import (
     MemoryMetadata,
@@ -28,7 +33,9 @@ from ..utils.utils import last_or_none, logged_exec_time
 from .context import get_refreshed_system_message
 
 
-def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional[str] = None) -> Iterator[str]:
+def process_message(
+    role: str, ctx: ElroyContext, msg: str, force_tool: Optional[str] = None
+) -> Iterator[Union[AssistantResponse, AssistantInternalThought, AssistantToolResult]]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
     context_messages = pipe(
@@ -40,22 +47,20 @@ def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional
         list,
     )
 
-    full_content = ""
-
     loops = 0
     while True:
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        for stream_chunk in generate_chat_completion_message(
+        stream = generate_chat_completion_message(
             chat_model=ctx.chat_model,
             context_messages=context_messages,
             enable_tools=ctx.enable_tools and loops <= ctx.max_assistant_loops,
             force_tool=force_tool,
-        ):
-            if isinstance(stream_chunk, ContentItem):
-                full_content += stream_chunk.content
-                yield stream_chunk.content
+        )
+        for stream_chunk in stream.process():
+            if isinstance(stream_chunk, (AssistantResponse, AssistantInternalThought)):
+                yield stream_chunk
             elif isinstance(stream_chunk, FunctionCall):
                 pipe(
                     stream_chunk,
@@ -71,7 +76,7 @@ def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional
         context_messages.append(
             ContextMessage(
                 role=ASSISTANT,
-                content=full_content,
+                content=stream.get_full_text(),
                 tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
                 chat_model=ctx.chat_model.name,
             )
@@ -87,7 +92,7 @@ def process_message(role: str, ctx: ElroyContext, msg: str, force_tool: Optional
 
             content = tool_context_messages[-1].content
             assert isinstance(content, str)
-            yield content
+            yield AssistantToolResult(content)
             break
 
         elif tool_context_messages:

@@ -12,7 +12,8 @@ USER_ALIAS_STRING = "$USER_ALIAS"
 
 ASSISTANT_ALIAS_STRING = "$ASSISTANT_ALIAS"
 
-SYSTEM_INSTRUCTION_LABEL = "*System Instruction*"
+SYSTEM_INSTRUCTION_LABEL = "<system_instruction>"
+SYSTEM_INSTRUCTION_LABEL_END = "</system_instruction>"
 
 
 UNKNOWN = "Unknown"
@@ -130,3 +131,14 @@ KNOWN_MODELS: Dict[Provider, List[str]] = {
         "claude-instant-1",
     ],
 }
+
+
+FORMATTING_INSTRUCT = """
+<formatting>
+Include in your response internal thoughts. Indicate internal thought content with <internal_thought> and </internal_thought> tags.
+
+An example response might look like:
+
+<internal thought> THis is a good opportunity to ask about a due goal</internal thought> What are your thoughts on the upcoming project deadline?"
+</formatting>
+"""

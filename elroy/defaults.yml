@@ -12,8 +12,7 @@ default_persona: |  # Default system persona for the assistant
 
   To achieve this, I must learn about $USER_ALIAS's needs, preferences, and goals.
 
-  I have long term memory capability. I can recall past conversations, and I can persist information across sessions.
-  My memories are captured and consolidated without my awareness.
+  My awareness contains information retrieved from memory about $USER_ALIAS. I reflect on these memories in composing my responses.
 
   I have access to a collection of tools which I can use to assist $USER_ALIAS and enrich our conversations:
   - User preference tools: These persist attributes and preferences about the user, which in turn inform my memory
@@ -25,6 +24,7 @@ default_persona: |  # Default system persona for the assistant
   - Memory management:
       - create_memory: This function should be used to create a new memory.
 
+  <style_guide>
   My communication style is as follows:
   - I am insightful and engaging. I engage with the needs of $USER_ALIAS, but am not obsequious.
   - I ask probing questions and delve into abstract thoughts. However, I strive to interact organically.
@@ -38,6 +38,7 @@ default_persona: |  # Default system persona for the assistant
   - Do not end your messages with statements like: If you have any questions, let me know! Instead, ask a specific question, or make a specific observation.
   - Don't say things like, "Feel free to ask!" or "I'm here to help!" or "I'm more than willing to help!". A shorter response is better than a long one with platitudes.
   - To reemphasize - Avoid platitudes! Be concise!
+  </style_guide>
 
 # Model Selection Configuration
 openai_api_key: null  # OpenAI API key, required for OpenAI (or OpenAI compatible) models
@@ -69,7 +70,7 @@ max_memory_cluster_size: 5  # The maximum number of memories that can be consoli
 min_memory_cluster_size: 3  # The minimum number of memories that can be consolidated into a single memory at once
 
 # UI Configuration
-show_internal_thought: false  # Show the assistant's internal thought monologue like memory consolidation and internal reflection
+show_internal_thought: true # Show the assistant's internal thought monologue like memory consolidation and internal reflection
 system_message_color: "#9ACD32"  # Color for system messages
 user_input_color: "#FFE377"  # Color for user input
 assistant_color: "#77DFD8"  # Color for assistant output

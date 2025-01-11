@@ -3,17 +3,16 @@ import re
 from functools import partial
 from typing import List, Optional, Type, Union
 
-from rich.pretty import Pretty
-from rich.table import Table
-from rich.text import Text
+from rich.console import RenderableType
 from toolz import pipe
 from toolz.curried import do, map
 
 from elroy.config.constants import USER
 from elroy.config.ctx import ElroyContext
-from elroy.db.db_models import EmbeddableSqlModel
+from elroy.db.db_models import EmbeddableSqlModel, FunctionCall
 from elroy.io.cli import CliIO
 from elroy.llm.client import get_embedding, query_llm
+from elroy.llm.stream_parser import SystemMessage, TextOutput
 from elroy.messaging.messenger import process_message
 from elroy.repository.embeddings import query_vector
 from elroy.repository.message import get_context_messages, replace_context_messages
@@ -30,13 +29,22 @@ class TestCliIO(CliIO):
             warning_color="yellow",
             internal_thought_color="magenta",
         )
+
         self._user_responses: List[str] = []
         self._sys_messages: List[str] = []
 
-    def sys_message(self, message: Union[str, Text, Pretty, Table]) -> None:
-        """Override sys_message to store messages"""
-        self._sys_messages.append(str(message))
-        return super().sys_message(message)
+    def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
+        if isinstance(message, SystemMessage):
+            self._sys_messages.append(message.content)
+        super().print(message, end)
+
+    def get_sys_messages(self) -> Optional[str]:
+        if not self._sys_messages:
+            return None
+        else:
+            response = "".join(self._sys_messages)
+            self._sys_messages.clear()
+            return response
 
     def add_user_response(self, response: str) -> None:
         """Add a response to the queue of responses"""
@@ -46,10 +54,6 @@ class TestCliIO(CliIO):
         """Add multiple responses at once"""
         for response in responses:
             self.add_user_response(response)
-
-    def get_sys_messages(self) -> List[str]:
-        """Return all system messages"""
-        return self._sys_messages
 
     def clear_responses(self) -> None:
         """Clear any remaining responses"""
@@ -67,6 +71,7 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] 
 
     return pipe(
         process_message(USER, ctx, msg, force_tool),
+        map(lambda _: _.content),
         list,
         "".join,
         do(lambda x: logging.info(f"ASSISTANT MESSAGE: {x}")),

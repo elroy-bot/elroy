@@ -364,12 +364,12 @@ def remember(
     """Create a new memory from text or interactively."""
 
     if not get_user_id_if_exists(ctx.db, ctx.user_token):
-        ctx.io.notify_warning("Creating memory for new user")
+        ctx.io.warning("Creating memory for new user")
 
     if text:
         memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
         manually_record_user_memory(ctx, text, memory_name)
-        ctx.io.sys_message(f"Memory created: {memory_name}")
+        ctx.io.info(f"Memory created: {memory_name}")
         raise typer.Exit()
 
     elif sys.stdin.isatty():
@@ -381,10 +381,10 @@ def remember(
         memory_name = asyncio.run(io.prompt_user("Enter memory name (optional, press enter to skip):"))
         try:
             manually_record_user_memory(ctx, memory_text, memory_name)
-            ctx.io.sys_message(f"Memory created: {memory_name}")
+            ctx.io.info(f"Memory created: {memory_name}")
             raise typer.Exit()
         except ValueError as e:
-            ctx.io.assistant_msg(f"Error creating memory: {e}")
+            ctx.io.warning(f"Error creating memory: {e}")
             raise typer.Exit(1)
     else:
         memory_text = sys.stdin.read()
@@ -392,7 +392,7 @@ def remember(
         memory_text = f"{metadata}\n{memory_text}"
         memory_name = f"Memory from stdin, ingested {datetime_to_string(datetime.now())}"
         manually_record_user_memory(ctx, memory_text, memory_name)
-        ctx.io.sys_message(f"Memory created: {memory_name}")
+        ctx.io.info(f"Memory created: {memory_name}")
         raise typer.Exit()
 
 

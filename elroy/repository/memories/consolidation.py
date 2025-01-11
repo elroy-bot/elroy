@@ -169,7 +169,7 @@ def consolidate_memories(ctx: ElroyContext):
 
 async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
 
-    ctx.io.internal_thought_msg(f"Consolidating memories {len(cluster)} memories in cluster.")
+    ctx.io.internal_thought(f"Consolidating memories {len(cluster)} memories in cluster.")
     response = query_llm(
         system=f"""# Memory Consolidation Task
 

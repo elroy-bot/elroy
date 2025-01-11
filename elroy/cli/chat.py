@@ -36,19 +36,12 @@ from .context import get_user_logged_in_message, periodic_context_refresh
 
 
 def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
-    pipe(
-        io.prompt_user("Enter your message"),
-        asyncio.run,
-        lambda input: process_message(USER, ctx, input, tool),
-        io.assistant_msg,
-    )
+    message = asyncio.run(io.prompt_user("Enter your message"))
+    io.print_stream(process_message(USER, ctx, message, tool))
 
 
 def handle_message_stdio(ctx: ElroyContext, io: StdIO, message: str, tool: Optional[str]):
-    pipe(
-        process_message(USER, ctx, message, tool),
-        io.assistant_msg,
-    )
+    io.print_stream(process_message(USER, ctx, message, tool))
 
 
 async def run_chat(ctx: ElroyContext):
@@ -70,6 +63,9 @@ async def run_chat(ctx: ElroyContext):
         logging.info("Context messages were repaired")
         context_messages = get_context_messages(ctx)
 
+    import pdb
+
+    pdb.set_trace()
     print_memory_panel(ctx, context_messages)
 
     if not (ctx.enable_assistant_greeting):
@@ -104,12 +100,12 @@ async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str)
         cmd = user_input[1:].split()[0]
 
         if cmd.lower() not in {f.__name__ for f in SYSTEM_COMMANDS}:
-            ctx.io.sys_message(f"Unknown command: {cmd}")
+            ctx.io.info(f"Unknown command: {cmd}")
         else:
             try:
                 result = await invoke_system_command(ctx, user_input)
                 if result:
-                    ctx.io.sys_message(result)
+                    ctx.io.info(result)
             except Exception as e:
                 pipe(
                     traceback.format_exception(type(e), e, e.__traceback__),
@@ -117,10 +113,10 @@ async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str)
                     html.escape,
                     lambda x: x.replace("\n", "<br/>"),
                     partial(add, "Error invoking system command: "),
-                    ctx.io.sys_message,
+                    ctx.io.info,
                 )
     else:
-        ctx.io.assistant_msg(process_message(role, ctx, user_input))
+        ctx.io.print_stream(process_message(role, ctx, user_input))
 
 
 def print_memory_panel(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:

@@ -17,7 +17,7 @@ def experimental(func: Callable) -> Callable:
             from ..io.base import ElroyIO
 
             assert isinstance(io, ElroyIO)
-            io.notify_warning("Warning: This is an experimental feature.")
+            io.warning("Warning: This is an experimental feature.")
         else:
             logging.warning("No context found to notify of experimental feature.")
         return func(*args, **kwargs)
