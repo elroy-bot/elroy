@@ -1,4 +1,5 @@
 import json
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,6 +36,13 @@ class FunctionCall:
     id: str
     function_name: str
     arguments: Dict
+
+    def __post_init__(self):
+        if isinstance(self.arguments, str):
+            try:
+                self.arguments = json.loads(self.arguments)
+            except json.JSONDecodeError:
+                logging.warning(f"Failed to parse arguments string as JSON: {self.arguments}")
 
     def to_tool_call(self) -> ToolCall:
         return ToolCall(id=self.id, function={"name": self.function_name, "arguments": json.dumps(self.arguments)})
