@@ -1,3 +1,4 @@
+import pytest
 from tests.utils import process_test_message, quiz_assistant_bool
 
 from elroy.db.db_models import Goal
@@ -10,6 +11,12 @@ from elroy.repository.goals.operations import (
 from elroy.repository.goals.queries import get_active_goals_summary
 from elroy.repository.message import get_context_messages
 from elroy.system_commands import reset_messages
+
+
+@pytest.mark.skip("TODO")
+def test_assistant_goal_in_context(ctx):
+    # Verify that when a goal is created by assistant, it is in context, when marked complete, it disappears
+    pass
 
 
 def test_goal(ctx):
