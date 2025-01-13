@@ -51,17 +51,7 @@ async def run_chat(ctx: ElroyContext):
     run_in_background_thread(periodic_context_refresh, ctx)
 
     io.print_title_ruler()
-    context_messages = get_context_messages(ctx)
-
-    validated_messages = validate(
-        ctx,
-        context_messages,
-    )
-
-    if context_messages != validated_messages:
-        replace_context_messages(ctx, validated_messages)
-        logging.info("Context messages were repaired")
-        context_messages = get_context_messages(ctx)
+    context_messages = validate(ctx, get_context_messages(ctx))
 
     print_memory_panel(ctx, context_messages)
 

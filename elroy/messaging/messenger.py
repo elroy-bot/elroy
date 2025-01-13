@@ -24,6 +24,7 @@ from ..repository.data_models import ContextMessage
 from ..repository.embeddings import get_most_relevant_goal, get_most_relevant_memory
 from ..repository.message import (
     MemoryMetadata,
+    add_context_messages,
     get_context_messages,
     is_system_instruction,
     replace_context_messages,
@@ -42,10 +43,10 @@ def process_message(
         get_context_messages(ctx),
         partial(validate, ctx),
         list,
-        lambda x: x + [ContextMessage(role=role, content=msg, chat_model=None)],
-        lambda x: x + get_relevant_memories(ctx, x),
-        list,
     )
+
+    new_msgs = [ContextMessage(role=role, content=msg, chat_model=None)]
+    new_msgs += get_relevant_memories(ctx, context_messages + new_msgs)
 
     loops = 0
     while True:
@@ -54,7 +55,7 @@ def process_message(
 
         stream = generate_chat_completion_message(
             chat_model=ctx.chat_model,
-            context_messages=context_messages,
+            context_messages=context_messages + new_msgs,
             enable_tools=ctx.enable_tools and loops <= ctx.max_assistant_loops,
             force_tool=force_tool,
         )
@@ -73,7 +74,7 @@ def process_message(
                     ),
                     tool_context_messages.append,
                 )
-        context_messages.append(
+        new_msgs.append(
             ContextMessage(
                 role=ASSISTANT,
                 content=stream.get_full_text(),
@@ -87,8 +88,8 @@ def process_message(
             if len(tool_context_messages) > 1:
                 logging.warning(f"With force tool {force_tool}, expected one tool message, but found {len(tool_context_messages)}")
 
-            context_messages += tool_context_messages
-            replace_context_messages(ctx, context_messages)
+            new_msgs += tool_context_messages
+            add_context_messages(ctx, new_msgs)
 
             content = tool_context_messages[-1].content
             assert isinstance(content, str)
@@ -96,15 +97,15 @@ def process_message(
             break
 
         elif tool_context_messages:
-            context_messages += tool_context_messages
+            new_msgs += tool_context_messages
         else:
-            replace_context_messages(ctx, context_messages)
+            add_context_messages(ctx, new_msgs)
             break
         loops += 1
 
 
 def validate(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
-    return pipe(
+    messages = pipe(
         context_messages,
         partial(_validate_system_instruction_correctly_placed, ctx),
         partial(_validate_assistant_tool_calls_followed_by_tool, ctx.debug),
@@ -112,6 +113,11 @@ def validate(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[
         lambda msgs: (msgs if not ctx.chat_model.ensure_alternating_roles else validate_first_user_precedes_first_assistant(msgs)),
         list,
     )
+
+    if messages != context_messages:
+        logging.info("Context messages have been repaired")
+        replace_context_messages(ctx, messages)
+    return messages
 
 
 def validate_first_user_precedes_first_assistant(context_messages: List[ContextMessage]) -> List[ContextMessage]:

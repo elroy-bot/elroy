@@ -190,9 +190,6 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
 
     upsert_embedding_if_needed(ctx, goal)
 
-    if not goal.is_active:
-        remove_from_context(ctx, goal)
-
 
 def add_goal_status_update(ctx: ElroyContext, goal_name: str, status_update_or_note: str) -> str:
     """Captures either a progress update or note relevant to the goal.
