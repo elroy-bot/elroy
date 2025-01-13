@@ -149,6 +149,7 @@ def add_context_messages(ctx: ElroyContext, messages: Union[ContextMessage, List
 
 
 def replace_context_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> None:
+    # Dangerous! The message set might have been updated since we fetched it
     msg_ids = persist_messages(ctx, messages)
 
     existing_context = ctx.db.exec(
