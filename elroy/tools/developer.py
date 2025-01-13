@@ -32,7 +32,18 @@ def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
         return "".join(f.readlines()[-lines:])
 
 
-def print_config(ctx: ElroyContext, obscure_sensitive=True) -> Table:
+def print_config(ctx: ElroyContext) -> Table:
+    """
+    Prints the current Elroy configuration in a formatted table.
+    Useful for troubleshooting and verifying the current configuration.
+
+    Args:
+        ctx (ElroyContext): context obj
+    """
+    return do_print_config(ctx, False)
+
+
+def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
     """
     Prints the current Elroy configuration in a formatted table.
     Useful for troubleshooting and verifying the current configuration.
@@ -55,7 +66,7 @@ def print_config(ctx: ElroyContext, obscure_sensitive=True) -> Table:
             "Default Assistant Name": ctx.default_assistant_name,
             "User Token": ctx.user_token,
             "Database URL": (
-                "postgresql://" + "*" * 8 if obscure_sensitive and ctx.database_url.startswith("postgresql") else ctx.database_url
+                "postgresql://" + "*" * 8 if not show_secrets and ctx.database_url.startswith("postgresql") else ctx.database_url
             ),
         },
         "Model Configuration": {
@@ -68,8 +79,8 @@ def print_config(ctx: ElroyContext, obscure_sensitive=True) -> Table:
             "OpenAI API Base": ctx.openai_api_base or "None",
             "OpenAI Embedding API Base": ctx.openai_embedding_api_base or "None",
             "OpenAI Organization": ctx.openai_organization or "None",
-            "OpenAI API key": "*" * 8 if ctx.openai_api_key and obscure_sensitive else ctx.openai_api_key or "None",
-            "Anthropic API key": "*" * 8 if ctx.anthropic_api_key and obscure_sensitive else ctx.anthropic_api_key or "None",
+            "OpenAI API key": "*" * 8 if ctx.openai_api_key and not show_secrets else ctx.openai_api_key or "None",
+            "Anthropic API key": "*" * 8 if ctx.anthropic_api_key and not show_secrets else ctx.anthropic_api_key or "None",
         },
         "Context Management": {
             "Max Assistant Loops": ctx.max_assistant_loops,

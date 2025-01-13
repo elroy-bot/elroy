@@ -19,7 +19,7 @@ from ..llm.persona import get_persona
 from ..logging_config import setup_logging
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
-from ..tools.developer import print_config as do_print_config
+from ..tools.developer import do_print_config
 from ..tools.user_preferences import reset_system_persona, set_system_persona
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
@@ -413,9 +413,16 @@ def list_models():
 
 @app.command(name="print-config")
 @elroy_context
-def print_config(ctx: ElroyContext):
+def print_config(
+    ctx: ElroyContext,
+    show_secrets: bool = typer.Option(
+        False,
+        "--show-secrets",
+        help="Whether to show secret values in output",
+    ),
+):
     """Shows current configuration and exits."""
-    ctx.io.print(do_print_config(ctx))
+    ctx.io.print(do_print_config(ctx, show_secrets))
 
 
 @app.command()
