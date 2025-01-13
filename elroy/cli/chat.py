@@ -63,9 +63,6 @@ async def run_chat(ctx: ElroyContext):
         logging.info("Context messages were repaired")
         context_messages = get_context_messages(ctx)
 
-    import pdb
-
-    pdb.set_trace()
     print_memory_panel(ctx, context_messages)
 
     if not (ctx.enable_assistant_greeting):
