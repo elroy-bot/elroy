@@ -176,7 +176,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     if not text:
         raise ValueError("Text cannot be empty")
     embedding_kwargs = {
-        "model": model.model,
+        "model": model.name,
         "input": [text],
         "caching": model.enable_caching,
         "api_key": model.api_key,

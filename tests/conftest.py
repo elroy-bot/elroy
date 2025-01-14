@@ -4,7 +4,6 @@ import subprocess
 import uuid
 from typing import Any, Generator
 
-import click
 import pytest
 from sqlmodel import delete
 from tests.utils import TestCliIO
@@ -205,7 +204,7 @@ def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyConte
     )
 
     # Create new context with all parameters
-    ctx = ElroyContext(command=click.Command("test"), **params)
+    ctx = ElroyContext(**params)
     io = TestCliIO()
     ctx.set_io(io)
 

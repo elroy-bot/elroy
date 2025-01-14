@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Generator, Optional
 
-import click
 from pytz import UTC
 
 from .cli.options import get_resolved_params
@@ -21,7 +20,6 @@ class Elroy:
         config_path: Optional[str] = None,
     ):
         self.ctx = ElroyContext(
-            command=click.Command("api"),
             **get_resolved_params(
                 user_token=user_token,
                 config_path=config_path,
