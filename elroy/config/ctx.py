@@ -175,6 +175,9 @@ class ElroyContext:
         else:
             return self._db
 
+    def is_db_connected(self) -> bool:
+        return bool(self._db)
+
     @contextmanager
     def dbsession(self) -> Generator[None, None, None]:
         """Context manager for database sessions"""
