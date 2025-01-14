@@ -17,7 +17,8 @@ from ..logging_config import setup_logging
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
 from ..tools.developer import do_print_config
-from ..tools.user_preferences import reset_system_persona, set_system_persona
+from ..tools.user_preferences import reset_system_persona
+from ..tools.user_preferences import set_persona as do_set_persona
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import (
@@ -429,7 +430,7 @@ def set_persona(
     with ctx.dbsession():
         if get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.info(f"No user found for token {ctx.user_token}, creating one")
-        set_system_persona(ctx, persona)
+        do_set_persona(ctx, persona)
         raise typer.Exit()
 
 

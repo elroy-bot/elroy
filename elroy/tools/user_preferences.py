@@ -10,7 +10,7 @@ from ..db.db_models import UserPreference
 from ..utils.utils import is_blank
 
 
-def set_system_persona(ctx: ElroyContext, system_persona: str) -> str:
+def set_persona(ctx: ElroyContext, system_persona: str) -> str:
     """
     Sets the system instruction for the user
     """
@@ -24,7 +24,10 @@ def set_system_persona(ctx: ElroyContext, system_persona: str) -> str:
     user_preference = get_or_create_user_preference(ctx)
 
     if user_preference.system_persona == system_persona:
-        return do(logging.warning, "New system persona and old system persona are identical")
+        return do(
+            logging.info,
+            "New system persona and old system persona are identical",
+        )
 
     user_preference.system_persona = system_persona
 

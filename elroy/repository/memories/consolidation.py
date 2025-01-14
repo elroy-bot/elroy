@@ -369,7 +369,7 @@ Currently, UserFoo is focused on developing a web application using Python while
             logging.warning(f"Failed to create memory '{current_title}': {e}")
 
     if not new_ids:
-        logging.warning("No new memories were created from consolidation response. Original memories left unchanged.")
+        logging.info("No new memories were created from consolidation response. Original memories left unchanged.")
         logging.debug(f"Original response was: {response}")
 
 
