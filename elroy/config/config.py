@@ -49,7 +49,7 @@ def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
 
 @dataclass
 class EmbeddingModel:
-    model: str
+    name: str
     embedding_size: int
     enable_caching: bool
     api_key: Optional[str] = None
@@ -101,7 +101,7 @@ def get_embedding_model(
         assert api_key is not None, "OpenAI API key is required for OpenAI embedding models"
 
     return EmbeddingModel(
-        model=model_name,
+        name=model_name,
         embedding_size=embedding_size,
         api_key=api_key,
         api_base=api_base,

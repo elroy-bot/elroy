@@ -5,11 +5,10 @@ from bdb import BdbQuit
 from datetime import datetime
 from typing import Optional
 
-import click
 import typer
 
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
-from ..config.ctx import ElroyContext, elroy_context, with_db
+from ..config.ctx import ElroyContext, get_ctx
 from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..io.base import StdIO
 from ..io.cli import CliIO
@@ -43,7 +42,7 @@ app = typer.Typer(
 
 @app.callback(invoke_without_command=True)
 def common(
-    ctx: typer.Context,
+    typer_ctx: typer.Context,
     config_path: str = typer.Option(
         get_default_config_path(),
         "--config",
@@ -268,59 +267,51 @@ def common(
 ):
     """Common parameters."""
 
-    if ctx.invoked_subcommand is None:
-        ctx.params["command"] = click.Command("chat")
-    else:
-        ctx.params["command"] = ctx.command
-
     for m in MODEL_ALIASES:
-        if ctx.params.get(m):
+        if typer_ctx.params.get(m):
             logging.info(f"Model alias {m} selected")
             resolved = resolve_model_alias(m)
             if not resolved:
                 logging.warning("Model alias not found")
             else:
-                ctx.params["chat_model"] = resolved
-        del ctx.params[m]
+                typer_ctx.params["chat_model"] = resolved
+        del typer_ctx.params[m]
 
-    ctx.obj = ElroyContext(
-        parent=ctx,
-        **get_resolved_params(**ctx.params),
+    typer_ctx.obj = ElroyContext(
+        **get_resolved_params(**typer_ctx.params),
     )
 
     setup_logging()
 
-    if ctx.invoked_subcommand is None:
-        chat(ctx.obj)
+    if typer_ctx.invoked_subcommand is None:
+        chat(typer_ctx)
 
 
 @app.command(name="chat")
-@elroy_context
-@with_db
-def chat(ctx: ElroyContext):
+def chat(typer_ctx: typer.Context):
     """Opens an interactive chat session."""
-    if sys.stdin.isatty():
-        check_updates()
-        try:
-            if not get_user_id_if_exists(ctx.db, ctx.user_token):
-                asyncio.run(onboard_interactive(ctx))
-            asyncio.run(run_chat(ctx))
-        except BdbQuit:
-            logging.info("Exiting...")
-        except EOFError:
-            logging.info("Exiting...")
-        except Exception as e:
-            create_bug_report_from_exception_if_confirmed(ctx, e)
-    else:
-        message = sys.stdin.read()
-        handle_message_stdio(ctx, StdIO(), message, None)
+    ctx = get_ctx(typer_ctx)
+    with ctx.dbsession():
+        if sys.stdin.isatty():
+            check_updates()
+            try:
+                if not get_user_id_if_exists(ctx.db, ctx.user_token):
+                    asyncio.run(onboard_interactive(ctx))
+                asyncio.run(run_chat(ctx))
+            except BdbQuit:
+                logging.info("Exiting...")
+            except EOFError:
+                logging.info("Exiting...")
+            except Exception as e:
+                create_bug_report_from_exception_if_confirmed(ctx, e)
+        else:
+            message = sys.stdin.read()
+            handle_message_stdio(ctx, StdIO(), message, None)
 
 
 @app.command(name="message")
-@elroy_context
-@with_db
 def message(
-    ctx: ElroyContext,
+    typer_ctx: typer.Context,
     message: Optional[str] = typer.Argument(..., help="The message to process"),
     tool: str = typer.Option(
         None,
@@ -330,58 +321,59 @@ def message(
     ),
 ):
     """Process a single message and exit."""
-    if sys.stdin.isatty() and not message:
-        io = ctx.io
-        assert isinstance(io, CliIO)
-        handle_message_interactive(ctx, io, tool)
-    else:
-        assert message
-        handle_message_stdio(ctx, StdIO(), message, tool)
+    ctx = get_ctx(typer_ctx)
+    with ctx.dbsession():
+        if sys.stdin.isatty() and not message:
+            io = ctx.io
+            assert isinstance(io, CliIO)
+            handle_message_interactive(ctx, io, tool)
+        else:
+            assert message
+            handle_message_stdio(ctx, StdIO(), message, tool)
 
 
 @app.command(name="remember")
-@elroy_context
-@with_db
 def remember(
-    ctx: ElroyContext,
+    typer_ctx: typer.Context,
     text: Optional[str] = typer.Argument(
         None,
         help="Text to remember. If not provided, will prompt interactively",
     ),
 ):
     """Create a new memory from text or interactively."""
+    ctx = get_ctx(typer_ctx)
+    with ctx.dbsession():
+        if not get_user_id_if_exists(ctx.db, ctx.user_token):
+            ctx.io.warning("Creating memory for new user")
 
-    if not get_user_id_if_exists(ctx.db, ctx.user_token):
-        ctx.io.warning("Creating memory for new user")
+        if text:
+            memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
+            manually_record_user_memory(ctx, text, memory_name)
+            ctx.io.info(f"Memory created: {memory_name}")
+            raise typer.Exit()
 
-    if text:
-        memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
-        manually_record_user_memory(ctx, text, memory_name)
-        ctx.io.info(f"Memory created: {memory_name}")
-        raise typer.Exit()
-
-    elif sys.stdin.isatty():
-        io = ctx.io
-        assert isinstance(io, CliIO)
-        memory_text = asyncio.run(io.prompt_user("Enter the memory text:"))
-        memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
-        # Optionally get memory name
-        memory_name = asyncio.run(io.prompt_user("Enter memory name (optional, press enter to skip):"))
-        try:
+        elif sys.stdin.isatty():
+            io = ctx.io
+            assert isinstance(io, CliIO)
+            memory_text = asyncio.run(io.prompt_user("Enter the memory text:"))
+            memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
+            # Optionally get memory name
+            memory_name = asyncio.run(io.prompt_user("Enter memory name (optional, press enter to skip):"))
+            try:
+                manually_record_user_memory(ctx, memory_text, memory_name)
+                ctx.io.info(f"Memory created: {memory_name}")
+                raise typer.Exit()
+            except ValueError as e:
+                ctx.io.warning(f"Error creating memory: {e}")
+                raise typer.Exit(1)
+        else:
+            memory_text = sys.stdin.read()
+            metadata = "Memory ingested from stdin\n" f"Ingested at: {datetime_to_string(datetime.now())}\n"
+            memory_text = f"{metadata}\n{memory_text}"
+            memory_name = f"Memory from stdin, ingested {datetime_to_string(datetime.now())}"
             manually_record_user_memory(ctx, memory_text, memory_name)
             ctx.io.info(f"Memory created: {memory_name}")
             raise typer.Exit()
-        except ValueError as e:
-            ctx.io.warning(f"Error creating memory: {e}")
-            raise typer.Exit(1)
-    else:
-        memory_text = sys.stdin.read()
-        metadata = "Memory ingested from stdin\n" f"Ingested at: {datetime_to_string(datetime.now())}\n"
-        memory_text = f"{metadata}\n{memory_text}"
-        memory_name = f"Memory from stdin, ingested {datetime_to_string(datetime.now())}"
-        manually_record_user_memory(ctx, memory_text, memory_name)
-        ctx.io.info(f"Memory created: {memory_name}")
-        raise typer.Exit()
 
 
 @app.command(name="list-models")
@@ -400,9 +392,8 @@ def list_models():
 
 
 @app.command(name="print-config")
-@elroy_context
 def print_config(
-    ctx: ElroyContext,
+    typer_ctx: typer.Context,
     show_secrets: bool = typer.Option(
         False,
         "--show-secrets",
@@ -410,6 +401,7 @@ def print_config(
     ),
 ):
     """Shows current configuration and exits."""
+    ctx = get_ctx(typer_ctx)
     ctx.io.print(do_print_config(ctx, show_secrets))
 
 
@@ -428,36 +420,39 @@ def version():
 
 
 @app.command(name="set-persona")
-@elroy_context
-@with_db
-def set_persona(ctx: ElroyContext, persona: str = typer.Argument(..., help="Persona text to set")):
+def set_persona(
+    typer_ctx: typer.Context,
+    persona: str = typer.Argument(..., help="Persona text to set"),
+):
     """Set a custom persona for the assistant."""
-    if get_user_id_if_exists(ctx.db, ctx.user_token):
-        logging.info(f"No user found for token {ctx.user_token}, creating one")
-    set_system_persona(ctx, persona)
-    raise typer.Exit()
+    ctx = get_ctx(typer_ctx)
+    with ctx.dbsession():
+        if get_user_id_if_exists(ctx.db, ctx.user_token):
+            logging.info(f"No user found for token {ctx.user_token}, creating one")
+        set_system_persona(ctx, persona)
+        raise typer.Exit()
 
 
 @app.command(name="reset-persona")
-@elroy_context
-@with_db
-def reset_persona(ctx: ElroyContext):
+def reset_persona(typer_ctx: typer.Context):
     """Removes any custom persona, reverting to the default."""
-    if not get_user_id_if_exists(ctx.db, ctx.user_token):
-        logging.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
-        return typer.Exit()
-    else:
-        reset_system_persona(ctx)
-    raise typer.Exit()
+    ctx = get_ctx(typer_ctx)
+    with ctx.dbsession():
+        if not get_user_id_if_exists(ctx.db, ctx.user_token):
+            logging.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
+            return typer.Exit()
+        else:
+            reset_system_persona(ctx)
+        raise typer.Exit()
 
 
 @app.command(name="show-persona")
-@elroy_context
-@with_db
-def show_persona(ctx: ElroyContext):
+def show_persona(typer_ctx: typer.Context):
     """Print the system persona and exit."""
-    print(get_persona(ctx))
-    raise typer.Exit()
+    ctx = get_ctx(typer_ctx)
+    with ctx.dbsession():
+        print(get_persona(ctx))
+        raise typer.Exit()
 
 
 if __name__ == "__main__":

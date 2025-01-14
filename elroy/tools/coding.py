@@ -32,6 +32,7 @@ def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file
         # Change to working dir
         os.chdir(working_dir)
 
+        # See: https://aider.chat/docs/scripting.html
         coder = Coder.create(
             main_model=Model(ctx.chat_model.name),
             fnames=[file_name],

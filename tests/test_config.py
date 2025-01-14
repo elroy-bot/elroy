@@ -66,7 +66,7 @@ def test_cli_params_match_defaults():
         not in [
             "config_path",
             "tool",
-            "ctx",
+            "typer_ctx",
         ]
         + MODEL_ALIASES
     }
