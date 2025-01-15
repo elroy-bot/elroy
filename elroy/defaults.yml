@@ -51,6 +51,7 @@ embedding_model: "text-embedding-3-small"  # The model to use for text embedding
 embedding_model_size: 1536  # The size of the embedding model
 enable_caching: true  # Whether to enable caching for the LLM, both for embeddings and completions
 enable_tools: true  # Whether to enable tool calls for the assistant
+inline_tool_calls: false # Whether to prompt the assistant to include inlined function calls (better for some open source models)
 
 # Context Management
 max_assistant_loops: 4  # Maximum number of loops the assistant can run before tools are temporarily made unavailable

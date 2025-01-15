@@ -142,3 +142,17 @@ An example response might look like:
 <internal thought> THis is a good opportunity to ask about a due goal</internal thought> What are your thoughts on the upcoming project deadline?"
 </formatting>
 """
+
+INLINE_TOOL_CALL_INSTRUCT = """
+<tool_call_instructions>
+To make tool calls, include the following in your response:
+<tool_call>
+{'arguments': <args-dict>, 'name': <function-name>}
+</tool_call>
+
+For example, to use a tool to create a memory, you could include the following in your response:
+<tool_call>
+{'arguments': {'name': 'Receiving instructions for tool calling', 'text': Today I learned how to call tools in Elroy.'}, 'name': 'create_memory'}
+</tool_call>
+<tool_call_instructions>
+"""

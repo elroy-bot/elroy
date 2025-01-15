@@ -5,7 +5,7 @@ from elroy.tools.user_preferences import (
     get_user_preferred_name,
     reset_system_persona,
     set_assistant_name,
-    set_system_persona,
+    set_persona,
 )
 
 
@@ -24,7 +24,7 @@ def test_update_persona(ctx):
 
     assert "elroy" in reply.lower()
 
-    set_system_persona(ctx, "You are a helpful assistant." "Your name is Jarvis" "If asked what your name is, be sure to reply with Jarvis")
+    set_persona(ctx, "You are a helpful assistant." "Your name is Jarvis" "If asked what your name is, be sure to reply with Jarvis")
 
     reply = process_test_message(ctx, "What is your name?")
 

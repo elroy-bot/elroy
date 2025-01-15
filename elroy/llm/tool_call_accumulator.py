@@ -43,7 +43,7 @@ class PartialToolCall:
             return None
 
 
-class ToolCallAccumulator:
+class OpenAIToolCallAccumulator:
     from litellm.types.utils import ChatCompletionDeltaToolCall
 
     def __init__(self, chat_model: ChatModel):
