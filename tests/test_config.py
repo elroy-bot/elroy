@@ -2,10 +2,12 @@ from inspect import signature
 from pathlib import Path
 
 import pytest
+from rich.table import Table
 from typer.testing import CliRunner
 
 from elroy.cli.main import MODEL_ALIASES, app, common
 from elroy.config.config import DEFAULTS_CONFIG
+from elroy.tools.developer import print_config
 
 
 @pytest.mark.skip("CliRunner not working well in multi threaded app")
@@ -86,3 +88,7 @@ def test_cli_params_match_defaults():
         error_msg.append(f"Default keys missing from CLI params: {missing_from_cli}")
 
     assert not error_msg, "\n".join(error_msg)
+
+
+def test_print_config(ctx):
+    assert isinstance(print_config(ctx), Table)
