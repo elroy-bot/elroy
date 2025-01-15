@@ -48,7 +48,7 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     preferred_name = get_user_preferred_name(ctx)
 
     if preferred_name == "Unknown":
-        preferred_name = "User apreferred name unknown)"
+        preferred_name = "User (preferred name unknown)"
 
     local_tz = datetime.now().astimezone().tzinfo
 
@@ -60,6 +60,7 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
 
     earliest_today_msg = ctx.db.exec(
         select(Message)
+        .where(Message.user_id == ctx.user_id)
         .where(Message.role == USER)
         .where(Message.created_at >= today_start_utc)
         .order_by(Message.created_at)  # type: ignore
@@ -67,9 +68,9 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     ).first()
 
     if earliest_today_msg:
-        today_summary = (
-            f"I first started chatting with {preferred_name} today at {earliest_today_msg.created_at.astimezone().strftime('%I:%M %p')}."
-        )
+        # Convert UTC time to local timezone for display
+        local_time = earliest_today_msg.created_at.replace(tzinfo=UTC).astimezone(local_tz)
+        today_summary = f"I first started chatting with {preferred_name} today at {local_time.strftime('%I:%M %p')}."
     else:
         today_summary = f"I haven't chatted with {preferred_name} yet today. I should offer a brief greeting."
 
