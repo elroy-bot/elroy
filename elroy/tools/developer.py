@@ -72,8 +72,8 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
             ),
         },
         "Model Configuration": {
-            "Chat Model": ctx.params.chat_model_name,
-            "Embedding Model": ctx.params.embedding_model_name,
+            "Chat Model": ctx.params.chat_model,
+            "Embedding Model": ctx.params.embedding_model,
             "Embedding Model Size": ctx.params.embedding_model_size,
             "Caching Enabled": ctx.params.enable_caching,
         },
