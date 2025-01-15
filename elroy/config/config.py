@@ -17,6 +17,7 @@ class ChatModel:
     enable_caching: bool
     api_key: Optional[str]
     provider: Provider
+    inline_tool_calls: bool
     ensure_alternating_roles: (
         bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
     )
@@ -64,8 +65,8 @@ def get_chat_model(
     api_base: Optional[str],
     organization: Optional[str],
     enable_caching: bool,
+    inline_tool_calls: bool,
 ) -> ChatModel:
-    pass
 
     provider = get_provider(model_name, api_base)
 
@@ -85,6 +86,7 @@ def get_chat_model(
         name=model_name,
         api_key=api_key,
         ensure_alternating_roles=ensure_alternating_roles,
+        inline_tool_calls=inline_tool_calls,
         api_base=api_base,
         organization=organization,
         enable_caching=enable_caching,

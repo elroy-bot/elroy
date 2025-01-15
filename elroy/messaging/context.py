@@ -11,6 +11,7 @@ from toolz.curried import filter, map, remove
 from ..config.constants import (
     ASSISTANT,
     FORMATTING_INSTRUCT,
+    INLINE_TOOL_CALL_INSTRUCT,
     SYSTEM,
     SYSTEM_INSTRUCTION_LABEL,
     SYSTEM_INSTRUCTION_LABEL_END,
@@ -64,6 +65,7 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages: List[Conte
             f"<persona>{get_persona(ctx)}</persona>",
             conversation_summary,
             FORMATTING_INSTRUCT,
+            INLINE_TOOL_CALL_INSTRUCT if ctx.chat_model.inline_tool_calls else None,
             "From now on, converse as your persona.",
             SYSTEM_INSTRUCTION_LABEL_END,
         ],  # type: ignore

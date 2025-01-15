@@ -110,6 +110,11 @@ def common(
         help="Whether to enable tool calls for the assistant",
         rich_help_panel="Basic Configuration",
     ),
+    inline_tool_calls: bool = ElroyOption(
+        "inline_tool_calls",
+        help="Whether to enable inline tool calls in the assistant (better for some open source models)",
+        rich_help_panel="Basic Configuration",
+    ),
     embedding_model: str = ElroyOption(
         "embedding_model",
         help="The model to use for text embeddings.",

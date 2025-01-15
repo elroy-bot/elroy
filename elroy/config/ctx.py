@@ -48,6 +48,7 @@ class ElroyContext:
         embedding_model_size: int,
         enable_caching: bool = True,
         enable_tools: bool,
+        inline_tool_calls: bool = False,
         # Context Management
         max_assistant_loops: int,
         context_refresh_trigger_tokens: int,
@@ -120,6 +121,7 @@ class ElroyContext:
             api_base=self.params.openai_api_base,
             organization=self.params.openai_organization,
             enable_caching=self.params.enable_caching,
+            inline_tool_calls=self.params.inline_tool_calls,
         )
 
     @cached_property
