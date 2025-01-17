@@ -37,7 +37,7 @@ def load_config_file_params(config_path: Optional[str] = None) -> Dict:
 
         if user_config_path and not Path(user_config_path).is_absolute():
             logging.info("Resolving relative user config path")
-            # convert to absolute path if not already, relative to lib root
+            # convert to absolute path if not already, relative to working dir
             user_config_path = Path(user_config_path).resolve()
         return load_config_if_exists(user_config_path)
 

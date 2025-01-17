@@ -25,6 +25,7 @@ from .stream_parser import StreamParser
 def generate_chat_completion_message(
     chat_model: ChatModel,
     context_messages: List[ContextMessage],
+    tool_schemas: List[Dict[str, Any]],
     enable_tools: bool = True,
     force_tool: Optional[str] = None,
     retry_number: int = 0,
@@ -75,19 +76,16 @@ def generate_chat_completion_message(
                 message["content"] = f"{USER_HIDDEN_PREFIX} {message['content']}"
 
     if enable_tools:
-        from ..tools.function_caller import get_function_schemas
 
         if force_tool:
-            tools = get_function_schemas()
-            if len(tools) == 0:
+            if len(tool_schemas) == 0:
                 raise InvalidForceToolError(f"Requested tool {force_tool}, but not tools available")
-            elif not any(t["function"]["name"] == force_tool for t in tools):
-                avaliable_tools = ", ".join([t["function"]["name"] for t in tools])
+            elif not any(t["function"]["name"] == force_tool for t in tool_schemas):
+                avaliable_tools = ", ".join([t["function"]["name"] for t in tool_schemas])
                 raise InvalidForceToolError(f"Requested tool {force_tool} not available. Available tools: {avaliable_tools}")
             else:
                 tool_choice = {"type": "function", "function": {"name": force_tool}}
         else:
-            tools = get_function_schemas()
             tool_choice = "auto"
     else:
         if force_tool:
@@ -97,13 +95,14 @@ def generate_chat_completion_message(
             if chat_model.provider == Provider.ANTHROPIC and any(m.role == TOOL for m in context_messages):
                 # If tool use is in the context window, anthropic requires tools to be enabled and provided
                 from ..system_commands import do_not_use
-                from ..tools.function_caller import get_function_schemas
+                from ..tools.function_caller import get_function_schema
 
                 tool_choice = "auto"
-                tools = get_function_schemas([do_not_use])  # type: ignore
+                tool_schemas = [get_function_schema(do_not_use)]  # type: ignore
             else:
                 tool_choice = None
-                tools = None
+                # Models are inconsistent on whether they want None or an empty list when tools are disabled, but most often None seems correct.
+                tool_schemas = None  # type: ignore
 
     try:
         completion_kwargs = _build_completion_kwargs(
@@ -111,7 +110,7 @@ def generate_chat_completion_message(
             messages=context_message_dicts,  # type: ignore
             stream=True,
             tool_choice=tool_choice,
-            tools=tools,
+            tools=tool_schemas,
         )
 
         return StreamParser(chat_model, completion(**completion_kwargs))  # type: ignore
@@ -131,7 +130,14 @@ def generate_chat_completion_message(
                     logging.info(
                         f"Rate limit or internal server error for model {chat_model.name}, falling back to model {fallback_model.name}"
                     )
-                    return generate_chat_completion_message(fallback_model, context_messages, enable_tools, force_tool, retry_number + 1)
+                    return generate_chat_completion_message(
+                        fallback_model,
+                        context_messages,
+                        tool_schemas,
+                        enable_tools,
+                        force_tool,
+                        retry_number + 1,
+                    )
                 else:
                     logging.error(f"No fallback model available for {chat_model.name}, aborting")
                     raise e

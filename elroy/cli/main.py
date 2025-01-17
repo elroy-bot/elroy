@@ -3,7 +3,7 @@ import logging
 import sys
 from bdb import BdbQuit
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import typer
 
@@ -64,6 +64,13 @@ def common(
     user_token: str = ElroyOption(
         "user_token",
         help="User token to use for Elroy",
+        rich_help_panel="Basic Configuration",
+    ),
+    custom_tools_path: List[str] = typer.Option(
+        [],
+        "--custom-tools-path",
+        help="Path to custom functions to load",
+        show_default=False,
         rich_help_panel="Basic Configuration",
     ),
     # Database Configuration
@@ -336,6 +343,16 @@ def message(
         else:
             assert message
             handle_message_stdio(ctx, StdIO(), message, tool)
+
+
+@app.command(name="print-tools")
+def print_tools(
+    typer_ctx: typer.Context,
+    tool: Optional[str] = typer.Argument(None, help="Tool to print schema for"),
+):
+    """Prints the schema for a tool and exits."""
+    ctx = get_ctx(typer_ctx)
+    ctx.io.print(ctx.tool_registry.get_schemas())  # type: ignore
 
 
 @app.command(name="remember")

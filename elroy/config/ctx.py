@@ -3,7 +3,7 @@ from datetime import timedelta
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Generator, Optional, TypeVar
+from typing import Any, Callable, Generator, List, Optional, TypeVar
 
 import typer
 
@@ -36,6 +36,7 @@ class ElroyContext:
         warning_color: str,
         internal_thought_color: str,
         user_token: str,
+        custom_tools_path: List[str] = [],
         # API Configuration
         openai_api_key: Optional[str] = None,
         openai_api_base: Optional[str] = None,
@@ -88,6 +89,16 @@ class ElroyContext:
         self.min_memory_cluster_size = min_memory_cluster_size
         self.max_memory_cluster_size = max_memory_cluster_size
         self.memories_between_consolidation = memories_between_consolidation
+
+    from ..tools.function_caller import ToolRegistry
+
+    @cached_property
+    def tool_registry(self) -> ToolRegistry:
+        from ..tools.function_caller import ToolRegistry
+
+        registry = ToolRegistry(self.params.custom_tools_path)
+        registry.register_all()
+        return registry
 
     @cached_property
     def config_path(self) -> Path:

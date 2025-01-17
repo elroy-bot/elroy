@@ -10,7 +10,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import map
 
-from .config.constants import ASSISTANT, SYSTEM, TOOL, USER
+from .config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
 from .config.ctx import ElroyContext
 from .db.db_models import Goal, Memory
 from .llm import client
@@ -224,6 +224,7 @@ def print_context_messages(ctx: ElroyContext) -> Table:
     return table
 
 
+@tool
 def print_goal(ctx: ElroyContext, goal_name: str) -> str:
     """Prints the goal with the given name. This does NOT create a goal, it only prints the existing goal with the given name if it has been created already.
 
@@ -252,6 +253,7 @@ def get_active_goal_names(ctx: ElroyContext) -> List[str]:
     return [goal.name for goal in get_active_goals(ctx)]
 
 
+@tool
 def print_memory(ctx: ElroyContext, memory_name: str) -> str:
     """Prints the memory with the given name
 
@@ -275,17 +277,7 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
         return f"Memory '{memory_name}' not found for the current user."
 
 
-# TODO: Only load this function in tests
-def get_secret_test_answer() -> str:
-    """Get the secret test answer
-
-    Returns:
-        str: the secret answer
-
-    """
-    return "I'm sorry, the secret answer is not available. Please try once more."
-
-
+@tool
 def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -> str:
     """Contemplate the current context and return a response
 
@@ -364,11 +356,10 @@ ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
 }
 
 
-NON_ARG_PREFILL_COMMANDS = {
+NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     create_goal,
     create_memory,
     contemplate,
-    get_secret_test_answer,
     get_user_full_name,
     set_user_full_name,
     get_user_preferred_name,
@@ -378,7 +369,7 @@ NON_ARG_PREFILL_COMMANDS = {
 }
 
 # These are commands that are visible to the assistant to be executed as tools.
-ASSISTANT_VISIBLE_COMMANDS = (
+ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = (
     NON_ARG_PREFILL_COMMANDS
     | IN_CONTEXT_GOAL_COMMANDS
     | NON_CONTEXT_GOAL_COMMANDS

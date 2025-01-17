@@ -1,15 +1,25 @@
 import inspect
-import traceback
+import logging
 from dataclasses import dataclass
+from functools import partial
+from pathlib import Path
 from types import FunctionType, ModuleType
-from typing import Any, Dict, List, Optional, Type, Union, get_args, get_origin
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Type,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from docstring_parser import parse
-from toolz import concat, concatv, merge, pipe
-from toolz.curried import do, filter, map, remove
-
-from ..config.ctx import ElroyContext
-from ..db.db_models import FunctionCall
+from toolz import concat, pipe
+from toolz.curried import filter, map, remove
 
 PY_TO_JSON_TYPE = {
     int: "integer",
@@ -18,6 +28,108 @@ PY_TO_JSON_TYPE = {
     float: "number",
     Optional[str]: "string",
 }
+
+
+def is_tool(func: Callable) -> bool:
+    """Check if a function is marked as a tool by either our @tool decorator or LangChain's."""
+    if getattr(func, "__langchain_tool__", False):
+        logging.warning("Langchain tool support is coming soon")
+        return False
+    else:
+        return getattr(func, "_is_tool", False) or getattr(func, "__langchain_tool__", False)
+
+
+def get_system_tool_schemas() -> List[Dict[str, Any]]:
+    from ..system_commands import ASSISTANT_VISIBLE_COMMANDS
+
+    return pipe(
+        ASSISTANT_VISIBLE_COMMANDS,
+        map(get_function_schema),
+        list,
+    )  # type: ignore
+
+
+class ToolRegistry:
+    def __init__(self, custom_paths: List[str] = []):
+        self.custom_paths = custom_paths
+        self.tools = {}
+        self._schemas = []
+
+    def register_all(self):  # type: ignore
+        from ..system_commands import ASSISTANT_VISIBLE_COMMANDS
+
+        for tool in ASSISTANT_VISIBLE_COMMANDS:
+            self.register(tool)
+        for path in self.custom_paths:
+            self.register_path(path)
+
+    def get_schemas(self) -> List[Dict[str, Any]]:
+        return self._schemas
+
+    def register_path(self, custom_path: str) -> None:
+        """
+        Load tool functions from a directory, validating their schemas.
+        Only loads functions decorated with @tool.
+
+        Args:
+            dir: Directory path containing tool Python files
+
+        Returns:
+            List of valid tool functions found in the directory
+        """
+        path = Path(custom_path)
+        if not path.exists():
+            logging.warning(f"Custom tool path {path} does not exist")
+            return
+
+        if path.is_file():
+            if not path.suffix == ".py":
+                logging.warning(f"Custom tool path {path} is not a Python file")
+                return
+            else:
+                file_paths = [path]
+        else:
+            file_paths = path.glob("*.py")
+
+        pipe(
+            file_paths,
+            remove(lambda p: p.stem.startswith("_")),
+            map(get_module),
+            map(get_module_functions),
+            concat,
+            map(partial(self.register, raise_on_error=False)),
+            list,
+        )
+
+    def register(self, func: Callable, raise_on_error: bool = True) -> None:
+        if func.__name__ in self.tools:
+            raise ValueError(f"Function {func.__name__} already registered")
+
+        elif not is_tool(func):
+            raise ValueError(f"Function {func.__name__} is not marked as a tool with @tool decorator")
+
+        schema = get_function_schema(func)
+
+        errors = validate_schema(schema)
+        if errors:
+            if raise_on_error:
+                raise ValueError(f"Invalid schema for function {func.__name__}:\n" + "\n".join(errors))
+            else:
+                logging.warning(f"Invalid schema for function {func.__name__}:\n" + "\n".join(errors))
+        self._schemas.append(schema)
+        self.tools[func.__name__] = func
+
+    def get(self, name: str) -> Optional[FunctionType]:
+        return self.tools.get(name)
+
+    def __getitem__(self, name: str) -> FunctionType:
+        return self.tools[name]
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.tools
+
+    def __len__(self) -> int:
+        return len(self.tools)
 
 
 def get_json_type(py_type: Type) -> str:
@@ -42,35 +154,27 @@ def get_modules():
 ERROR_PREFIX = "**Tool call resulted in error: **"
 
 
-def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
-    ctx.io.print(function_call)
-
+def get_module(file_path: Path) -> ModuleType:
     try:
-        function_to_call = get_functions()[function_call.function_name]
+        import importlib.util
 
-        return pipe(
-            {"ctx": ctx} if "ctx" in function_to_call.__code__.co_varnames else {},
-            lambda d: merge(function_call.arguments, d),
-            lambda args: function_to_call.__call__(**args),
-            lambda result: str(result) if result is not None else "Success",
-            do(lambda x: ctx.io.info(f"Function call result: {x}")),
-            str,
-        )  # type: ignore
-
+        spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
+        if not spec or not spec.loader:
+            raise ValueError(f"Failed to import {file_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
     except Exception as e:
-        return pipe(
-            f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__)),
-            do(ctx.io.warning),
-            ERROR_PREFIX.__add__,
-        )
+        raise ValueError(f"Failed to import {file_path}: {str(e)}")
 
 
-def get_module_functions(module: ModuleType) -> List[FunctionType]:
+def get_module_functions(module: ModuleType) -> Iterator[FunctionType]:
     return pipe(
         dir(module),
         map(lambda name: getattr(module, name)),
-        filter(lambda _: inspect.isfunction(_) and _.__module__ == module.__name__),
-        list,
+        filter(inspect.isfunction),
+        filter(is_tool),
+        filter(lambda _: _.__module__ == module.__name__),
     )  # type: ignore
 
 
@@ -83,7 +187,9 @@ class Parameter:
     default: Optional[Any]
 
 
-def get_function_schema(function: FunctionType) -> Dict:
+def get_function_schema(function: Callable) -> Dict:
+    """Returns OpenAI function schema for a given function."""
+
     def validate_parameter(parameter: Parameter) -> Parameter:
         if not parameter.optional:
             assert (
@@ -102,9 +208,13 @@ def get_function_schema(function: FunctionType) -> Dict:
         return parameter
 
     assert function.__doc__ is not None, f"Function {function.__name__} has no docstring"
+    parsed_docstring = parse(function.__doc__)
+    description = parsed_docstring.short_description or parsed_docstring.long_description
     docstring_dict = {p.arg_name: p.description for p in parse(function.__doc__).params}
 
     signature = inspect.signature(function)
+
+    from ..config.ctx import ElroyContext
 
     properties = pipe(
         signature.parameters.items(),
@@ -134,39 +244,15 @@ def get_function_schema(function: FunctionType) -> Dict:
         dict,
         lambda d: {
             "name": function.__name__,
+            "description": description,
             "parameters": {"type": "object", "properties": d},
             "required": [p.name for p in properties if not p.optional],  # type: ignore
         },
-    )  # type: ignore
-
-
-def get_function_schemas(funcs: Optional[List[FunctionType]] = None) -> List[Dict[str, Any]]:
-    return pipe(
-        funcs if funcs else get_functions().values(),
-        map(get_function_schema),
-        map(lambda _: {"type": "function", "function": _}),
-        list,
-    )  # type: ignore
-
-
-def get_functions() -> Dict[str, FunctionType]:
-    from ..system_commands import ASSISTANT_VISIBLE_COMMANDS
-
-    return pipe(
-        get_modules(),
-        map(get_module_functions),
-        concat,
-        list,
-        lambda _: concatv(
-            _,
-            ASSISTANT_VISIBLE_COMMANDS,
-        ),
-        map(lambda _: [_.__name__, _]),
-        dict,
+        lambda d: {"type": "function", "function": d},
     )
 
 
-def validate_openai_tool_schema():
+def validate_schema(func_schema: Dict[str, Any]) -> List[str]:
     """
     Validates the schema for OpenAI function tools' parameters.
 
@@ -176,48 +262,32 @@ def validate_openai_tool_schema():
     """
     errors = []
 
-    function_schemas = get_function_schemas()
+    if "type" not in func_schema or func_schema["type"] != "function":
+        errors.append(f"Missing 'type' or 'type' is not 'function'.")
+    if "function" not in func_schema:
+        errors.append(f"Mssing 'function' key.")
+        return errors
 
-    if not isinstance(function_schemas, list):
-        errors.append("Function schemas should be a list.")
-        return False, errors
+    function = func_schema["function"]
+    if not isinstance(function, dict):
+        errors.append(f"Schema is not a dictionary.")
+        return errors
 
-    for idx, func_schema in enumerate(function_schemas):
-        if not isinstance(func_schema, dict):
-            errors.append(f"Schema at index {idx} is not a dictionary.")
-            continue
+    if "name" not in function:
+        errors.append(f"Missing 'name' key.")
 
-        if "type" not in func_schema or func_schema["type"] != "function":
-            errors.append(f"Schema at index {idx} is missing 'type' or 'type' is not 'function'.")
-        if "function" not in func_schema:
-            errors.append(f"Schema at index {idx} is missing 'function' key.")
-            continue
+    if "parameters" not in function:
+        errors.append(f"Missing 'parameters' key.")
+        return errors
 
-        function = func_schema["function"]
-        if not isinstance(function, dict):
-            errors.append(f"Function schema at index {idx} is not a dictionary.")
-            continue
+    parameters = function["parameters"]
+    if not isinstance(parameters, dict) or parameters.get("type") != "object":
+        errors.append(f"Parameters for function '{function.get('name')}' must be an object.")
 
-        if "name" not in function:
-            errors.append(f"Function schema at index {idx} is missing 'name' key.")
+    if "properties" not in parameters or not isinstance(parameters["properties"], dict):
+        errors.append(f"'properties' for function '{function.get('name')}' must be a valid dictionary.")
 
-        if "parameters" not in function:
-            errors.append(f"Function schema at index {idx} is missing 'parameters' key.")
-            continue
-
-        parameters = function["parameters"]
-        if not isinstance(parameters, dict) or parameters.get("type") != "object":
-            errors.append(f"Parameters for function '{function.get('name')}' must be an object.")
-
-        if "properties" not in parameters or not isinstance(parameters["properties"], dict):
-            errors.append(f"'properties' for function '{function.get('name')}' must be a valid dictionary.")
-
-        required_fields = parameters.get("required")
-        if required_fields is not None and not isinstance(required_fields, list):
-            errors.append(f"'required' for function '{function.get('name')}' must be a list if present.")
-
-    if len(errors) > 0:
-        raise ValueError(errors)
-
-
-validate_openai_tool_schema()
+    required_fields = parameters.get("required")
+    if required_fields is not None and not isinstance(required_fields, list):
+        errors.append(f"'required' for function '{function.get('name')}' must be a list if present.")
+    return errors

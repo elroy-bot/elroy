@@ -1,7 +1,10 @@
 import json
 
 import pytest
-from scripts.release_patch import get_function_schemas
+from tests.fixtures.custom_tools import (
+    get_user_token_first_letter,
+    netflix_show_fetcher,
+)
 from tests.utils import process_test_message
 from toolz import pipe
 from toolz.curried import map
@@ -13,14 +16,29 @@ from elroy.config.constants import (
     USER,
     MissingAssistantToolCallError,
     MissingToolCallMessageError,
+    tool,
 )
 from elroy.config.ctx import ElroyContext
 from elroy.repository.data_models import ContextMessage, ToolCall
 from elroy.repository.message import add_context_messages
+from elroy.tools.function_caller import get_system_tool_schemas
+
+
+@tool
+def get_secret_test_answer() -> str:
+    """Get the secret test answer
+
+    Returns:
+        str: the secret answer
+
+    """
+    return "I'm sorry, the secret answer is not available. Please try once more."
 
 
 def test_infinite_tool_call_ends(ctx: ElroyContext):
     ctx.debug = False
+
+    ctx.tool_registry.register(get_secret_test_answer)
 
     process_test_message(
         ctx,
@@ -85,12 +103,24 @@ def test_missing_tool_call_throws(ctx: ElroyContext):
 def test_tool_schema_does_not_have_elroy_ctx():
 
     argument_names = pipe(
-        get_function_schemas(),
+        get_system_tool_schemas(),
         map(lambda x: (x["function"]["name"], list(x["function"]["parameters"]["properties"].keys()))),
         dict,
     )
 
     assert not any("ctx" in vals for key, vals in argument_names.items())  # type: ignore
+
+
+def test_custom_tool(ctx: ElroyContext):
+    ctx.tool_registry.register(netflix_show_fetcher)
+    response = process_test_message(ctx, "Please use your function to fetch the specified netflix show.")
+    assert "Black Dove" in response
+
+
+@pytest.mark.skip(reason="Need to add parsing for langchain")
+def test_langchain_tool(ctx: ElroyContext):
+    ctx.tool_registry.register(get_user_token_first_letter)
+    process_test_message(ctx, "Please use your function to fetch the first letter of the user's token.")
 
 
 def _missing_tool_message(ctx: ElroyContext):

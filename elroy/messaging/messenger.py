@@ -1,8 +1,9 @@
 import logging
+import traceback
 from functools import partial
 from typing import Iterator, List, Optional, Union
 
-from toolz import juxt, pipe
+from toolz import juxt, merge, pipe
 from toolz.curried import do, filter, map, remove, tail
 
 from ..config.constants import (
@@ -14,6 +15,7 @@ from ..config.constants import (
     MissingToolCallMessageError,
 )
 from ..config.ctx import ElroyContext
+from ..db.db_models import FunctionCall
 from ..llm.client import generate_chat_completion_message, get_embedding
 from ..llm.stream_parser import (
     AssistantInternalThought,
@@ -29,7 +31,7 @@ from ..repository.message import (
     is_system_instruction,
     replace_context_messages,
 )
-from ..tools.function_caller import FunctionCall, exec_function_call
+from ..tools.function_caller import ERROR_PREFIX
 from ..utils.utils import last_or_none, logged_exec_time
 from .context import get_refreshed_system_message
 
@@ -56,6 +58,7 @@ def process_message(
         stream = generate_chat_completion_message(
             chat_model=ctx.chat_model,
             context_messages=context_messages + new_msgs,
+            tool_schemas=ctx.tool_registry.get_schemas(),
             enable_tools=ctx.enable_tools and loops <= ctx.max_assistant_loops,
             force_tool=force_tool,
         )
@@ -102,6 +105,30 @@ def process_message(
             add_context_messages(ctx, new_msgs)
             break
         loops += 1
+
+
+def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
+    ctx.io.print(function_call)
+    function_to_call = ctx.tool_registry.get(function_call.function_name)
+    if not function_to_call:
+        return f"Function {function_call.function_name} not found"
+
+    try:
+        return pipe(
+            {"ctx": ctx} if "ctx" in function_to_call.__code__.co_varnames else {},
+            lambda d: merge(function_call.arguments, d),
+            lambda args: function_to_call.__call__(**args),
+            lambda result: str(result) if result is not None else "Success",
+            do(lambda x: ctx.io.info(f"Function call result: {x}")),
+            str,
+        )  # type: ignore
+
+    except Exception as e:
+        return pipe(
+            f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__)),
+            do(ctx.io.warning),
+            ERROR_PREFIX.__add__,
+        )
 
 
 def validate(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
