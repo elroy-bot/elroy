@@ -3,6 +3,7 @@ user_token: DEFAULT  # User token to use for Elroy
 database_url: null  # Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.
 debug: false  # Whether to fail fast when errors occur, and emit more verbose logging
 default_assistant_name: "Elroy"  # Default name for the assistant
+custom_tools_path: null # Path to dir or file with custom functions
 default_persona: |  # Default system persona for the assistant
   I am $ASSISTANT_ALIAS.
 

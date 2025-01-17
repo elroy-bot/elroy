@@ -11,12 +11,13 @@ from rich.table import Table
 from rich.text import Text
 
 from .. import __version__
-from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL
+from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, tool
 from ..config.ctx import ElroyContext
 from ..config.paths import get_home_dir, get_log_file_path
 
 
-def tail_elroy_logs(ctx: ElroyContext, lines: int = 10) -> str:
+@tool
+def tail_elroy_logs(lines: int = 10) -> str:
     """
     Returns the last `lines` of the Elroy logs.
     Useful for troubleshooting in cases where errors occur (especially with tool calling).

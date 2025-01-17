@@ -6,7 +6,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from ...config.constants import SYSTEM
+from ...config.constants import SYSTEM, tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal
 from ...messaging.context import drop_goal_from_current_context
@@ -19,6 +19,7 @@ from ..message import add_context_messages
 from .queries import get_active_goals
 
 
+@tool
 def create_goal(
     ctx: ElroyContext,
     goal_name: str,
@@ -93,6 +94,7 @@ def get_goal_by_name(ctx: ElroyContext, name: str) -> Optional[Goal]:
     )  # type: ignore
 
 
+@tool
 def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> str:
     """Renames an existing active goal.
 
@@ -191,6 +193,7 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
     upsert_embedding_if_needed(ctx, goal)
 
 
+@tool
 def add_goal_status_update(ctx: ElroyContext, goal_name: str, status_update_or_note: str) -> str:
     """Captures either a progress update or note relevant to the goal.
 
@@ -221,6 +224,7 @@ def create_onboarding_goal(ctx: ElroyContext, preferred_name: str) -> None:
     )
 
 
+@tool
 def mark_goal_completed(ctx: ElroyContext, goal_name: str, closing_comments: Optional[str] = None) -> str:
     """Marks a goal as completed, with closing comments.
 
@@ -242,6 +246,7 @@ def mark_goal_completed(ctx: ElroyContext, goal_name: str, closing_comments: Opt
     return f"Goal '{goal_name}' has been marked as completed."
 
 
+@tool
 def delete_goal_permanently(ctx: ElroyContext, goal_name: str) -> str:
     """Closes the goal.
 

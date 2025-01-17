@@ -17,6 +17,7 @@ from ..config.constants import (
     SYSTEM_INSTRUCTION_LABEL_END,
     TOOL,
     USER,
+    tool,
 )
 from ..config.ctx import ElroyContext
 from ..db.db_models import Goal, Memory
@@ -252,6 +253,7 @@ async def context_refresh(ctx: ElroyContext) -> None:
     )
 
 
+@tool
 def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     """Adds memory with the given name to the current conversation context
 
@@ -265,6 +267,7 @@ def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     return add_to_current_context_by_name(ctx, memory_name, Memory)
 
 
+@tool
 def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
     """Adds goal with the given name to the current conversation context
 
@@ -278,6 +281,7 @@ def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
     return add_to_current_context_by_name(ctx, goal_name, Goal)
 
 
+@tool
 def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
     """Drops the goal with the given name. Does NOT delete or mark the goal completed.
 
@@ -291,6 +295,7 @@ def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
     return drop_from_context_by_name(ctx, goal_name, Goal)
 
 
+@tool
 def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str:
     """Drops the memory with the given name. Does NOT delete the memory.
 

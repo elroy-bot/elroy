@@ -8,6 +8,7 @@ from toolz import pipe
 from toolz.curried import map
 
 from ...config.config import ChatModel
+from ...config.constants import tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import EmbeddableSqlModel, Memory
 from ...llm.client import query_llm
@@ -48,6 +49,7 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
 
 
 @memory_consolidation_check
+@tool
 def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     """Creates a new memory for the assistant.
 

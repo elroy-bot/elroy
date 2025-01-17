@@ -4,7 +4,7 @@ from typing import Optional
 import typer
 from toolz import do
 
-from ..config.constants import UNKNOWN
+from ..config.constants import UNKNOWN, tool
 from ..config.ctx import ElroyContext
 from ..db.db_models import UserPreference
 from ..utils.utils import is_blank
@@ -58,6 +58,7 @@ def reset_system_persona(ctx: ElroyContext) -> str:
     return "System persona cleared, will now use default persona."
 
 
+@tool
 def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_existing: Optional[bool] = False) -> str:
     """
     Set the user's preferred name. Should predominantly be used relatively early in first conversations, and relatively rarely afterward.
@@ -81,6 +82,7 @@ def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_exi
         return f"Set user preferred name to {preferred_name}. Was {old_preferred_name}."
 
 
+@tool
 def get_user_preferred_name(ctx: ElroyContext) -> str:
     """Returns the user's preferred name.
 
@@ -96,6 +98,7 @@ def get_user_preferred_name(ctx: ElroyContext) -> str:
     return user_preference.preferred_name or UNKNOWN
 
 
+@tool
 def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: Optional[bool] = False) -> str:
     """Sets the user's full name.
 
@@ -124,6 +127,7 @@ def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: Opt
         return f"Full name set to {full_name}. Previous value was {old_full_name}."
 
 
+@tool
 def get_user_full_name(ctx: ElroyContext) -> str:
     """Returns the user's full name.
 

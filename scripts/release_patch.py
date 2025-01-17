@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from semantic_version import Version
 
-from elroy.tools.function_caller import get_function_schemas
+from elroy.tools.function_caller import get_system_tool_schemas
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 with open(os.path.join(REPO_ROOT, "elroy", "__init__.py"), "r") as f:
@@ -161,7 +161,7 @@ def update_schema_doc():
         content = f.read()
 
     # Get schemas and sort by function name
-    schemas = get_function_schemas()
+    schemas = get_system_tool_schemas()
     schemas.sort(key=lambda e: e["function"]["name"])
 
     # Convert schemas to JSON string with proper indentation

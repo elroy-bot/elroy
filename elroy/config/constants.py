@@ -1,5 +1,5 @@
 import enum
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 MEMORY_WORD_COUNT_LIMIT = 300
 
@@ -44,6 +44,12 @@ MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
 CONFIG_FILE_KEY = "config_file"
+
+
+# Empty decorator just meaning to communicate a function should be a tool
+def tool(func: Callable) -> Callable:
+    setattr(func, "_is_tool", True)
+    return func
 
 
 class MissingAssistantToolCallError(Exception):
