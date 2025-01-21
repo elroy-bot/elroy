@@ -13,7 +13,7 @@ from ...messaging.context import drop_goal_from_current_context
 from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import first_or_none, is_blank
 from ..data_models import ContextMessage
-from ..embeddable import remove_from_context
+from ..embeddable import add_to_context, remove_from_context
 from ..embeddings import upsert_embedding_if_needed
 from ..message import add_context_messages
 from .queries import get_active_goals
@@ -181,6 +181,8 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
     if is_terminal:
         goal.is_active = None
         remove_from_context(ctx, goal)
+    else:
+        add_to_context(ctx, goal)
 
     logging.info(f"Updated status updates: {goal.status_updates}")
 

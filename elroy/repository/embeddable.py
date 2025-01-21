@@ -1,3 +1,4 @@
+import logging
 from functools import partial
 from typing import List, Type
 
@@ -36,17 +37,22 @@ def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
     memory_id = memory.id
     assert memory_id
 
-    add_context_messages(
-        ctx,
-        [
-            ContextMessage(
-                role=SYSTEM,
-                memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
-                content=memory.to_fact(),
-                chat_model=None,
-            )
-        ],
-    )
+    context_messages = get_context_messages(ctx)
+
+    if is_in_context(context_messages, memory):
+        logging.info(f"Memory of type {memory.__class__.__name__} with id {memory_id} already in context.")
+    else:
+        add_context_messages(
+            ctx,
+            [
+                ContextMessage(
+                    role=SYSTEM,
+                    memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
+                    content=memory.to_fact(),
+                    chat_model=None,
+                )
+            ],
+        )
 
 
 def is_in_context(context_messages: List[ContextMessage], memory: EmbeddableSqlModel) -> bool:
