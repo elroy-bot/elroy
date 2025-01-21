@@ -274,7 +274,9 @@ if __name__ == "__main__":
 
     print("Updating docs...")
     update_schema_doc()
-    subprocess.run([os.path.join(REPO_ROOT, "scripts", "prepare-docs-for-release.sh"), NEXT_PATCH], check=True)
+    from prep_docs_for_release import run
+
+    run()
 
     # if local git state is not clean, await for user confirmation
     if not is_local_git_clean():
