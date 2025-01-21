@@ -105,8 +105,8 @@ def update_changelog(elroy: Elroy):
     make_edit(elroy, instruction, ["CHANGELOG.md"])
 
 
-if __name__ == "__main__":
-    elroy = Elroy(user_token="docs-prep")
+def run():
+    elroy = Elroy(token="docs-prep")
 
     repo_root = os.popen("git rev-parse --show-toplevel").read().strip()
     os.chdir(repo_root)
@@ -120,7 +120,6 @@ if __name__ == "__main__":
     update_readme(elroy)
     update_changelog(elroy)
 
-    exit
     # Wait for user to confirm changes
     input("Press Enter to commit changes")
 
@@ -135,3 +134,7 @@ if __name__ == "__main__":
     print("Please provide feedback on the changes made in this release")
     feedback = input()
     elroy.remember(feedback, name=f"Feedback for release {next_tag}")
+
+
+if __name__ == "__main__":
+    run()
