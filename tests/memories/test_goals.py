@@ -2,7 +2,7 @@ from tests.utils import process_test_message, quiz_assistant_bool
 
 from elroy.cli.chat import _get_in_context_memories
 from elroy.db.db_models import Goal
-from elroy.repository.embeddable import is_in_context
+from elroy.repository.embeddable import is_in_context, remove_from_context
 from elroy.repository.goals.operations import (
     create_goal,
     get_goal_by_name,
@@ -100,3 +100,17 @@ def test_goal_is_in_context_only_when_active(ctx):
     ctx.db.refresh(goal)
 
     assert not is_in_context(get_context_messages(ctx), goal)
+
+
+def test_status_update_brings_into_context(ctx):
+    create_goal(ctx, "Run 100 miles this year")
+    goal = get_goal_by_name(ctx, "Run 100 miles this year")
+    assert goal
+
+    remove_from_context(ctx, goal)
+
+    assert not is_in_context(get_context_messages(ctx), goal)
+
+    process_test_message(ctx, "I ran 4 miles today. Please update my goal: Run 100 miles this year")
+
+    assert is_in_context(get_context_messages(ctx), goal)
