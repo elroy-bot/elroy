@@ -273,6 +273,9 @@ def validate_schema(func_schema: Dict[str, Any]) -> List[str]:
         errors.append(f"Schema is not a dictionary.")
         return errors
 
+    if "description" not in function:
+        errors.append(f"Missing 'description' key.")
+
     if "name" not in function:
         errors.append(f"Missing 'name' key.")
 
