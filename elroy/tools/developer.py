@@ -56,7 +56,7 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
     sections = {
         "System Information": {
             "OS": f"{platform.system()} {platform.release()}",
-            "Python Verion": platform.python_version(),
+            "Python Version": platform.python_version(),
             "Python Location": sys.executable,
             "Elroy Version": __version__,
             "Elroy Home Dir": get_home_dir(),
