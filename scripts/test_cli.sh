@@ -53,7 +53,7 @@ run_test "Version command" "elroy version" "Elroy version"
 # Basic chat test
 run_test "Basic chat" \
     "echo 'This is an installation test. Repeat the following text, and only the following text: \"Hello World!\"' | elroy" \
-    "Hello"
+    "Hello World"
 
 # Memory creation and recall tests
 run_test "Memory creation" \

@@ -58,6 +58,6 @@ class StdIO(ElroyIO):
         elif isinstance(message, FunctionCall):
             logging.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
         elif isinstance(message, TextOutput):
-            self.console.print(message.content, end)
+            self.console.print(message.content, end=end)
         else:
             super().print(message, end)
