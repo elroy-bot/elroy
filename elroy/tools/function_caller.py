@@ -32,11 +32,11 @@ PY_TO_JSON_TYPE = {
 
 def is_tool(func: Callable) -> bool:
     """Check if a function is marked as a tool by either our @tool decorator or LangChain's."""
-    if getattr(func, "__langchain_tool__", False):
-        logging.warning("Langchain tool support is coming soon")
-        return False
-    else:
-        return getattr(func, "_is_tool", False) or getattr(func, "__langchain_tool__", False)
+    return getattr(func, "_is_tool", False) or is_langchain_tool(func)
+
+
+def is_langchain_tool(func: Callable) -> bool:
+    return func.__class__.__name__ == "StructuredTool"
 
 
 def get_system_tool_schemas() -> List[Dict[str, Any]]:
@@ -102,11 +102,13 @@ class ToolRegistry:
         )
 
     def register(self, func: Callable, raise_on_error: bool = True) -> None:
-        if func.__name__ in self.tools:
-            raise ValueError(f"Function {func.__name__} already registered")
-
+        if is_langchain_tool(func):
+            func = func.func  # type: ignore
         elif not is_tool(func):
             raise ValueError(f"Function {func.__name__} is not marked as a tool with @tool decorator")
+
+        if func.__name__ in self.tools:
+            raise ValueError(f"Function {func.__name__} already registered")
 
         schema = get_function_schema(func)
 
