@@ -13,11 +13,10 @@ def netflix_show_fetcher():
     return "Black Dove"
 
 
-# TODO: Langchain's decorator is also recognized
-# from langchain_core import tools
+from langchain_core.tools import tool as lc_tool
 
 
-@tool
+@lc_tool
 def get_secret_test_answer() -> str:
     """Get the secret test answer
 
@@ -29,7 +28,7 @@ def get_secret_test_answer() -> str:
 
 
 # To access ElroyContext data, include it as an argument. It does not need to be annotated
-@tool
+@lc_tool
 def get_user_token_first_letter(ctx: ElroyContext):
     """Returns the first letter of the user's name.
 
