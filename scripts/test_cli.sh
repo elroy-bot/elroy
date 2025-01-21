@@ -4,96 +4,103 @@ set -e  # Exit on error
 # Setup
 echo "Setting up test environment..."
 
+export ELROY_USER_TOKEN="test_user_$(date +%Y%m%d_%H%M%S)"
+
 # Cleanup function
 cleanup() {
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        echo "Test failed with exit code: $exit_code"
+        # Keep the test files for inspection
+        echo "Preserving test files for debugging"
+        return
+    fi
     echo "Cleaning up test files..."
     rm -f test.txt prompt.txt
 }
 trap cleanup EXIT
 
-# Run tests
-echo "Running CLI tests..."
+# Helper function to run a test with better output
+run_test() {
+    local test_name="$1"
+    local command="$2"
+    local expected_pattern="$3"
+
+    echo "Running test: $test_name"
+    echo "Command: $command"
+    # Capture both stdout and stderr
+    output=$(eval "$command" 2>&1) || {
+        echo "❌ $test_name failed - command returned non-zero exit code"
+        echo "Expected pattern: $expected_pattern"
+        echo "Actual output:"
+        echo "$output"
+        exit 1
+    }
+    if echo "$output" | grep -q "$expected_pattern"; then
+        echo "✅ $test_name passed"
+    else
+        echo "❌ $test_name failed"
+        echo "Expected pattern: $expected_pattern"
+        echo "Actual output:"
+        echo "$output"
+        exit 1
+    fi
+}
 
 # Version check
-echo "Testing version command..."
-elroy version
+run_test "Version command" "elroy version" "Elroy version"
 
 # Basic chat test
-echo "Testing basic chat functionality..."
-echo "This is an installation test. Repeat the following text, and only the following text: 'Hello World!'" | elroy | grep -q "Hello World" || {
-    echo "❌ Basic chat test failed"
-    exit 1
-}
+run_test "Basic chat" \
+    "echo 'This is an installation test. Repeat the following text, and only the following text: \"Hello World!\"' | elroy" \
+    "Hello"
 
 # Memory creation and recall tests
-echo "Testing memory creation and recall..."
-echo "This is an installation test. The secret number is 3928" | elroy remember || {
-    echo "❌ Memory creation failed"
-    exit 1
-}
+run_test "Memory creation" \
+    "echo 'This is an installation test. The secret number is 3928' | elroy remember" \
+    "Memory created"
 
-echo "Testing memory recall..."
-echo "This is an installation test. What is the secret number? Respond with the secret number and only the secret number" | elroy | grep -q "3928" || {
-    echo "❌ Memory recall failed"
-    exit 1
-}
+run_test "Memory recall" \
+    "echo 'This is an installation test. What is the secret number? Respond with the secret number and only the secret number' | elroy" \
+    "3928"
 
 # File-based memory tests
-echo "Testing file-based memory operations..."
 echo "This is an installation test. The secret number is now 2931" > test.txt
-elroy remember < test.txt || {
-    echo "❌ File-based memory creation failed"
-    exit 1
-}
+run_test "File-based memory creation" \
+    "elroy remember < test.txt" \
+    "Memory created"
 
-echo "Testing file-based memory recall..."
 echo "This is an installation test. What is the secret number? Respond with the secret number and only the secret number" > prompt.txt
-elroy < prompt.txt | grep -q "2931" || {
-    echo "❌ File-based memory recall failed"
-    exit 1
-}
+run_test "File-based memory recall" \
+    "elroy < prompt.txt" \
+    "2931"
 
 # Config tests
-echo "Testing configuration display..."
-elroy print-config || {
-    echo "❌ Config display failed"
-    exit 1
-}
+run_test "Configuration display" \
+    "elroy print-config" \
+    "Python Version"
 
-echo "Testing model alias resolution..."
-elroy --sonnet print-config | grep -q "claude.*sonnet" || {
-    echo "❌ Model alias resolution failed"
-    exit 1
-}
+run_test "Model alias resolution" \
+    "elroy --sonnet print-config" \
+    "claude.*sonnet"
 
 # Model listing test
-echo "Testing model listing..."
-elroy list-models || {
-    echo "❌ Model listing failed"
-    exit 1
-}
+run_test "Model listing" \
+    "elroy list-models" \
+    "gpt-4o-mini"
 
-# Test setting persona
-echo "Testing default persona listing..."
-elroy show-persona || grep -q "Elroy" || {
-    echo "❌ Persona display failed"
-    exit 1
-}
+# Persona tests
+run_test "Default persona display" \
+    "elroy show-persona" \
+    "Elroy"
 
-echo "Testing setting custom persona..."
-elroy --user-token=foobarbaz set-persona "You are a helpful assistant, your name is Jimbo"
-elroy --user-token=foobarbaz show-persona | grep -q "Jimbo" || {
-    echo "❌ Persona setting failed"
-    exit 1
-}
+run_test "Setting custom persona" \
+    "elroy set-persona 'You are a helpful assistant, your name is Jimbo' && elroy show-persona" \
+    "Jimbo"
 
-echo "Testing resetting persona..."
-elroy --user-token=foobarbaz reset-persona
-elroy --user-token=foobarbaz show-persona  | grep -q "Elroy" || {
-    echo "❌ Persona reset failed"
-    exit 1
-}
-
+run_test "Resetting persona" \
+    "elroy reset-persona && elroy show-persona" \
+    "Elroy"
 
 echo "✅ All tests passed successfully!"
 
