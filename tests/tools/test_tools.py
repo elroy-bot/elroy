@@ -2,6 +2,7 @@ import json
 
 import pytest
 from tests.fixtures.custom_tools import (
+    get_game_info,
     get_user_token_first_letter,
     netflix_show_fetcher,
 )
@@ -120,6 +121,12 @@ def test_custom_tool(ctx: ElroyContext):
 def test_langchain_tool(ctx: ElroyContext):
     ctx.tool_registry.register(get_user_token_first_letter)
     process_test_message(ctx, "Please use your function to fetch the first letter of the user's token.")
+
+
+def test_base_model_tool(ctx: ElroyContext):
+    ctx.tool_registry.register(get_game_info)
+
+    process_test_message(ctx, "Please use your function to fetch the game info.")
 
 
 def _missing_tool_message(ctx: ElroyContext):

@@ -1,3 +1,5 @@
+from pydantic.main import BaseModel
+
 from elroy.config.constants import tool
 from elroy.config.ctx import ElroyContext
 
@@ -36,3 +38,26 @@ def get_user_token_first_letter(ctx: ElroyContext):
         str: The first letter of the user's name
     """
     return ctx.user_token[0]
+
+
+class GameInfo(BaseModel):
+    name: str
+    genre: str
+    rating: float
+
+
+class GameInfoResponse(BaseModel):
+    result: str
+
+
+@tool
+def get_game_info(game: GameInfo) -> GameInfoResponse:
+    """Get information about a game.
+
+    Args:
+        game (GameInfo): The game to get information about.
+
+    Returns:
+        GameInfoResponse: The information about the game.
+    """
+    return GameInfoResponse(result=f"The game {game.name} is a {game.genre} game with a rating of {game.rating}.")

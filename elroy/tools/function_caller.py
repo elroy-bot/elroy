@@ -18,6 +18,7 @@ from typing import (
 )
 
 from docstring_parser import parse
+from pydantic import BaseModel
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
@@ -134,18 +135,56 @@ class ToolRegistry:
         return len(self.tools)
 
 
-def get_json_type(py_type: Type) -> str:
+def _pydantic_to_openai_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively clean a schema dictionary to match OpenAI's expected format."""
+    if not isinstance(schema, dict):
+        return schema
+
+    clean = {}
+    # Always include type if present
+    if "type" in schema:
+        clean["type"] = schema["type"]
+
+    # Include description if present
+    if "description" in schema:
+        clean["description"] = schema["description"]
+
+    # Recursively clean nested properties
+    if "properties" in schema:
+        clean["properties"] = {k: _pydantic_to_openai_schema(v) for k, v in schema["properties"].items()}
+
+    # Include required fields if present
+    if "required" in schema:
+        clean["required"] = schema["required"]
+
+    # Recursively clean array items
+    if "items" in schema:
+        clean["items"] = _pydantic_to_openai_schema(schema["items"])
+
+    return clean
+
+
+def get_json_type(py_type: Type) -> Union[str, Dict[str, Any]]:
     """
-    Returns a string representing the JSON type, and bool indicating if it is required.
+    Returns either:
+    - A string representing the JSON type for primitive types
+    - A dict containing the full schema for Pydantic models
     """
     if py_type in PY_TO_JSON_TYPE:
         return PY_TO_JSON_TYPE[py_type]
+
     if get_origin(py_type) is Union:
         args = get_args(py_type)
         if type(None) in args:  # This is an Optional type
             non_none_args = [arg for arg in args if arg is not type(None)]
             if len(non_none_args) == 1:
-                return PY_TO_JSON_TYPE[non_none_args[0]]
+                return get_json_type(non_none_args[0])
+
+    if isinstance(py_type, type) and issubclass(py_type, BaseModel):
+        schema = py_type.model_json_schema()
+        cleaned = _pydantic_to_openai_schema(schema)
+        return cleaned.get("properties", {})
+
     raise ValueError(f"Unsupported type: {py_type}")
 
 
@@ -240,15 +279,29 @@ def get_function_schema(function: Callable) -> Dict:
         map(
             lambda _: [
                 _.name,
-                {"type": get_json_type(_.type) if _.type != inspect.Parameter.empty else "string", "description": _.docstring},
+                {
+                    **(
+                        {"type": "string"}
+                        if _.type == inspect.Parameter.empty
+                        else (
+                            {"type": "object", "properties": get_json_type(_.type)}
+                            if isinstance(_.type, type) and issubclass(_.type, BaseModel)
+                            else {"type": get_json_type(_.type)}
+                        )
+                    ),
+                    "description": _.docstring,
+                },
             ]
         ),
         dict,
         lambda d: {
             "name": function.__name__,
             "description": description,
-            "parameters": {"type": "object", "properties": d},
-            "required": [p.name for p in properties if not p.optional],  # type: ignore
+            "parameters": {
+                "type": "object",
+                "properties": d,
+                "required": [p.name for p in properties if not p.optional],  # type: ignore
+            },
         },
         lambda d: {"type": "function", "function": d},
     )
