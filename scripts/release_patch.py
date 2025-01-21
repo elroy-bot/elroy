@@ -99,6 +99,7 @@ def check_local_tag(errors: Errors):
 
 
 def validate_docker_build(errors: Errors):
+    print("Validating docker build...")
     try:
         # Build docker image
         subprocess.run(["docker", "compose", "build", "--no-cache"], check=True)
@@ -121,6 +122,7 @@ def validate_docker_build(errors: Errors):
 
 def run_tests(errors: Errors):
     """Run pytest with specified chat models and cache results"""
+    print("Running tests...")
     # Get current HEAD SHA
     head_sha = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
 
@@ -153,6 +155,7 @@ def run_tests(errors: Errors):
 
 
 def update_schema_doc():
+    print("Updating schema documentation...")
     # Get the repository root directory
     schema_md_path = os.path.join(REPO_ROOT, "docs", "tools_schema.md")
 
@@ -177,6 +180,7 @@ def update_schema_doc():
 
 def check_most_recent_changelog_consistent(errors: Errors):
     """Check that the most recent changelog version matches the current version"""
+    print("ensuring changelog is up to date")
     changelog_path = os.path.join(REPO_ROOT, "CHANGELOG.md")
 
     try:
@@ -262,6 +266,7 @@ if __name__ == "__main__":
             print(message)
         sys.exit(1)
     else:
+        exit()
         print("Done")
 
     # checkout branch for new release
