@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.62] - 2025-01-21
+
+### Added
+- Support for custom user-defined tools
+- Stream internal thought output
+- Option to show sensitive values in print-config command
+
+### Fixed
+- Improved timezone handling in login messages
+- More robust tool calling
+- Fixed print-config functionality
+
 ## [0.0.61] - 2025-01-10
 
 ### Fixed

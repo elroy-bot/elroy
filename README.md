@@ -130,21 +130,46 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 These commands can be run directly from your terminal:
 
 - `elroy chat` - Opens an interactive chat session (default command)
-- `elroy message` - Process a single message and exit
-- `elroy remember` - Create a new memory from text or interactively
+- `elroy message TEXT` - Process a single message and exit
+  - Usage: `elroy message "Your message" [--tool TOOL_NAME]`
+  - Example: `elroy message "Create a goal" --tool create_goal`
+
+- `elroy remember [TEXT]` - Create a new memory from text or interactively
+  - Usage: `elroy remember "Memory text"` or just `elroy remember` for interactive mode
+  - Examples:
+    - Interactive: `elroy remember` then type your memory
+    - Direct: `elroy remember "Important meeting notes"`
+    - From file: `cat notes.txt | elroy remember`
+
 - `elroy list-models` - Lists supported chat models and exits
 - `elroy print-config` - Shows current configuration and exits
+  - `elroy print-config --show-secrets` to include API keys
+  - Shows:
+    - Current model settings
+    - Database configuration
+    - Memory management settings
+    - Context management settings
+
 - `elroy version` - Show version and exit
-- `elroy set-persona` - Set a custom persona for the assistant
+
+- `elroy set-persona TEXT` - Set a custom persona for the assistant
+  - Example: `elroy set-persona "You are a helpful coding assistant"`
 - `elroy reset-persona` - Removes any custom persona, reverting to the default
 - `elroy show-persona` - Print the system persona and exit
-- `elroy help` - Show help information and all available options
+- `elroy print-tools` - Display available tools and their schemas
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
 
 The chat interface accepts input from stdin, so you can pipe text to Elroy:
 ```bash
+# Process a single question
 echo "What is 2+2?" | elroy chat
+
+# Create a memory from file content
+cat meeting_notes.txt | elroy remember
+
+# Use a specific tool with piped input
+echo "Buy groceries" | elroy message --tool create_goal
 ```
 
 ### In-Chat Commands
@@ -165,36 +190,37 @@ These commands can only be used by human users:
 These commands can be used by both users and Elroy:
 
 ##### Goal Management
-- `/create_goal` - Create a new goal
-- `/rename_goal` - Rename an existing goal
-- `/print_goal` - View details of a specific goal
-- `/add_goal_to_current_context` - Add a goal to current conversation
+- `/create_goal` - Create a new goal with name, description and optional deadline
+- `/rename_goal` - Rename an existing goal while preserving its history
+- `/print_goal` - View details of a specific goal including status updates
+- `/add_goal_to_current_context` - Add a goal to current conversation for focused discussion
 - `/drop_goal_from_current_context` - Remove goal from current conversation
-- `/add_goal_status_update` - Update goal progress
-- `/mark_goal_completed` - Mark a goal as complete
-- `/delete_goal_permanently` - Delete a goal
-- `/get_active_goal_names` - List all active goals
+- `/add_goal_status_update` - Update goal progress with new status information
+- `/mark_goal_completed` - Mark a goal as complete with final status
+- `/delete_goal_permanently` - Permanently delete a goal and its history
+- `/get_active_goal_names` - List all currently active goals
 
 ##### Memory Management
-- `/create_memory` - Create a new memory from text
-- `/print_memory` - View a specific memory
-- `/add_memory_to_current_context` - Add a memory to current conversation
+- `/create_memory` - Create a new long-term memory from text
+- `/print_memory` - View a specific memory's full content
+- `/add_memory_to_current_context` - Add a memory to current conversation for reference
 - `/drop_memory_from_current_context` - Remove memory from current conversation
 
 ##### Reflection & Contemplation
 - `/contemplate [prompt]` - Ask Elroy to reflect on the conversation or a specific topic
+- `/add_internal_thought` - Add a guiding thought to influence assistant's reasoning
 
 ##### User Preferences
-- `/get_user_full_name` - Get your full name
-- `/set_user_full_name` - Set your full name
-- `/get_user_preferred_name` - Get your preferred name
-- `/set_user_preferred_name` - Set your preferred name
+- `/get_user_full_name` - Get your stored full name
+- `/set_user_full_name` - Set your full name for personalization
+- `/get_user_preferred_name` - Get your stored preferred name/nickname
+- `/set_user_preferred_name` - Set your preferred name for casual interaction
 - `/set_assistant_name` - Set a custom name for the assistant
 
 ##### Development Tools
-- `/tail_elroy_logs` - View Elroy's log output
-- `/print_config` - Display current configuration
-- `/create_bug_report` - Create a bug report with current context
+- `/tail_elroy_logs` - View Elroy's log output for debugging
+- `/print_config` - Display current configuration settings
+- `/create_bug_report` - Create a detailed bug report with current context
 - `/make_coding_edit` - Make changes to code files in the current repository
 
 Note: All these commands can be used with a leading slash (/) in the chat interface. The assistant uses these commands without the slash when helping you.
