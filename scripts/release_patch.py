@@ -265,9 +265,6 @@ if __name__ == "__main__":
         for message in errors.messages:
             print(message)
         sys.exit(1)
-    else:
-        exit()
-        print("Done")
 
     # checkout branch for new release
     subprocess.run(["git", "checkout", "-b", f"release-{NEXT_PATCH}"], check=True)
