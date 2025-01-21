@@ -1,6 +1,6 @@
-import pytest
 from tests.utils import process_test_message, quiz_assistant_bool
 
+from elroy.cli.chat import _get_in_context_memories
 from elroy.db.db_models import Goal
 from elroy.repository.embeddable import is_in_context
 from elroy.repository.goals.operations import (
@@ -13,10 +13,21 @@ from elroy.repository.message import get_context_messages
 from elroy.system_commands import reset_messages
 
 
-@pytest.mark.skip("TODO")
 def test_assistant_goal_in_context(ctx):
     # Verify that when a goal is created by assistant, it is in context, when marked complete, it disappears
-    pass
+    process_test_message(ctx, "I ran a marathon today, please create a memory")
+
+    assert any(
+        "marathon" in title.lower() for title in _get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Memory")
+    ), "Marathon memory not found in context"
+    process_test_message(ctx, "Please create a new goal for me: Run a second marathon")
+    assert any(
+        "marathon" in title.lower() for title in _get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Goal")
+    ), "Marathon goal not found in context"
+    process_test_message(ctx, "I ran a second marathon today, please mark my goal complete")
+    assert not any(
+        "marathon" in title.lower() for title in _get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Goal")
+    ), "Marathon goal still in context"
 
 
 def test_goal(ctx):

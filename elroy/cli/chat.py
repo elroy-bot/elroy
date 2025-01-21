@@ -5,7 +5,7 @@ import traceback
 from datetime import timedelta
 from functools import partial
 from operator import add
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
 
 from colorama import init
 from toolz import concat, pipe, unique
@@ -106,10 +106,8 @@ async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str)
         ctx.io.print_stream(process_message(role, ctx, user_input))
 
 
-def print_memory_panel(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
-    io = ctx.io
-    assert isinstance(io, CliIO)
-    pipe(
+def _get_in_context_memories(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> List[str]:
+    return pipe(
         context_messages,
         filter(lambda m: not m.created_at or m.created_at > get_utc_now() - ctx.max_in_context_message_age),
         map(lambda m: m.memory_metadata),
@@ -119,6 +117,15 @@ def print_memory_panel(ctx: ElroyContext, context_messages: Iterable[ContextMess
         unique,
         list,
         sorted,
+    )  # type: ignore
+
+
+def print_memory_panel(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
+    io = ctx.io
+    assert isinstance(io, CliIO)
+    pipe(
+        context_messages,
+        partial(_get_in_context_memories, ctx),
         io.print_memory_panel,
     )
 
