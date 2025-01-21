@@ -29,6 +29,7 @@ def augment_with_memory(elroy: Elroy, instruction: str) -> str:
 
 def make_edit(elroy: Elroy, instruction: str, rw_files: List[str], ro_files: List[str] = []) -> None:
     memory_augmented_instructions = augment_with_memory(elroy, instruction)
+    os.chdir(WORKING_DIR)
 
     Coder.create(
         main_model=Model("o1-preview"),
