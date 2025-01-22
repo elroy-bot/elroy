@@ -10,6 +10,7 @@ from .config.ctx import ElroyContext
 from .llm.persona import get_persona as do_get_persona
 from .llm.stream_parser import AssistantInternalThought
 from .messaging.messenger import process_message
+from .repository.memories.consolidation import consolidate_memories
 from .repository.memories.operations import create_memory
 from .tools.user_preferences import set_assistant_name, set_persona
 
@@ -77,3 +78,7 @@ class Elroy:
     @db
     def get_persona(self) -> str:
         return do_get_persona(self.ctx)
+
+    @db
+    def consolidate(self) -> None:
+        consolidate_memories(self.ctx)

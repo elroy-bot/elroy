@@ -14,6 +14,7 @@ from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
 from ..logging_config import setup_logging
+from ..repository.memories.consolidation import consolidate_memories
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
 from ..system_commands import query_memory
@@ -487,6 +488,15 @@ def show_persona(typer_ctx: typer.Context):
     ctx = get_ctx(typer_ctx)
     with ctx.dbsession():
         print(get_persona(ctx))
+        raise typer.Exit()
+
+
+@app.command(name="consolidate")
+def consolidate(typer_ctx: typer.Context):
+    """Consolidate memories and exit."""
+    ctx = get_ctx(typer_ctx)
+    with ctx.dbsession():
+        consolidate_memories(ctx)
         raise typer.Exit()
 
 
