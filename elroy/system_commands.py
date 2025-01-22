@@ -13,7 +13,7 @@ from toolz.curried import map
 from .config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
 from .config.ctx import ElroyContext
 from .db.db_models import Goal, Memory
-from .llm import client
+from .llm.client import get_embedding, query_llm
 from .llm.prompts import contemplate_prompt
 from .messaging.context import (
     add_goal_to_current_context,
@@ -296,10 +296,10 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
 
     msgs_input = format_context_messages(context_messages, user_preferred_name)
 
-    response = client.query_llm(
+    response = query_llm(
+        model=ctx.chat_model,
         prompt=msgs_input,
         system=contemplate_prompt(user_preferred_name, contemplation_prompt),
-        model=ctx.chat_model,
     )
 
     add_context_messages(
@@ -316,6 +316,66 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
     ctx.io.internal_thought(response)
 
     return response
+
+
+@tool
+def query_memory(ctx: ElroyContext, query: str) -> str:
+    """Search through memories and goals using semantic search.
+
+    Args:
+        ctx (ElroyContext): context obj
+        query (str): The search query text
+
+    Returns:
+        str: The answer to the query based on memories and goals.
+    """
+    # Get query embedding
+    query_embedding = get_embedding(ctx.embedding_model, query)
+
+    # Search memories and goals
+    relevant_memories = [
+        memory
+        for memory in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Memory, ctx.user_id, query_embedding)
+        if isinstance(memory, Memory)
+    ]
+
+    relevant_goals = [
+        goal
+        for goal in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Goal, ctx.user_id, query_embedding)
+        if isinstance(goal, Goal)
+    ]
+
+    # Format context for LLM
+    context_parts = []
+    if relevant_memories:
+        context_parts.append("Relevant memories:")
+        for memory in relevant_memories:
+            context_parts.append(f"- {memory.name}: {memory.text}")
+
+    if relevant_goals:
+        if context_parts:
+            context_parts.append("\n")
+        context_parts.append("Relevant goals:")
+        for goal in relevant_goals:
+            context_parts.append(f"- {goal.name}: {goal.to_fact()}")
+
+    if not context_parts:
+        return "No relevant memories or goals found."
+
+    context = "\n".join(context_parts)
+
+    # Generate response using LLM
+    system_prompt = """You are an AI assistant helping to answer questions based on retrieved memories and goals.
+Your task is to analyze the provided context and answer the user's query thoughtfully.
+Base your response entirely on the provided context. If the context doesn't contain relevant information, say so.
+Answer the question directly, short and concise. Do not say things like "based on the current context", just answer straightforwardly.
+"""
+
+    return query_llm(
+        model=ctx.chat_model,
+        system=system_prompt,
+        prompt=f"Query: {query}\n\nContext:\n{context}\n\nPlease provide a thoughtful response to the query based on the above context.",
+    )
 
 
 def do_not_use() -> str:
@@ -360,6 +420,7 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     create_goal,
     create_memory,
     contemplate,
+    query_memory,
     get_user_full_name,
     set_user_full_name,
     get_user_preferred_name,

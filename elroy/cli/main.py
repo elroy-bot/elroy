@@ -16,6 +16,7 @@ from ..llm.persona import get_persona
 from ..logging_config import setup_logging
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
+from ..system_commands import query_memory
 from ..tools.developer import do_print_config
 from ..tools.user_preferences import reset_system_persona
 from ..tools.user_preferences import set_persona as do_set_persona
@@ -320,6 +321,17 @@ def chat(typer_ctx: typer.Context):
         else:
             message = sys.stdin.read()
             handle_message_stdio(ctx, StdIO(), message, None)
+
+
+@app.command(name="query")
+def query(
+    typer_ctx: typer.Context,
+    prompt: str = typer.Argument(..., help="The prompt to query the Elroy with"),
+):
+    """Searches memory with the given prompt, returns the response."""
+    ctx = get_ctx(typer_ctx)
+    with ctx.dbsession():
+        ctx.io.print(query_memory(ctx, prompt))
 
 
 @app.command(name="message")
