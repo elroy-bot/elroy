@@ -35,11 +35,14 @@ class Elroy:
         config_path: Optional[str] = None,
         persona: Optional[str] = None,
         assistant_name: Optional[str] = None,
+        database_url: Optional[str] = None,
     ):
+
         self.ctx = ElroyContext(
             **get_resolved_params(
                 user_token=token,
                 config_path=config_path,
+                database_url=database_url,
             ),
         )
         with self.ctx.dbsession():

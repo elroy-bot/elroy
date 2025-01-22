@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 import yaml
-from toolz import merge, pipe
+from toolz import assoc, merge, pipe
 from toolz.curried import map, valfilter
 from typer import Option
 
 from ..config.config import DEFAULTS_CONFIG
 from ..config.models import resolve_anthropic
+from ..config.paths import get_default_sqlite_url
 
 
 def resolve_model_alias(alias: str) -> Optional[str]:
@@ -85,6 +86,7 @@ def get_resolved_params(**kwargs) -> Dict[str, Any]:
         ],
         map(valfilter(lambda x: x is not None)),
         merge,
+        lambda d: assoc(d, "database_url", get_default_sqlite_url()) if not d.get("database_url") else d,
     )  # type: ignore
 
 
