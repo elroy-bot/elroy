@@ -90,7 +90,6 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
             "Context Refresh Trigger Tokens": ctx.context_refresh_trigger_tokens,
             "Context Refresh Target Tokens": ctx.context_refresh_target_tokens,
             "Max Context Age (minutes)": ctx.params.max_context_age_minutes,
-            "Context Refresh Interval (minutes)": ctx.params.context_refresh_interval_minutes,
         },
         "Memory Management": {
             "Memory Cluster Similarity": ctx.memory_cluster_similarity_threshold,

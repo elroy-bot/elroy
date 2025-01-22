@@ -1,47 +1,20 @@
 import asyncio
-import logging
 from datetime import datetime
 
 from pytz import UTC
 from sqlmodel import select
 
 from ..config.constants import USER
-from ..config.ctx import ElroyContext, clone_ctx_with_db
+from ..config.ctx import ElroyContext
 from ..db.db_models import Message
-from ..messaging.context import context_refresh
+from ..messaging.context import context_refresh, is_context_refresh_needed
 from ..tools.user_preferences import get_user_preferred_name
 from ..utils.utils import datetime_to_string
 
 
-def periodic_context_refresh(ctx: ElroyContext):
-    """Run context refresh in a background thread"""
-    # Create new event loop for this thread
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    async def refresh_loop(ctx: ElroyContext):
-        logging.info(f"Pausing for initial context refresh wait of {ctx.initial_refresh_wait}")
-        await asyncio.sleep(ctx.initial_refresh_wait.total_seconds())
-        while True:
-            try:
-                logging.info("Refreshing context")
-                await context_refresh(ctx)  # Keep this async
-                logging.info(f"Wait for {ctx.context_refresh_interval} before next context refresh")
-                await asyncio.sleep(ctx.context_refresh_interval.total_seconds())
-            except Exception as e:
-                logging.error(f"Error in periodic context refresh: {e}")
-                ctx.db.rollback()
-
-                if ctx.debug:
-                    raise e
-
-    try:
-        # hack to get a new session for the thread
-        with ctx.db.get_new_session() as db:
-            new_ctx = clone_ctx_with_db(ctx, db)
-            loop.run_until_complete(refresh_loop(new_ctx))
-    finally:
-        loop.close()
+def refresh_context_if_needed(ctx: ElroyContext):
+    if is_context_refresh_needed(ctx):
+        asyncio.run(context_refresh(ctx))
 
 
 def get_user_logged_in_message(ctx: ElroyContext) -> str:

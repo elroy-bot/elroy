@@ -34,7 +34,7 @@ from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
 from .commands import invoke_system_command
 from .config import onboard_user_non_interactive
-from .context import get_user_logged_in_message, periodic_context_refresh
+from .context import get_user_logged_in_message, refresh_context_if_needed
 
 
 def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
@@ -52,7 +52,6 @@ async def run_chat(ctx: ElroyContext):
     init(autoreset=True)
     io = ctx.io
     assert isinstance(io, CliIO)
-    run_in_background_thread(periodic_context_refresh, ctx)
 
     io.print_title_ruler()
     context_messages = validate(ctx, get_context_messages(ctx))
@@ -84,6 +83,7 @@ async def run_chat(ctx: ElroyContext):
         io.rule()
         context_messages = get_context_messages(ctx)
         print_memory_panel(ctx, context_messages)
+        run_in_background_thread(refresh_context_if_needed, ctx)
 
 
 async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str):
