@@ -359,12 +359,13 @@ Currently, UserFoo is focused on developing a web application using Python while
         content = "\n".join(current_content).strip()
         try:
             logging.info("Creating consolidated memory")
-            create_consolidated_memory(
+            new_id = create_consolidated_memory(
                 ctx=ctx,
                 name=current_title,
                 text=content,
                 sources=cluster.memories,
             )
+            new_ids.append(new_id)
         except Exception as e:
             logging.warning(f"Failed to create memory '{current_title}': {e}")
 
