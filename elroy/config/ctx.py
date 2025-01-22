@@ -55,7 +55,6 @@ class ElroyContext:
         context_refresh_trigger_tokens: int,
         context_refresh_target_tokens: int,
         max_context_age_minutes: float,
-        context_refresh_interval_minutes: float,
         min_convo_age_for_greeting_minutes: float,
         enable_assistant_greeting: bool,
         initial_context_refresh_wait_seconds: int,
@@ -106,10 +105,6 @@ class ElroyContext:
             return Path(self.params.config_path)
         else:
             return get_default_config_path()
-
-    @property
-    def context_refresh_interval(self) -> timedelta:
-        return timedelta(minutes=self.params.context_refresh_interval_minutes)
 
     @property
     def initial_refresh_wait(self) -> timedelta:

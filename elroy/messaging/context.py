@@ -30,7 +30,6 @@ from ..repository.embeddable import (
 from ..repository.memories.operations import formulate_memory
 from ..repository.message import (
     get_context_messages,
-    get_time_since_context_message_creation,
     is_system_instruction,
     replace_context_messages,
 )
@@ -135,9 +134,8 @@ def is_context_refresh_needed(ctx: ElroyContext) -> bool:
 
     token_count = pipe(
         context_messages,
-        map(lambda _: _.content),
-        remove(lambda _: _ is None),
-        map(count_tokens),
+        remove(lambda _: _.content is None),
+        map(partial(count_tokens, ctx.chat_model.name)),
         lambda seq: reduce(add, seq, 0),
     )
     assert isinstance(token_count, int)
@@ -147,16 +145,7 @@ def is_context_refresh_needed(ctx: ElroyContext) -> bool:
         return True
     else:
         logging.info(f"Token count {token_count} does not exceed threshold {ctx.context_refresh_trigger_tokens}")
-
-    elapsed_time = get_time_since_context_message_creation(ctx)
-    threshold = ctx.context_refresh_interval
-    if not elapsed_time or elapsed_time > threshold:
-        logging.info(f"Context watermark age {elapsed_time} exceeds threshold {threshold}")
-        return True
-    else:
-        logging.info(f"Context watermark age {elapsed_time} is below threshold {threshold}")
-
-    return False
+        return False
 
 
 def compress_context_messages(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
