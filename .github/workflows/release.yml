@@ -135,7 +135,7 @@ jobs:
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
         echo "Waiting for elroy version $VERSION to appear on PyPI..."
-        while ! pip index versions elroy 2>/dev/null | grep -q "^elroy ($VERSION)$"; do
+        while ! pip index versions elroy 2>/dev/null | grep -q "^elroy $VERSION"; do
           echo "Package not found yet, waiting 15 seconds..."
           sleep 15
         done
