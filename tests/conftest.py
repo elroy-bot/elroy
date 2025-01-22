@@ -196,7 +196,6 @@ def user_token() -> Generator[str, None, None]:
 @pytest.fixture(scope="function")
 def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext for testing, using the same defaults as the CLI"""
-
     params = get_resolved_params(
         user_token=user_token,
         database_url=db.url,
