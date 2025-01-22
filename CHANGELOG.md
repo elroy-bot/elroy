@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.63] - 2025-01-22
+
+### Fixed
+- Improved release script reliability and deployment consistency
+
 ## [0.0.62] - 2025-01-21
 
 ### Added
