@@ -211,6 +211,9 @@ def format_context_messages(context_messages: List[ContextMessage], user_preferr
     return (
         pipe(
             context_messages,
+            filter(
+                lambda _: _.content or _.tool_calls or _.role != ASSISTANT
+            ),  # TODO: Determine why these messages are making it into context
             map(lambda msg: format_message(msg, user_preferred_name)),
             concat,
             list,

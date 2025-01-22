@@ -1,4 +1,6 @@
 import json
+import logging
+import traceback
 from dataclasses import asdict
 from datetime import timedelta
 from functools import partial
@@ -109,7 +111,7 @@ def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMe
         context_messages,
         filter(lambda x: x.role == USER),
         last_or_none,
-        lambda x: get_utc_now() - x.created_at if x else None,
+        lambda x: (get_utc_now() - x.created_at) if x else None,
     )  # type: ignore
 
 
@@ -120,7 +122,9 @@ def get_context_messages(ctx: ElroyContext) -> List[ContextMessage]:
 def persist_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> List[int]:
     msg_ids = []
     for msg in messages:
-        if msg.id:
+        if not msg.content and not msg.tool_calls:
+            logging.error(f"Skipping message with no content or tool calls: {msg}\n{traceback.format_exc()}")
+        elif msg.id:
             msg_ids.append(msg.id)
         else:
             db_message = context_message_to_db_message(ctx.user_id, msg)
