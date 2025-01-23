@@ -11,7 +11,7 @@ from colorama import init
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
 
-from ..config.constants import SYSTEM, USER
+from ..config.constants import SYSTEM, USER, RecoverableToolError
 from ..config.ctx import ElroyContext
 from ..io.base import StdIO
 from ..io.cli import CliIO
@@ -28,7 +28,6 @@ from ..repository.message import (
     replace_context_messages,
 )
 from ..repository.user import is_user_exists
-from ..system_commands import SYSTEM_COMMANDS
 from ..tools.user_preferences import get_user_preferred_name, set_user_preferred_name
 from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
@@ -88,24 +87,21 @@ async def run_chat(ctx: ElroyContext):
 
 async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str):
     if user_input.startswith("/") and role == USER:
-        cmd = user_input[1:].split()[0]
-
-        if cmd.lower() not in {f.__name__ for f in SYSTEM_COMMANDS}:
-            ctx.io.info(f"Unknown command: {cmd}")
-        else:
-            try:
-                result = await invoke_system_command(ctx, user_input)
-                if result:
-                    ctx.io.info(result)
-            except Exception as e:
-                pipe(
-                    traceback.format_exception(type(e), e, e.__traceback__),
-                    "".join,
-                    html.escape,
-                    lambda x: x.replace("\n", "<br/>"),
-                    partial(add, "Error invoking system command: "),
-                    ctx.io.info,
-                )
+        try:
+            result = await invoke_system_command(ctx, user_input)
+            if result:
+                ctx.io.info(result)
+        except RecoverableToolError as e:
+            ctx.io.info(str(e))
+        except Exception as e:
+            pipe(
+                traceback.format_exception(type(e), e, e.__traceback__),
+                "".join,
+                html.escape,
+                lambda x: x.replace("\n", "<br/>"),
+                partial(add, "Error invoking system command: "),
+                ctx.io.info,
+            )
     else:
         ctx.io.print_stream(process_message(role, ctx, user_input))
 
