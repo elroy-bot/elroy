@@ -47,7 +47,9 @@ def augment_with_memory(elroy: Elroy, instruction: str) -> str:
 
 
 def make_edit(elroy: Elroy, instruction: str, rw_files: List[str], ro_files: List[str] = []) -> None:
+    print(f"# Original instruction:\n{instruction}")
     memory_augmented_instructions = augment_with_memory(elroy, instruction)
+    print(f"# Memory Augmented instruction:\n{instruction}")
     os.chdir(REPO_ROOT)
 
     Coder.create(
@@ -57,22 +59,6 @@ def make_edit(elroy: Elroy, instruction: str, rw_files: List[str], ro_files: Lis
         io=InputOutput(yes=True),
         auto_commits=False,
     ).run(memory_augmented_instructions)
-
-
-def sync_help_and_readme(elroy: Elroy):
-    # Get git repo root
-
-    # Get commits since last release
-    help_output = subprocess.run(["elroy", "help"], capture_output=True, text=True).stdout.strip()
-
-    make_edit(
-        elroy,
-        f"""The following below text is the output of elroy --help.
-              Make any edits to README.md that would make the document more complete and accurate:
-
-              {help_output}""",
-        ["README.md"],
-    )
 
 
 # aider --file elroy/cli/main.py elroy/defaults.yml elroy/config/ctx.py --no-auto-commit -m '
@@ -90,12 +76,16 @@ These headings should also be present in ctx.py for the ElroyContext constructor
 
 
 def update_readme(elroy: Elroy):
+    help_output = subprocess.run(["elroy", "help"], capture_output=True, text=True).stdout.strip()
     make_edit(
         elroy,
-        instruction="""Review main.py, system_commands.py and README.md. Make any edits that would make the document more complete.
+        instruction=f"""Review main.py, system_commands.py and README.md. Make any edits that would make the document more complete.
 Pay particular attention to:
 - Ensuring all assistant tools are documented under the "## Available assistant and CLI Commands" section of the README. See system_commands.py for the list of available assistant/CLI tools.
-- Ensure the README accurately describes which models are supported by Elroy.
+- Ensure the README accurately lists which models are supported by Elroy.
+
+For reference, the output of elroy --help is as below:
+{help_output}
 
 Do NOT remove any links or gifs.""",
         rw_files=["README.md", "elroy/cli/main.py", "elroy/system_commands.py"],
@@ -379,11 +369,7 @@ if __name__ == "__main__":
     repo_root = os.popen("git rev-parse --show-toplevel").read().strip()
     os.chdir(repo_root)
 
-    sync_help_and_readme(elroy)
-
     next_tag = Version(__version__).next_patch()
-
-    sync_help_and_readme(elroy)
     sync_configuration_and_cli_ops(elroy)
     update_readme(elroy)
     update_changelog(elroy)
