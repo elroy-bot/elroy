@@ -6,7 +6,12 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from ...config.constants import SYSTEM, tool
+from ...config.constants import (
+    SYSTEM,
+    GoalAlreadyExistsError,
+    GoalDoesNotExistError,
+    tool,
+)
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal
 from ...messaging.context import drop_goal_from_current_context
@@ -54,7 +59,7 @@ def create_goal(
         )
     ).one_or_none()
     if existing_goal:
-        raise Exception(f"Active goal {goal_name} already exists for user {ctx.user_id}")
+        raise GoalAlreadyExistsError(goal_name)
     else:
         goal = Goal(
             user_id=ctx.user_id,
@@ -166,7 +171,7 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
     )
 
     if not goal:
-        raise Exception(f"Active goal {goal_name} not found for user. Active goals: " + ", ".join([g.name for g in active_goals]))
+        raise GoalDoesNotExistError(goal_name, [g.name for g in active_goals])
     assert isinstance(goal, Goal)
 
     logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")

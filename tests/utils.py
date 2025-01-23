@@ -1,7 +1,7 @@
 import logging
 import re
 from functools import partial
-from typing import List, Optional, Type, Union
+from typing import Any, List, Optional, Type, Union
 
 from rich.console import RenderableType
 from toolz import pipe
@@ -32,6 +32,7 @@ class TestCliIO(CliIO):
 
         self._user_responses: List[str] = []
         self._sys_messages: List[str] = []
+        self._warnings: List[Any] = []
 
     def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
         if isinstance(message, SystemMessage):
@@ -58,6 +59,10 @@ class TestCliIO(CliIO):
     def clear_responses(self) -> None:
         """Clear any remaining responses"""
         self._user_responses.clear()
+
+    def warning(self, message: Union[str, RenderableType]):
+        self._warnings.append(message)
+        super().warning(message)
 
     async def prompt_user(self, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0) -> str:
         """Override prompt_user to return queued responses"""
