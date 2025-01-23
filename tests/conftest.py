@@ -89,7 +89,11 @@ def db(
 
             yield db
     else:
-        url = pipe(tmp_path_factory.mktemp("data"), do(lambda x: x.mkdir(exist_ok=True)), lambda x: f"sqlite:///{x}/test.db")
+        url = pipe(
+            tmp_path_factory.mktemp("data"),
+            do(lambda x: x.mkdir(exist_ok=True)),
+            lambda x: f"sqlite:///{x}/test.db",
+        )
         with SqliteManager.open_session(url, True) as db:
             for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
                 db.exec(delete(table))  # type: ignore

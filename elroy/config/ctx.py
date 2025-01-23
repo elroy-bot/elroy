@@ -48,7 +48,6 @@ class ElroyContext:
         embedding_model: str,
         embedding_model_size: int,
         enable_caching: bool = True,
-        enable_tools: bool,
         inline_tool_calls: bool = False,
         # Context Management
         max_assistant_loops: int,
@@ -79,7 +78,6 @@ class ElroyContext:
         self.enable_assistant_greeting = enable_assistant_greeting
         self.debug = debug
         self.context_refresh_trigger_tokens = context_refresh_trigger_tokens
-        self.enable_tools = enable_tools
         self.max_assistant_loops = max_assistant_loops
         self.context_refresh_trigger_tokens = context_refresh_trigger_tokens
         self.l2_memory_relevance_distance_threshold = l2_memory_relevance_distance_threshold
