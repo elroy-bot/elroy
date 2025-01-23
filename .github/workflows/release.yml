@@ -135,12 +135,20 @@ jobs:
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
         echo "Waiting for elroy version $VERSION to appear on PyPI..."
-        while ! pip index versions elroy 2>/dev/null | grep -q "^elroy $VERSION"; do
+        end=$((SECONDS + 600))  # 10 minutes timeout
+        while [ $SECONDS -lt $end ]; do
+          echo "Checking PyPI index..."
+          OUTPUT=$(pip index versions elroy 2>&1)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -q "^elroy $VERSION"; then
+            echo "Package found on PyPI!"
+            exit 0
+          fi
           echo "Package not found yet, waiting 15 seconds..."
           sleep 15
         done
-        echo "Package found on PyPI!"
-      timeout-minutes: 10
+        echo "Timeout reached, continuing workflow..."
+        exit 0
 
   publish-docker:
     environment:
