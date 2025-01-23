@@ -184,6 +184,9 @@ These commands can only be used by human users:
 - `/reset_messages` - Reset conversation context
 - `/print_context_messages` - View current conversation context
 - `/add_internal_thought` - Insert an internal thought for the assistant
+- `/print_config` - Display current configuration settings
+- `/create_bug_report` - Create a detailed bug report with current context
+- `/set_assistant_name` - Set a custom name for the assistant
 - `/exit` - Exit the chat
 
 #### Assistant and User Commands
@@ -208,19 +211,15 @@ These commands can be used by both users and Elroy:
 
 ##### Reflection & Contemplation
 - `/contemplate [prompt]` - Ask Elroy to reflect on the conversation or a specific topic
-- `/add_internal_thought` - Add a guiding thought to influence assistant's reasoning
 
 ##### User Preferences
 - `/get_user_full_name` - Get your stored full name
 - `/set_user_full_name` - Set your full name for personalization
 - `/get_user_preferred_name` - Get your stored preferred name/nickname
 - `/set_user_preferred_name` - Set your preferred name for casual interaction
-- `/set_assistant_name` - Set a custom name for the assistant
 
 ##### Development Tools
 - `/tail_elroy_logs` - View Elroy's log output for debugging
-- `/print_config` - Display current configuration settings
-- `/create_bug_report` - Create a detailed bug report with current context
 - `/make_coding_edit` - Make changes to code files in the current repository
 
 Note: All these commands can be used with a leading slash (/) in the chat interface. The assistant uses these commands without the slash when helping you.
