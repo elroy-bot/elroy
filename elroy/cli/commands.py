@@ -4,6 +4,7 @@ from typing import Any, Optional, Union, get_args, get_origin
 from toolz import pipe
 from toolz.curried import map, valfilter
 
+from ..config.constants import RecoverableToolError
 from ..config.ctx import ElroyContext
 from ..io.cli import CliIO
 from ..system_commands import SYSTEM_COMMANDS
@@ -25,7 +26,7 @@ async def invoke_system_command(ctx: ElroyContext, msg: str) -> str:
     func = next((f for f in SYSTEM_COMMANDS if f.__name__ == command), None)
 
     if not func:
-        return f"Unknown command: {command}. Valid options are: {', '.join([f.__name__ for f in SYSTEM_COMMANDS])}"
+        raise RecoverableToolError(f"Invalid command: {command}. Use /help for a list of valid commands")
 
     params = list(signature(func).parameters.values())
 

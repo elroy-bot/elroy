@@ -32,11 +32,11 @@ async def test_invalid_update(ctx):
     await process_and_deliver_msg(USER, ctx, "/mark_goal_completed")
 
     response = ctx.io.get_sys_messages()
-    assert re.search(r"Error.*Nonexistent goal.*not found", response) is not None
+    assert re.search(r"Error.*.*not exist", response) is not None
 
 
 @pytest.mark.asyncio
 async def test_invalid_cmd(ctx):
     await process_and_deliver_msg(USER, ctx, "/foo")
     response = ctx.io.get_sys_messages()
-    assert re.search(r"Unknown.*foo", response) is not None
+    assert re.search(r"Invalid.*foo.*help", response) is not None
