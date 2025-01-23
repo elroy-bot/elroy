@@ -39,7 +39,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--db-type",
         action="store",
-        default="sqlite",
+        default="postgres",
         help="Database type to use for testing (postgres or sqlite)",
     )
 

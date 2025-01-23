@@ -13,6 +13,7 @@ from ..config.constants import (
     USER,
     MissingAssistantToolCallError,
     MissingToolCallMessageError,
+    RecoverableToolError,
 )
 from ..config.ctx import ElroyContext
 from ..db.db_models import FunctionCall
@@ -114,14 +115,15 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
         return f"Function {function_call.function_name} not found"
 
     try:
-        return pipe(
+        result = pipe(
             {"ctx": ctx} if "ctx" in function_to_call.__code__.co_varnames else {},
             lambda d: merge(function_call.arguments, d),
             lambda args: function_to_call.__call__(**args),
             lambda result: str(result) if result is not None else "Success",
-            do(lambda x: ctx.io.info(f"Function call result: {x}")),
-            str,
-        )  # type: ignore
+        )
+
+    except RecoverableToolError as e:
+        result = f"Tool error: {e}"
 
     except Exception as e:
         return pipe(
@@ -129,6 +131,9 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
             do(ctx.io.warning),
             ERROR_PREFIX.__add__,
         )
+    assert isinstance(result, str)
+    ctx.io.info(result)
+    return result
 
 
 def validate(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:

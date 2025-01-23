@@ -76,6 +76,20 @@ class MisplacedSystemInstructError(Exception):
     pass
 
 
+class RecoverableToolError(Exception):
+    """Exceptions in tool calls that the assistant can learn from and correct"""
+
+
+class GoalAlreadyExistsError(RecoverableToolError):
+    def __init__(self, goal_name: str):
+        super().__init__(f"Goal with name '{goal_name}' already exists")
+
+
+class GoalDoesNotExistError(RecoverableToolError):
+    def __init__(self, goal_name: str, valid_goal_names: List[str]):
+        super().__init__(f"Goal with name '{goal_name}' does not exist. Valid goal names: {valid_goal_names}")
+
+
 class Provider(enum.Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"

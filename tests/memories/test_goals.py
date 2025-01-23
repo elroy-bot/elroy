@@ -114,3 +114,25 @@ def test_status_update_brings_into_context(ctx):
     process_test_message(ctx, "I ran 4 miles today. Please update my goal: Run 100 miles this year")
 
     assert is_in_context(get_context_messages(ctx), goal)
+
+
+def test_duplicate_goal(ctx):
+    """The result should not raise an error, but should not create a duplicate goal."""
+    create_goal(ctx, "Run 100 miles this year")
+    remove_from_context(ctx, get_goal_by_name(ctx, "Run 100 miles this year"))  # type: ignore
+
+    process_test_message(
+        ctx,
+        "Create a new goal for me: 'Run 100 miles this year.' I will get to my goal by running 10 miles a week. Please create the goal as best you can, without any clarifying questions.",
+    )
+
+    quiz_assistant_bool(True, ctx, "Did the goal I asked you to create already exist?")
+
+    assert not ctx.io._warnings
+
+
+def test_update_nonexistent_goal(ctx):
+    process_test_message(ctx, "I ran 4 miles today. Please update my goal: Run 100 miles this year")
+    quiz_assistant_bool(False, ctx, "Did the goal I asked you to update already exist?")
+
+    assert not ctx.io._warnings
