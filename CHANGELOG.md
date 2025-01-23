@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.64] - 2025-01-23
+
+### Fixed
+- Improved error recovery and differentiation in toolkit
+- --inline-tools option for models that do not natively support tool calls.
+
+### Updates
+- Context refresh is now based on context token counts, rather than wall clock time
+
 ## [0.0.63] - 2025-01-22
 
 ### Fixed

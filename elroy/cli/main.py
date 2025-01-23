@@ -48,7 +48,7 @@ def common(
         get_default_config_path(),
         "--config",
         envvar="ELROY_CONFIG_FILE",
-        help="Path to YAML configuration file. Values override defaults but are overridden by explicit flags or environment variables.",
+        help="YAML config file path. Values override defaults but are overridden by CLI flags and environment variables.",
         rich_help_panel="Basic Configuration",
     ),
     default_assistant_name: str = ElroyOption(
@@ -58,7 +58,7 @@ def common(
     ),
     debug: bool = ElroyOption(
         "debug",
-        help="Whether to fail fast when errors occur, and emit more verbose logging.",
+        help="Enable fail-fast error handling and verbose logging output.",
         rich_help_panel="Basic Configuration",
     ),
     user_token: str = ElroyOption(
