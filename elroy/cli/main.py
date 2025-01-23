@@ -1,11 +1,14 @@
 import asyncio
+import json
 import logging
 import sys
 from bdb import BdbQuit
 from datetime import datetime
+from functools import partial
 from typing import List, Optional
 
 import typer
+from toolz import pipe
 
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext, get_ctx
@@ -14,6 +17,7 @@ from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
 from ..logging_config import setup_logging
+from ..mcp.config import get_mcp_config
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
 from ..tools.developer import do_print_config
@@ -466,6 +470,29 @@ def show_persona(typer_ctx: typer.Context):
     with ctx.dbsession():
         print(get_persona(ctx))
         raise typer.Exit()
+
+
+mcp_app = typer.Typer(help="MCP server commands")
+app.add_typer(mcp_app, name="mcp")
+
+
+@mcp_app.command(name="print-config")
+def mcp_print_config(
+    typer_ctx: typer.Context,
+    local: bool = typer.Option(
+        False,
+        "--local",
+        help="Print config using the same instance of Elroy running this command",
+    ),
+):
+    """Print MCP server configuration to stdout"""
+    pipe(
+        typer_ctx,
+        get_ctx,
+        partial(get_mcp_config, local),
+        lambda d: json.dumps(d, indent=2),
+        print,
+    )
 
 
 if __name__ == "__main__":

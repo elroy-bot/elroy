@@ -30,6 +30,7 @@ dependencies = [
     "sqlite-vec>=0.1.6",
     "scikit-learn>=1.6.0",
     "lock>=2018.3.25.2110",
+    "mcp",
 ]
 
 [project.optional-dependencies]
@@ -54,6 +55,7 @@ dev = [
 
 [project.scripts]
 elroy = "elroy.cli.main:app"
+elroy_mcp = "elroy.mcp.server:main"
 
 [tool.pyright]
 include = [
