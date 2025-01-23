@@ -112,11 +112,6 @@ def common(
         help="The model to use for chat completions.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    enable_tools: bool = ElroyOption(
-        "enable-tools",
-        help="Whether to enable tool calls for the assistant",
-        rich_help_panel="Basic Configuration",
-    ),
     inline_tool_calls: bool = ElroyOption(
         "inline_tool_calls",
         help="Whether to enable inline tool calls in the assistant (better for some open source models)",

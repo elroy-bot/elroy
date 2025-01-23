@@ -59,7 +59,7 @@ def process_message(
             chat_model=ctx.chat_model,
             context_messages=context_messages + new_msgs,
             tool_schemas=ctx.tool_registry.get_schemas(),
-            enable_tools=ctx.enable_tools and loops <= ctx.max_assistant_loops,
+            enable_tools=(not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,
             force_tool=force_tool,
         )
         for stream_chunk in stream.process():
