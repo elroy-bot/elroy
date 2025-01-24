@@ -15,6 +15,7 @@ from ..config.constants import SYSTEM, USER, RecoverableToolError
 from ..config.ctx import ElroyContext
 from ..io.base import StdIO
 from ..io.cli import CliIO
+from ..llm.persona import get_assistant_name
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from ..messaging.context import get_refreshed_system_message
 from ..messaging.messenger import process_message, validate
@@ -52,7 +53,7 @@ async def run_chat(ctx: ElroyContext):
     io = ctx.io
     assert isinstance(io, CliIO)
 
-    io.print_title_ruler()
+    io.print_title_ruler(get_assistant_name(ctx))
     context_messages = validate(ctx, get_context_messages(ctx))
 
     print_memory_panel(ctx, context_messages)

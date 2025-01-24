@@ -162,9 +162,9 @@ class CliIO(ElroyIO):
             panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
 
-    def print_title_ruler(self):
+    def print_title_ruler(self, assistant_name: str):
         self.console.rule(
-            Text("Elroy", justify="center", style=self.user_input_color),
+            Text(assistant_name, justify="center", style=self.user_input_color),
             style=self.user_input_color,
         )
 
