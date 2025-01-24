@@ -49,7 +49,7 @@ def augment_with_memory(elroy: Elroy, instruction: str) -> str:
 def make_edit(elroy: Elroy, instruction: str, rw_files: List[str], ro_files: List[str] = []) -> None:
     print(f"# Original instruction:\n{instruction}")
     memory_augmented_instructions = augment_with_memory(elroy, instruction)
-    print(f"# Memory Augmented instruction:\n{instruction}")
+    print(f"# Memory Augmented instruction:\n{memory_augmented_instructions}")
     os.chdir(REPO_ROOT)
 
     Coder.create(

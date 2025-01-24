@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.65] - 2025-01-24
+
+### Fixed
+- Resolved threading issues in sqlite for improved stability
+- Fixed tool calling schema injection for better reliability
+
+### Improved
+- Assistant name now displays correctly in title bar
+
 ## [0.0.64] - 2025-01-23
 
 ### Fixed
