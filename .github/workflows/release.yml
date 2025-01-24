@@ -139,8 +139,8 @@ jobs:
         while [ $SECONDS -lt $end ]; do
           echo "Checking PyPI index..."
           OUTPUT=$(pip index versions elroy 2>&1)
-          echo "$OUTPUT"
-          if echo "$OUTPUT" | grep -q "^elroy $VERSION"; then
+          echo "Checking PyPI index..."
+          if curl -s "https://pypi.org/pypi/elroy/json" | jq -e ".releases[\"$VERSION\"]" > /dev/null; then
             echo "Package found on PyPI!"
             exit 0
           fi
