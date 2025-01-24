@@ -117,12 +117,19 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 ### Supported Models
 
 #### Chat Models
-- OpenAI Models: GPT-4o (default), GPT-4o-mini, O1, O1-mini
-- Anthropic Models: Sonnet, Opus, Haiku
+- OpenAI Models: 
+  - GPT-4o (default)
+  - GPT-4o-mini
+  - O1
+  - O1-mini
+- Anthropic Models:
+  - Sonnet
+  - Opus
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible chat endpoints (via --openai-api-base)
 
 #### Embedding Models
-- OpenAI Models: text-embedding-3-small (default, 1536 dimensions)
+- OpenAI Models: 
+  - text-embedding-3-small (default, 1536 dimensions)
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
 
 
@@ -178,49 +185,49 @@ While chatting with Elroy, commands can be used by typing a forward slash (/) fo
 #### User-Only Commands
 These commands can only be used by human users:
 
-- `/help` - Show all available commands
-- `/print_system_instruction` - View current system instructions
-- `/refresh_system_instructions` - Refresh system instructions
-- `/reset_messages` - Reset conversation context
-- `/print_context_messages` - View current conversation context
-- `/add_internal_thought` - Insert an internal thought for the assistant
-- `/print_config` - Display current configuration settings
-- `/create_bug_report` - Create a detailed bug report with current context
-- `/set_assistant_name` - Set a custom name for the assistant
-- `/exit` - Exit the chat
+- `/help` - Show all available commands and their descriptions
+- `/print_system_instruction` - View the current system instructions that guide Elroy's behavior
+- `/refresh_system_instructions` - Refresh and update the system instructions
+- `/reset_messages` - Clear the conversation context and start fresh
+- `/print_context_messages` - Display the current conversation context and history
+- `/add_internal_thought` - Insert a guiding thought for the assistant's reasoning
+- `/print_config` - Show current configuration settings and parameters
+- `/create_bug_report` - Generate a detailed bug report with current context
+- `/set_assistant_name` - Customize the assistant's name
+- `/exit` - End the chat session
 
 #### Assistant and User Commands
 These commands can be used by both users and Elroy:
 
 ##### Goal Management
 - `/create_goal` - Create a new goal with name, description and optional deadline
-- `/rename_goal` - Rename an existing goal while preserving its history
-- `/print_goal` - View details of a specific goal including status updates
-- `/add_goal_to_current_context` - Add a goal to current conversation for focused discussion
-- `/drop_goal_from_current_context` - Remove goal from current conversation
-- `/add_goal_status_update` - Update goal progress with new status information
-- `/mark_goal_completed` - Mark a goal as complete with final status
-- `/delete_goal_permanently` - Permanently delete a goal and its history
-- `/get_active_goal_names` - List all currently active goals
+- `/rename_goal` - Change a goal's name while preserving its history and status
+- `/print_goal` - Display details of a specific goal including status updates
+- `/add_goal_to_current_context` - Include a goal in the current conversation
+- `/drop_goal_from_current_context` - Remove a goal from the current conversation
+- `/add_goal_status_update` - Add progress updates or notes to a goal
+- `/mark_goal_completed` - Mark a goal as finished with final status
+- `/delete_goal_permanently` - Remove a goal and its entire history
+- `/get_active_goal_names` - Show a list of all current active goals
 
 ##### Memory Management
-- `/create_memory` - Create a new long-term memory from text
-- `/print_memory` - View a specific memory's full content
-- `/add_memory_to_current_context` - Add a memory to current conversation for reference
-- `/drop_memory_from_current_context` - Remove memory from current conversation
+- `/create_memory` - Store new information as a long-term memory
+- `/print_memory` - Display a specific memory's complete content
+- `/add_memory_to_current_context` - Include a memory in the current conversation
+- `/drop_memory_from_current_context` - Remove a memory from the current conversation
 
 ##### Reflection & Contemplation
-- `/contemplate [prompt]` - Ask Elroy to reflect on the conversation or a specific topic
+- `/contemplate [prompt]` - Request Elroy to reflect on the conversation or analyze a specific topic
 
 ##### User Preferences
-- `/get_user_full_name` - Get your stored full name
-- `/set_user_full_name` - Set your full name for personalization
-- `/get_user_preferred_name` - Get your stored preferred name/nickname
+- `/get_user_full_name` - Retrieve your stored full name
+- `/set_user_full_name` - Update your full name for personalization
+- `/get_user_preferred_name` - Retrieve your stored preferred name/nickname
 - `/set_user_preferred_name` - Set your preferred name for casual interaction
 
 ##### Development Tools
-- `/tail_elroy_logs` - View Elroy's log output for debugging
-- `/make_coding_edit` - Make changes to code files in the current repository
+- `/tail_elroy_logs` - Display Elroy's log output for debugging purposes
+- `/make_coding_edit` - Make and manage changes to code files in the repository
 
 Note: All these commands can be used with a leading slash (/) in the chat interface. The assistant uses these commands without the slash when helping you.
 

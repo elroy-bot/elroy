@@ -1,7 +1,7 @@
 # Basic Configuration
 user_token: DEFAULT  # User token to use for Elroy
 database_url: null  # Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.
-debug: false  # Whether to fail fast when errors occur and emit more verbose logging
+debug: false  # Enable fail-fast error handling and verbose logging output
 default_assistant_name: "Elroy"  # Default name for the assistant
 custom_tools_path: null  # Path to custom functions to load
 inline_tool_calls: false  # Whether to enable inline tool calls in the assistant (better for some open source models)
@@ -54,12 +54,12 @@ embedding_model_size: 1536  # The size of the embedding model
 enable_caching: true  # Whether to enable caching for the LLM, both for embeddings and completions
 
 # Context Management
-max_assistant_loops: 4  # Maximum number of loops the assistant can run before tools are temporarily made unavailable
-context_refresh_trigger_tokens: 10000  # Number of tokens that triggers a context refresh and compression
-context_refresh_target_tokens: 5000  # Target number of tokens after context refresh/compression
+max_assistant_loops: 4  # Maximum number of loops the assistant can run before tools are temporarily made unvailable (returning for the next user message)
+context_refresh_trigger_tokens: 10000  # Number of tokens that triggers a context refresh and compresion of messages in the context window
+context_refresh_target_tokens: 5000  # Target number of tokens after context refresh / context compression, how many tokens to aim to keep in context
 max_context_age_minutes: 720.0  # Maximum age in minutes to keep messages in context
 enable_assistant_greeting: true  # Whether to allow the assistant to send the first message
-min_convo_age_for_greeting_minutes: 10.0  # Minimum age in minutes before assistant offers greeting (0 for always, ignored if enable_assistant_greeting=False)
+min_convo_age_for_greeting_minutes: 10.0  # Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set enable_assistant_greeting=False
 initial_context_refresh_wait_seconds: 600  # Initial wait time in seconds before the first context refresh
 
 # Memory Consolidation
