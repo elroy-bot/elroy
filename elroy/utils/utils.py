@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
 
 from pytz import UTC
 
-from ..config.ctx import ElroyContext, clone_ctx_with_db
+from ..config.ctx import ElroyContext
 
 T = TypeVar("T")
 
@@ -88,15 +88,18 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
 def run_in_background_thread(fn: Callable, ctx: ElroyContext, *args):
     from ..config.ctx import ElroyContext
 
-    assert isinstance(ctx, ElroyContext)
-
     # hack to get a new session for the thread
+
+    def wrapped_fn():
+        # Create completely new connection in the new thread
+        new_ctx = ElroyContext(**vars(ctx.params))
+        with new_ctx.dbsession():
+            fn(new_ctx, *args)
+
     with ctx.db.get_new_session() as db:
-        new_ctx = clone_ctx_with_db(ctx, db)
 
         thread = threading.Thread(
-            target=fn,
-            args=(new_ctx, *args),
+            target=wrapped_fn,
             daemon=True,
         )
         thread.start()
