@@ -12,11 +12,8 @@ RUN yay -Syu --noconfirm uv && yay -Yccc --noconfirm
 COPY . .
 ENV ELROY_HOME=/home/$USERNAME/app/data
 
-RUN uv venv --seed --python python3.11
-RUN source .venv/bin/activate && uv pip install -e .
-
 RUN mkdir -p /home/$USERNAME/app/data
 RUN chmod -R 777 /home/$USERNAME/app/data
 
-ENTRYPOINT ["source", ".venv/bin/activate", "&&", "elroy"]
+ENTRYPOINT ["uv", "run", "elroy"]
 CMD ["chat"]
