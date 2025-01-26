@@ -1,39 +1,58 @@
-[tool.poetry]
+[project]
 name = "elroy"
 version = "0.0.65"
 description = ""
-authors = ["Elroy Bot <bot@elroy.ai>"]
+authors = [
+    { name = "Elroy Bot", email = "bot@elroy.ai" }
+]
 readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "pgvector>=0.3.6",
+    "psycopg2-binary>=2.9.9",
+    "sqlalchemy>=2.0.29",
+    "pyyaml>=6.0.1",
+    "requests>=2.32.2",
+    "tiktoken>=0.8.0",
+    "prompt-toolkit>=3.0.47",
+    "colorama>=0.4.6",
+    "rich>=13.7.1",
+    "toolz>=0.12.1",
+    "alembic>=1.13.2",
+    "pytz>=2024.1",
+    "sqlmodel>=0.0.21",
+    "docstring-parser>=0.16",
+    "pygments>=2.18.0",
+    "litellm>=1.53",
+    "typer>=0.12.5",
+    "semantic-version>=2.10.0",
+    "aider-chat>=0.70.0",
+    "sqlite-vec>=0.1.6",
+    "scikit-learn>=1.6.0",
+    "lock>=2018.3.25.2110",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.12"
-pgvector = "^0.3.6"
-psycopg2-binary = "^2.9.9"
-sqlalchemy = "^2.0.29"
-pyyaml = "^6.0.1"
-requests = "^2.32.2"
-tiktoken = "^0.8.0"
-prompt-toolkit = "^3.0.47"
+[project.optional-dependencies]
+dev = [
+    "bumpversion>=0.6.0",
+    "pydantic>=2.10.3",
+    "black>=24.4.2",
+    "autoflake>=2.3.0",
+    "pyright>=1.1.350",
+    "pytest>=8.1.1",
+    "fawltydeps>=0.15.0",
+    "isort>=5.12.0",
+    "vulture>=2.11",
+    "testcontainers>=3.7.1",
+    "pylint>=3.3.1",
+    "lorem-text>=2.1",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+    "langchain-core>=0.3.31",
+]
 
-colorama = "^0.4.6"
-rich = "^13.7.1"
-toolz = "^0.12.1"
-alembic = "^1.13.2"
-pytz = "^2024.1"
-sqlmodel = "^0.0.21"
-docstring-parser = "^0.16"
-pygments = "^2.18.0"
-litellm = "^1.53"
-typer = "^0.12.5"
-semantic-version = "^2.10.0"
-discord-py = "^2.4.0"
-scrubadub = "^2.0.1"
-aider-chat = "^0.70.0"
-sqlite-vec = "^0.1.6"
-scikit-learn = "^1.6.0"
-poetry = "^2.0.1"
-lock = "^2018.3.25.2110"
-
+[project.scripts]
+elroy = "elroy.cli.main:app"
 
 [tool.pyright]
 include = [
@@ -56,42 +75,19 @@ reportUnusedImport = true
 line-length = 140
 target-version = ['py39', 'py310', 'py311']
 
-[tool.poetry.group.dev.dependencies]
-bumpversion = "^0.6.0"
-pydantic = "^2.10.3" # 2.10 seems to have some bugs around default value handling
-black = "^24.4.2"
-autoflake = "^2.3.0"
-pyright = "^1.1.350"
-pytest = "^8.1.1"
-fawltydeps = "^0.15.0"
-typer = "^0.12.5"
-isort = "^5.12.0"
-vulture = "^2.11"
-testcontainers = "^3.7.1"
-pylint = "^3.3.1"
-lorem-text = "^2.1"
-pytest-asyncio = "^0.24.0"
-pytest-mock = "^3.14.0"
-langchain-core = "^0.3.31"
-
 [tool.pytest.ini_options]
-    filterwarnings = [
-     "ignore::DeprecationWarning"
-    ]
-    log_cli = true
-    log_level = "INFO"
-    asyncio_mode = "auto"
-
-    asyncio_default_fixture_loop_scope = "function"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-
-[tool.poetry.scripts]
-elroy = "elroy.cli.main:app"
+filterwarnings = [
+    "ignore::DeprecationWarning"
+]
+log_cli = true
+log_level = "INFO"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.isort]
 profile = "black"
 src_paths = ["elroy"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

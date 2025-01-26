@@ -33,24 +33,24 @@ def run_command(command, print_stdout: bool = False):
 def run_black_formatting():
     """Run Black for code formatting and add changes to the commit."""
     print("Running black for code formatting...")
-    run_command('poetry run black .')
+    run_command('uv pip install black && uv run black .')
     run_command('git add .')
 
 def run_isort():
     """Run isort to sort and deduplicate imports."""
     print("Running isort for import sorting and deduplication...")
-    run_command('poetry run isort .')
+    run_command('uv pip install isort && uv run isort .')
     run_command('git add .')
 
 def autoflake_files():
     print("Running autoflake...")
-    run_command('poetry run find . -type f -name "*.py" ! -path "./.venv/*" -exec autoflake --ignore-init-module-imports --in-place --remove-unused-variables --remove-all-unused-imports {} +')
+    run_command('uv pip install autoflake && uv run find . -type f -name "*.py" ! -path "./.venv/*" -exec autoflake --ignore-init-module-imports --in-place --remove-unused-variables --remove-all-unused-imports {} +')
     run_command('git add .')
 
 def run_vulture():
     print("Running vulture...")
     run_command(
-        '''vulture --exclude ".venv/,settings.py,*alembic/*,*test_*py,ops.py,data_models.py,fixture_generator.py,tests/utils.py,__init__.py" '''
+        '''uv pip install vulture && uv run vulture --exclude ".venv/,settings.py,*alembic/*,*test_*py,ops.py,data_models.py,fixture_generator.py,tests/utils.py,__init__.py" '''
         '''--ignore-decorators "@shared_task,@app.task,@app.route" .''', True
         )
 
@@ -59,10 +59,10 @@ def ensure_not_main():
     current_branch = get_current_branch()
     if current_branch == protected_branch:
         # Get the commit message from the staged commit
-        result = subprocess.run(['git', 'log', '-1', '--pretty=%B', 'HEAD'], 
+        result = subprocess.run(['git', 'log', '-1', '--pretty=%B', 'HEAD'],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         commit_msg = result.stdout.decode('utf-8').strip()
-        
+
         # Allow commits that start with "Bump version"
         if not commit_msg.startswith("Bump version"):
             print(f"Commits directly to {protected_branch} not allowed")
@@ -78,15 +78,6 @@ def main():
         autoflake_files()
         run_isort()
         # run_vulture()
-
-
-    if 'pyproject.toml' in changed_files:
-        print('detected pyproject.toml file changed, ensuring dependencies are consistent')
-        # Check if poetry.lock is edited
-        if 'poetry.lock' not in changed_files:
-            print("poetry.lock not updated, running `poetry lock`...")
-            run_command('poetry lock')
-            run_command('git add poetry.lock')
 
 
     # Continue with the commit

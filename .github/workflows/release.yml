@@ -35,11 +35,12 @@ jobs:
 
     - name: Install dependencies
       run: |
-        poetry config virtualenvs.create false
-        poetry install --no-root
+        uv pip install -e ".[dev]"
 
     - name: Run Tests
       run: |
+        uv venv
+        source .venv/bin/activate
         pytest --chat-models gpt-4o-mini --db-type "postgres,sqlite"
       env:
         PYTHONWARNINGS: "ignore::DeprecationWarning"
@@ -74,7 +75,9 @@ jobs:
 
     - name: Test built package
       run: |
-        pip install ./dist/elroy-*.whl
+        uv venv
+        source .venv/bin/activate
+        uv pip install ./dist/elroy-*.whl
         bash scripts/test_cli.sh
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -102,7 +105,10 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD --no-interaction
+        uv venv
+        source .venv/bin/activate
+        uv pip install twine
+        twine upload dist/*
 
   create-github-release:
     environment:

@@ -30,6 +30,11 @@ By default, Elroy will use SQLite. To add a custom DB, you can provide your data
 
 This option automatically sets up everything you need, including the required PostgreSQL database with pgvector extension.
 
+> ```bash
+> docker compose build --no-cache
+> docker compose run --rm elroy
+> ```
+
 1. Download the docker-compose.yml:
 ```bash
 curl -O https://raw.githubusercontent.com/elroy-bot/elroy/main/docker-compose.yml
@@ -43,6 +48,12 @@ docker compose run --rm elroy
 
 # Add parameters as needed, e.g. here to use Anthropic's Sonnet model
 docker compose run --rm elroy --sonnet
+
+# Pass through all environment variables from host
+docker compose run --rm -e elroy
+
+# Or pass specific environment variable patterns
+docker compose run --rm -e "ELROY_*" -e "OPENAI_*" -e "ANTHROPIC_*" elroy
 ```
 
 The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
@@ -72,7 +83,7 @@ pip install elroy
 
 #### Prerequisites
 - Python 3.11 or higher
-- Poetry package manager
+- uv package manager (install with `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 - PostgreSQL database with pgvector extension
 
@@ -81,11 +92,17 @@ pip install elroy
 git clone https://github.com/elroy-bot/elroy.git
 cd elroy
 
+# Create virtual environment and install dependencies
+uv venv
+source .venv/bin/activate  # On Unix/MacOS
+# or
+.venv\Scripts\activate  # On Windows
+
 # Install dependencies and the package
-poetry install
+uv pip install -e .
 
 # Run Elroy
-poetry run elroy
+elroy
 ```
 
 ### Basic Usage
@@ -117,7 +134,7 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 ### Supported Models
 
 #### Chat Models
-- OpenAI Models: 
+- OpenAI Models:
   - GPT-4o (default)
   - GPT-4o-mini
   - O1
@@ -128,7 +145,7 @@ Elroy provides both CLI commands and in-chat commands (which can be used by both
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible chat endpoints (via --openai-api-base)
 
 #### Embedding Models
-- OpenAI Models: 
+- OpenAI Models:
   - text-embedding-3-small (default, 1536 dimensions)
 - OpenAI-Compatible APIs: Any provider offering OpenAI-compatible embedding endpoints (via --openai-embedding-api-base)
 
