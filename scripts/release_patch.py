@@ -328,7 +328,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Release a new patch version")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
     parser.add_argument("--skip-docker", action="store_true", help="Skip running docker build test")
-    parser.add_argument("--skip-reademe", action="store_true", help="Skip updating README")
+    parser.add_argument("--skip-readme", action="store_true", help="Skip updating README")
     args = parser.parse_args()
 
     errors = Errors([])
