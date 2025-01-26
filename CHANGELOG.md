@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.66] - 2025-01-26
+
+### Infrastructure
+- Migrated from Poetry to UV for streamlined package management
+
 ## [0.0.65] - 2025-01-24
 
 ### Fixed
