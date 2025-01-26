@@ -12,8 +12,8 @@ RUN yay -Syu --noconfirm uv && yay -Yccc --noconfirm
 COPY . .
 ENV ELROY_HOME=/home/$USERNAME/app/data
 
-RUN mkdir -p /home/$USERNAME/app/data
-RUN chmod -R 777 /home/$USERNAME/app/data
+RUN sudo mkdir -p /home/$USERNAME/app/data
+RUN sudo chmod -R 777 /home/$USERNAME/app
 
 ENTRYPOINT ["uv", "run", "elroy"]
 CMD ["chat"]
