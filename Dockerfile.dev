@@ -1,32 +1,23 @@
-FROM python:3.11.7-slim
 
-RUN apt-get update && apt-get install -y \
-    curl \
-    gcc \
-    python3-dev \
-    build-essential \
-    git \
-    postgresql-client \
-    sqlite3 \
-    libsqlite3-dev \
-    && rm -rf /var/lib/apt/lists/*
+FROM lunamidori5/pixelarch:quartz
 
-WORKDIR /app
+RUN sudo sed -i 's/Quartz/Elroy/g' /etc/os-release
 
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:${PATH}"
+ARG USERNAME=midori-ai
 
-# Copy the project and install it
-COPY . /app/
-ENV ELROY_HOME=/app/data
+USER $USERNAME
+WORKDIR /home/$USERNAME/app
 
-RUN uv pip install -e . --system
+RUN yay -Syu --noconfirm uv && yay -Yccc --noconfirm
 
+COPY . .
+ENV ELROY_HOME=/home/$USERNAME/app/data
 
-RUN mkdir -p /app/data && \
-    chmod -R 777 /app/data
+RUN uv venv --seed --python python3.11
+RUN source .venv/bin/activate && uv pip install -e .
 
+RUN mkdir -p /home/$USERNAME/app/data
+RUN chmod -R 777 /home/$USERNAME/app/data
 
-ENTRYPOINT ["elroy"]
+ENTRYPOINT ["source", ".venv/bin/activate", "&&", "elroy"]
 CMD ["chat"]
-
