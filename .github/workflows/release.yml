@@ -39,6 +39,7 @@ jobs:
 
     - name: Run Tests
       run: |
+        pip install uv
         uv venv
         source .venv/bin/activate
         pytest --chat-models gpt-4o-mini --db-type "postgres,sqlite"
@@ -75,6 +76,7 @@ jobs:
 
     - name: Test built package
       run: |
+        pip install uv
         uv venv
         source .venv/bin/activate
         uv pip install ./dist/elroy-*.whl
@@ -105,6 +107,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
+        pip install uv
         uv venv
         source .venv/bin/activate
         uv pip install twine
