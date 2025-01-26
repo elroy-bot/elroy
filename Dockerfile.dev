@@ -2,7 +2,7 @@ FROM lunamidori5/pixelarch:quartz
 
 RUN sudo sed -i 's/Quartz/Elroy/g' /etc/os-release
 
-ARG USERNAME=elroy
+ARG USERNAME=midori-ai
 
 USER $USERNAME
 WORKDIR /home/$USERNAME/app
