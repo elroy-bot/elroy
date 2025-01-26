@@ -382,7 +382,7 @@ if __name__ == "__main__":
 
     # if local git state is not clean, await for user confirmation
     if not is_local_git_clean():
-        print("Documents have been updated. Please commit changes and press Enter to continue")
+        print("Documents have been updated. Please press Enter to continue")
         input()
 
     os.system("git add .")
