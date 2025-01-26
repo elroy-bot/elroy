@@ -49,6 +49,7 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-mock>=3.14.0",
     "langchain-core>=0.3.31",
+    "discord-py",
 ]
 
 [project.scripts]
