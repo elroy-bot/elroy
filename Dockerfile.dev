@@ -1,4 +1,3 @@
-
 FROM lunamidori5/pixelarch:quartz
 
 RUN sudo sed -i 's/Quartz/Elroy/g' /etc/os-release
