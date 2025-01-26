@@ -1,6 +1,5 @@
 FROM python:3.11.7-slim
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     gcc \
@@ -8,23 +7,26 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     postgresql-client \
+    sqlite3 \
+    libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy the local repository into the container
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Copy the project and install it
 COPY . /app/
-
-RUN pip install poetry-core
-
-# Install the local version of elroy
-RUN pip install -e . --no-cache-dir
-
 ENV ELROY_HOME=/app/data
+
+RUN uv pip install -e . --system
+
 
 RUN mkdir -p /app/data && \
     chmod -R 777 /app/data
 
-# Set the PYTHONPATH
-ENV PYTHONPATH=/app
+
+ENTRYPOINT ["elroy"]
+CMD ["chat"]
+

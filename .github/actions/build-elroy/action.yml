@@ -1,11 +1,12 @@
 name: 'Build Elroy Package'
-description: 'Builds Elroy package using Poetry'
+description: 'Builds Elroy package using uv'
 runs:
   using: "composite"
   steps:
     - name: Build package
       shell: bash
       run: |
-        poetry config virtualenvs.create false
-        poetry install --no-root
-        poetry build
+        uv venv
+        source .venv/bin/activate
+        uv pip install build
+        python -m build

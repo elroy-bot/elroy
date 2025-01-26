@@ -6,7 +6,6 @@ import webbrowser
 from datetime import datetime
 from typing import Optional
 
-import scrubadub
 from rich.table import Table
 from rich.text import Text
 
@@ -165,7 +164,7 @@ def create_bug_report(
         report.append(f"Error fetching logs: {str(e)}")
 
     # Combine the report
-    full_report = scrubadub.clean("\n".join(report))
+    full_report = "\n".join(report)
 
     github_url = None
     base_url = os.path.join(REPO_ISSUES_URL, "new")

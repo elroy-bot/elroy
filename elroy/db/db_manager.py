@@ -6,7 +6,6 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Generator, Iterable, List, Optional, Type
 
-import typer
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
@@ -127,9 +126,7 @@ class DbManager(ABC):
                 session.exec(text("SELECT 1")).first()  # type: ignore
         except Exception as e:
             logging.error(f"Database connectivity check failed: {e}")
-            raise typer.BadParameter(
-                f"Could not connect to database at {engine.url.render_as_string(hide_password=True)}. Please check if database is running and connection URL is correct. Error: {e}"
-            )
+            raise Exception(f"Could not connect to database {engine.url.render_as_string(hide_password=True)}: {e}")
 
         """Check if all migrations have been run.
         Returns True if migrations are up to date, False otherwise."""

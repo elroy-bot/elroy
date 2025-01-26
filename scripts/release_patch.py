@@ -328,6 +328,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Release a new patch version")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
     parser.add_argument("--skip-docker", action="store_true", help="Skip running docker build test")
+    parser.add_argument("--skip-reademe", action="store_true", help="Skip updating README")
     args = parser.parse_args()
 
     errors = Errors([])
@@ -370,8 +371,9 @@ if __name__ == "__main__":
     os.chdir(repo_root)
 
     next_tag = Version(__version__).next_patch()
-    sync_configuration_and_cli_ops(elroy)
-    update_readme(elroy)
+    if not args.skip_readme:
+        sync_configuration_and_cli_ops(elroy)
+        update_readme(elroy)
     update_changelog(elroy)
 
     print("Please provide feedback on the changes made in this release")
