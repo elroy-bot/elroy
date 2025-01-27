@@ -154,6 +154,7 @@ def find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClust
 
 
 def consolidate_memories(ctx: ElroyContext):
+    """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
     from .operations import get_active_memories
 
     clusters = pipe(

@@ -3,14 +3,10 @@ from tests.utils import process_test_message, quiz_assistant_bool
 from elroy.cli.chat import _get_in_context_memories
 from elroy.db.db_models import Goal
 from elroy.repository.embeddable import is_in_context, remove_from_context
-from elroy.repository.goals.operations import (
-    create_goal,
-    get_goal_by_name,
-    mark_goal_completed,
-)
+from elroy.repository.goals.operations import create_goal, mark_goal_completed
 from elroy.repository.goals.queries import get_active_goals_summary
 from elroy.repository.message import get_context_messages
-from elroy.system_commands import reset_messages
+from elroy.system_commands import get_db_goal_by_name, reset_messages
 
 
 def test_assistant_goal_in_context(ctx):
@@ -91,7 +87,7 @@ def test_goal_update_goal_slight_difference(ctx):
 
 def test_goal_is_in_context_only_when_active(ctx):
     create_goal(ctx, "Run 100 miles this year")
-    goal = get_goal_by_name(ctx, "Run 100 miles this year")
+    goal = get_db_goal_by_name(ctx, "Run 100 miles this year")
     assert isinstance(goal, Goal)
     assert is_in_context(get_context_messages(ctx), goal)
 
@@ -104,7 +100,7 @@ def test_goal_is_in_context_only_when_active(ctx):
 
 def test_status_update_brings_into_context(ctx):
     create_goal(ctx, "Run 100 miles this year")
-    goal = get_goal_by_name(ctx, "Run 100 miles this year")
+    goal = get_db_goal_by_name(ctx, "Run 100 miles this year")
     assert goal
 
     remove_from_context(ctx, goal)
@@ -119,7 +115,7 @@ def test_status_update_brings_into_context(ctx):
 def test_duplicate_goal(ctx):
     """The result should not raise an error, but should not create a duplicate goal."""
     create_goal(ctx, "Run 100 miles this year")
-    remove_from_context(ctx, get_goal_by_name(ctx, "Run 100 miles this year"))  # type: ignore
+    remove_from_context(ctx, get_db_goal_by_name(ctx, "Run 100 miles this year"))  # type: ignore
 
     process_test_message(
         ctx,
