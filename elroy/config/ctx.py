@@ -211,9 +211,3 @@ def get_ctx(typer_ctx: typer.Context) -> ElroyContext:
     ctx = typer_ctx.obj
     assert isinstance(ctx, ElroyContext), f"Context must be ElroyContext, got {type(ctx)}"
     return ctx
-
-
-def clone_ctx_with_db(ctx: ElroyContext, db: DbManager) -> ElroyContext:
-    new_ctx = ElroyContext(**vars(ctx.params))  # type: ignore
-    new_ctx._db = db
-    return new_ctx
