@@ -64,9 +64,8 @@ def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_exi
     Set the user's preferred name. Should predominantly be used relatively early in first conversations, and relatively rarely afterward.
 
     Args:
-        user_id: The user's ID.
         preferred_name: The user's preferred name.
-        override_existing: Whether to override the an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect.
+        override_existing: Whether to override an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect.
     """
 
     user_preference = get_or_create_user_preference(ctx)
@@ -86,9 +85,6 @@ def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_exi
 def get_user_preferred_name(ctx: ElroyContext) -> str:
     """Returns the user's preferred name.
 
-    Args:
-        user_id (int): the user ID
-
     Returns:
         str: String representing the user's preferred name.
     """
@@ -107,12 +103,11 @@ def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: Opt
     - For existing users, this should be used relatively rarely.
 
     Args:
-        user_id (int): user id
-        full_name (str): The full name of the user
-        override_existing (bool): Whether to override the an existing full name, if it is already set. Override existing should only be used if a known full name has been found to be incorrect.
+        full_name: The full name of the user
+        override_existing: Whether to override an existing full name, if it is already set. Override existing should only be used if a known full name has been found to be incorrect.
 
     Returns:
-        str: result of the attempt to set the user's full name
+        str: Result of the attempt to set the user's full name
     """
 
     user_preference = get_or_create_user_preference(ctx)
@@ -130,9 +125,6 @@ def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: Opt
 @tool
 def get_user_full_name(ctx: ElroyContext) -> str:
     """Returns the user's full name.
-
-    Args:
-        user_id (int): the user ID
 
     Returns:
         str: String representing the user's full name.
