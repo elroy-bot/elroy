@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List
 
 from aider.coders import Coder
@@ -97,12 +98,12 @@ def update_changelog(elroy: Elroy):
     commits = os.popen(f'git log {last_tag}..HEAD --pretty=format:"- %s"').read()
 
     instruction = f"""
-    Update CHANGELOG.md to add version $NEXT_VERSION. Here are the commits since the last release:
+    Update CHANGELOG.md to add version {NEXT_PATCH}. Here are the commits since the last release:
 
     {commits}
 
     Please:
-    1. Add a new entry at the top of the changelog for version $NEXT_VERSION dated $TODAY
+    1. Add a new entry at the top of the changelog for version {NEXT_PATCH} dated {datetime.now().strftime("%Y-%m-%d")}
     2. Group the commits into appropriate sections (Added, Fixed, Improved, Infrastructure, etc.) based on their content
     3. Clean up and standardize the commit messages to be more readable
     4. Maintain the existing changelog format
