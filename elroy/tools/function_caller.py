@@ -250,7 +250,8 @@ def get_function_schema(function: Callable) -> Dict:
 
     assert function.__doc__ is not None, f"Function {function.__name__} has no docstring"
     parsed_docstring = parse(function.__doc__)
-    description = parsed_docstring.short_description or parsed_docstring.long_description
+    assert parsed_docstring.description, f"Function {function.__name__} has no description in docstring"
+    description = parsed_docstring.description.strip()
     docstring_dict = {p.arg_name: p.description for p in parse(function.__doc__).params}
 
     signature = inspect.signature(function)
