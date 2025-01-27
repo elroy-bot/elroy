@@ -22,11 +22,10 @@ def tail_elroy_logs(lines: int = 10) -> str:
     Useful for troubleshooting in cases where errors occur (especially with tool calling).
 
     Args:
-        context (ElroyContext): context obj
-        lines (int, optional): Number of lines to return. Defaults to 10.
+        lines (int, optional): Number of lines to return from the end of the log file. Defaults to 10.
 
     Returns:
-        str: The last `lines` of the Elroy logs
+        str: The concatenated last N lines of the Elroy log file as a single string
     """
     with open(get_log_file_path(), "r") as f:
         return "".join(f.readlines()[-lines:])

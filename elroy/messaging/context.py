@@ -250,7 +250,6 @@ def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     """Adds memory with the given name to the current conversation context
 
     Args:
-        context (ElroyContext): context obj
         memory_name (str): The name of the memory to add
 
     Returns:
@@ -264,7 +263,6 @@ def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
     """Adds goal with the given name to the current conversation context
 
     Args:
-        context (ElroyContext): context obj
         goal_name (str): The name of the goal to add
 
     Returns:
@@ -278,7 +276,6 @@ def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
     """Drops the goal with the given name. Does NOT delete or mark the goal completed.
 
     Args:
-        context (ElroyContext): context obj
         goal_name (str): Name of the goal
 
     Returns:
@@ -292,7 +289,6 @@ def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str
     """Drops the memory with the given name. Does NOT delete the memory.
 
     Args:
-        context (ElroyContext): context obj
         memory_name (str): Name of the memory
 
     Returns:

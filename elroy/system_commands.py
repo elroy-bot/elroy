@@ -230,11 +230,10 @@ def print_goal(ctx: ElroyContext, goal_name: str) -> str:
     """Prints the goal with the given name. This does NOT create a goal, it only prints the existing goal with the given name if it has been created already.
 
     Args:
-        context (ElroyContext): context obj
-        goal_name (str): Name of the goal
+        goal_name (str): Name of the goal to retrieve
 
     Returns:
-        str: Information for the goal with the given name
+        str: The goal's details if found, or an error message if not found
     """
     goal = ctx.db.exec(
         select(Goal).where(
@@ -274,11 +273,10 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
     """Prints the memory with the given name
 
     Args:
-        context (ElroyContext): context obj
-        memory_name (str): Name of the memory
+        memory_name (str): Name of the memory retrieve
 
     Returns:
-        str: Information for the memory with the given name
+        str: The memory's details if found, or an error message if not found
     """
     memory = ctx.db.exec(
         select(Memory).where(
@@ -295,14 +293,14 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
 
 @tool
 def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -> str:
-    """Contemplate the current context and return a response
+    """Contemplate the current context and return a response.
 
     Args:
-        context (ElroyContext): context obj
-        contemplation_prompt (str, optional): The prompt to contemplate. Can be about the immediate conversation or a general topic. Default wil be a prompt about the current conversation.
+        contemplation_prompt (str, optional): Custom prompt to guide the contemplation.
+            If not provided, will contemplate the current conversation context
 
     Returns:
-        str: The response to the contemplation
+        str: A thoughtful response analyzing the current context and any provided prompt
     """
 
     logging.info("Contemplating...")
@@ -339,11 +337,10 @@ def query_memory(ctx: ElroyContext, query: str) -> str:
     """Search through memories and goals using semantic search.
 
     Args:
-        ctx (ElroyContext): context obj
-        query (str): The search query text
+        query (str): The search query text to find relevant memories and goals
 
     Returns:
-        str: The answer to the query based on memories and goals.
+        str: A response synthesizing relevant memories and goals that match the query
     """
     # Get query embedding
     query_embedding = get_embedding(ctx.embedding_model, query)
