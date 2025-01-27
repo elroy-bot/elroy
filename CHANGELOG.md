@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.67] - 2025-01-26
+
+### Added
+- API expanded to include more memory and goal functions
+
 ## [0.0.66] - 2025-01-26
 
 ### Infrastructure

@@ -321,6 +321,25 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
+      "name": "query_memory",
+      "description": "Search through memories and goals using semantic search.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query text"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "rename_goal",
       "description": "Renames an existing active goal.",
       "parameters": {
