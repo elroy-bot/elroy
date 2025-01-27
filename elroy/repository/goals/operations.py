@@ -91,7 +91,7 @@ def create_goal(
         return f"Goal '{goal_name}' has been created."
 
 
-def get_goal_by_name(ctx: ElroyContext, name: str) -> Optional[Goal]:
+def get_db_goal_by_name(ctx: ElroyContext, name: str) -> Optional[Goal]:
     return pipe(
         get_active_goals(ctx),
         filter(lambda g: g.name == name),
