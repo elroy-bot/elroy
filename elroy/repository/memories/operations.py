@@ -81,7 +81,7 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
         text (str): The text of the memory.
 
     Returns:
-        int: The database ID of the memory.
+        str: Confirmation message that the memory was created.
     """
     _do_create_memory(ctx, name, text)
 

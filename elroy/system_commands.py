@@ -249,6 +249,11 @@ def print_goal(ctx: ElroyContext, goal_name: str) -> str:
 
 
 def get_active_goal_names(ctx: ElroyContext) -> List[str]:
+    """Gets the list of names for all active goals
+
+    Returns:
+        List[str]: List of names for all active goals
+    """
 
     return [goal.name for goal in get_active_goals(ctx)]
 

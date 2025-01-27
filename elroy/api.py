@@ -72,6 +72,25 @@ class Elroy:
         time_to_completion: Optional[str] = None,
         priority: Optional[int] = None,
     ) -> str:
+        """Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.
+        Goals should be *specific* and *measurable*. They should be based on the user's needs and desires, and should
+        be achievable within a reasonable timeframe.
+
+        Args:
+            goal_name (str): Name of the goal
+            strategy (str): The strategy to achieve the goal. Your strategy should detail either how you (the personal assistant) will achieve the goal, or how you will assist your user to solve the goal. Limit to 100 words.
+            description (str): A brief description of the goal. Limit to 100 words.
+            end_condition (str): The condition that indicate to you (the personal assistant) that the goal is achieved or terminated. It is critical that this end condition be OBSERVABLE BY YOU (the assistant). For example, the end_condition may be that you've asked the user about the goal status.
+            time_to_completion (str): The amount of time from now until the goal can be completed. Should be in the form of NUMBER TIME_UNIT, where TIME_UNIT is one of HOURS, DAYS, WEEKS, MONTHS. For example, "1 DAYS" would be a goal that should be completed within 1 day.
+            priority (int, optional): The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest.
+
+        Returns:
+            str: A confirmation message that the goal was created.
+
+        Raises:
+            ValueError: If goal_name is empty
+            GoalAlreadyExistsError: If a goal with the same name already exists
+        """
         return do_create_goal(
             self.ctx,
             goal_name,
@@ -84,30 +103,109 @@ class Elroy:
 
     @db
     def add_goal_status_update(self, goal_name: str, status_update_or_note: str) -> str:
+        """Captures either a progress update or note relevant to the goal.
+
+        Args:
+            goal_name (str): Name of the goal
+            status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
+
+        Returns:
+            str: Confirmation message that the status update was added.
+        """
         return do_add_goal_status_update(self.ctx, goal_name, status_update_or_note)
 
     @db
     def mark_goal_completed(self, goal_name: str, closing_comments: Optional[str] = None) -> str:
+        """Marks a goal as completed, with closing comments.
+
+        Args:
+            goal_name (str): The name of the goal
+            closing_comments (Optional[str]): Updated status with a short account of how the goal was completed and what was learned
+
+        Returns:
+            str: Confirmation message that the goal was marked as completed
+
+        Raises:
+            GoalDoesNotExistError: If the goal doesn't exist
+        """
         return do_mark_goal_completed(self.ctx, goal_name, closing_comments)
 
     @db
     def get_active_goal_names(self) -> List[str]:
+        """Gets the list of names for all active goals
+
+        Returns:
+            List[str]: List of names for all active goals
+        """
         return do_get_active_goal_names(self.ctx)
 
     @db
     def get_goal_by_name(self, goal_name: str) -> Optional[str]:
+        """Get the fact for a goal by name
+
+        Args:
+            goal_name (str): Name of the goal
+
+        Returns:
+            Optional[str]: The fact for the goal with the given name
+        """
         return do_get_goal_by_name(self.ctx, goal_name)
 
     @db
     def query_memory(self, query: str) -> str:
+        """Search through memories and goals using semantic search.
+
+        Args:
+            query (str): The search query text to find relevant memories and goals
+
+        Returns:
+            str: A response synthesizing relevant memories and goals that match the query
+        """
         return do_query_memory(self.ctx, query)
 
     @db
     def create_memory(self, name: str, text: str):
+        """Creates a new memory for the assistant.
+
+        Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
+
+        BAD:
+        - [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
+
+        BETTER:
+        - [User Name]'s project on building a treehouse: More specific, and describes a single topic.
+        - [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.
+
+        BAD:
+        - [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.
+
+        BETTER:
+        - [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.
+
+        BAD:
+        - [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.
+
+        BETTER:
+        - [User Name]'s preferred name: Describes a specific topic.
+        - [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.
+
+        Args:
+            context (ElroyContext): _description_
+            name (str): The name of the memory. Should be specific and discuss one topic.
+            text (str): The text of the memory.
+
+        Returns:
+            int: The database ID of the memory.
+        """
         return do_create_memory(self.ctx, name, text)
 
     @db
     def message(self, input: str) -> str:
+        """Process a message to the assistant and return the response
+
+        Returns:
+            str: The response from the assistant
+        """
         return "".join(self.message_stream(input))
 
     def message_stream(self, input: str) -> Generator[str, None, None]:
@@ -123,11 +221,50 @@ class Elroy:
             yield from stream
 
     @db
-    def remember(self, message: str, name: Optional[str] = None) -> None:
+    def remember(self, message: str, name: Optional[str] = None) -> str:
+        """Creates a new memory for the assistant.
+
+        Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
+
+        BAD:
+        - [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
+
+        BETTER:
+        - [User Name]'s project on building a treehouse: More specific, and describes a single topic.
+        - [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.
+
+        BAD:
+        - [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.
+
+        BETTER:
+        - [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.
+
+        BAD:
+        - [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.
+
+        BETTER:
+        - [User Name]'s preferred name: Describes a specific topic.
+        - [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.
+
+        Args:
+            context (ElroyContext): _description_
+            name (str): The name of the memory. Should be specific and discuss one topic.
+            text (str): The text of the memory.
+
+        Returns:
+            str: Confirmation message that the memory was created.
+        """
+
         if not name:
             name = f"Memory from {datetime.now(UTC)}"
-        create_memory(self.ctx, name, message)
+        return create_memory(self.ctx, name, message)
 
     @db
     def get_persona(self) -> str:
+        """Get the persona for the user, or the default persona if the user has not set one.
+
+        Returns:
+            str: The text of the persona.
+
+        """
         return do_get_persona(self.ctx)
