@@ -4,6 +4,12 @@ from ..tools.user_preferences import get_or_create_user_preference
 
 
 def get_persona(ctx: ElroyContext):
+    """Get the persona for the user, or the default persona if the user has not set one.
+
+    Returns:
+        str: The text of the persona.
+
+    """
     user_preference = get_or_create_user_preference(ctx)
     if user_preference.system_persona:
         raw_persona = user_preference.system_persona
