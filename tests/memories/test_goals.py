@@ -1,10 +1,13 @@
-from tests.utils import process_test_message, quiz_assistant_bool
+from tests.utils import (
+    get_active_goals_summary,
+    process_test_message,
+    quiz_assistant_bool,
+)
 
 from elroy.cli.chat import _get_in_context_memories
 from elroy.db.db_models import Goal
 from elroy.repository.embeddable import is_in_context, remove_from_context
 from elroy.repository.goals.operations import create_goal, mark_goal_completed
-from elroy.repository.goals.queries import get_active_goals_summary
 from elroy.repository.message import get_context_messages
 from elroy.system_commands import get_db_goal_by_name, reset_messages
 

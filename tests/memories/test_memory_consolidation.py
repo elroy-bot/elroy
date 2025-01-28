@@ -1,12 +1,11 @@
 import asyncio
 import logging
-from typing import List, Optional
+from typing import List
 from unittest.mock import AsyncMock
 
 import pytest
 from sqlmodel import select
 
-from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import Memory, MemoryOperationTracker
 from elroy.repository.memories.consolidation import (
     MemoryCluster,
@@ -179,8 +178,3 @@ def get_cluster(ctx, memories: List[Memory]) -> MemoryCluster:
         memories=memories,
         embeddings=[ctx.db.get_embedding(memory) for memory in memories],  # type: ignore
     )
-
-
-def get_memory_by_id(ctx: ElroyContext, memory_id: int) -> Optional[Memory]:
-    """Fetch a specific memory by ID"""
-    return ctx.db.exec(select(Memory).where(Memory.id == memory_id, Memory.user_id == ctx.user_id)).first()

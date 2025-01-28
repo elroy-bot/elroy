@@ -140,23 +140,8 @@ class ElroyContext:
         )
 
     @cached_property
-    def is_new_user(self) -> bool:
-        # This will be set when user_id property is accessed
-        if not hasattr(self, "_is_new_user"):
-            raise ValueError("Cannot determine if new user created, fetch user id first")
-        return self._is_new_user
-
-    @cached_property
     def user_id(self) -> int:
-        stored_user_id = get_user_id_if_exists(self.db, self.user_token)
-
-        if stored_user_id:
-            self._is_new_user = False
-            self._user_id = stored_user_id
-        else:
-            self._user_id = create_user_id(self.db, self.user_token)
-            self._is_new_user = True
-        return self._user_id
+        return get_user_id_if_exists(self.db, self.user_token) or create_user_id(self.db, self.user_token)
 
     @property
     def io(self) -> ElroyIO:

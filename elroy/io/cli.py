@@ -1,10 +1,8 @@
 import logging
-from contextlib import contextmanager
 from itertools import product
-from typing import Generator, Iterator, List, Text, Union
+from typing import Iterator, List, Text, Union
 
-from prompt_toolkit import HTML, Application, PromptSession
-from prompt_toolkit.application import get_app
+from prompt_toolkit import HTML, PromptSession
 from prompt_toolkit.completion import Completion, WordCompleter
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
@@ -33,7 +31,7 @@ from ..repository.data_models import ContextMessage
 
 
 class SlashCompleter(WordCompleter):
-    def get_completions(self, document, complete_event):
+    def get_completions(self, document, complete_event):  # noqa F811
         text = document.text
         if not text.startswith("/"):
             return
@@ -203,7 +201,7 @@ class CliIO(ElroyIO):
         in_context_memories = sorted([m.get_name() for m in memories if is_in_context(context_messages, m)])
         non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
 
-        self.prompt_session.completer = pipe(  # type: ignore
+        self.prompt_session.completer = pipe(  # type: ignore # noqa F841
             concatv(
                 product(IN_CONTEXT_GOAL_COMMANDS, in_context_goal_names),
                 product(NON_CONTEXT_GOAL_COMMANDS, non_context_goal_names),
@@ -217,30 +215,3 @@ class CliIO(ElroyIO):
             lambda x: x + [f"/{f.__name__}" for f in NON_ARG_PREFILL_COMMANDS | USER_ONLY_COMMANDS],
             lambda x: SlashCompleter(words=x),  # type: ignore
         )
-
-    def get_current_input(self) -> str:
-        """Get the current content of the input buffer"""
-        # The current buffer is accessed through the app property
-        if hasattr(self.prompt_session, "app") and self.prompt_session.app:
-            return self.prompt_session.app.current_buffer.text
-        return ""
-
-    @contextmanager
-    def suspend_input(self) -> Generator[str, None, None]:
-        """
-        Temporarily suspend input, returning current input text.
-        If no input session is active, yields empty string.
-        """
-        try:
-            app = get_app()
-            if app.is_running:
-                assert isinstance(app, Application)
-                current_text = self.get_current_input()
-                with app.suspend_to_background():  # type: ignore
-                    yield current_text
-            else:
-                yield ""
-        except Exception as e:
-            # This catches cases where there's no active prompt_toolkit application
-            logging.debug(f"No active prompt session to suspend: {e}")
-            yield ""

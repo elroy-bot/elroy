@@ -32,7 +32,3 @@ def get_assistant_name(ctx: ElroyContext) -> str:
             return user_preference.assistant_name
         else:
             return ctx.default_assistant_name
-
-
-def get_system_instruction_label(assistant_name: str) -> str:
-    return f"*{assistant_name} System Instruction*"

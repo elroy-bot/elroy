@@ -10,6 +10,8 @@ from typing import Optional
 import discord
 from discord.ext import commands
 
+from elroy.config.constants import allow_unused
+
 ANNOUNCEMENTS_CHANNEL_ID = 1309680926745169930
 TEST_CHANNEL_ID = 1308566429779492874
 
@@ -28,6 +30,7 @@ class ReleaseBot:
         self.bot = commands.Bot(command_prefix="!", intents=intents)
 
         @self.bot.event
+        @allow_unused
         async def on_ready():
             print(f"{self.bot.user} has connected to Discord!")
             await self._announce_release()
