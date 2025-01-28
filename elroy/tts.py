@@ -1,0 +1,1 @@
+# using similar audio device integration techniques as demonstrated with voice.py, implement a tts function that creates ad plays a tts audio file. see this rference: https://docs.litellm.ai/docs/text_to_speech AI!
