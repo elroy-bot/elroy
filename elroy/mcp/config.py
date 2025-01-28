@@ -1,5 +1,7 @@
 import inspect
 import os
+import shutil
+import subprocess
 import sys
 from typing import Any, Dict
 
@@ -39,3 +41,17 @@ def get_mcp_config(local: bool, ctx: ElroyContext) -> Dict[str, Any]:
             },
         },
     )
+
+
+def is_uv_installed():
+    # Method 1: Check if uv exists in PATH
+    uv_in_path = shutil.which("uv") is not None
+
+    # Method 2: Try running uv --version
+    try:
+        subprocess.run(["uv", "--version"], capture_output=True, check=True)
+        uv_runs = True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        uv_runs = False
+
+    return uv_in_path and uv_runs

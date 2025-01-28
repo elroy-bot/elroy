@@ -17,7 +17,7 @@ from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
 from ..logging_config import setup_logging
-from ..mcp.config import get_mcp_config
+from ..mcp.config import get_mcp_config, is_uv_installed
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
 from ..tools.developer import do_print_config
@@ -486,9 +486,13 @@ def mcp_print_config(
     ),
 ):
     """Print MCP server configuration to stdout"""
+    ctx = get_ctx(typer_ctx)
+
+    if not is_uv_installed():
+        ctx.io.warning("uv not detected. uv is required to run Elroy MCP server")
+
     pipe(
-        typer_ctx,
-        get_ctx,
+        ctx,
         partial(get_mcp_config, local),
         lambda d: json.dumps(d, indent=2),
         print,
