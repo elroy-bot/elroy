@@ -486,7 +486,9 @@ def mcp_print_config(
     ),
 ):
     """Print MCP server configuration to stdout"""
+
     ctx = get_ctx(typer_ctx)
+    ctx.io.warning("MCP server is experimental!")
 
     if not is_uv_installed():
         ctx.io.warning("uv not detected. uv is required to run Elroy MCP server")

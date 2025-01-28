@@ -7,6 +7,7 @@ from functools import partial
 from operator import add
 from typing import Iterable, List, Optional
 
+from aider.voice import Voice
 from colorama import init
 from toolz import concat, pipe, unique
 from toolz.curried import filter, map
@@ -35,6 +36,11 @@ from ..utils.utils import run_in_background_thread
 from .commands import invoke_system_command
 from .config import onboard_user_non_interactive
 from .context import get_user_logged_in_message, refresh_context_if_needed
+
+
+async def record_and_transcribe(voice_instance, history=None, language=None):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, voice_instance.record_and_transcribe, history, language)
 
 
 def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
@@ -71,12 +77,41 @@ async def run_chat(ctx: ElroyContext):
             get_user_logged_in_message(ctx),
         )
 
+    voice_mode = False
+
+    transcriber = None
+
     while True:
         io.update_completer(get_active_goals(ctx), get_active_memories(ctx), context_messages)
 
-        user_input = await io.prompt_user()
-        if user_input.lower().startswith("/exit") or user_input == "exit":
-            break
+        user_input = ""
+
+        if voice_mode:
+            transcriber = Voice() if not transcriber else transcriber
+            try:
+                user_input = await record_and_transcribe(transcriber)
+                if user_input:
+                    ctx.io.info(user_input)
+            except KeyboardInterrupt:
+                voice_mode = False
+            if not user_input:
+                voice_mode = False
+                ctx.io.info("Voice mode disabled")
+                user_input = await io.prompt_user()
+        else:
+            user_input = await io.prompt_user()
+
+        if user_input.lower().startswith("/voice"):
+            voice_mode = not voice_mode
+            ctx.io.info("Voice mode " + ("enabled" if voice_mode else "disabled"))
+            continue
+        elif user_input.lower().startswith("/exit") or user_input == "exit":
+            if voice_mode:
+                voice_mode = False
+                ctx.io.info("Voice mode disabled")
+                continue
+            else:
+                break
         elif user_input:
             await process_and_deliver_msg(USER, ctx, user_input)
 
