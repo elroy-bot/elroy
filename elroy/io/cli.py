@@ -28,6 +28,7 @@ from ..llm.stream_parser import (
     TextOutput,
 )
 from ..repository.data_models import ContextMessage
+from ..tts import TTS
 
 
 class SlashCompleter(WordCompleter):
@@ -91,6 +92,7 @@ class CliIO(ElroyIO):
                 "pygments.literal.string": f"bold italic {self.user_input_color}",
             }
         )
+        self.tts = TTS()
 
         self.prompt_session = PromptSession(
             history=FileHistory(get_prompt_history_path()),
@@ -101,9 +103,13 @@ class CliIO(ElroyIO):
         self.last_output_type = None
 
     def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
+        tts_content = ""
         try:
             for message in messages:
+                if isinstance(message, AssistantResponse):
+                    tts_content += message.content
                 self.print(message, end="")
+            self.tts.speak(tts_content)
         except KeyboardInterrupt:
             pass
         finally:
