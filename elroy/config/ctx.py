@@ -56,7 +56,6 @@ class ElroyContext:
         max_context_age_minutes: float,
         min_convo_age_for_greeting_minutes: float,
         enable_assistant_greeting: bool,
-        initial_context_refresh_wait_seconds: int,
         # Memory Management
         memory_cluster_similarity_threshold: float,
         max_memory_cluster_size: int,
@@ -103,10 +102,6 @@ class ElroyContext:
             return Path(self.params.config_path)
         else:
             return get_default_config_path()
-
-    @property
-    def initial_refresh_wait(self) -> timedelta:
-        return timedelta(seconds=self.params.initial_context_refresh_wait_seconds)
 
     @property
     def max_in_context_message_age(self) -> timedelta:
