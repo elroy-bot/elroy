@@ -193,9 +193,9 @@ def common(
         help="The minimum number of memories that can be consolidated into a single memory at once.",
         rich_help_panel="Memory Consolidation",
     ),
-    initial_context_refresh_wait_seconds: int = ElroyOption(
+    initial_context_refresh_wait_seconds: int = ElroyOption(  # noqa F841 remove in 0.1.0
         "initial_context_refresh_wait_seconds",
-        help="Initial wait time in seconds after login before the initial context refresh and compression.",
+        help="Deprecated, will be removed in future releases",
         rich_help_panel="Memory Consolidation",
     ),
     # UI Configuration
@@ -296,7 +296,7 @@ def common(
 
 @app.command(name="chat")
 def chat(typer_ctx: typer.Context):
-    """Opens an interactive chat session."""
+    """Opens an interactive chat session. (default command)"""
     ctx = get_ctx(typer_ctx)
     with ctx.dbsession():
         if sys.stdin.isatty():

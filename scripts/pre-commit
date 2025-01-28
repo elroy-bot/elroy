@@ -74,7 +74,7 @@ def main():
         run_black_formatting()
         autoflake_files()
         run_isort()
-        # run_vulture()
+        run_vulture()
 
 
     # Continue with the commit
