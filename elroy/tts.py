@@ -1,6 +1,5 @@
 import os
 import tempfile
-import warnings
 from pathlib import Path
 
 from aider.llm import litellm
@@ -21,7 +20,7 @@ class TTS:
     def __init__(self, device_name=None):
         if sf is None or sd is None:
             raise SoundDeviceError("Sound device libraries not available")
-            
+
         try:
             print("Initializing sound device...")
             devices = sd.query_devices()
@@ -48,7 +47,7 @@ class TTS:
     def speak(self, text: str, voice: str = "alloy", model: str = "tts-1") -> None:
         """
         Convert text to speech and play it through the audio device.
-        
+
         Args:
             text: The text to convert to speech
             voice: The voice to use (e.g. "alloy", "echo", "fable", "onyx", "nova", "shimmer")
@@ -84,6 +83,6 @@ if __name__ == "__main__":
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("Please set the OPENAI_API_KEY environment variable.")
-    
+
     tts = TTS()
     tts.speak("Hello! This is a test of the text to speech system.")
