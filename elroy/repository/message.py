@@ -72,13 +72,6 @@ def get_current_context_message_set_db(ctx: ElroyContext) -> Optional[ContextMes
     ).first()
 
 
-def get_time_since_context_message_creation(ctx: ElroyContext) -> Optional[timedelta]:
-    row = get_current_context_message_set_db(ctx)
-
-    if row:
-        return get_utc_now() - ensure_utc(row.created_at)
-
-
 def _get_context_messages_iter(ctx: ElroyContext) -> Iterable[ContextMessage]:
     """
     Gets context messages from db, in order of their position in ContextMessageSet

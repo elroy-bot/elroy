@@ -30,11 +30,6 @@ class DbManager(ABC):
     def is_valid_url(cls, url: str) -> bool:
         raise NotImplementedError
 
-    @property
-    def vector_distance_operator(self) -> str:
-        """Returns the SQL operator for vector distance calculations"""
-        raise NotImplementedError
-
     @abstractmethod
     def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
         raise NotImplementedError

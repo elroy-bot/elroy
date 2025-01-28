@@ -148,7 +148,7 @@ def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> st
 
     # Rename the goal
     old_goal.name = new_goal_name
-    old_goal.updated_at = get_utc_now()
+    old_goal.updated_at = get_utc_now()  # noqa F841
 
     ctx.db.commit()
     ctx.db.refresh(old_goal)

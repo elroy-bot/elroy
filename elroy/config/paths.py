@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 APP_NAME = "elroy"
-APP_AUTHOR = "elroy-bot"
 
 
 def get_home_dir() -> Path:

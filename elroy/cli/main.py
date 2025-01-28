@@ -229,42 +229,42 @@ def common(
         help="Color for internal thought messages.",
         rich_help_panel="UI Configuration",
     ),
-    sonnet: bool = typer.Option(
+    sonnet: bool = typer.Option(  # noqa F841
         False,
         "--sonnet",
         help="Use Anthropic's Sonnet model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    opus: bool = typer.Option(
+    opus: bool = typer.Option(  # noqa F841
         False,
         "--opus",
         help="Use Anthropic's Opus model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    gpt4o: bool = typer.Option(
+    gpt4o: bool = typer.Option(  # noqa F841
         False,
         "--4o",
         help="Use OpenAI's GPT-4o model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    gpt4o_mini: bool = typer.Option(
+    gpt4o_mini: bool = typer.Option(  # noqa F841
         False,
         "--4o-mini",
         help="Use OpenAI's GPT-4o-mini model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    o1: bool = typer.Option(
+    o1: bool = typer.Option(  # noqa F841
         False,
         "--o1",
         help="Use OpenAI's o1 model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    o1_mini: bool = typer.Option(
+    o1_mini: bool = typer.Option(  # noqa F841
         False,
         "--o1-mini",
         help="Use OpenAI's o1-mini model",

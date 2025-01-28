@@ -188,10 +188,6 @@ def get_json_type(py_type: Type) -> Union[str, Dict[str, Any]]:
     raise ValueError(f"Unsupported type: {py_type}")
 
 
-def get_modules():
-    return []
-
-
 ERROR_PREFIX = "**Tool call resulted in error: **"
 
 

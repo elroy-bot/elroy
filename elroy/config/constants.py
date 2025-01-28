@@ -3,9 +3,6 @@ from typing import Any, Callable, Dict, List
 
 MEMORY_WORD_COUNT_LIMIT = 300
 
-DEFAULT_USER_TOKEN = "DEFAULT"
-
-INNER_THOUGHT_TAG = "INNER_THOUGHT_MONOLOGUE"
 
 # In system persona, the string to replace with the actual user alias
 USER_ALIAS_STRING = "$USER_ALIAS"
@@ -18,12 +15,10 @@ SYSTEM_INSTRUCTION_LABEL_END = "</system_instruction>"
 
 UNKNOWN = "Unknown"
 
-AUTO = "auto"
 
 # Message roles
 USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
 
-CLI_USER_ID = 1
 
 ### Model parameters ###
 
@@ -37,18 +32,20 @@ REPO_ISSUES_URL = "https://github.com/elroy-bot/elroy/issues"
 
 BUG_REPORT_LOG_LINES = 15
 
-LIST_MODELS_FLAG = "--list-models"
 
 MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
-CONFIG_FILE_KEY = "config_file"
-
 
 # Empty decorator just meaning to communicate a function should be a tool
 def tool(func: Callable) -> Callable:
     setattr(func, "_is_tool", True)
+    return func
+
+
+def allow_unused(func: Callable) -> Callable:
+    setattr(func, "_allow_unused", True)
     return func
 
 
@@ -68,21 +65,8 @@ class MaxRetriesExceededError(Exception):
     pass
 
 
-class MissingSystemInstructError(Exception):
-    pass
-
-
-class MisplacedSystemInstructError(Exception):
-    pass
-
-
 class RecoverableToolError(Exception):
     """Exceptions in tool calls that the assistant can learn from and correct"""
-
-
-class InvalidSystemCommandError(RecoverableToolError):
-    def __init__(self, command: str):
-        super().__init__(f"Invalid command: {command}. Use /help for a list of valid commands")
 
 
 class GoalAlreadyExistsError(RecoverableToolError):
