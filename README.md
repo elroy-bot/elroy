@@ -71,7 +71,7 @@ Run - ``uv tool run elroy``
 ### Option 3: Using pip
 
 #### Prerequisites
-- Python 3.9 or higher
+- Python 3.10 or higher
 - Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 - Database (SQLite or PostgreSQL with pgvector extension)
 
@@ -82,7 +82,7 @@ pip install elroy
 ### Option 4: Installing from Source
 
 #### Prerequisites
-- Python 3.11 or higher
+- Python 3.10 or higher
 - uv package manager (install with `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 - PostgreSQL database with pgvector extension
