@@ -49,13 +49,13 @@ services:
         condition: service_healthy
     environment:
       - ELROY_DATABASE_URL=postgresql://elroy:password@db:5432/elroy
-      - PYTHONPATH=/app
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     stdin_open: true
     tty: true
-    entrypoint: ["elroy"]
-    command: []
+    # Uncomment these 2 lines to add docker socket support to run nested dockers
+    # volumes:
+    # - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   elroy_postgres-data:

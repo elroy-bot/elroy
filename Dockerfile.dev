@@ -1,32 +1,31 @@
-FROM python:3.11.7-slim
+FROM lunamidori5/pixelarch:quartz
 
-RUN apt-get update && apt-get install -y \
-    curl \
-    gcc \
-    python3-dev \
-    build-essential \
-    git \
-    postgresql-client \
-    sqlite3 \
-    libsqlite3-dev \
-    && rm -rf /var/lib/apt/lists/*
+## We are using Pixelarch here as it is built to be easyer to test / run real world programs as if you where on a prod arch server / desktop
+## It has a full copy of bash installed (themed and setup with compleations), it also uses the ``yay`` package manager
+## Giving users the power to use the AUR or the normal Arch repos
 
-WORKDIR /app
+RUN sudo sed -i 's/Quartz/Elroy/g' /etc/os-release
 
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:${PATH}"
+## Using the sed command lets us tell the OS that it is now not quartz flavored. 
+## This lets the os know what type of flavor its running for programs that check
 
-# Copy the project and install it
-COPY . /app/
-ENV ELROY_HOME=/app/data
+## Quartz is the flavor as it only has ``yay`` installed and nothing else, so its only about 400mbs total
+## ``yay`` uses the same command layout as pacman, making it easyer to install programs
 
-RUN uv pip install -e . --system
+## More info - https://hub.docker.com/repository/docker/lunamidori5/pixelarch/general
 
+ARG USERNAME=midori-ai
 
-RUN mkdir -p /app/data && \
-    chmod -R 777 /app/data
+USER $USERNAME
+WORKDIR /home/$USERNAME/app
 
+RUN yay -Syu --noconfirm uv && yay -Yccc --noconfirm
 
-ENTRYPOINT ["elroy"]
+COPY . .
+ENV ELROY_HOME=/home/$USERNAME/app/data
+
+RUN sudo mkdir -p /home/$USERNAME/app/data
+RUN sudo chmod -R 777 /home/$USERNAME/app
+
+ENTRYPOINT ["uv", "run", "elroy"]
 CMD ["chat"]
-
