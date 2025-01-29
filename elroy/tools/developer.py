@@ -1,5 +1,7 @@
+import logging
 import os
 import platform
+import subprocess
 import sys
 import urllib.parse
 import webbrowser
@@ -13,6 +15,7 @@ from .. import __version__
 from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, tool
 from ..config.ctx import ElroyContext
 from ..config.paths import get_home_dir, get_log_file_path
+from ..utils.ops import experimental
 
 
 @tool
@@ -170,3 +173,48 @@ def create_bug_report(
     params = {"title": title, "body": full_report}
     github_url = f"{base_url}?{urllib.parse.urlencode(params)}"
     webbrowser.open(github_url)
+
+
+@experimental
+@tool
+def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
+    """Instructs a delegated coding LLM to make an edit to code. As context is being passed transferred to the assistant, care must be taken to ensure the assistant has all necessary context.
+
+    Args:
+        context: The ElroyContext instance
+        working_dir: Directory to work in
+        instruction: The edit instruction. This should be exhaustive, and include any raw data needed to make the edit. It should also include any instructions based on memory or feedback as relevant.
+        file_name: File to edit
+
+    Returns:
+        The git diff output as a string
+    """
+    from aider.coders import Coder
+    from aider.io import InputOutput
+    from aider.models import Model
+
+    logging.info(f"Instructions to aider: {instruction}")
+
+    # Store current dir
+    original_dir = os.getcwd()
+
+    try:
+        # Change to working dir
+        os.chdir(working_dir)
+
+        # See: https://aider.chat/docs/scripting.html
+        coder = Coder.create(
+            main_model=Model(ctx.chat_model.name),
+            fnames=[file_name],
+            io=InputOutput(yes=True),
+            auto_commits=False,
+        )
+        coder.run(instruction)
+
+        # Get git diff
+        result = subprocess.run(["git", "diff"], capture_output=True, text=True, check=True)
+        return f"Coding change complete, the following diff was generated:\n{result.stdout}"
+
+    finally:
+        # Restore original dir
+        os.chdir(original_dir)

@@ -4,11 +4,13 @@ from lorem_text import lorem
 from pytz import UTC
 
 from elroy.config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, USER
-from elroy.messaging.context import compress_context_messages, count_tokens
-from elroy.repository.data_models import ContextMessage
+from elroy.config.ctx import ElroyContext
+from elroy.llm.utils import count_tokens
+from elroy.repository.context_messages.data_models import ContextMessage
+from elroy.repository.context_messages.transform import compress_context_messages
 
 
-def test_compress_context_messages(george_ctx):
+def test_compress_context_messages(george_ctx: ElroyContext):
     # create a very long context to test consolidation
     system_message = ContextMessage(role=SYSTEM, content=f"{SYSTEM_INSTRUCTION_LABEL}\nSystem message", chat_model=None)
     original_messages = [system_message]
@@ -19,12 +21,17 @@ def test_compress_context_messages(george_ctx):
             ContextMessage(
                 role=ASSISTANT,
                 content=f"{i}\n" + lorem.paragraph(),
-                chat_model=george_ctx.chat_model,
+                chat_model=george_ctx.chat_model.name,
                 created_at=datetime.now(UTC),
             ),
         ]
 
-    compressed_messages = compress_context_messages(george_ctx, original_messages)
+    compressed_messages = compress_context_messages(
+        george_ctx.chat_model.name,
+        george_ctx.context_refresh_target_tokens,
+        george_ctx.max_in_context_message_age,
+        original_messages,
+    )
 
     # Test token count
     assert count_tokens(george_ctx.chat_model.name, compressed_messages) < george_ctx.context_refresh_target_tokens * 1.5

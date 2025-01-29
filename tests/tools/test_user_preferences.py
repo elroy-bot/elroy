@@ -1,12 +1,12 @@
 from tests.utils import process_test_message
 
-from elroy.system_commands import reset_messages
-from elroy.tools.user_preferences import (
-    get_user_preferred_name,
+from elroy.repository.context_messages.operations import reset_messages
+from elroy.repository.user.operations import (
     reset_system_persona,
     set_assistant_name,
     set_persona,
 )
+from elroy.repository.user.queries import get_user_preferred_name
 
 
 def test_update_user_preferred_name(ctx):

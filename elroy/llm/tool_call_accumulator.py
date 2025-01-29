@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional
 
-from ..config.config import ChatModel
+from ..config.llm import ChatModel
 from ..db.db_models import FunctionCall
 
 

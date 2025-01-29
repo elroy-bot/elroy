@@ -8,14 +8,8 @@ from toolz.curried import filter
 
 from ..config.constants import SYSTEM
 from ..config.ctx import ElroyContext
-from ..db.db_models import EmbeddableSqlModel
-from .data_models import ContextMessage
-from .message import (
-    MemoryMetadata,
-    add_context_messages,
-    get_context_messages,
-    remove_context_messages,
-)
+from ..db.db_models import EmbeddableSqlModel, MemoryMetadata
+from .context_messages.data_models import ContextMessage
 
 
 def is_in_context_message(memory: EmbeddableSqlModel, context_message: ContextMessage) -> bool:
@@ -25,6 +19,9 @@ def is_in_context_message(memory: EmbeddableSqlModel, context_message: ContextMe
 
 
 def remove_from_context(ctx: ElroyContext, memory: EmbeddableSqlModel):
+    from .context_messages.operations import remove_context_messages
+    from .context_messages.queries import get_context_messages
+
     pipe(
         get_context_messages(ctx),
         filter(partial(is_in_context_message, memory)),
@@ -34,6 +31,9 @@ def remove_from_context(ctx: ElroyContext, memory: EmbeddableSqlModel):
 
 
 def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
+    from .context_messages.operations import add_context_messages
+    from .context_messages.queries import get_context_messages
+
     memory_id = memory.id
     assert memory_id
 

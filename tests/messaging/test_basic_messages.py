@@ -2,10 +2,8 @@ import pytest
 from tests.utils import process_test_message
 
 from elroy.config.constants import InvalidForceToolError
-from elroy.tools.user_preferences import (
-    get_user_preferred_name,
-    set_user_preferred_name,
-)
+from elroy.repository.user.operations import set_user_preferred_name
+from elroy.repository.user.queries import get_user_preferred_name
 
 
 def test_hello_world(ctx):

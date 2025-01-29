@@ -11,20 +11,17 @@ from elroy.repository.memories.consolidation import (
     MemoryCluster,
     consolidate_memory_cluster,
 )
-from elroy.repository.memories.operations import (
-    _do_create_memory,
-    create_memory,
-    get_active_memories,
-)
+from elroy.repository.memories.operations import create_memory, do_create_memory
+from elroy.repository.memories.queries import get_active_memories
 
 
 @pytest.mark.asyncio
 async def test_identical_memories(ctx):
     """Test consolidation of identical memories marks one inactive"""
-    memory1 = _do_create_memory(
+    memory1 = do_create_memory(
         ctx, "User's Hiking Habits", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
     )
-    memory2 = _do_create_memory(
+    memory2 = do_create_memory(
         ctx, "User's Mountain Activities", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
     )
 
@@ -49,10 +46,10 @@ These memories both discuss the user's hiking activities and should be combined 
 The user is an avid hiker who enjoys both day hikes and overnight camping. They prefer mountain trails and typically hike every weekend when weather permits. They have experience with both summer and winter hiking conditions and own proper gear for both seasons."""
     )
 
-    memory1 = _do_create_memory(
+    memory1 = do_create_memory(
         ctx, "User's Hiking Schedule", "User goes hiking every weekend and owns proper hiking gear for different seasons."
     )
-    memory2 = _do_create_memory(
+    memory2 = do_create_memory(
         ctx, "User's Trail Preferences", "User enjoys mountain trails and sometimes does overnight camping during their hikes."
     )
 
@@ -78,8 +75,8 @@ They prefer dark roast coffee first thing in the morning, always black.
 They enjoy lighter roasts in the afternoon, sometimes with a splash of oat milk."""
     )
 
-    memory1 = _do_create_memory(ctx, "User's Morning Coffee", "User drinks black dark roast coffee every morning.")
-    memory2 = _do_create_memory(ctx, "User's Afternoon Coffee", "User enjoys lighter roasts in the afternoon with oat milk.")
+    memory1 = do_create_memory(ctx, "User's Morning Coffee", "User drinks black dark roast coffee every morning.")
+    memory2 = do_create_memory(ctx, "User's Afternoon Coffee", "User enjoys lighter roasts in the afternoon with oat milk.")
 
     assert memory1 and memory2
 
@@ -103,10 +100,10 @@ The user primarily codes in Python and has been using it professionally for over
 The user played piano for 10 years during their childhood and recently started taking lessons again to refresh their skills."""
     )
 
-    memory1 = _do_create_memory(
+    memory1 = do_create_memory(
         ctx, "User's Python Experience", "User has been coding in Python for 5+ years and uses it for data analysis."
     )
-    memory2 = _do_create_memory(ctx, "User's Musical Background", "User played piano as a child and recently started taking lessons again.")
+    memory2 = do_create_memory(ctx, "User's Musical Background", "User played piano as a child and recently started taking lessons again.")
 
     assert memory1 and memory2
 
@@ -127,10 +124,10 @@ The user enjoys both green and black teas, preferring green tea in the morning f
 They have a precise brewing routine, using water at exactly 175°F for green tea and 205°F for black tea, and timing each steep carefully with a timer."""
     )
 
-    memory1 = _do_create_memory(
+    memory1 = do_create_memory(
         ctx, "User's Tea Preferences", "User drinks green tea in morning and black tea in afternoon, always loose leaf."
     )
-    memory2 = _do_create_memory(
+    memory2 = do_create_memory(
         ctx, "User's Tea Preparation", "User is precise about tea temperatures: 175°F for green and 205°F for black."
     )
 

@@ -4,8 +4,8 @@ from typer.testing import CliRunner
 
 from elroy.cli.main import app
 from elroy.config.ctx import ElroyContext
-from elroy.llm.persona import get_persona
-from elroy.tools.user_preferences import reset_system_persona, set_persona
+from elroy.repository.user.operations import reset_system_persona, set_persona
+from elroy.repository.user.queries import get_persona
 
 
 def test_persona(user_token):

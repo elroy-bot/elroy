@@ -2,7 +2,7 @@ from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
 from elroy.config.ctx import ElroyContext
 from elroy.llm.client import generate_chat_completion_message, query_llm
-from elroy.repository.data_models import ContextMessage
+from elroy.repository.context_messages.data_models import ContextMessage
 
 
 def test_query_hello_world(ctx: ElroyContext):

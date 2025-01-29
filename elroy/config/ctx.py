@@ -10,9 +10,7 @@ import typer
 from ..db.db_manager import DbManager
 from ..db.postgres.postgres_manager import PostgresManager
 from ..db.sqlite.sqlite_manager import SqliteManager
-from ..io.cli import CliIO
-from ..repository.user import create_user_id, get_user_id_if_exists
-from .config import ChatModel, EmbeddingModel, get_chat_model, get_embedding_model
+from .llm import ChatModel, EmbeddingModel, get_chat_model, get_embedding_model
 from .paths import get_default_config_path
 
 
@@ -86,11 +84,11 @@ class ElroyContext:
         self.max_memory_cluster_size = max_memory_cluster_size
         self.memories_between_consolidation = memories_between_consolidation
 
-    from ..tools.function_caller import ToolRegistry
+    from ..tools.registry import ToolRegistry
 
     @cached_property
     def tool_registry(self) -> ToolRegistry:
-        from ..tools.function_caller import ToolRegistry
+        from ..tools.registry import ToolRegistry
 
         registry = ToolRegistry(self.params.custom_tools_path)
         registry.register_all()
@@ -136,10 +134,15 @@ class ElroyContext:
 
     @cached_property
     def user_id(self) -> int:
+        from ..repository.user.operations import create_user_id
+        from ..repository.user.queries import get_user_id_if_exists
+
         return get_user_id_if_exists(self.db, self.user_token) or create_user_id(self.db, self.user_token)
 
     @property
     def io(self) -> ElroyIO:
+        from ..io.cli import CliIO
+
         if not self._io:
             self._io = CliIO(
                 show_internal_thought=self.params.show_internal_thought,

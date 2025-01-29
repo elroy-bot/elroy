@@ -16,3 +16,4 @@ db.dump
 celerybeat-schedule
 dist/
 uv.lock
+.aider.chat.history.md

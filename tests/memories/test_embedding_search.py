@@ -7,7 +7,8 @@ from toolz import pipe
 from toolz.curried import filter
 
 from elroy.db.db_models import Goal
-from elroy.repository.message import ContextMessage, get_context_messages
+from elroy.repository.context_messages.data_models import ContextMessage
+from elroy.repository.context_messages.queries import get_context_messages
 
 
 def test_goal_relevance(george_ctx):

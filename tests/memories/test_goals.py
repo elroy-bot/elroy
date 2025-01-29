@@ -4,12 +4,13 @@ from tests.utils import (
     quiz_assistant_bool,
 )
 
-from elroy.cli.chat import _get_in_context_memories
 from elroy.db.db_models import Goal
+from elroy.repository.context_messages.operations import reset_messages
+from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.embeddable import is_in_context, remove_from_context
 from elroy.repository.goals.operations import create_goal, mark_goal_completed
-from elroy.repository.message import get_context_messages
-from elroy.system_commands import get_db_goal_by_name, reset_messages
+from elroy.repository.goals.queries import get_db_goal_by_name
+from elroy.repository.memories.queries import get_in_context_memories
 
 
 def test_assistant_goal_in_context(ctx):
@@ -17,15 +18,15 @@ def test_assistant_goal_in_context(ctx):
     process_test_message(ctx, "I ran a marathon today, please create a memory")
 
     assert any(
-        "marathon" in title.lower() for title in _get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Memory")
+        "marathon" in title.lower() for title in get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Memory")
     ), "Marathon memory not found in context"
     process_test_message(ctx, "Please create a new goal for me: Run a second marathon")
     assert any(
-        "marathon" in title.lower() for title in _get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Goal")
+        "marathon" in title.lower() for title in get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Goal")
     ), "Marathon goal not found in context"
     process_test_message(ctx, "I ran a second marathon today, please mark my goal complete")
     assert not any(
-        "marathon" in title.lower() for title in _get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Goal")
+        "marathon" in title.lower() for title in get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Goal")
     ), "Marathon goal still in context"
 
 

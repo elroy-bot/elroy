@@ -16,7 +16,7 @@ from rich.text import Text
 from toolz import concatv, pipe
 from toolz.curried import map
 
-from ..config.constants import REPO_ISSUES_URL
+from ..config.constants import EXIT, REPO_ISSUES_URL
 from ..config.paths import get_prompt_history_path
 from ..db.db_models import FunctionCall, Goal, Memory
 from ..io.base import ElroyIO
@@ -27,7 +27,7 @@ from ..llm.stream_parser import (
     SystemWarning,
     TextOutput,
 )
-from ..repository.data_models import ContextMessage
+from ..repository.context_messages.data_models import ContextMessage
 
 
 class SlashCompleter(WordCompleter):
@@ -160,6 +160,7 @@ class CliIO(ElroyIO):
             panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
 
+    # TODO: move to ui.py
     def print_title_ruler(self, assistant_name: str):
         self.console.rule(
             Text(assistant_name, justify="center", style=self.user_input_color),
@@ -184,7 +185,7 @@ class CliIO(ElroyIO):
 
     def update_completer(self, goals: List[Goal], memories: List[Memory], context_messages: List[ContextMessage]) -> None:
         from ..repository.embeddable import is_in_context
-        from ..system_commands import (
+        from ..tools.tools_and_commands import (
             ALL_ACTIVE_GOAL_COMMANDS,
             ALL_ACTIVE_MEMORY_COMMANDS,
             IN_CONTEXT_GOAL_COMMANDS,
@@ -213,5 +214,6 @@ class CliIO(ElroyIO):
             map(lambda x: f"/{x[0].__name__} {x[1]}"),
             list,
             lambda x: x + [f"/{f.__name__}" for f in NON_ARG_PREFILL_COMMANDS | USER_ONLY_COMMANDS],
+            ["/" + EXIT].__add__,
             lambda x: SlashCompleter(words=x),  # type: ignore
         )

@@ -35,6 +35,8 @@ BUG_REPORT_LOG_LINES = 15
 
 MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
+EXIT = "exit"
+
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
 
@@ -174,3 +176,7 @@ For example, to use a tool to create a memory, you could include the following i
 <tool_call_instructions>
 """
     )
+
+
+ERROR_PREFIX = "**Tool call resulted in error: **"
+MAX_MEMORY_LENGTH = 12000  # Characters

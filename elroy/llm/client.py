@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional, Union
 from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
-from ..config.config import ChatModel, EmbeddingModel
 from ..config.constants import (
     ASSISTANT,
     MAX_CHAT_COMPLETION_RETRY_COUNT,
@@ -17,8 +16,9 @@ from ..config.constants import (
     MissingToolCallMessageError,
     Provider,
 )
-from ..config.models import get_fallback_model
-from ..repository.data_models import ContextMessage
+from ..config.llm import ChatModel, EmbeddingModel
+from ..config.models_aliases import get_fallback_model
+from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
 
@@ -94,8 +94,8 @@ def generate_chat_completion_message(
 
             if chat_model.provider == Provider.ANTHROPIC and any(m.role == TOOL for m in context_messages):
                 # If tool use is in the context window, anthropic requires tools to be enabled and provided
-                from ..system_commands import do_not_use
-                from ..tools.function_caller import get_function_schema
+                from ..tools.registry import do_not_use
+                from ..tools.schema import get_function_schema
 
                 tool_choice = "auto"
                 tool_schemas = [get_function_schema(do_not_use)]  # type: ignore

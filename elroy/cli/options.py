@@ -9,12 +9,12 @@ from toolz import assoc, dissoc, merge, pipe
 from toolz.curried import map, valfilter
 from typer import Option
 
-from ..config.config import DEFAULTS_CONFIG
 from ..config.ctx import ElroyContext
-from ..config.models import resolve_anthropic
+from ..config.llm import DEFAULTS_CONFIG
+from ..config.models_aliases import resolve_anthropic
 from ..config.paths import get_default_sqlite_url
 
-DEPRECATED_KEYS = ["initial_context_refresh_wait_seconds"]
+DEPRECATED_KEYS = {"initial_context_refresh_wait_seconds"}
 
 
 def resolve_model_alias(alias: str) -> Optional[str]:

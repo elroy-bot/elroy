@@ -6,7 +6,7 @@ from typing import Generator, Generic, Iterator, Optional, Type, TypeVar, Union
 
 from litellm.types.utils import Delta, ModelResponse
 
-from ..config.config import ChatModel
+from ..config.llm import ChatModel
 from ..db.db_models import FunctionCall
 from .tool_call_accumulator import OpenAIToolCallAccumulator
 

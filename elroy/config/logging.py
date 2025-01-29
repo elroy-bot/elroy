@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 
 import litellm
 
-from .config.paths import get_log_file_path
+from .paths import get_log_file_path
 
 
 def setup_logging():
