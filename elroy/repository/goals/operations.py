@@ -14,13 +14,15 @@ from ...config.constants import (
 )
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal
-from ...messaging.context import drop_goal_from_current_context
 from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import first_or_none, is_blank
-from ..data_models import ContextMessage
+from ..context_messages.data_models import ContextMessage
+from ..context_messages.operations import (
+    add_context_messages,
+    drop_goal_from_current_context,
+)
 from ..embeddable import add_to_context, remove_from_context
 from ..embeddings import upsert_embedding_if_needed
-from ..message import add_context_messages
 from .queries import get_active_goals
 
 
@@ -96,14 +98,6 @@ def create_goal(
         return f"Goal '{goal_name}' has been created."
 
 
-def get_db_goal_by_name(ctx: ElroyContext, name: str) -> Optional[Goal]:
-    return pipe(
-        get_active_goals(ctx),
-        filter(lambda g: g.name == name),
-        first_or_none,
-    )  # type: ignore
-
-
 @tool
 def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> str:
     """Renames an existing active goal.
@@ -167,45 +161,6 @@ def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> st
         ],
     )
     return f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}'."
-
-
-def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
-    active_goals = get_active_goals(ctx)
-
-    goal = pipe(
-        active_goals,
-        filter(lambda g: g.name == goal_name),
-        first_or_none,
-    )
-
-    if not goal:
-        raise GoalDoesNotExistError(goal_name, [g.name for g in active_goals])
-    assert isinstance(goal, Goal)
-
-    logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
-    logging.info(f"Current status updates: {goal.status_updates}")
-
-    # Get current status updates and append new one
-    status_updates = goal.get_status_updates()
-    if status:
-        status_updates.append(status)
-        goal.set_status_updates(status_updates)
-
-    if is_terminal:
-        goal.is_active = None
-        remove_from_context(ctx, goal)
-    else:
-        add_to_context(ctx, goal)
-
-    logging.info(f"Updated status updates: {goal.status_updates}")
-
-    ctx.db.commit()
-    ctx.db.refresh(goal)
-
-    if status:
-        assert status in goal.status_updates, "Status update not found in goal status updates"
-
-    upsert_embedding_if_needed(ctx, goal)
 
 
 @tool
@@ -284,3 +239,42 @@ def delete_goal_permanently(ctx: ElroyContext, goal_name: str) -> str:
     )
 
     return f"Goal '{goal_name}' has been deleted."
+
+
+def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
+    active_goals = get_active_goals(ctx)
+
+    goal = pipe(
+        active_goals,
+        filter(lambda g: g.name == goal_name),
+        first_or_none,
+    )
+
+    if not goal:
+        raise GoalDoesNotExistError(goal_name, [g.name for g in active_goals])
+    assert isinstance(goal, Goal)
+
+    logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
+    logging.info(f"Current status updates: {goal.status_updates}")
+
+    # Get current status updates and append new one
+    status_updates = goal.get_status_updates()
+    if status:
+        status_updates.append(status)
+        goal.set_status_updates(status_updates)
+
+    if is_terminal:
+        goal.is_active = None
+        remove_from_context(ctx, goal)
+    else:
+        add_to_context(ctx, goal)
+
+    logging.info(f"Updated status updates: {goal.status_updates}")
+
+    ctx.db.commit()
+    ctx.db.refresh(goal)
+
+    if status:
+        assert status in goal.status_updates, "Status update not found in goal status updates"
+
+    upsert_embedding_if_needed(ctx, goal)

@@ -1,51 +1,56 @@
 import json
 import logging
-from functools import partial
-from typing import Dict, List, Optional, Sequence, Tuple
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from sqlmodel import select
-from toolz import pipe
-from toolz.curried import map
 
-from ...config.config import ChatModel
-from ...config.constants import tool
+from ...config.constants import MAX_MEMORY_LENGTH, tool
 from ...config.ctx import ElroyContext
-from ...db.db_models import EmbeddableSqlModel, Memory
+from ...config.llm import ChatModel
+from ...db.db_models import EmbeddableSqlModel, Memory, MemoryOperationTracker
 from ...llm.client import query_llm
-from ..data_models import ContextMessage
-from .consolidation import memory_consolidation_check
+from ...utils.utils import run_in_background_thread
+from ..context_messages.data_models import ContextMessage
+from .consolidation import consolidate_memories
 
 
-def get_active_memories(ctx: ElroyContext) -> List[Memory]:
-    """Fetch all active memories for the user"""
-    return list(
-        ctx.db.exec(
-            select(Memory).where(
-                Memory.user_id == ctx.user_id,
-                Memory.is_active == True,
-            )
-        ).all()
-    )
+def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker:
+    tracker = ctx.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == ctx.user_id)).one_or_none()
+
+    if tracker:
+        return tracker
+    else:
+        # Create a new tracker for the user if it doesn't exist
+        tracker = MemoryOperationTracker(user_id=ctx.user_id, memories_since_consolidation=0)
+        return tracker
 
 
-def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: Sequence[EmbeddableSqlModel]):
-    pass
+def memory_consolidation_check(func) -> Callable[..., Any]:
+    @wraps(func)  # Add this line
+    def wrapper(ctx: ElroyContext, *args, **kwargs):
+        result = func(ctx, *args, **kwargs)
 
-    logging.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
+        logging.info("Checking memory consolidation")
 
-    memory = pipe(
-        sources,
-        map(lambda x: {"source_id": x.id, "source_type": x.__class__.__name__}),
-        list,
-        partial(_do_create_memory, ctx, name, text),
-        # Do NOT add this memory to context, it's not necessarrily relevant to the conversation
-    )
+        tracker = get_or_create_memory_op_tracker(ctx)
 
-    [mark_inactive(ctx, m) for m in sources]
-    assert isinstance(memory, Memory)
-    memory_id = memory.id
-    assert memory_id
-    return memory_id
+        tracker.memories_since_consolidation += 1
+        logging.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
+
+        if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
+            # Run consolidate_memories in a background thread
+            logging.info("Running memory consolidation")
+            run_in_background_thread(consolidate_memories, ctx)
+            logging.info("Memory consolidation started in background thread")
+            tracker.memories_since_consolidation = 0
+        else:
+            logging.info("Not running memory consolidation")
+        ctx.db.add(tracker)
+        ctx.db.commit()
+        return result
+
+    return wrapper
 
 
 @memory_consolidation_check
@@ -83,31 +88,9 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     Returns:
         str: Confirmation message that the memory was created.
     """
-    _do_create_memory(ctx, name, text)
+    do_create_memory(ctx, name, text)
 
     return f"New memory created: {name}"
-
-
-def _do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[Dict] = []) -> Memory:
-    from ...repository.embeddings import upsert_embedding_if_needed
-    from ..embeddable import add_to_context
-
-    memory = Memory(
-        user_id=ctx.user_id,
-        name=name,
-        text=text,
-        source_metadata=json.dumps(source_metadata),
-    )
-    ctx.db.add(memory)
-    ctx.db.commit()
-    ctx.db.refresh(memory)
-
-    upsert_embedding_if_needed(ctx, memory)
-    add_to_context(ctx, memory)
-    return memory
-
-
-MAX_MEMORY_LENGTH = 12000  # Characters
 
 
 def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:
@@ -140,7 +123,7 @@ async def formulate_memory(
     chat_model: ChatModel, user_preferred_name: Optional[str], context_messages: List[ContextMessage]
 ) -> Tuple[str, str]:
     from ...llm.prompts import summarize_for_memory
-    from ...messaging.context import format_context_messages
+    from ..context_messages.transform import format_context_messages
 
     return await summarize_for_memory(
         chat_model,
@@ -156,3 +139,22 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
     ctx.db.add(item)
     ctx.db.commit()
     remove_from_context(ctx, item)
+
+
+def do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[Dict] = []) -> Memory:
+    from ...repository.embeddings import upsert_embedding_if_needed
+    from ..embeddable import add_to_context
+
+    memory = Memory(
+        user_id=ctx.user_id,
+        name=name,
+        text=text,
+        source_metadata=json.dumps(source_metadata),
+    )
+    ctx.db.add(memory)
+    ctx.db.commit()
+    ctx.db.refresh(memory)
+
+    upsert_embedding_if_needed(ctx, memory)
+    add_to_context(ctx, memory)
+    return memory

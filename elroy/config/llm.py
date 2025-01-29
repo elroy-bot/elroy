@@ -32,7 +32,7 @@ def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
         if model_name in models:
             return provider
 
-    from .models import get_supported_openai_models
+    from .models_aliases import get_supported_openai_models
 
     if model_name in get_supported_openai_models():
         return Provider.OPENAI
@@ -40,7 +40,7 @@ def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
     elif api_base:
         return Provider.OTHER
 
-    from .models import get_supported_anthropic_models
+    from .models_aliases import get_supported_anthropic_models
 
     if model_name in get_supported_anthropic_models():
         return Provider.ANTHROPIC

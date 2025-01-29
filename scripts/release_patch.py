@@ -18,7 +18,7 @@ from toolz.curried import map
 
 from elroy import __version__
 from elroy.api import Elroy
-from elroy.tools.function_caller import get_system_tool_schemas
+from elroy.tools.registry import get_system_tool_schemas
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 with open(os.path.join(REPO_ROOT, "elroy", "__init__.py"), "r") as f:

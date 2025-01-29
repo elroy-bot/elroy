@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 from toolz import assoc, first, pipe
 from toolz.curried import filter
 
-from .config import ChatModel
+from .llm import ChatModel
 
 
 def resolve_anthropic(pattern: str) -> str:

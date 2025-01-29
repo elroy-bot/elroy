@@ -7,20 +7,20 @@ from pytz import UTC
 from .cli.options import get_resolved_params
 from .config.constants import USER
 from .config.ctx import ElroyContext
-from .llm.persona import get_persona as do_get_persona
 from .llm.stream_parser import AssistantInternalThought
-from .messaging.messenger import process_message
+from .messenger import process_message
 from .repository.goals.operations import (
     add_goal_status_update as do_add_goal_status_update,
 )
 from .repository.goals.operations import create_goal as do_create_goal
 from .repository.goals.operations import mark_goal_completed as do_mark_goal_completed
+from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
+from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
 from .repository.memories.operations import create_memory
 from .repository.memories.operations import create_memory as do_create_memory
-from .system_commands import get_active_goal_names as do_get_active_goal_names
-from .system_commands import get_goal_by_name as do_get_goal_by_name
-from .system_commands import query_memory as do_query_memory
-from .tools.user_preferences import set_assistant_name, set_persona
+from .repository.memories.queries import query_memory as do_query_memory
+from .repository.user.operations import set_assistant_name, set_persona
+from .repository.user.queries import get_persona as do_get_persona
 
 
 def db(f: Callable) -> Callable:

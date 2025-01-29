@@ -13,10 +13,11 @@ from elroy.db.db_models import EmbeddableSqlModel, FunctionCall
 from elroy.io.cli import CliIO
 from elroy.llm.client import get_embedding, query_llm
 from elroy.llm.stream_parser import SystemMessage, TextOutput
-from elroy.messaging.messenger import process_message
+from elroy.messenger import process_message
+from elroy.repository.context_messages.operations import replace_context_messages
+from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.embeddings import query_vector
 from elroy.repository.goals.queries import get_active_goals
-from elroy.repository.message import get_context_messages, replace_context_messages
 from elroy.utils.utils import first_or_none
 
 

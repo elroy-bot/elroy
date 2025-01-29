@@ -20,9 +20,10 @@ from elroy.config.constants import (
     tool,
 )
 from elroy.config.ctx import ElroyContext
-from elroy.repository.data_models import ContextMessage, ToolCall
-from elroy.repository.message import add_context_messages
-from elroy.tools.function_caller import get_system_tool_schemas
+from elroy.db.db_models import ToolCall
+from elroy.repository.context_messages.data_models import ContextMessage
+from elroy.repository.context_messages.operations import add_context_messages
+from elroy.tools.registry import get_system_tool_schemas
 
 
 @tool

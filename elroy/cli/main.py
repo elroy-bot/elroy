@@ -12,24 +12,22 @@ from toolz import pipe
 
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext, get_ctx
+from ..config.logging import setup_logging
 from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..io.base import StdIO
 from ..io.cli import CliIO
-from ..llm.persona import get_persona
-from ..logging_config import setup_logging
-from ..mcp.config import get_mcp_config, is_uv_installed
 from ..repository.memories.operations import manually_record_user_memory
-from ..repository.user import get_user_id_if_exists
+from ..repository.user.operations import reset_system_persona
+from ..repository.user.operations import set_persona as do_set_persona
+from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
-from ..tools.user_preferences import reset_system_persona
-from ..tools.user_preferences import set_persona as do_set_persona
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import (
+    handle_chat,
     handle_message_interactive,
     handle_message_stdio,
     onboard_interactive,
-    run_chat,
 )
 from .options import ElroyOption, get_resolved_params, resolve_model_alias
 from .updater import check_latest_version, check_updates
@@ -304,7 +302,7 @@ def chat(typer_ctx: typer.Context):
             try:
                 if not get_user_id_if_exists(ctx.db, ctx.user_token):
                     asyncio.run(onboard_interactive(ctx))
-                asyncio.run(run_chat(ctx))
+                asyncio.run(handle_chat(ctx))
             except BdbQuit:
                 logging.info("Exiting...")
             except EOFError:
@@ -396,7 +394,7 @@ def remember(
 @app.command(name="list-models")
 def list_models():
     """Lists supported chat models and exits."""
-    from ..config.models import (
+    from ..config.models_aliases import (
         get_supported_anthropic_models,
         get_supported_openai_models,
     )
@@ -486,6 +484,8 @@ def mcp_print_config(
     ),
 ):
     """Print MCP server configuration to stdout"""
+    from ..mcp.config import get_mcp_config, is_uv_installed
+
     ctx = get_ctx(typer_ctx)
 
     if not is_uv_installed():

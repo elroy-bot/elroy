@@ -2,8 +2,8 @@ from typing import List
 
 import pytest
 
-from elroy.config.config import ChatModel
 from elroy.config.constants import Provider
+from elroy.config.llm import ChatModel
 from elroy.db.db_models import FunctionCall
 from elroy.llm.stream_parser import (
     AssistantInternalThought,

@@ -15,13 +15,21 @@ from elroy.cli.options import get_resolved_params, resolve_model_alias
 from elroy.config.constants import ASSISTANT, USER, allow_unused
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
-from elroy.db.db_models import ContextMessageSet, Goal, Memory, User, UserPreference
+from elroy.db.db_models import (
+    ContextMessageSet,
+    Goal,
+    Memory,
+    Message,
+    User,
+    UserPreference,
+)
 from elroy.db.postgres.postgres_manager import PostgresManager
 from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.base import ElroyIO
+from elroy.repository.context_messages.data_models import ContextMessage
+from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.goals.operations import create_goal
-from elroy.repository.message import ContextMessage, Message, add_context_messages
-from elroy.repository.user import create_user_id
+from elroy.repository.user.operations import create_user_id
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 

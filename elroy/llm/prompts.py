@@ -1,8 +1,8 @@
 from functools import partial
 from typing import Optional, Tuple
 
-from ..config.config import ChatModel
 from ..config.constants import MEMORY_WORD_COUNT_LIMIT
+from ..config.llm import ChatModel
 from ..llm.client import query_llm, query_llm_with_word_limit
 from ..llm.parsing import extract_title_and_body
 
