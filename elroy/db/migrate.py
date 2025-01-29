@@ -1,7 +1,10 @@
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
+from ..config.constants import allow_unused
 
+
+@allow_unused
 def run_migrations_offline(context, config) -> None:
     """Run migrations in 'offline' mode.
 
@@ -26,6 +29,7 @@ def run_migrations_offline(context, config) -> None:
         context.run_migrations()
 
 
+@allow_unused
 def run_migrations_online(context, config) -> None:
     """Run migrations in 'online' mode.
 

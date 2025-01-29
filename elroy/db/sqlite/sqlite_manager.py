@@ -121,18 +121,6 @@ class SqliteManager(DbManager):
         # Serialize the vector once
         serialized_query = sqlite_vec.serialize_float32(query)
 
-        # Raw SQL query
-        sql = f"""
-        SELECT {table.__tablename__}.*, vec_distance_L2(VectorStorage.embedding_data, ?) as distance
-        FROM {table.__tablename__}
-        JOIN vectorstorage ON vectorstorage.source_type = ? AND vectorstorage.source_id = {table.__tablename__}.id
-        WHERE {table.__tablename__}.user_id = ?
-        AND {table.__tablename__}.is_active = 1
-        AND vec_distance_L2(VectorStorage.embedding_data, ?) < ?
-        ORDER BY distance
-        LIMIT ?
-        """
-
         results = self.session.exec(
             text(
                 f"""
@@ -162,10 +150,6 @@ class SqliteManager(DbManager):
             list,
             iter,
         )
-
-    @property
-    def vector_distance_operator(self) -> str:
-        return "l2_distance"
 
     @classmethod
     def is_valid_url(cls, url):

@@ -49,10 +49,7 @@ def autoflake_files():
 
 def run_vulture():
     print("Running vulture...")
-    run_command(
-        '''uv pip install vulture && uv run vulture --exclude ".venv/,settings.py,*alembic/*,*test_*py,ops.py,data_models.py,fixture_generator.py,tests/utils.py,__init__.py" '''
-        '''--ignore-decorators "@shared_task,@app.task,@app.route" .''', True
-        )
+    run_command("""uv run vulture --exclude ".venv,alembic/,examples/" --ignore-decorators="@pytest.fixture,@allow_unused,@mcp_app.command,@app.command" .""", True)
 
 def ensure_not_main():
     protected_branch = "main"
@@ -77,7 +74,7 @@ def main():
         run_black_formatting()
         autoflake_files()
         run_isort()
-        # run_vulture()
+        run_vulture()
 
 
     # Continue with the commit

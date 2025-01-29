@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.68] - 2025-01-27
+
+### Added
+- MCP support! Use `elroy mcp print-config` for the server configuration
+
+## [0.0.67] - 2025-01-26
+
+### Added
+- API expanded to include more memory and goal functions
+
 ## [0.0.66] - 2025-01-26
 
 ### Infrastructure

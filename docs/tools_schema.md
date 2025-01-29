@@ -71,13 +71,14 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "contemplate",
-      "description": "Contemplate the current context and return a response",
+      "description": "Contemplate the current context and return a response.",
       "parameters": {
         "type": "object",
         "properties": {
           "contemplation_prompt": {
             "type": "string",
-            "description": "The prompt to contemplate. Can be about the immediate conversation or a general topic. Default wil be a prompt about the current conversation."
+            "description": "Custom prompt to guide the contemplation.
+If not provided, will contemplate the current conversation context"
           }
         },
         "required": []
@@ -88,7 +89,9 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "create_goal",
-      "description": "Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.",
+      "description": "Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.
+Goals should be *specific* and *measurable*. They should be based on the user's needs and desires, and should
+be achievable within a reasonable timeframe.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -127,7 +130,29 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "create_memory",
-      "description": "Creates a new memory for the assistant.",
+      "description": "Creates a new memory for the assistant.
+
+Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
+
+BAD:
+- [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
+
+BETTER:
+- [User Name]'s project on building a treehouse: More specific, and describes a single topic.
+- [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.
+
+BAD:
+- [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.
+
+BETTER:
+- [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.
+
+BAD:
+- [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.
+
+BETTER:
+- [User Name]'s preferred name: Describes a specific topic.
+- [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -151,13 +176,13 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "delete_goal_permanently",
-      "description": "Closes the goal.",
+      "description": "Permanently deletes a goal.",
       "parameters": {
         "type": "object",
         "properties": {
           "goal_name": {
             "type": "string",
-            "description": "The name of the goal"
+            "description": "The name of the goal to delete"
           }
         },
         "required": [
@@ -271,7 +296,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
           },
           "closing_comments": {
             "type": "string",
-            "description": "Updated status with a short account of how the goal was completed and what was learned."
+            "description": "Updated status with a short account of how the goal was completed and what was learned"
           }
         },
         "required": [
@@ -290,7 +315,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         "properties": {
           "goal_name": {
             "type": "string",
-            "description": "Name of the goal"
+            "description": "Name of the goal to retrieve"
           }
         },
         "required": [
@@ -309,11 +334,30 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         "properties": {
           "memory_name": {
             "type": "string",
-            "description": "Name of the memory"
+            "description": "Name of the memory retrieve"
           }
         },
         "required": [
           "memory_name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "query_memory",
+      "description": "Search through memories and goals using semantic search.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query text to find relevant memories and goals"
+          }
+        },
+        "required": [
+          "query"
         ]
       }
     }
@@ -328,11 +372,11 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
         "properties": {
           "old_goal_name": {
             "type": "string",
-            "description": "The current name of the goal."
+            "description": "The current name of the goal"
           },
           "new_goal_name": {
             "type": "string",
-            "description": "The new name for the goal."
+            "description": "The new name for the goal"
           }
         },
         "required": [
@@ -346,7 +390,11 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "set_user_full_name",
-      "description": "Sets the user's full name.",
+      "description": "Sets the user's full name.
+
+Guidance for usage:
+- Should predominantly be used relatively in the user journey. However, ensure to not be pushy in getting personal information early.
+- For existing users, this should be used relatively rarely.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -356,7 +404,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
           },
           "override_existing": {
             "type": "boolean",
-            "description": "Whether to override the an existing full name, if it is already set. Override existing should only be used if a known full name has been found to be incorrect."
+            "description": "Whether to override an existing full name, if it is already set. Override existing should only be used if a known full name has been found to be incorrect."
           }
         },
         "required": [
@@ -379,7 +427,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
           },
           "override_existing": {
             "type": "boolean",
-            "description": "Whether to override the an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect."
+            "description": "Whether to override an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect."
           }
         },
         "required": [
@@ -392,13 +440,14 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "tail_elroy_logs",
-      "description": "Returns the last `lines` of the Elroy logs.",
+      "description": "Returns the last `lines` of the Elroy logs.
+Useful for troubleshooting in cases where errors occur (especially with tool calling).",
       "parameters": {
         "type": "object",
         "properties": {
           "lines": {
             "type": "integer",
-            "description": "Number of lines to return. Defaults to 10."
+            "description": "Number of lines to return from the end of the log file. Defaults to 10."
           }
         },
         "required": []

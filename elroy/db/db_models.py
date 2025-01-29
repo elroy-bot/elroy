@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Text, UniqueConstraint
@@ -63,7 +63,7 @@ class VectorStorage(SQLModel, table=True):
 class EmbeddableSqlModel(ABC, SQLModel):
     id: Optional[int]
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime  # noqa F841
     user_id: int
     is_active: Optional[bool]
 
@@ -79,30 +79,24 @@ class EmbeddableSqlModel(ABC, SQLModel):
         return MemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
 
 
-EmbeddableType = TypeVar("EmbeddableType", bound=EmbeddableSqlModel)
-
-
 class User(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     token: str = Field(..., description="The unique token for the user")
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
 
 
 class Memory(EmbeddableSqlModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the context")
     text: str = Field(..., description="The text of the message")
     source_metadata: str = Field(sa_column=Column(Text), default="[]", description="Metadata for the memory as JSON string")
     is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
-
-    def get_source_metadata(self) -> List[Dict[str, Any]]:
-        return json.loads(self.source_metadata)
 
     def get_name(self) -> str:
         return self.name
@@ -115,7 +109,7 @@ class Goal(EmbeddableSqlModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user whose assistant is being reminded")
     name: str = Field(..., description="The name of the goal")
     status_updates: str = Field(
@@ -173,13 +167,13 @@ class MemoryOperationTracker(SQLModel, table=True):
         default=0, description="Number of new memories created since the last consolidation operation"
     )
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
 
 
 class Message(SQLModel, table=True):
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     role: str = Field(..., description="The role of the message")
     content: Optional[str] = Field(..., description="The text of the message")
@@ -188,38 +182,12 @@ class Message(SQLModel, table=True):
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call")
     memory_metadata: Optional[str] = Field(sa_column=Column(Text), description="Metadata for which memory entities as JSON string")
 
-    def get_tool_calls(self) -> Optional[List[Dict[str, Any]]]:
-        """Get deserialized tool calls"""
-        if self.tool_calls is None:
-            return None
-        return json.loads(self.tool_calls)
-
-    def set_tool_calls(self, tool_calls: Optional[List[Dict[str, Any]]]) -> None:
-        """Set tool calls with JSON serialization"""
-        if tool_calls is None:
-            self.tool_calls = None
-        else:
-            self.tool_calls = json.dumps(tool_calls)
-
-    def get_memory_metadata(self) -> Optional[List[Dict[str, Any]]]:
-        """Get deserialized memory metadata"""
-        if self.memory_metadata is None:
-            return None
-        return json.loads(self.memory_metadata)
-
-    def set_memory_metadata(self, metadata: Optional[List[Dict[str, Any]]]) -> None:
-        """Set memory metadata with JSON serialization"""
-        if metadata is None:
-            self.memory_metadata = None
-        else:
-            self.memory_metadata = json.dumps(metadata)
-
 
 class UserPreference(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="User for context")
     preferred_name: Optional[str] = Field(default=None, description="The preferred name for the user")
     system_persona: Optional[str] = Field(
@@ -234,16 +202,7 @@ class ContextMessageSet(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
-
-    def get_message_ids(self) -> List[int]:
-        """Get deserialized message IDs"""
-        return json.loads(self.message_ids)
-
-    def set_message_ids(self, ids: List[int]) -> None:
-        """Set message IDs with JSON serialization"""
-        self.message_ids = json.dumps(ids)
-
     is_active: Optional[bool] = Field(True, description="Whether the context is active")

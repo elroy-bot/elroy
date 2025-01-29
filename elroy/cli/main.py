@@ -1,11 +1,14 @@
 import asyncio
+import json
 import logging
 import sys
 from bdb import BdbQuit
 from datetime import datetime
+from functools import partial
 from typing import List, Optional
 
 import typer
+from toolz import pipe
 
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext, get_ctx
@@ -14,6 +17,7 @@ from ..io.base import StdIO
 from ..io.cli import CliIO
 from ..llm.persona import get_persona
 from ..logging_config import setup_logging
+from ..mcp.config import get_mcp_config, is_uv_installed
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user import get_user_id_if_exists
 from ..tools.developer import do_print_config
@@ -189,9 +193,9 @@ def common(
         help="The minimum number of memories that can be consolidated into a single memory at once.",
         rich_help_panel="Memory Consolidation",
     ),
-    initial_context_refresh_wait_seconds: int = ElroyOption(
+    initial_context_refresh_wait_seconds: int = ElroyOption(  # noqa F841 remove in 0.1.0
         "initial_context_refresh_wait_seconds",
-        help="Initial wait time in seconds after login before the initial context refresh and compression.",
+        help="Deprecated, will be removed in future releases",
         rich_help_panel="Memory Consolidation",
     ),
     # UI Configuration
@@ -225,42 +229,42 @@ def common(
         help="Color for internal thought messages.",
         rich_help_panel="UI Configuration",
     ),
-    sonnet: bool = typer.Option(
+    sonnet: bool = typer.Option(  # noqa F841
         False,
         "--sonnet",
         help="Use Anthropic's Sonnet model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    opus: bool = typer.Option(
+    opus: bool = typer.Option(  # noqa F841
         False,
         "--opus",
         help="Use Anthropic's Opus model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    gpt4o: bool = typer.Option(
+    gpt4o: bool = typer.Option(  # noqa F841
         False,
         "--4o",
         help="Use OpenAI's GPT-4o model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    gpt4o_mini: bool = typer.Option(
+    gpt4o_mini: bool = typer.Option(  # noqa F841
         False,
         "--4o-mini",
         help="Use OpenAI's GPT-4o-mini model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    o1: bool = typer.Option(
+    o1: bool = typer.Option(  # noqa F841
         False,
         "--o1",
         help="Use OpenAI's o1 model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    o1_mini: bool = typer.Option(
+    o1_mini: bool = typer.Option(  # noqa F841
         False,
         "--o1-mini",
         help="Use OpenAI's o1-mini model",
@@ -292,7 +296,7 @@ def common(
 
 @app.command(name="chat")
 def chat(typer_ctx: typer.Context):
-    """Opens an interactive chat session."""
+    """Opens an interactive chat session. (default command)"""
     ctx = get_ctx(typer_ctx)
     with ctx.dbsession():
         if sys.stdin.isatty():
@@ -466,6 +470,33 @@ def show_persona(typer_ctx: typer.Context):
     with ctx.dbsession():
         print(get_persona(ctx))
         raise typer.Exit()
+
+
+mcp_app = typer.Typer(help="MCP server commands")
+app.add_typer(mcp_app, name="mcp")
+
+
+@mcp_app.command(name="print-config")
+def mcp_print_config(
+    typer_ctx: typer.Context,
+    local: bool = typer.Option(
+        False,
+        "--local",
+        help="Print config using the same instance of Elroy running this command",
+    ),
+):
+    """Print MCP server configuration to stdout"""
+    ctx = get_ctx(typer_ctx)
+
+    if not is_uv_installed():
+        ctx.io.warning("uv not detected. uv is required to run Elroy MCP server")
+
+    pipe(
+        ctx,
+        partial(get_mcp_config, local),
+        lambda d: json.dumps(d, indent=2),
+        print,
+    )
 
 
 if __name__ == "__main__":

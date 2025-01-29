@@ -10,9 +10,9 @@ from tests.utils import TestCliIO
 from toolz import pipe
 from toolz.curried import do
 
-from elroy.cli.config import onboard_user_non_interactive
+from elroy.cli.chat import onboard_non_interactive
 from elroy.cli.options import get_resolved_params, resolve_model_alias
-from elroy.config.constants import ASSISTANT, USER
+from elroy.config.constants import ASSISTANT, USER, allow_unused
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import ContextMessageSet, Goal, Memory, User, UserPreference
@@ -28,6 +28,7 @@ ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketball shots"
 
 
+@allow_unused
 def pytest_addoption(parser):
     parser.addoption("--postgres-url", action="store", default=None, help="Database URL from either environment or command line")
     parser.addoption(
@@ -63,6 +64,7 @@ def postgres_url(request):
             yield f"postgresql://test:test@{postgres_host}:{postgres_port}/test"
 
 
+@allow_unused
 def pytest_generate_tests(metafunc):
     if "chat_model_name" in metafunc.fixturenames:
         models = [resolve_model_alias(m) or m for m in metafunc.config.getoption("--chat-models").split(",")]
@@ -212,7 +214,7 @@ def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyConte
     ctx.set_io(io)
 
     with ctx.dbsession():
-        asyncio.run(onboard_user_non_interactive(ctx))
+        asyncio.run(onboard_non_interactive(ctx))
         yield ctx
 
 

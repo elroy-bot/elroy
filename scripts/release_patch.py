@@ -1,16 +1,20 @@
 import argparse
+import inspect
 import json
 import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List
 
 from aider.coders import Coder
 from aider.io import InputOutput
 from aider.models import Model
 from semantic_version import Version
+from toolz import pipe
+from toolz.curried import map
 
 from elroy import __version__
 from elroy.api import Elroy
@@ -39,6 +43,10 @@ def augment_with_memory(elroy: Elroy, instruction: str) -> str:
                   If there are any specific memories that would be relevant to this task,
                   update the text of the instructions to incorporate it.
                   Be sure to retain any information that is in the original instruction.
+
+                  Maintain the tone and structure of the original instruction: Dry, concise, and to the point.
+
+                  Avoid superfluous greetings or pleasantries. There will be no means to ask followup questions, so do not invite responses or questions.
 
                   The following is the original instruction:
                   {instruction}
@@ -97,12 +105,12 @@ def update_changelog(elroy: Elroy):
     commits = os.popen(f'git log {last_tag}..HEAD --pretty=format:"- %s"').read()
 
     instruction = f"""
-    Update CHANGELOG.md to add version $NEXT_VERSION. Here are the commits since the last release:
+    Update CHANGELOG.md to add version {NEXT_PATCH}. Here are the commits since the last release:
 
     {commits}
 
     Please:
-    1. Add a new entry at the top of the changelog for version $NEXT_VERSION dated $TODAY
+    1. Add a new entry at the top of the changelog for version {NEXT_PATCH} dated {datetime.now().strftime("%Y-%m-%d")}
     2. Group the commits into appropriate sections (Added, Fixed, Improved, Infrastructure, etc.) based on their content
     3. Clean up and standardize the commit messages to be more readable
     4. Maintain the existing changelog format
@@ -114,6 +122,33 @@ def update_changelog(elroy: Elroy):
     """
 
     make_edit(elroy, instruction, ["CHANGELOG.md"])
+
+
+def update_docstrings(elroy: Elroy):
+    def do_update_docstring(filepath: str) -> None:
+        make_edit(
+            elroy,
+            instruction=f"""Review the docstrings for any function annotated with @tool in the following file:
+        {filepath}
+
+        For each, ensure the docstring corresponds accurately to the actual funcion's arguments and return type.
+
+        Do NOT edit the main description unless it contains inaccurate descriptions of the arguments.
+
+        Omit param docstring annotations for any arguments with the annotation of ElroyContext.
+        """,
+            rw_files=[filepath],
+        )
+
+    pipe(
+        elroy.ctx.tool_registry.get_schemas(),
+        map(lambda x: x["function"]["name"]),
+        map(elroy.ctx.tool_registry.get),
+        map(inspect.getfile),
+        set,
+        map(do_update_docstring),
+        set,
+    )
 
 
 def check_main_up_to_date(errors: Errors):
@@ -325,10 +360,13 @@ def _get_version_from_pyproject() -> str:
 
 
 if __name__ == "__main__":
+    elroy = Elroy(token="docs-prep")
+
     parser = argparse.ArgumentParser(description="Release a new patch version")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
     parser.add_argument("--skip-docker", action="store_true", help="Skip running docker build test")
     parser.add_argument("--skip-readme", action="store_true", help="Skip updating README")
+    parser.add_argument("--skip-docstrings", action="store_true", help="Skip updating docstrings")
     args = parser.parse_args()
 
     errors = Errors([])
@@ -362,10 +400,13 @@ if __name__ == "__main__":
     print("Running bumpversion...")
     subprocess.run(["bumpversion", "--new-version", NEXT_PATCH, "patch"], check=True)
 
+    if args.skip_docstrings:
+        print("skipping docstring update")
+    else:
+        update_docstrings(elroy)
+
     print("Updating docs...")
     update_schema_doc()
-
-    elroy = Elroy(token="docs-prep")
 
     repo_root = os.popen("git rev-parse --show-toplevel").read().strip()
     os.chdir(repo_root)

@@ -33,7 +33,6 @@ from ..tools.user_preferences import get_user_preferred_name, set_user_preferred
 from ..utils.clock import get_utc_now
 from ..utils.utils import run_in_background_thread
 from .commands import invoke_system_command
-from .config import onboard_user_non_interactive
 from .context import get_user_logged_in_message, refresh_context_if_needed
 
 
@@ -44,7 +43,7 @@ def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]
 
 def handle_message_stdio(ctx: ElroyContext, io: StdIO, message: str, tool: Optional[str]):
     if not is_user_exists(ctx.db.session, ctx.user_token):
-        asyncio.run(onboard_user_non_interactive(ctx))
+        asyncio.run(onboard_non_interactive(ctx))
     io.print_stream(process_message(USER, ctx, message, tool))
 
 
@@ -161,3 +160,7 @@ async def onboard_interactive(ctx: ElroyContext):
         ctx,
         f"User {preferred_name} has been onboarded. Say hello and introduce yourself.",
     )
+
+
+async def onboard_non_interactive(ctx: ElroyContext) -> None:
+    replace_context_messages(ctx, [get_refreshed_system_message(ctx, [])])

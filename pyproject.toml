@@ -1,6 +1,6 @@
 [project]
 name = "elroy"
-version = "0.0.66"
+version = "0.0.68"
 description = ""
 authors = [
     { name = "Elroy Bot", email = "bot@elroy.ai" }
@@ -30,6 +30,7 @@ dependencies = [
     "sqlite-vec>=0.1.6",
     "scikit-learn>=1.6.0",
     "lock>=2018.3.25.2110",
+    "mcp",
 ]
 
 [project.optional-dependencies]
@@ -49,10 +50,12 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-mock>=3.14.0",
     "langchain-core>=0.3.31",
+    "discord-py",
 ]
 
 [project.scripts]
 elroy = "elroy.cli.main:app"
+elroy_mcp = "elroy.mcp.server:main"
 
 [tool.pyright]
 include = [

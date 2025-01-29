@@ -29,8 +29,8 @@ def setup_logging():
         logging.getLogger(name).setLevel(logging.WARNING)
 
     # Disable liteLLM's default logging
-    litellm.set_verbose = False  # type: ignore
-    litellm.suppress_debug_info = True
+    litellm.set_verbose = False  # type: ignore # noqa F841
+    litellm.suppress_debug_info = True  # noqa F841
 
     # Silence liteLLM's verbose logger
     litellm.verbose_logger.setLevel(logging.INFO)  # type: ignore

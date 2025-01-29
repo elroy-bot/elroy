@@ -56,7 +56,6 @@ class ElroyContext:
         max_context_age_minutes: float,
         min_convo_age_for_greeting_minutes: float,
         enable_assistant_greeting: bool,
-        initial_context_refresh_wait_seconds: int,
         # Memory Management
         memory_cluster_similarity_threshold: float,
         max_memory_cluster_size: int,
@@ -105,10 +104,6 @@ class ElroyContext:
             return get_default_config_path()
 
     @property
-    def initial_refresh_wait(self) -> timedelta:
-        return timedelta(seconds=self.params.initial_context_refresh_wait_seconds)
-
-    @property
     def max_in_context_message_age(self) -> timedelta:
         return timedelta(minutes=self.params.max_context_age_minutes)
 
@@ -140,23 +135,8 @@ class ElroyContext:
         )
 
     @cached_property
-    def is_new_user(self) -> bool:
-        # This will be set when user_id property is accessed
-        if not hasattr(self, "_is_new_user"):
-            raise ValueError("Cannot determine if new user created, fetch user id first")
-        return self._is_new_user
-
-    @cached_property
     def user_id(self) -> int:
-        stored_user_id = get_user_id_if_exists(self.db, self.user_token)
-
-        if stored_user_id:
-            self._is_new_user = False
-            self._user_id = stored_user_id
-        else:
-            self._user_id = create_user_id(self.db, self.user_token)
-            self._is_new_user = True
-        return self._user_id
+        return get_user_id_if_exists(self.db, self.user_token) or create_user_id(self.db, self.user_token)
 
     @property
     def io(self) -> ElroyIO:
@@ -211,9 +191,3 @@ def get_ctx(typer_ctx: typer.Context) -> ElroyContext:
     ctx = typer_ctx.obj
     assert isinstance(ctx, ElroyContext), f"Context must be ElroyContext, got {type(ctx)}"
     return ctx
-
-
-def clone_ctx_with_db(ctx: ElroyContext, db: DbManager) -> ElroyContext:
-    new_ctx = ElroyContext(**vars(ctx.params))  # type: ignore
-    new_ctx._db = db
-    return new_ctx

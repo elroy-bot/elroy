@@ -7,8 +7,10 @@ runs:
       uses: actions/setup-python@v2
       with:
         python-version: '3.11'
-    - name: Install Poetry
+    - name: Install Dependencies
       shell: bash
       run: |
-        curl -sSL https://install.python-poetry.org | python3 -
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        pip install --user uv
+        uv venv
+        source .venv/bin/activate
+        uv pip install -e ".[dev]"

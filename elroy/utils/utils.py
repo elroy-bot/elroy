@@ -5,18 +5,9 @@ from datetime import datetime
 from functools import partial, wraps
 from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
 
-from pytz import UTC
-
 from ..config.ctx import ElroyContext
 
 T = TypeVar("T")
-
-
-def is_truthy(input: Any) -> bool:
-    if isinstance(input, str):
-        return not is_blank(input)
-    else:
-        return bool(input)
 
 
 def is_blank(input: Optional[str]) -> bool:
@@ -54,8 +45,6 @@ def datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
     if dt:
         return dt.strftime("%A, %B %d, %Y %I:%M %p %Z")
 
-
-utc_epoch_to_datetime_string = lambda epoch: datetime_to_string(datetime.fromtimestamp(epoch, UTC))
 
 REDACT_KEYWORDS = ("api_key", "password", "secret", "token", "url")
 

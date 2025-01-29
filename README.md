@@ -71,7 +71,7 @@ Run - ``uv tool run elroy``
 ### Option 3: Using pip
 
 #### Prerequisites
-- Python 3.9 or higher
+- Python 3.10 or higher
 - Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 - Database (SQLite or PostgreSQL with pgvector extension)
 
@@ -82,7 +82,7 @@ pip install elroy
 ### Option 4: Installing from Source
 
 #### Prerequisites
-- Python 3.11 or higher
+- Python 3.10 or higher
 - uv package manager (install with `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Relevant API keys (for simplest setup, set OPENAI_API_KEY)
 - PostgreSQL database with pgvector extension
@@ -232,6 +232,7 @@ These commands can be used by both users and Elroy:
 - `/print_memory` - Display a specific memory's complete content
 - `/add_memory_to_current_context` - Include a memory in the current conversation
 - `/drop_memory_from_current_context` - Remove a memory from the current conversation
+- `/query_memory` - Search through memories and goals using semantic search
 
 ##### Reflection & Contemplation
 - `/contemplate [prompt]` - Request Elroy to reflect on the conversation or analyze a specific topic
@@ -324,7 +325,17 @@ You can customize Elroy's appearance with these options:
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
 * `--help`: Show this message and exit.
 
+## MCP Server
+
+To configure an MCP client to use Elroy:
+
+1. Ensure `uv` is installed
+1. Use `elroy mcp print-config` to get the server's json configuration
+1. Paste the value in the client's MCP server config.
+
+MCP support is experimental, please file issues if you encounter problems!
+
 
 ## License
 
-Distributed under the GPL 3.0.1 License. See `LICENSE` for more information.
+Distributed under the Apache 2.0 license. See LICENSE for more information.

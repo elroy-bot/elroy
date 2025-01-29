@@ -20,7 +20,7 @@ def test_model_fallback(ctx: ElroyContext, mocker):
 
     # Mock completion to fail first time with rate limit error
     mock_completion = mocker.patch("litellm.completion")
-    mock_completion.side_effect = [
+    mock_completion.side_effect = [  # noqa F841
         RateLimitError("Rate limit exceeded", "foo", "bar"),  # First call fails
         iter([ModelResponse(choices=[StreamingChoices(delta=Delta(content="hello world"))], finish_reason="stop")]),  # Second call succeeds
     ]

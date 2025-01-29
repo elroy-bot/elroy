@@ -53,7 +53,7 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
 def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     """Creates a new memory for the assistant.
 
-    Examples of good and bad memory titles are below. Note, the BETTER examples, some titles have been split into two.:
+    Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
 
     BAD:
     - [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
@@ -81,7 +81,7 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
         text (str): The text of the memory.
 
     Returns:
-        int: The database ID of the memory.
+        str: Confirmation message that the memory was created.
     """
     _do_create_memory(ctx, name, text)
 

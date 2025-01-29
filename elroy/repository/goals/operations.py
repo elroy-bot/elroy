@@ -39,14 +39,19 @@ def create_goal(
     be achievable within a reasonable timeframe.
 
     Args:
-        session (Session): The database session.
-        user_id (int): user id
         goal_name (str): Name of the goal
         strategy (str): The strategy to achieve the goal. Your strategy should detail either how you (the personal assistant) will achieve the goal, or how you will assist your user to solve the goal. Limit to 100 words.
         description (str): A brief description of the goal. Limit to 100 words.
         end_condition (str): The condition that indicate to you (the personal assistant) that the goal is achieved or terminated. It is critical that this end condition be OBSERVABLE BY YOU (the assistant). For example, the end_condition may be that you've asked the user about the goal status.
         time_to_completion (str): The amount of time from now until the goal can be completed. Should be in the form of NUMBER TIME_UNIT, where TIME_UNIT is one of HOURS, DAYS, WEEKS, MONTHS. For example, "1 DAYS" would be a goal that should be completed within 1 day.
-        priority (int): The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest.
+        priority (int, optional): The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest.
+
+    Returns:
+        str: A confirmation message that the goal was created.
+
+    Raises:
+        ValueError: If goal_name is empty
+        GoalAlreadyExistsError: If a goal with the same name already exists
     """
     if is_blank(goal_name):
         raise ValueError("Goal name cannot be empty")
@@ -91,7 +96,7 @@ def create_goal(
         return f"Goal '{goal_name}' has been created."
 
 
-def get_goal_by_name(ctx: ElroyContext, name: str) -> Optional[Goal]:
+def get_db_goal_by_name(ctx: ElroyContext, name: str) -> Optional[Goal]:
     return pipe(
         get_active_goals(ctx),
         filter(lambda g: g.name == name),
@@ -104,12 +109,15 @@ def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> st
     """Renames an existing active goal.
 
     Args:
-        context (ElroyContext): The Elroy context.
-        old_goal_name (str): The current name of the goal.
-        new_goal_name (str): The new name for the goal.
+        old_goal_name (str): The current name of the goal
+        new_goal_name (str): The new name for the goal
+
+    Returns:
+        str: A confirmation message that the goal was renamed
 
     Raises:
-        Exception: If the goal with old_goal_name doesn't exist or if a goal with new_goal_name already exists.
+        GoalDoesNotExistError: If the goal with old_goal_name doesn't exist
+        Exception: If a goal with new_goal_name already exists
     """
     # Check if the old goal exists and is active
     active_goals = get_active_goals(ctx)
@@ -140,7 +148,7 @@ def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> st
 
     # Rename the goal
     old_goal.name = new_goal_name
-    old_goal.updated_at = get_utc_now()
+    old_goal.updated_at = get_utc_now()  # noqa F841
 
     ctx.db.commit()
     ctx.db.refresh(old_goal)
@@ -205,12 +213,11 @@ def add_goal_status_update(ctx: ElroyContext, goal_name: str, status_update_or_n
     """Captures either a progress update or note relevant to the goal.
 
     Args:
-        session (Session): The database session.
-        user_id (int): The user id
         goal_name (str): Name of the goal
         status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
+
     Returns:
-        str: Confirmation message
+        str: Confirmation message that the status update was added.
     """
     logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
     _update_goal_status(ctx, goal_name, False, status_update_or_note)
@@ -236,12 +243,14 @@ def mark_goal_completed(ctx: ElroyContext, goal_name: str, closing_comments: Opt
     """Marks a goal as completed, with closing comments.
 
     Args:
-        session (Session): The database session.
-        user_id (int): The user ID
         goal_name (str): The name of the goal
-        closing_comments (str): Updated status with a short account of how the goal was completed and what was learned.
+        closing_comments (Optional[str]): Updated status with a short account of how the goal was completed and what was learned
+
     Returns:
-        str: Confirmation message
+        str: Confirmation message that the goal was marked as completed
+
+    Raises:
+        GoalDoesNotExistError: If the goal doesn't exist
     """
     _update_goal_status(
         ctx,
@@ -255,14 +264,16 @@ def mark_goal_completed(ctx: ElroyContext, goal_name: str, closing_comments: Opt
 
 @tool
 def delete_goal_permanently(ctx: ElroyContext, goal_name: str) -> str:
-    """Closes the goal.
+    """Permanently deletes a goal.
 
     Args:
-        session (Session): The database session.
-        user_id (int): The user ID
-        goal_name (str): The name of the goal
+        goal_name (str): The name of the goal to delete
+
     Returns:
-        str: Result of the deletion
+        str: Confirmation message that the goal was deleted
+
+    Raises:
+        GoalDoesNotExistError: If the goal doesn't exist
     """
 
     _update_goal_status(

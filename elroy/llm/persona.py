@@ -4,6 +4,12 @@ from ..tools.user_preferences import get_or_create_user_preference
 
 
 def get_persona(ctx: ElroyContext):
+    """Get the persona for the user, or the default persona if the user has not set one.
+
+    Returns:
+        str: The text of the persona.
+
+    """
     user_preference = get_or_create_user_preference(ctx)
     if user_preference.system_persona:
         raw_persona = user_preference.system_persona
@@ -26,7 +32,3 @@ def get_assistant_name(ctx: ElroyContext) -> str:
             return user_preference.assistant_name
         else:
             return ctx.default_assistant_name
-
-
-def get_system_instruction_label(assistant_name: str) -> str:
-    return f"*{assistant_name} System Instruction*"
