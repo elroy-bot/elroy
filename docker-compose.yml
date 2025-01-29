@@ -44,15 +44,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-      - ELROY_DATABASE_URL=sqlite:///elroy.db
+      - ELROY_DATABASE_URL=postgresql://elroy:password@db:5432/elroy
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     stdin_open: true
     tty: true
-    volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
-    - .:./
+    # Uncomment these 2 lines to add docker socket support to run nested dockers
+    # volumes:
+    # - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   elroy_postgres-data:
