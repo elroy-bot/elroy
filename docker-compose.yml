@@ -50,7 +50,9 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     stdin_open: true
     tty: true
-    restart: always
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - .:./
 
 volumes:
   elroy_postgres-data:
