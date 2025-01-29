@@ -44,7 +44,6 @@ curl -O https://raw.githubusercontent.com/elroy-bot/elroy/main/docker-compose.ym
 ```bash
 # to ensure you have the most up to date image
 docker compose build --no-cache
-docker compose up -d db ## Start the database
 docker compose run --rm elroy
 
 # Add parameters as needed, e.g. here to use Anthropic's Sonnet model
