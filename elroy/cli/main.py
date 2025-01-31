@@ -348,7 +348,7 @@ def print_tools(
 
 
 @app.command(name="remember")
-def remember(
+def cli_remember(
     typer_ctx: typer.Context,
     text: Optional[str] = typer.Argument(
         None,
@@ -435,7 +435,7 @@ def version():
 
 
 @app.command(name="set-persona")
-def set_persona(
+def cli_set_persona(
     typer_ctx: typer.Context,
     persona: str = typer.Argument(..., help="Persona text to set"),
 ):
