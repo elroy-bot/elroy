@@ -132,7 +132,9 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
     return result
 
 
-async def invoke_slash_command(ctx: ElroyContext, msg: str) -> str:
+async def invoke_slash_command(
+    ctx: ElroyContext, msg: str
+) -> Union[str, Iterator[Union[AssistantResponse, AssistantInternalThought, AssistantToolResult]]]:
     """
     Takes user input and executes a system command. For commands with a single non-context argument,
     executes directly with provided argument. For multi-argument commands, prompts for each argument.

@@ -5,7 +5,7 @@ import traceback
 from datetime import datetime, timedelta
 from functools import partial
 from operator import add
-from typing import Optional
+from typing import AsyncIterator, Iterator, Optional
 
 from colorama import init
 from pytz import UTC
@@ -131,7 +131,9 @@ async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str)
     if user_input.startswith("/") and role == USER:
         try:
             result = await invoke_slash_command(ctx, user_input)
-            if result:
+            if isinstance(result, (Iterator, AsyncIterator)):
+                ctx.io.print_stream(result)
+            else:
                 ctx.io.info(result)
         except RecoverableToolError as e:
             ctx.io.info(str(e))
