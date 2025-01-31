@@ -5,13 +5,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from sqlmodel import select
 
-from ...config.constants import MAX_MEMORY_LENGTH, tool
+from ...config.constants import MAX_MEMORY_LENGTH, SYSTEM, tool
 from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
 from ...db.db_models import EmbeddableSqlModel, Memory, MemoryOperationTracker
 from ...llm.client import query_llm
 from ...utils.utils import run_in_background_thread
 from ..context_messages.data_models import ContextMessage
+from ..context_messages.queries import get_context_messages
 from .consolidation import consolidate_memories
 
 
@@ -91,6 +92,19 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     do_create_memory(ctx, name, text)
 
     return f"New memory created: {name}"
+
+
+def remember_convo(ctx: ElroyContext):
+    """Creates a memory of the current conversation, and refreshes the context. Good for topic changes."""
+    from ...messenger import process_message
+    from ..context_messages.operations import context_refresh_sync
+
+    yield from process_message(
+        role=SYSTEM,
+        ctx=ctx,
+        msg="The use has triggered a remember_convo command. Through goals in context or via a new memory, capture information about the current converstaion",
+    )
+    run_in_background_thread(context_refresh_sync, ctx, get_context_messages(ctx))
 
 
 def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:

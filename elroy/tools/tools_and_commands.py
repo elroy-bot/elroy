@@ -23,7 +23,7 @@ from ..repository.goals.operations import (
     rename_goal,
 )
 from ..repository.goals.queries import print_goal
-from ..repository.memories.operations import create_memory
+from ..repository.memories.operations import create_memory, remember_convo
 from ..repository.memories.queries import print_memory, query_memory
 from ..repository.user.operations import (
     set_assistant_name,
@@ -82,6 +82,7 @@ USER_ONLY_COMMANDS = {
     help,
     create_bug_report,
     set_assistant_name,
+    remember_convo,
 }
 ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = (
     NON_ARG_PREFILL_COMMANDS

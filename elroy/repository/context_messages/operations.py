@@ -182,6 +182,10 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages: List[Conte
     )
 
 
+def context_refresh_sync(ctx: ElroyContext, context_messages: List[ContextMessage]):
+    asyncio.run(context_refresh(ctx, context_messages))
+
+
 @logged_exec_time
 async def context_refresh(ctx: ElroyContext, context_messages: List[ContextMessage]) -> None:
 
