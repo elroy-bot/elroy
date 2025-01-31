@@ -79,8 +79,8 @@ def test_cli_params_match_defaults():
     default_keys = set(DEFAULTS_CONFIG.keys())
 
     # Find any mismatches
-    missing_from_defaults = cli_params - default_keys
-    missing_from_cli = default_keys - cli_params - {"default_persona"} - DEPRECATED_KEYS
+    missing_from_defaults = cli_params - default_keys - DEPRECATED_KEYS
+    missing_from_cli = default_keys - cli_params - {"default_persona"}
 
     # Build error message if there are mismatches
     error_msg = []
