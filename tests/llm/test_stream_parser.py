@@ -1,6 +1,7 @@
-from typing import List
+from typing import List, Union
 
 import pytest
+from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
 from elroy.config.constants import Provider
 from elroy.config.llm import ChatModel
@@ -22,21 +23,16 @@ CHAT_MODEL = ChatModel(
 )
 
 
-def parse(chunks: List[str]) -> List[TextOutput]:
-    parser = StreamParser(CHAT_MODEL, iter([]))
-    output = []
-    for chunk in chunks:
-        for processed_chunk in parser.process_text_chunk(chunk):
-            if isinstance(processed_chunk, FunctionCall):
-                output.append(processed_chunk)
+def text_to_model_response(text: str) -> ModelResponse:
+    return ModelResponse(choices=[StreamingChoices(delta=Delta(content=text))])
 
-            elif not output:
-                output.append(processed_chunk)
-            elif type(output[-1]) == type(processed_chunk):
-                output[-1].content += processed_chunk.content  # type: ignore
-            else:
-                output.append(processed_chunk)
-    return output
+
+def parse(chunks: List[str]) -> List[Union[TextOutput, FunctionCall]]:
+    parser = StreamParser(
+        CHAT_MODEL,
+        iter([text_to_model_response(chunk) for chunk in chunks]),
+    )
+    return parser.collect()
 
 
 def test_complete_tag_in_single_chunk():
@@ -68,7 +64,6 @@ def test_hanging_tags():
     assert parse(list("<internal_thou>This is a thought")) == [AssistantResponse("<internal_thou>This is a thought")]
 
 
-@pytest.mark.skip("Need to solve edge case around flushing")
 def test_tricky_tags():
     response = parse(list("<<internal_thought>>This is a thought</internal_thought><Some normal text."))
 
@@ -110,9 +105,9 @@ def test_incomplete_tags():
 
 
 def test_misnested_tags():
-    assert parse(["<internal_thought><internal_thought>Some text</another_tag></internal_thought>"]) == [
-        AssistantInternalThought("<internal_thought>Some text</another_tag>")
-    ]
+    resp = parse(["<internal_thought><internal_thought>Some text</another_tag></internal_thought>"])
+
+    assert resp == [AssistantInternalThought("<internal_thought>Some text</another_tag>")]
 
 
 def test_inline_tool_call():
@@ -171,3 +166,47 @@ def test_internal_thought_and_tool_iter():
     assert output[0] == AssistantInternalThought("I should call a tool")
     assert isinstance(output[1], FunctionCall)
     assert output[2] == AssistantResponse("Did the tool call work?")
+
+
+def test_think_tag():
+    input = "<think>Using alternative tag</think>"
+    output = parse(list(input))
+    assert len(output) == 1
+    assert output[0] == AssistantInternalThought("Using alternative tag")
+
+
+def test_empty_tag():
+    input = "<internal_thought></internal_thought>"
+    output = parse(list(input))
+    assert len(output) == 0
+
+
+def test_strips_internal_thought_whitespace():
+    output = parse(
+        list(
+            """<internal_thought>
+
+    This is a thought
+
+    </internal_thought>This is the message"""
+        )
+    )
+    assert output == [AssistantInternalThought("This is a thought"), AssistantResponse("This is the message")]
+
+
+@pytest.mark.skip("Known issue")
+def test_strips_assistant_msg_whitespace():
+    output = parse(
+        list(
+            """
+
+                        <internal_thought>
+
+    This is a thought
+
+    </internal_thought>This is the message
+
+    """
+        )
+    )
+    assert output == [AssistantInternalThought("This is a thought"), AssistantResponse("This is the message")]
