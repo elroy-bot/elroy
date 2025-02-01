@@ -59,7 +59,7 @@ def process_message(
             enable_tools=(not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,
             force_tool=force_tool,
         )
-        for stream_chunk in stream.process():
+        for stream_chunk in stream.process_stream():
             if isinstance(stream_chunk, (AssistantResponse, AssistantInternalThought)):
                 yield stream_chunk
             elif isinstance(stream_chunk, FunctionCall):

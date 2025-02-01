@@ -36,7 +36,7 @@ def test_model_fallback(ctx: ElroyContext, mocker):
             ctx.chat_model,
             messages,
             tool_schemas=[],
-        ).process()
+        ).process_stream()
     )
 
     # Verify completion was called twice - once with gpt-4, once with fallback

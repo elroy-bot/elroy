@@ -1,8 +1,9 @@
 import json
+import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generator, Generic, Iterator, Optional, Type, TypeVar, Union
+from typing import Generator, Generic, Iterator, List, Optional, TypeVar, Union
 
 from litellm.types.utils import Delta, ModelResponse
 
@@ -36,10 +37,6 @@ class SystemWarning(TextOutput):
     content: str
 
 
-class InlineToolCall(TextOutput):
-    content: str
-
-
 def to_openai_tool_call(content: str) -> Optional[FunctionCall]:
     try:
         d = json.loads(content)
@@ -49,163 +46,185 @@ def to_openai_tool_call(content: str) -> Optional[FunctionCall]:
         pass
 
 
-T = TypeVar("T", bound=TextOutput)
+@dataclass
+class TagSet:
+    keyword: str
+
+    def begin_tag(self) -> str:
+        return f"<{self.keyword}>"
+
+    def end_tag(self) -> str:
+        return f"</{self.keyword}>"
 
 
-class TextAccumulator(Generic[T]):
-    def __init__(self, output_type: Type[T], opening_tag: str, closing_tag: str):
-        self.output_type = output_type
-        self.opening_tag = opening_tag
-        self.closing_tag = closing_tag
+T = TypeVar("T", bound=Union[TextOutput, FunctionCall])
 
-        self.is_active = False
-        self.is_first_output_chunk_emitted = None
+
+class TextProcessor(ABC, Generic[T]):
+    tags: List[TagSet]
+
+    def __init__(self):
         self.buffer = ""
+        self.active_tag = None
 
-    def update(self, content_chunk: str) -> Generator[Union[T, str], None, None]:
-        # Accepts text as input, one or more characters at a time.
-        # If not active:
-        #   # if the accumulated text might contain the beginning of the opening tag, accumulate text
-        #   # if the accumulated text no longer can match the opening tag, yield the accumulated text as a string
-        #   # if the accumulated text matches the opening tag, set is_active to True, and yield any text that follows the opening tag as AssistantInternalThought
-        # If active:
-        #   # if the accumulated text might contain the beginning of the closing tag, accumulate text
-        #   # if the accumulated text no longer can match the closing tag, yield the accumulated text as a string
-        #   # if the accumulated text matches the closing tag, set is_active to False, and yield any text that precedes the closing tag as AssistantInternalThought, yield any text that follows the closing tag as a string
-        self.buffer += content_chunk
+    def is_active(self) -> bool:
+        return self.active_tag is not None
 
-        while self.buffer:
-            if self.buffer.isspace():
-                break
-            elif self.is_active:
-                if self.closing_tag in self.buffer:
-                    text_before_tag, text_after_tag = self.buffer.split(self.closing_tag, maxsplit=1)
+    def activate(self, tag_keyword: str):
+        self.active_tag = next(tag for tag in self.tags if tag.keyword == tag_keyword)
 
-                    if text_before_tag and not text_before_tag.isspace():  # if we have non-space text before the closing tag
-                        if not self.is_first_output_chunk_emitted:
-                            content = text_before_tag.strip()
-                            self.is_first_output_chunk_emitted = True
-                        else:
-                            content = text_before_tag.rstrip()
-                        yield self.output_type(content)
-                    self.is_active = False
-                    self.buffer = text_after_tag
-                    self.is_first_output_chunk_emitted = None
-                elif self._has_possible_tag_fragment(self.buffer, self.closing_tag):
+    def deactivate(self) -> None:
+        assert len(self.buffer) == 0
+        self.active_tag = None
+
+    def process(self, text: str) -> Generator[T, None, None]:
+        assert self.active_tag
+        assert len(text) == 1
+        self.buffer += text
+
+        if not text.isspace():
+            while self.buffer:
+                if self.buffer.lstrip().endswith(self.active_tag.end_tag()):
+                    self.buffer = self.buffer[: -len(self.buffer)].lstrip()
+                    yield from self.flush()
+                    self.deactivate()
+                    return
+                elif self.active_tag.end_tag().startswith(self.buffer.lstrip()):
                     break
                 else:
-                    if not self.is_first_output_chunk_emitted:
-                        content = self.buffer.lstrip()
-                        self.is_first_output_chunk_emitted = True
-                    else:
-                        content = self.buffer
-                    yield self.output_type(content)
-                    self.buffer = ""
-            else:
-                if self.opening_tag in self.buffer:
-                    self.is_active = True
-                    self.is_first_output_chunk_emitted = False
-                    text_before_tag, text_after_tag = self.buffer.split(self.opening_tag, maxsplit=1)
-
-                    if text_before_tag:
-                        yield text_before_tag.rstrip()
-                    self.buffer = text_after_tag
-
-                elif self._has_possible_tag_fragment(self.buffer, self.opening_tag):
+                    yield from self.maybe_consume_buffer()
                     break
-                else:
-                    yield self.buffer
-                    self.buffer = ""
-
-    def _has_possible_tag_fragment(self, text: str, tag: str) -> bool:
-        if tag in text:
-            raise ValueError("This function only intended to capture partial matches, a full match indicates a bug")
-
-        while tag[0] in text:
-            text = text[text.index(tag[0]) :]
-
-            if tag.startswith(text[: len(tag)]):
-                return True
-            else:
-                text = text[1:]
-        return False
-
-    def flush(self) -> Generator[Union[T, str], None, None]:
-        if self.buffer:
-            yield self.buffer
-            self.buffer = ""
-            self.is_active = False
-
-
-class TextProcessor(ABC):
-    def __init__(self, next_processor: Optional["TextProcessor"] = None):
-        self.next_processor = next_processor
 
     @abstractmethod
-    def process(self, text: str) -> Generator[Union[TextOutput, FunctionCall], None, None]:
-        pass
+    def maybe_consume_buffer(self) -> Generator[T, None, None]:
+        """
+        Consumes buffer if possible and returns output.
+        Responsible for resetting buffer to empty string if buffer can be consumed
+        """
+        raise NotImplementedError
 
-    def process_next(self, text: str) -> Generator[Union[TextOutput, FunctionCall], None, None]:
-        if self.next_processor:
-            yield from self.next_processor.process(text)
+    @abstractmethod
+    def flush(self) -> Generator[T, None, None]:
+        raise NotImplementedError
+
+
+class InternalThoughtProcessor(TextProcessor[AssistantInternalThought]):
+    tags: List[TagSet] = [TagSet("internal_thought"), TagSet("think")]
+    first_non_whitespace_emitted: bool = False
+
+    def activate(self, tag_keyword: str):
+        super().activate(tag_keyword)
+        self.first_non_whitespace_emitted = False
+
+    def maybe_consume_buffer(self) -> Generator[AssistantInternalThought, None, None]:
+        if self.first_non_whitespace_emitted:
+            yield AssistantInternalThought(self.buffer)
+            self.buffer = ""
+        elif not self.buffer.isspace():
+            self.first_non_whitespace_emitted = True
+            resp = AssistantInternalThought(self.buffer.lstrip())
+            self.buffer = ""
+            yield resp
+
         else:
-            yield AssistantResponse(text)
+            # Ignore leading whitespace
+            pass
 
-    def flush(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
-        if self.next_processor:
-            yield from self.next_processor.flush()
+    def flush(self) -> Generator[AssistantInternalThought, None, None]:
+        if self.buffer:
+            yield AssistantInternalThought(self.buffer)
+        self.deactivate()
 
 
-class InternalThoughtProcessor(TextProcessor):
-    def __init__(self, next_processor: Optional[TextProcessor] = None):
-        super().__init__(next_processor)
-        self.accumulator = TextAccumulator(AssistantInternalThought, "<internal_thought>", "</internal_thought>")
+class InlineToolCallProcessor(TextProcessor[FunctionCall]):
+    tags = [TagSet("tool_call")]
+
+    def maybe_consume_buffer(self) -> Generator[FunctionCall, None, None]:
+        tool_call = to_openai_tool_call(self.buffer)
+        if tool_call:
+            self.buffer = ""
+            yield tool_call
+
+    def flush(self) -> Generator[FunctionCall, None, None]:
+        if self.buffer:
+            tool_call = to_openai_tool_call(self.buffer)
+            if tool_call:
+                self.buffer = ""
+                yield tool_call
+        else:
+            logging.warning("Buffer not empty, but cannot be converted to tool call")
+        self.buffer = ""
+        self.deactivate()
+
+
+class StreamTextProcessor:
+    def __init__(self):
+        self.processors: List[TextProcessor] = [
+            InlineToolCallProcessor(),
+            InternalThoughtProcessor(),
+        ]
+        self.buffer = ""
+
+        self.active_processor: Optional[TextProcessor] = None
 
     def process(self, text: str) -> Generator[Union[TextOutput, FunctionCall], None, None]:
-        for processed_text in self.accumulator.update(text):
-            if isinstance(processed_text, AssistantInternalThought):
-                yield processed_text
+        for char in text:
+            self.buffer += char
+            yield from self.process_buffer()
+
+    def process_buffer(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
+        while len(self.buffer) > 0:
+            if self.active_processor:
+                yield from self.active_processor.process(self.buffer[0])
+                self.buffer = self.buffer[1:]
+                if not self.active_processor.is_active():
+                    self.active_processor = None
             else:
-                yield from self.process_next(processed_text)
+                partial_tag_match_found = False
+                for processor in self.processors:
+                    assert not processor.is_active(), "unexpeted active stream processor"
+
+                    for tag in processor.tags:
+                        if tag.begin_tag() == self.buffer:
+                            self.active_processor = processor
+                            self.active_processor.activate(tag.keyword)
+                            self.buffer = ""
+                            break
+                        elif tag.begin_tag().startswith(self.buffer):
+                            partial_tag_match_found = True
+                if partial_tag_match_found:
+                    # We should not consume the buffer, we may have started a tag but not finished it"""
+                    return
+                else:
+                    if len(self.buffer) > 0:
+                        yield AssistantResponse(self.buffer[0])
+                        self.buffer = self.buffer[1:]
 
     def flush(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
-        for processed_text in self.accumulator.flush():
-            if isinstance(processed_text, AssistantInternalThought):
-                yield processed_text
+        if self.buffer:
+            if self.active_processor:
+                yield from self.active_processor.flush()
             else:
-                yield from self.process_next(processed_text)
-        if self.next_processor:
-            yield from self.next_processor.flush()
-
-
-# TODO: This needs update needs to be handled differently, we must accumulate all the text from the accumulator until we have a function call, then yield.
-class InlineToolCallProcessor(TextProcessor):
-    def __init__(self, next_processor: Optional[TextProcessor] = None):
-        super().__init__(next_processor)
-        self.accumulator = TextAccumulator(InlineToolCall, "<tool_call>", "</tool_call>")
-        self.tool_call_text = ""
-
-    def process(self, text: str) -> Generator[Union[TextOutput, FunctionCall], None, None]:
-        for processed_text in self.accumulator.update(text):
-            if isinstance(processed_text, InlineToolCall):
-                self.tool_call_text += processed_text.content
-                tool_call = to_openai_tool_call(self.tool_call_text)
-                if tool_call:
-                    yield tool_call
-                    self.tool_call_text = ""
-            else:
-                yield from self.process_next(processed_text)
+                yield AssistantResponse(self.buffer)
+                self.buffer = ""
 
 
 class StreamParser:
+    """
+    Wraps text processors, to handle:
+    - stripping trailing whitespace
+    - handling tool calls
+    - flushing
+
+    """
+
     def __init__(self, chat_model: ChatModel, chunks: Iterator[ModelResponse]):
         self.chunks = chunks
         self.openai_tool_call_accumulator = OpenAIToolCallAccumulator(chat_model)
-        # Chain the processors
-        self.text_processor = InternalThoughtProcessor(InlineToolCallProcessor())
-        self.raw_text = None
+        self.stream_text_processor = StreamTextProcessor()
+        self.raw_text = ""
 
-    def process(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
+    def process_stream(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
         for chunk in self.chunks:
             delta = chunk.choices[0].delta  # type: ignore
             assert isinstance(delta, Delta)
@@ -218,11 +237,20 @@ class StreamParser:
                 else:
                     self.raw_text += text
                 assert isinstance(text, str)
-                yield from self.process_text_chunk(text)
-        yield from self.text_processor.flush()
+                yield from self.stream_text_processor.process(text)
+        yield from self.stream_text_processor.flush()
+
+    def collect(self) -> List[Union[TextOutput, FunctionCall]]:
+        response = []
+        for processed_chunk in self.process_stream():
+            if isinstance(processed_chunk, TextOutput):
+                if len(response) == 0 or not type(response[-1]) == type(processed_chunk):
+                    response.append(processed_chunk)
+                else:
+                    response[-1].content += processed_chunk.content
+            else:
+                response.append(processed_chunk)
+        return response
 
     def get_full_text(self):
         return self.raw_text
-
-    def process_text_chunk(self, text: str) -> Generator[Union[TextOutput, FunctionCall], None, None]:
-        yield from self.text_processor.process(text)
