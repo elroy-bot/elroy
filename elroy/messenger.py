@@ -24,6 +24,7 @@ from .llm.stream_parser import (
     AssistantInternalThought,
     AssistantResponse,
     AssistantToolResult,
+    CodeBlock,
 )
 from .repository.context_messages.data_models import ContextMessage
 from .repository.context_messages.operations import add_context_messages
@@ -35,7 +36,7 @@ from .tools.tools_and_commands import SYSTEM_COMMANDS
 
 def process_message(
     role: str, ctx: ElroyContext, msg: str, force_tool: Optional[str] = None
-) -> Iterator[Union[AssistantResponse, AssistantInternalThought, AssistantToolResult]]:
+) -> Iterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult]]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
     context_messages = pipe(
@@ -60,7 +61,7 @@ def process_message(
             force_tool=force_tool,
         )
         for stream_chunk in stream.process_stream():
-            if isinstance(stream_chunk, (AssistantResponse, AssistantInternalThought)):
+            if isinstance(stream_chunk, (AssistantResponse, AssistantInternalThought, CodeBlock)):
                 yield stream_chunk
             elif isinstance(stream_chunk, FunctionCall):
                 pipe(

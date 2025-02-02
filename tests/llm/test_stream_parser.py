@@ -1,6 +1,5 @@
 from typing import List, Union
 
-import pytest
 from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
 from elroy.config.constants import Provider
@@ -9,6 +8,7 @@ from elroy.db.db_models import FunctionCall
 from elroy.llm.stream_parser import (
     AssistantInternalThought,
     AssistantResponse,
+    CodeBlock,
     StreamParser,
     TextOutput,
 )
@@ -92,7 +92,7 @@ def test_interleaved_tags_and_text():
         ]
     ) == [
         AssistantInternalThought("Thought 1"),
-        AssistantResponse("Normal text "),
+        AssistantResponse("Normal text"),
         AssistantInternalThought("Thought 2"),
         AssistantResponse("More text"),
     ]
@@ -194,7 +194,6 @@ def test_strips_internal_thought_whitespace():
     assert output == [AssistantInternalThought("This is a thought"), AssistantResponse("This is the message")]
 
 
-@pytest.mark.skip("Known issue")
 def test_strips_assistant_msg_whitespace():
     output = parse(
         list(
@@ -210,3 +209,59 @@ def test_strips_assistant_msg_whitespace():
         )
     )
     assert output == [AssistantInternalThought("This is a thought"), AssistantResponse("This is the message")]
+
+
+def test_code_block_standard_format():
+    """Test code block with standard ```language format"""
+    output = parse(list("```python\nprint('hello')\n```"))
+    assert len(output) == 1
+    assert isinstance(output[0], CodeBlock)
+    assert output[0].content == "print('hello')\n"
+    assert output[0].language == "python"
+
+
+def test_code_block_with_text():
+    """Test code block with surrounding text"""
+    output = parse(list("Here's some code:\n```python\nprint('hello')\n```\nMore text"))
+    assert len(output) == 3
+    assert isinstance(output[0], AssistantResponse)
+    assert isinstance(output[1], CodeBlock)
+    assert isinstance(output[2], AssistantResponse)
+    assert output[1].content == "print('hello')\n"
+    assert output[1].language == "python"
+
+
+def test_code_block_no_language():
+    """Test code block without language specification"""
+    output = parse(list("```\nprint('hello')\n```"))
+    assert len(output) == 1
+    assert isinstance(output[0], CodeBlock)
+    assert output[0].content == "print('hello')\n"
+    assert output[0].language == ""
+
+
+def test_code_block_multiline():
+    """Test multiline code block"""
+    output = parse(
+        list(
+            """```python
+def hello():
+    print('hello')
+    return True
+```"""
+        )
+    )
+    assert len(output) == 1
+    assert isinstance(output[0], CodeBlock)
+    assert output[0].content == "def hello():\n    print('hello')\n    return True\n"
+    assert output[0].language == "python"
+
+
+def test_code_block_chunked():
+    """Test code block split across multiple chunks"""
+    chunks = ["```py", "thon\ndef ", "hello():\n    ", "print('hi')\n```"]
+    output = parse(chunks)
+    assert len(output) == 1
+    assert isinstance(output[0], CodeBlock)
+    assert output[0].content == "def hello():\n    print('hi')\n"
+    assert output[0].language == "python"

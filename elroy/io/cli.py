@@ -24,6 +24,7 @@ from ..llm.stream_parser import (
     AssistantInternalThought,
     AssistantResponse,
     AssistantToolResult,
+    CodeBlock,
     SystemWarning,
     TextOutput,
 )
@@ -118,6 +119,8 @@ class CliIO(ElroyIO):
             self._notify_warning(message.content)
         elif isinstance(message, FunctionCall):
             self._notify_function_call(message)
+        elif isinstance(message, CodeBlock):
+            self._print_code_block(message)
         elif isinstance(message, TextOutput):
             style = {
                 AssistantInternalThought: Style(color=self.internal_thought_color, italic=True),
@@ -140,6 +143,22 @@ class CliIO(ElroyIO):
             self.console.print(message, end=end)
 
         self.last_output_type = type(message)
+
+    def _print_code_block(self, code_block: CodeBlock) -> None:
+        from rich.syntax import Syntax
+
+        self.console.print()
+
+        syntax = Syntax(
+            code_block.content,
+            lexer=code_block.language or "text",
+            theme="monokai",
+            line_numbers=False,  # Disabled by default to make copy-paste easier
+            word_wrap=True,
+            code_width=88,  # Standard Python line length
+        )
+        self.console.print(syntax)
+        self.console.print()
 
     def _notify_function_call(self, function_call: FunctionCall) -> None:
         self.console.print()
