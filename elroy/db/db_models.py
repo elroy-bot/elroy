@@ -36,6 +36,10 @@ class FunctionCall:
     function_name: str
     arguments: Dict
 
+    @property
+    def content(self) -> str:
+        return json.dumps({self.function_name: self.arguments})
+
     def to_tool_call(self) -> ToolCall:
         return ToolCall(id=self.id, function={"name": self.function_name, "arguments": json.dumps(self.arguments)})
 

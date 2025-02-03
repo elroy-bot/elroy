@@ -114,8 +114,13 @@ class CliIO(ElroyIO):
         if isinstance(message, AssistantInternalThought) and not self.show_internal_thought:
             logging.debug(f"Internal thought: {message.content}")
             return
+        elif isinstance(message, AssistantToolResult):
+            if message.is_error:
+                self.console.print(message.content, style=self.warning_color, end=end)
+            else:
+                self.console.print(message.content, style=self.system_message_color, end=end)
 
-        if isinstance(message, SystemWarning):
+        elif isinstance(message, SystemWarning):
             self._notify_warning(message.content)
         elif isinstance(message, FunctionCall):
             self._notify_function_call(message)

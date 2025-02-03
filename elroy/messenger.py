@@ -1,21 +1,13 @@
-import logging
 import traceback
 from functools import partial
 from inspect import signature
 from typing import Iterator, List, Optional, Union
 
 from toolz import merge, pipe
-from toolz.curried import do, valfilter
+from toolz.curried import valfilter
 
 from .cli.slash_commands import _get_casted_value, _get_prompt_for_param
-from .config.constants import (
-    ASSISTANT,
-    ERROR_PREFIX,
-    SYSTEM,
-    TOOL,
-    USER,
-    RecoverableToolError,
-)
+from .config.constants import ASSISTANT, SYSTEM, TOOL, USER, RecoverableToolError
 from .config.ctx import ElroyContext
 from .db.db_models import FunctionCall
 from .io.cli import CliIO
@@ -36,7 +28,7 @@ from .tools.tools_and_commands import SYSTEM_COMMANDS
 
 def process_message(
     role: str, ctx: ElroyContext, msg: str, force_tool: Optional[str] = None
-) -> Iterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult]]:
+) -> Iterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult, FunctionCall]]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
     context_messages = pipe(
@@ -50,6 +42,8 @@ def process_message(
 
     loops = 0
     while True:
+        # new_msgs accumulates across all loops, so we can only store new messages once
+        # tool_context_messages and function_calls reset each loop: we need to keep track so we can determine whether we need to continue looping
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
@@ -64,17 +58,21 @@ def process_message(
             if isinstance(stream_chunk, (AssistantResponse, AssistantInternalThought, CodeBlock)):
                 yield stream_chunk
             elif isinstance(stream_chunk, FunctionCall):
-                pipe(
-                    stream_chunk,
-                    do(function_calls.append),
-                    lambda x: ContextMessage(
+                yield stream_chunk  # yield the call
+
+                function_calls.append(stream_chunk)
+                tool_call_result = exec_function_call(ctx, stream_chunk)
+                tool_context_messages.append(
+                    ContextMessage(
                         role=TOOL,
-                        tool_call_id=x.id,
-                        content=exec_function_call(ctx, x),
+                        tool_call_id=stream_chunk.id,
+                        content=tool_call_result.content,
                         chat_model=ctx.chat_model.name,
-                    ),
-                    tool_context_messages.append,
+                    )
                 )
+
+                yield tool_call_result
+
         new_msgs.append(
             ContextMessage(
                 role=ASSISTANT,
@@ -84,53 +82,43 @@ def process_message(
             )
         )
 
+        new_msgs += tool_context_messages
         if force_tool:
-            assert len(tool_context_messages) >= 1
-            if len(tool_context_messages) > 1:
-                logging.warning(f"With force tool {force_tool}, expected one tool message, but found {len(tool_context_messages)}")
-
-            new_msgs += tool_context_messages
+            assert tool_context_messages, "force_tool set, but no tool messages generated"
             add_context_messages(ctx, new_msgs)
-
-            content = tool_context_messages[-1].content
-            assert isinstance(content, str)
-            yield AssistantToolResult(content)
-            break
-
+            break  # we are specifically requesting tool call results, so don't need to loop for assistant response
         elif tool_context_messages:
-            new_msgs += tool_context_messages
+            # do NOT persist context messages with add_context_messages at this point, we are continuing to loop and accumulate new msgs
+            loops += 1
         else:
             add_context_messages(ctx, new_msgs)
             break
-        loops += 1
 
 
-def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> str:
-    ctx.io.print(function_call)
+def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> AssistantToolResult:
     function_to_call = ctx.tool_registry.get(function_call.function_name)
     if not function_to_call:
-        return f"Function {function_call.function_name} not found"
+        return AssistantToolResult(f"Function {function_call.function_name} not found", True)
+
+    error_msg_prefix = f"Error invoking tool {function_call.function_name}:"  # hopefully we don't need this!
 
     try:
-        result = pipe(
+        return pipe(
             {"ctx": ctx} if "ctx" in function_to_call.__code__.co_varnames else {},
             lambda d: merge(function_call.arguments, d),
             lambda args: function_to_call.__call__(**args),
             lambda result: str(result) if result is not None else "Success",
-        )
+            lambda result: AssistantToolResult(result),
+        )  # type: ignore
 
     except RecoverableToolError as e:
-        result = f"Tool error: {e}"
+        return AssistantToolResult(f"{error_msg_prefix} {e}", True)
 
     except Exception as e:
-        return pipe(
-            f"Failed function call:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__)),
-            do(ctx.io.warning),
-            ERROR_PREFIX.__add__,
+        return AssistantToolResult(
+            f"{error_msg_prefix}:\n{function_call}\n\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__)),
+            True,
         )
-    assert isinstance(result, str)
-    ctx.io.info(result)
-    return result
 
 
 async def invoke_slash_command(

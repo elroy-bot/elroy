@@ -178,5 +178,4 @@ For example, to use a tool to create a memory, you could include the following i
     )
 
 
-ERROR_PREFIX = "**Tool call resulted in error: **"
 MAX_MEMORY_LENGTH = 12000  # Characters

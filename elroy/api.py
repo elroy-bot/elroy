@@ -9,6 +9,12 @@ from .config.constants import USER
 from .config.ctx import ElroyContext
 from .llm.stream_parser import AssistantInternalThought
 from .messenger import process_message
+from .repository.context_messages.data_models import ContextMessage
+from .repository.context_messages.operations import add_context_messages
+from .repository.context_messages.operations import (
+    context_refresh as do_context_refresh,
+)
+from .repository.context_messages.queries import get_context_messages
 from .repository.goals.operations import (
     add_goal_status_update as do_add_goal_status_update,
 )
@@ -260,6 +266,11 @@ class Elroy:
         return create_memory(self.ctx, name, message)
 
     @db
+    def context_refresh(self) -> None:
+        """Compresses context messages and records a memory."""
+        return do_context_refresh(self.ctx, get_context_messages(self.ctx))
+
+    @db
     def get_persona(self) -> str:
         """Get the persona for the user, or the default persona if the user has not set one.
 
@@ -268,3 +279,21 @@ class Elroy:
 
         """
         return do_get_persona(self.ctx)
+
+    @db
+    def record_message(self, role: str, message: str) -> None:
+        """Records a message into context, without generating a reply
+
+        Args:
+            role (str): The role of the message
+            message (str): The message content
+        """
+
+        add_context_messages(
+            self.ctx,
+            ContextMessage(
+                content=message,
+                role=role,
+                chat_model=None,
+            ),
+        )

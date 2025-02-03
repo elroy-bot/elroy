@@ -4,7 +4,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from ...config.constants import allow_unused, tool
+from ...config.constants import RecoverableToolError, allow_unused, tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal
 from ...utils.utils import first_or_none
@@ -63,6 +63,8 @@ def get_goal_by_name(ctx: ElroyContext, goal_name: str) -> Optional[str]:
     goal = get_db_goal_by_name(ctx, goal_name)
     if goal:
         return goal.to_fact()
+    else:
+        raise RecoverableToolError(f"Goal '{goal_name}' not found")
 
 
 @tool
@@ -85,4 +87,4 @@ def print_goal(ctx: ElroyContext, goal_name: str) -> str:
     if goal:
         return goal.to_fact()
     else:
-        return f"Goal '{goal_name}' not found for the current user."
+        raise RecoverableToolError(f"Goal '{goal_name}' not found")
