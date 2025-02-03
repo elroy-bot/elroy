@@ -236,7 +236,7 @@ def validate_docker_build(errors: Errors):
 
         # Run test message
         result = subprocess.run(
-            ["docker", "compose", "run", "--rm", "elroy-dev", "message", "This is a test, repeat: Hello world"],
+            ["docker", "compose", "run", "--rm", "elroy", "message", "This is a test, repeat: Hello world"],
             capture_output=True,
             text=True,
             check=True,
@@ -385,20 +385,22 @@ if __name__ == "__main__":
     check_remote_tag_consistent(errors)
     check_most_recent_changelog_consistent(errors)
 
+    # if errors present, confirm if we should continue. If so, clear errors. If not, exit. do the same for identical comments AI!
+
     if args.skip_tests:
         print("Skipping tests")
     else:
         run_tests(errors)
+
+    # if errors present, confirm if we should continue. If so, clear errors. If not, exit.
 
     if args.skip_docker:
         print("Skipping docker build test")
     else:
         validate_docker_build(errors)
 
-    if errors.messages:
-        for message in errors.messages:
-            print(message)
-        sys.exit(1)
+    # if errors present, confirm if we should continue. If so, clear errors. If not, exit.
+
 
     # checkout branch for new release
     subprocess.run(["git", "checkout", "-b", f"release-{NEXT_PATCH}"], check=True)
