@@ -33,13 +33,13 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "add_goal_to_current_context",
-      "description": "Adds goal with the given name to the current conversation context",
+      "description": "Adds goal with the given name to the current conversation context.",
       "parameters": {
         "type": "object",
         "properties": {
           "goal_name": {
             "type": "string",
-            "description": "The name of the goal to add"
+            "description": "The name of the goal to add to context"
           }
         },
         "required": [
@@ -52,13 +52,13 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "add_memory_to_current_context",
-      "description": "Adds memory with the given name to the current conversation context",
+      "description": "Adds memory with the given name to the current conversation context.",
       "parameters": {
         "type": "object",
         "properties": {
           "memory_name": {
             "type": "string",
-            "description": "The name of the memory to add"
+            "description": "The name of the memory to add to context"
           }
         },
         "required": [
@@ -78,7 +78,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
           "contemplation_prompt": {
             "type": "string",
             "description": "Custom prompt to guide the contemplation.
-If not provided, will contemplate the current conversation context"
+If not provided, will contemplate the current conversation context."
           }
         },
         "required": []
@@ -195,13 +195,13 @@ BETTER:
     "type": "function",
     "function": {
       "name": "drop_goal_from_current_context",
-      "description": "Drops the goal with the given name. Does NOT delete or mark the goal completed.",
+      "description": "Drops the goal with the given name from current context. Does NOT delete or mark the goal completed.",
       "parameters": {
         "type": "object",
         "properties": {
           "goal_name": {
             "type": "string",
-            "description": "Name of the goal"
+            "description": "Name of the goal to remove from context"
           }
         },
         "required": [
@@ -214,13 +214,13 @@ BETTER:
     "type": "function",
     "function": {
       "name": "drop_memory_from_current_context",
-      "description": "Drops the memory with the given name. Does NOT delete the memory.",
+      "description": "Drops the memory with the given name from current context. Does NOT delete the memory.",
       "parameters": {
         "type": "object",
         "properties": {
           "memory_name": {
             "type": "string",
-            "description": "Name of the memory"
+            "description": "Name of the memory to remove from context"
           }
         },
         "required": [
@@ -257,21 +257,21 @@ BETTER:
     "type": "function",
     "function": {
       "name": "make_coding_edit",
-      "description": "Instructs a delegated coding LLM to make an edit to code. As context is being passed transferred to the assistant, care must be taken to ensure the assistant has all necessary context.",
+      "description": "Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction.",
       "parameters": {
         "type": "object",
         "properties": {
           "working_dir": {
             "type": "string",
-            "description": "Directory to work in"
+            "description": "Directory containing the file to edit"
           },
           "instruction": {
             "type": "string",
-            "description": "The edit instruction. This should be exhaustive, and include any raw data needed to make the edit. It should also include any instructions based on memory or feedback as relevant."
+            "description": "Complete edit instructions including any necessary context or raw data"
           },
           "file_name": {
             "type": "string",
-            "description": "File to edit"
+            "description": "Name of the file to edit"
           }
         },
         "required": [
@@ -328,13 +328,13 @@ BETTER:
     "type": "function",
     "function": {
       "name": "print_memory",
-      "description": "Prints the memory with the given name",
+      "description": "Retrieve and return a memory by its exact name.",
       "parameters": {
         "type": "object",
         "properties": {
           "memory_name": {
             "type": "string",
-            "description": "Name of the memory retrieve"
+            "description": "Name of the memory to retrieve"
           }
         },
         "required": [
@@ -347,13 +347,13 @@ BETTER:
     "type": "function",
     "function": {
       "name": "query_memory",
-      "description": "Search through memories and goals using semantic search.",
+      "description": "Search through memories and goals using semantic search and return a synthesized response.",
       "parameters": {
         "type": "object",
         "properties": {
           "query": {
             "type": "string",
-            "description": "The search query text to find relevant memories and goals"
+            "description": "Search query to find relevant memories and goals"
           }
         },
         "required": [
