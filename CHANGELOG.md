@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.70] - 2025-02-03
+
+### Added
+- Code syntax highlighting for code in Elroy responses
+- New `remember_convo` command for conversation memory
+- New CLI command: list-tools
+- Installation script for easier setup
+
+### Infra
+Small updates on top of 0.0.69
+
 ## [0.0.69] - 2025-02-03
 
 ### Added
