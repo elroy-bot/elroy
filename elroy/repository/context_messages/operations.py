@@ -96,52 +96,52 @@ def add_context_messages(ctx: ElroyContext, messages: Union[ContextMessage, List
 
 @tool
 def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
-    """Adds memory with the given name to the current conversation context
+    """Adds memory with the given name to the current conversation context.
 
     Args:
-        memory_name (str): The name of the memory to add
+        memory_name (str): The name of the memory to add to context
 
     Returns:
-        str: The result of the attempt to add the memory to current context.
+        str: Status message indicating success or failure of adding memory
     """
     return add_to_current_context_by_name(ctx, memory_name, Memory)
 
 
 @tool
 def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
-    """Adds goal with the given name to the current conversation context
+    """Adds goal with the given name to the current conversation context.
 
     Args:
-        goal_name (str): The name of the goal to add
+        goal_name (str): The name of the goal to add to context
 
     Returns:
-        str: The result of the attempt to add the goal to current context.
+        str: Status message indicating success or failure of adding goal
     """
     return add_to_current_context_by_name(ctx, goal_name, Goal)
 
 
 @tool
 def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
-    """Drops the goal with the given name. Does NOT delete or mark the goal completed.
+    """Drops the goal with the given name from current context. Does NOT delete or mark the goal completed.
 
     Args:
-        goal_name (str): Name of the goal
+        goal_name (str): Name of the goal to remove from context
 
     Returns:
-        str: Information for the goal with the given name
+        str: Status message indicating success or failure of removing goal
     """
     return drop_from_context_by_name(ctx, goal_name, Goal)
 
 
 @tool
 def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str:
-    """Drops the memory with the given name. Does NOT delete the memory.
+    """Drops the memory with the given name from current context. Does NOT delete the memory.
 
     Args:
-        memory_name (str): Name of the memory
+        memory_name (str): Name of the memory to remove from context
 
     Returns:
-        str: Information for the memory with the given name
+        str: Status message indicating success or failure of removing memory
     """
     return drop_from_context_by_name(ctx, memory_name, Memory)
 

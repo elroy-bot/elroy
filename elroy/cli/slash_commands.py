@@ -1,3 +1,4 @@
+import inspect
 import json
 import logging
 from inspect import Parameter
@@ -106,11 +107,11 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
     """Contemplate the current context and return a response.
 
     Args:
-        contemplation_prompt (str, optional): Custom prompt to guide the contemplation.
-            If not provided, will contemplate the current conversation context
+        contemplation_prompt (Optional[str]): Custom prompt to guide the contemplation.
+            If not provided, will contemplate the current conversation context.
 
     Returns:
-        str: A thoughtful response analyzing the current context and any provided prompt
+        str: A thoughtful response analyzing the current context and any provided prompt.
     """
 
     logging.info("Contemplating...")
