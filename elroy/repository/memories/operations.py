@@ -82,7 +82,6 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     - [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.
 
     Args:
-        context (ElroyContext): _description_
         name (str): The name of the memory. Should be specific and discuss one topic.
         text (str): The text of the memory.
 

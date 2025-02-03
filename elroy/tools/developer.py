@@ -178,16 +178,15 @@ def create_bug_report(
 @experimental
 @tool
 def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
-    """Instructs a delegated coding LLM to make an edit to code. As context is being passed transferred to the assistant, care must be taken to ensure the assistant has all necessary context.
+    """Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction.
 
     Args:
-        context: The ElroyContext instance
-        working_dir: Directory to work in
-        instruction: The edit instruction. This should be exhaustive, and include any raw data needed to make the edit. It should also include any instructions based on memory or feedback as relevant.
-        file_name: File to edit
+        working_dir: Directory containing the file to edit
+        instruction: Complete edit instructions including any necessary context or raw data
+        file_name: Name of the file to edit
 
     Returns:
-        The git diff output as a string
+        str: Git diff output showing the changes made
     """
     from aider.coders import Coder
     from aider.io import InputOutput

@@ -30,13 +30,13 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
 
 @tool
 def query_memory(ctx: ElroyContext, query: str) -> str:
-    """Search through memories and goals using semantic search.
+    """Search through memories and goals using semantic search and return a synthesized response.
 
     Args:
-        query (str): The search query text to find relevant memories and goals
+        query (str): Search query to find relevant memories and goals
 
     Returns:
-        str: A response synthesizing relevant memories and goals that match the query
+        str: A natural language response synthesizing relevant memories and goals
     """
     # Get query embedding
     query_embedding = get_embedding(ctx.embedding_model, query)
@@ -89,13 +89,13 @@ Answer the question directly, short and concise. Do not say things like "based o
 
 @tool
 def print_memory(ctx: ElroyContext, memory_name: str) -> str:
-    """Prints the memory with the given name
+    """Retrieve and return a memory by its exact name.
 
     Args:
-        memory_name (str): Name of the memory retrieve
+        memory_name (str): Name of the memory to retrieve
 
     Returns:
-        str: The memory's details if found, or an error message if not found
+        str: The memory's content if found, or an error message if not found
     """
     memory = ctx.db.exec(
         select(Memory).where(
