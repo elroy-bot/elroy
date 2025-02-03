@@ -8,6 +8,7 @@ from functools import partial
 from typing import List, Optional
 
 import typer
+from rich.table import Table
 from toolz import pipe
 
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
@@ -337,7 +338,7 @@ def message(
             handle_message_stdio(ctx, StdIO(), message, tool)
 
 
-@app.command(name="print-tools")
+@app.command(name="print-tool-schemas")
 def print_tools(
     typer_ctx: typer.Context,
     tool: Optional[str] = typer.Argument(None, help="Tool to print schema for"),
@@ -404,6 +405,28 @@ def list_models():
     for m in get_supported_anthropic_models():
         print(f"{m} (Anthropic)")
     raise typer.Exit()
+
+
+@app.command(name="list-tools")
+def list_tools(
+    typer_ctx: typer.Context,
+):
+    ctx = get_ctx(typer_ctx)
+    tools = ctx.tool_registry.get_schemas()
+
+    table = Table(title="Available Tools")
+    table.add_column("Tool", style="bold")
+    table.add_column("Description")
+
+    for tool in tools:
+        ctx.tool_registry.get(tool["function"]["name"])
+
+        table.add_row(
+            tool["function"]["name"],
+            tool["function"]["description"].split("\n")[0],
+        )
+
+    ctx.io.console.print(table)
 
 
 @app.command(name="print-config")
