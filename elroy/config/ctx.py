@@ -10,6 +10,7 @@ import typer
 from ..db.db_manager import DbManager
 from ..db.postgres.postgres_manager import PostgresManager
 from ..db.sqlite.sqlite_manager import SqliteManager
+from .constants import allow_unused
 from .llm import ChatModel, EmbeddingModel, get_chat_model, get_embedding_model
 from .paths import get_default_config_path
 
@@ -164,6 +165,7 @@ class ElroyContext:
         else:
             return self._db
 
+    @allow_unused
     def is_db_connected(self) -> bool:
         return bool(self._db)
 
