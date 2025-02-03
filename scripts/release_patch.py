@@ -78,25 +78,31 @@ Review main.py and elroy/defaults.yml. The configuration options in defaults.yml
 Make sure the comments in defaults.yml are in sync with the command line options in main.py.
 The headings should be the same, ie the YAML should have comments corresponding to the name of the rich_help_panel of the main.py options
 These headings should also be present in ctx.py for the ElroyContext constructor.
+
+These should also be reflected in configuration.md
     """,
-        rw_files=["elroy/cli/main.py", "elroy/defaults.yml"],
+        rw_files=["elroy/cli/main.py", "elroy/defaults.yml", "elroy/docs/configuration.md"],
     )
 
 
-def update_readme(elroy: Elroy):
+def update_cli_reference(elroy: Elroy):
     help_output = subprocess.run(["elroy", "help"], capture_output=True, text=True).stdout.strip()
     make_edit(
         elroy,
-        instruction=f"""Review main.py, system_commands.py and README.md. Make any edits that would make the document more complete.
-Pay particular attention to:
-- Ensuring all assistant tools are documented under the "## Available assistant and CLI Commands" section of the README. See system_commands.py for the list of available assistant/CLI tools.
-- Ensure the README accurately lists which models are supported by Elroy.
-
+        instruction=f"""Review the cli_reference.md and the output of elroy help. Ensure the cli_reference.md is up to date with the latest changes in the CLI.
 For reference, the output of elroy --help is as below:
-{help_output}
+{help_output}""",
+        rw_files=["elroy/docs/cli_reference.md"],
+    )
 
-Do NOT remove any links or gifs.""",
-        rw_files=["README.md", "elroy/cli/main.py", "elroy/system_commands.py"],
+
+def update_tool_guide(elroy: Elroy):
+    help_output = subprocess.run(["elroy", "list-tools"], capture_output=True, text=True).stdout.strip()
+    make_edit(
+        elroy,
+        instruction=f"""Review python commands and the output of elroy list-tools. Ensure the tool_reference.md is up to date with the latest changes in the tools.
+{help_output}""",
+        rw_files=["elroy/docs/tool_guide.md"],
     )
 
 
@@ -414,7 +420,8 @@ if __name__ == "__main__":
     next_tag = Version(__version__).next_patch()
     if not args.skip_readme:
         sync_configuration_and_cli_ops(elroy)
-        update_readme(elroy)
+        update_cli_reference(elroy)
+        update_tool_guide(elroy)
     update_changelog(elroy)
 
     print("Please provide feedback on the changes made in this release")
