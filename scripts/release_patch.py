@@ -365,6 +365,17 @@ def _get_version_from_pyproject() -> str:
     raise ValueError("Version not found in pyproject.toml")
 
 
+def handle_errors(errors):
+    if errors.messages:
+        print("\nErrors found:")
+        for msg in errors.messages:
+            print(f"  {msg}")
+        response = input("\nDo you want to continue anyway? [y/N] ").lower()
+        if response != "y":
+            sys.exit(1)
+        errors.messages.clear()
+
+
 if __name__ == "__main__":
     elroy = Elroy(token="docs-prep")
 
@@ -385,31 +396,24 @@ if __name__ == "__main__":
     check_remote_tag_consistent(errors)
     check_most_recent_changelog_consistent(errors)
 
-    def handle_errors():
-        if errors.messages:
-            print("\nErrors found:")
-            for msg in errors.messages:
-                print(f"  {msg}")
-            response = input("\nDo you want to continue anyway? [y/N] ").lower()
-            if response != 'y':
-                sys.exit(1)
-            errors.messages.clear()
-
-    handle_errors()
+    handle_errors(errors)
+    errors = Errors([])
 
     if args.skip_tests:
         print("Skipping tests")
     else:
         run_tests(errors)
 
-    handle_errors()
+    handle_errors(errors)
+    errors = Errors([])
 
     if args.skip_docker:
         print("Skipping docker build test")
     else:
         validate_docker_build(errors)
 
-    handle_errors()
+    handle_errors(errors)
+    errors = Errors([])
 
     # checkout branch for new release
     subprocess.run(["git", "checkout", "-b", f"release-{NEXT_PATCH}"], check=True)
