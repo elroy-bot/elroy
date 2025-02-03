@@ -4,7 +4,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from ...config.constants import tool
+from ...config.constants import allow_unused, tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal
 from ...utils.utils import first_or_none
@@ -49,6 +49,7 @@ def get_active_goal_names(ctx: ElroyContext) -> List[str]:
     return [goal.name for goal in get_active_goals(ctx)]
 
 
+@allow_unused
 def get_goal_by_name(ctx: ElroyContext, goal_name: str) -> Optional[str]:
     """Get the fact for a goal by name
 
