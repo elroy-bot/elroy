@@ -12,7 +12,7 @@ from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import EmbeddableSqlModel, FunctionCall
 from elroy.io.cli import CliIO
 from elroy.llm.client import get_embedding, query_llm
-from elroy.llm.stream_parser import SystemMessage, TextOutput
+from elroy.llm.stream_parser import SystemInfo, TextOutput
 from elroy.messenger import process_message
 from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
@@ -37,7 +37,7 @@ class TestCliIO(CliIO):
         self._warnings: List[Any] = []
 
     def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
-        if isinstance(message, SystemMessage):
+        if isinstance(message, SystemInfo):
             self._sys_messages.append(message.content)
         super().print(message, end)
 

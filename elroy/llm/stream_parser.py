@@ -17,22 +17,28 @@ class TextOutput(ABC):
     content: str
 
 
+@dataclass
 class AssistantInternalThought(TextOutput):
     content: str
 
 
+@dataclass
 class AssistantResponse(TextOutput):
     content: str
 
 
+@dataclass
 class AssistantToolResult(TextOutput):
     content: str
+    is_error: bool = False
 
 
-class SystemMessage(TextOutput):
+@dataclass
+class SystemInfo(TextOutput):
     content: str
 
 
+@dataclass
 class SystemWarning(TextOutput):
     content: str
 

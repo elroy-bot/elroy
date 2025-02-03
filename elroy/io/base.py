@@ -6,7 +6,7 @@ from rich.console import Console, RenderableType
 from ..db.db_models import FunctionCall
 from ..llm.stream_parser import (
     AssistantInternalThought,
-    SystemMessage,
+    SystemInfo,
     SystemWarning,
     TextOutput,
 )
@@ -31,7 +31,7 @@ class ElroyIO:
 
     def info(self, message: Union[str, RenderableType]):
         if isinstance(message, str):
-            self.print(SystemMessage(message))
+            self.print(SystemInfo(message))
         else:
             self.print(message)
 
