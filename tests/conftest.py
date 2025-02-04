@@ -6,7 +6,7 @@ from typing import Any, Generator
 
 import pytest
 from sqlmodel import delete
-from tests.utils import TestCliIO
+from tests.utils import MockCliIO
 from toolz import pipe
 from toolz.curried import do
 
@@ -25,7 +25,6 @@ from elroy.db.db_models import (
 )
 from elroy.db.postgres.postgres_manager import PostgresManager
 from elroy.db.sqlite.sqlite_manager import SqliteManager
-from elroy.io.base import ElroyIO
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.goals.operations import create_goal
@@ -118,8 +117,8 @@ def user_id(db, user_token) -> Generator[int, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def io() -> Generator[ElroyIO, Any, None]:
-    yield TestCliIO()
+def io() -> Generator[MockCliIO, Any, None]:
+    yield MockCliIO()
 
 
 @pytest.fixture(scope="function")
@@ -218,8 +217,6 @@ def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyConte
 
     # Create new context with all parameters
     ctx = ElroyContext(**params)
-    io = TestCliIO()
-    ctx.set_io(io)
 
     with ctx.dbsession():
         asyncio.run(onboard_non_interactive(ctx))

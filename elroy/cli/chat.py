@@ -12,11 +12,11 @@ from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
-from ..cli.ui import print_memory_panel
-from ..config.constants import EXIT, SYSTEM, USER, RecoverableToolError
+from ..cli.ui import print_memory_panel, print_title_ruler
+from ..config.constants import EXIT, SYSTEM, USER
 from ..config.ctx import ElroyContext
 from ..db.db_models import Message
-from ..io.base import StdIO
+from ..io.base import PlainIO
 from ..io.cli import CliIO
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from ..messenger import invoke_slash_command, process_message
@@ -48,7 +48,7 @@ def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]
     io.print_stream(process_message(USER, ctx, message, tool))
 
 
-def handle_message_stdio(ctx: ElroyContext, io: StdIO, message: str, tool: Optional[str]):
+def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
     if not is_user_exists(ctx.db.session, ctx.user_token):
         asyncio.run(onboard_non_interactive(ctx))
     io.print_stream(process_message(USER, ctx, message, tool))
@@ -87,12 +87,10 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
 
 
-async def handle_chat(ctx: ElroyContext):
+async def handle_chat(io: CliIO, ctx: ElroyContext):
     init(autoreset=True)
-    io = ctx.io
-    assert isinstance(io, CliIO)
 
-    io.print_title_ruler(get_assistant_name(ctx))
+    print_title_ruler(io, get_assistant_name(ctx))
     context_messages = validate(ctx, get_context_messages(ctx))
 
     if not (ctx.enable_assistant_greeting):
@@ -103,11 +101,12 @@ async def handle_chat(ctx: ElroyContext):
         get_user_preferred_name(ctx)
 
         await process_and_deliver_msg(
+            io,
             SYSTEM,
             ctx,
             get_user_logged_in_message(ctx),
         )
-    print_memory_panel(ctx)
+    print_memory_panel(io, ctx)
 
     while True:
         io.update_completer(
@@ -120,23 +119,26 @@ async def handle_chat(ctx: ElroyContext):
         if user_input.lower().startswith(f"/{EXIT}") or user_input == EXIT:
             break
         elif user_input:
-            await process_and_deliver_msg(USER, ctx, user_input)
+            await process_and_deliver_msg(
+                io,
+                USER,
+                ctx,
+                user_input,
+            )
 
         io.rule()
-        print_memory_panel(ctx)
+        print_memory_panel(io, ctx)
         run_in_background_thread(refresh_context_if_needed, ctx)
 
 
-async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str):
+async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str):
     if user_input.startswith("/") and role == USER:
         try:
-            result = await invoke_slash_command(ctx, user_input)
+            result = await invoke_slash_command(io, ctx, user_input)
             if isinstance(result, (Iterator, AsyncIterator)):
-                ctx.io.print_stream(result)
+                io.print_stream(result)
             else:
-                ctx.io.info(result)
-        except RecoverableToolError as e:
-            ctx.io.info(str(e))
+                io.info(result)
         except Exception as e:
             pipe(
                 traceback.format_exception(type(e), e, e.__traceback__),
@@ -144,17 +146,14 @@ async def process_and_deliver_msg(role: str, ctx: ElroyContext, user_input: str)
                 html.escape,
                 lambda x: x.replace("\n", "<br/>"),
                 partial(add, "Error invoking system command: "),
-                ctx.io.info,
+                io.info,
             )
     else:
-        ctx.io.print_stream(process_message(role, ctx, user_input))
+        io.print_stream(process_message(role, ctx, user_input))
 
 
-async def onboard_interactive(ctx: ElroyContext):
+async def onboard_interactive(io: CliIO, ctx: ElroyContext):
     from .chat import process_and_deliver_msg
-
-    io = ctx.io
-    assert isinstance(io, CliIO)
 
     preferred_name = await io.prompt_user(f"Welcome! I'm assistant named {get_assistant_name(ctx)}. What should I call you?")
 
@@ -175,6 +174,7 @@ async def onboard_interactive(ctx: ElroyContext):
     )
 
     await process_and_deliver_msg(
+        io,
         SYSTEM,
         ctx,
         f"User {preferred_name} has been onboarded. Say hello and introduce yourself.",

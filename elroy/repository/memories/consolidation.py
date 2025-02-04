@@ -188,7 +188,7 @@ def _create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources
 
 async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
 
-    ctx.io.internal_thought(f"Consolidating memories {len(cluster)} memories in cluster.")
+    logging.info(f"Consolidating memories {len(cluster)} memories in cluster.")
     response = query_llm(
         system=MEMORY_CONSOLIDATION,
         prompt=str(cluster),

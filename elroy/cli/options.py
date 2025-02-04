@@ -5,11 +5,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 import yaml
-from toolz import assoc, dissoc, merge, pipe
+from toolz import assoc, merge, pipe
 from toolz.curried import map, valfilter
 from typer import Option
 
-from ..config.ctx import ElroyContext
 from ..config.llm import DEFAULTS_CONFIG
 from ..config.models_aliases import resolve_anthropic
 from ..config.paths import get_default_sqlite_url
@@ -81,7 +80,7 @@ def get_resolved_params(**kwargs) -> Dict[str, Any]:
     """Get resolved parameter values from environment and config."""
     # n.b merge priority is lib default < user config file < env var < explicit CLI arg
 
-    params = pipe(
+    return pipe(
         [
             DEFAULTS_CONFIG,  # package defaults
             load_config_file_params(kwargs.get("config_path")),  # user specified config file
@@ -92,19 +91,6 @@ def get_resolved_params(**kwargs) -> Dict[str, Any]:
         merge,
         lambda d: assoc(d, "database_url", get_default_sqlite_url()) if not d.get("database_url") else d,
     )  # type: ignore
-
-    assert isinstance(params, dict)
-
-    invalid_params = set(params.keys()) - set(ElroyContext.__init__.__annotations__.keys())
-
-    for k in invalid_params:
-        if k in DEPRECATED_KEYS:
-            logging.warning(f"Ignoring deprecated config (will be removed in future releases): '{k}'")
-        else:
-            logging.warning("Ignoring invalid parameter: {k}")
-
-    params = dissoc(params, *invalid_params)
-    return params
 
 
 @lru_cache

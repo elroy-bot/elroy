@@ -441,7 +441,7 @@ if __name__ == "__main__":
 
     print("Please provide feedback on the changes made in this release")
     feedback = input()
-    elroy.remember(feedback, name=f"Feedback for release {next_tag}")
+    elroy.create_memory(feedback, name=f"Feedback for release {next_tag}")
 
     # if local git state is not clean, await for user confirmation
     if not is_local_git_clean():

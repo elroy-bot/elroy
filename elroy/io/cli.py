@@ -1,6 +1,6 @@
 import logging
 from itertools import product
-from typing import Iterator, List, Text, Union
+from typing import Iterator, List, Union
 
 from prompt_toolkit import HTML, PromptSession
 from prompt_toolkit.completion import Completion, WordCompleter
@@ -10,25 +10,16 @@ from prompt_toolkit.styles import Style as PTKStyle
 from pygments.lexers.special import TextLexer
 from rich.console import Console, RenderableType
 from rich.panel import Panel
-from rich.pretty import Pretty
-from rich.style import Style
-from rich.text import Text
 from toolz import concatv, pipe
 from toolz.curried import map
 
-from ..config.constants import EXIT, REPO_ISSUES_URL
+from ..config.constants import EXIT
 from ..config.paths import get_prompt_history_path
 from ..db.db_models import FunctionCall, Goal, Memory
 from ..io.base import ElroyIO
-from ..llm.stream_parser import (
-    AssistantInternalThought,
-    AssistantResponse,
-    AssistantToolResult,
-    CodeBlock,
-    SystemWarning,
-    TextOutput,
-)
+from ..llm.stream_parser import AssistantInternalThought, TextOutput
 from ..repository.context_messages.data_models import ContextMessage
+from .formatters.rich_formatter import RichFormatter
 
 
 class SlashCompleter(WordCompleter):
@@ -70,20 +61,13 @@ class SlashCompleter(WordCompleter):
 class CliIO(ElroyIO):
     def __init__(
         self,
+        formatter: RichFormatter,
         show_internal_thought: bool,
-        system_message_color: str,
-        assistant_message_color: str,
-        user_input_color: str,
-        warning_color: str,
-        internal_thought_color: str,
     ) -> None:
         self.console = Console()
+        self.formatter = formatter
+        self.user_input_color = formatter.user_input_color
         self.show_internal_thought = show_internal_thought
-        self.system_message_color = system_message_color
-        self.assistant_message_color = assistant_message_color
-        self.warning_color = warning_color
-        self.user_input_color = user_input_color
-        self.internal_thought_color = internal_thought_color
         self.style = PTKStyle.from_dict(
             {
                 "prompt": "bold",
@@ -110,86 +94,24 @@ class CliIO(ElroyIO):
         finally:
             self.console.print()
 
-    def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
+    def print(self, message: Union[TextOutput, RenderableType, FunctionCall], end: str = "\n") -> None:
         if isinstance(message, AssistantInternalThought) and not self.show_internal_thought:
             logging.debug(f"Internal thought: {message.content}")
             return
-        elif isinstance(message, AssistantToolResult):
-            if message.is_error:
-                self.console.print(message.content, style=self.warning_color, end=end)
-            else:
-                self.console.print(message.content, style=self.system_message_color, end=end)
 
-        elif isinstance(message, SystemWarning):
-            self._notify_warning(message.content)
-        elif isinstance(message, FunctionCall):
-            self._notify_function_call(message)
-        elif isinstance(message, CodeBlock):
-            self._print_code_block(message)
-        elif isinstance(message, TextOutput):
-            style = {
-                AssistantInternalThought: Style(color=self.internal_thought_color, italic=True),
-                AssistantResponse: self.assistant_message_color,
-                AssistantToolResult: self.assistant_message_color,
-                FunctionCall: self.system_message_color,
-                SystemWarning: self.warning_color,
-                str: self.user_input_color,
-            }.get(
-                type(message)  # type: ignore
-            )
-            if not self.last_output_type:
-                message.content = message.content.lstrip()
-            elif not isinstance(message, self.last_output_type):
-                # If we are printing a new type of message, add a newline.
-                self.console.print("\n\n", end="")
-                message.content = message.content.lstrip()
-            self.console.print(message.content, style=style, end=end)
-        else:
-            self.console.print(message, end=end)
+        if not self.last_output_type and isinstance(message, TextOutput):
+            message.content = message.content.lstrip()
+        elif not self.last_output_type == type(message):
+            self.console.print("\n\n", end="")
 
-        self.last_output_type = type(message)
-
-    def _print_code_block(self, code_block: CodeBlock) -> None:
-        from rich.syntax import Syntax
-
-        self.console.print()
-
-        syntax = Syntax(
-            code_block.content,
-            lexer=code_block.language or "text",
-            theme="monokai",
-            line_numbers=False,  # Disabled by default to make copy-paste easier
-            word_wrap=True,
-            code_width=88,  # Standard Python line length
-        )
-        self.console.print(syntax)
-        self.console.print()
-
-    def _notify_function_call(self, function_call: FunctionCall) -> None:
-        self.console.print()
-        msg = f"[{self.system_message_color}]Executing function call: [bold]{function_call.function_name}[/bold]"
-
-        if function_call.arguments:
-            self.console.print(msg + f" with arguments:[/]", Pretty(function_call.arguments))
-        else:
-            self.console.print(msg + "[/]")
-
-    def _notify_warning(self, message: str) -> None:
-        self.console.print(Text(message, justify="center", style=self.warning_color))  # type: ignore
-        self.console.print(Text(f"Please provide feedback at {REPO_ISSUES_URL}", style=self.warning_color))
-        self.console.print()
+        for output in self.formatter.format(message):
+            self.console.print(output, end=end)
+            self.last_output_type = type(message)
 
     def print_memory_panel(self, titles: List[str]):
         if titles:
             panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
-
-    # TODO: move to ui.py
-    def print_title_ruler(self, assistant_name: str):
-        self.console.rule(
-            Text(assistant_name, justify="center", style=self.user_input_color),
-            style=self.user_input_color,
-        )
 
     def rule(self):
         self.last_output_type = None

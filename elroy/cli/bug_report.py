@@ -7,19 +7,14 @@ from ..tools.developer import create_bug_report
 
 
 def create_bug_report_from_exception_if_confirmed(
-    ctx: ElroyContext, error: Exception, error_explanation: str = "An error occured."
+    io: CliIO, ctx: ElroyContext, error: Exception, error_explanation: str = "An error occured."
 ) -> None:
     """
     Prompt user to create a bug report from an exception and create it if confirmed.
 
     Args:
-        context: The Elroy context
         error: The exception that triggered this prompt
     """
-    io = ctx.io
-    if not isinstance(io, CliIO):
-        return
-
     if asyncio.run(get_confirm(io, f"{error_explanation} Would you like to create a bug report? (y/n)")):
         create_bug_report(
             ctx,

@@ -1,9 +1,11 @@
 from tests.utils import (
+    MockCliIO,
     get_active_goals_summary,
     process_test_message,
     quiz_assistant_bool,
 )
 
+from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import Goal
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.context_messages.queries import get_context_messages
@@ -13,7 +15,7 @@ from elroy.repository.goals.queries import get_db_goal_by_name
 from elroy.repository.memories.queries import get_in_context_memories
 
 
-def test_assistant_goal_in_context(ctx):
+def test_assistant_goal_in_context(io: MockCliIO, ctx: ElroyContext):
     # Verify that when a goal is created by assistant, it is in context, when marked complete, it disappears
     process_test_message(ctx, "I ran a marathon today, please create a memory")
 
@@ -30,7 +32,7 @@ def test_assistant_goal_in_context(ctx):
     ), "Marathon goal still in context"
 
 
-def test_goal(ctx):
+def test_goal(io: MockCliIO, ctx: ElroyContext):
     quiz_assistant_bool(False, ctx, "Do I have any goals about becoming president of the United States?")
 
     # Simulate user asking elroy to create a new goal
@@ -77,7 +79,7 @@ def test_goal(ctx):
     )
 
 
-def test_goal_update_goal_slight_difference(ctx):
+def test_goal_update_goal_slight_difference(io: MockCliIO, ctx: ElroyContext):
     create_goal(ctx, "Run 100 miles this year")
     reset_messages(ctx)
 
@@ -89,7 +91,7 @@ def test_goal_update_goal_slight_difference(ctx):
     assert "4 miles" in get_active_goals_summary(ctx)
 
 
-def test_goal_is_in_context_only_when_active(ctx):
+def test_goal_is_in_context_only_when_active(io: MockCliIO, ctx: ElroyContext):
     create_goal(ctx, "Run 100 miles this year")
     goal = get_db_goal_by_name(ctx, "Run 100 miles this year")
     assert isinstance(goal, Goal)
@@ -102,7 +104,7 @@ def test_goal_is_in_context_only_when_active(ctx):
     assert not is_in_context(get_context_messages(ctx), goal)
 
 
-def test_status_update_brings_into_context(ctx):
+def test_status_update_brings_into_context(io: MockCliIO, ctx: ElroyContext):
     create_goal(ctx, "Run 100 miles this year")
     goal = get_db_goal_by_name(ctx, "Run 100 miles this year")
     assert goal
@@ -116,7 +118,7 @@ def test_status_update_brings_into_context(ctx):
     assert is_in_context(get_context_messages(ctx), goal)
 
 
-def test_duplicate_goal(ctx):
+def test_duplicate_goal(io: MockCliIO, ctx: ElroyContext):
     """The result should not raise an error, but should not create a duplicate goal."""
     create_goal(ctx, "Run 100 miles this year")
     remove_from_context(ctx, get_db_goal_by_name(ctx, "Run 100 miles this year"))  # type: ignore
@@ -128,11 +130,11 @@ def test_duplicate_goal(ctx):
 
     quiz_assistant_bool(True, ctx, "Did the goal I asked you to create already exist?")
 
-    assert not ctx.io._warnings
+    assert not io._warnings
 
 
-def test_update_nonexistent_goal(ctx):
+def test_update_nonexistent_goal(io: MockCliIO, ctx: ElroyContext):
     process_test_message(ctx, "I ran 4 miles today. Please update my goal: Run 100 miles this year")
     quiz_assistant_bool(False, ctx, "Did the goal I asked you to update already exist?")
 
-    assert not ctx.io._warnings
+    assert not io._warnings
