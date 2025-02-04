@@ -1,12 +1,11 @@
-from datetime import datetime
 from functools import wraps
 from typing import Callable, Generator, List, Optional
-
-from pytz import UTC
 
 from .cli.options import get_resolved_params
 from .config.constants import USER
 from .config.ctx import ElroyContext
+from .io.formatters.base import StringFormatter
+from .io.formatters.plain_formatter import PlainFormatter
 from .llm.stream_parser import AssistantInternalThought
 from .messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
@@ -22,7 +21,6 @@ from .repository.goals.operations import create_goal as do_create_goal
 from .repository.goals.operations import mark_goal_completed as do_mark_goal_completed
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
-from .repository.memories.operations import create_memory
 from .repository.memories.operations import create_memory as do_create_memory
 from .repository.memories.queries import query_memory as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
@@ -30,13 +28,15 @@ from .repository.user.queries import get_persona as do_get_persona
 
 
 def db(f: Callable) -> Callable:
-    """Decorator to wrap function calls with database session context"""
+    """Decorator to wrap non-generator function calls with database session context"""
 
     @wraps(f)
     def wrapper(self, *args, **kwargs):
         if not self.ctx.is_db_connected():
             with self.ctx.dbsession():
                 return f(self, *args, **kwargs)
+        else:
+            return f(self, *args, **kwargs)
 
     return wrapper
 
@@ -46,12 +46,14 @@ class Elroy:
         self,
         *,
         token: Optional[str] = None,
+        formatter: StringFormatter = PlainFormatter(),
         config_path: Optional[str] = None,
         persona: Optional[str] = None,
         assistant_name: Optional[str] = None,
         database_url: Optional[str] = None,
         **kwargs,
     ):
+        self.formatter = formatter
 
         self.ctx = ElroyContext(
             **get_resolved_params(
@@ -196,7 +198,6 @@ class Elroy:
         - [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.
 
         Args:
-            context (ElroyContext): _description_
             name (str): The name of the memory. Should be specific and discuss one topic.
             text (str): The text of the memory.
 
@@ -209,61 +210,26 @@ class Elroy:
     def message(self, input: str) -> str:
         """Process a message to the assistant and return the response
 
+        Args:
+            input (str): The message to process
+
         Returns:
             str: The response from the assistant
         """
-        return "".join(self.message_stream(input))
+        return "".join(list(self._message_stream(input)))
 
-    def message_stream(self, input: str) -> Generator[str, None, None]:
-        stream = [
-            chunk.content
-            for chunk in process_message(USER, self.ctx, input)
-            if not isinstance(chunk, AssistantInternalThought) or self.ctx.show_internal_thought
-        ]
-        if not self.ctx.is_db_connected():
-            with self.ctx.dbsession():
-                yield from stream
-        else:
-            yield from stream
-
-    @db
-    def remember(self, message: str, name: Optional[str] = None) -> str:
-        """Creates a new memory for the assistant.
-
-        Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
-
-        BAD:
-        - [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
-
-        BETTER:
-        - [User Name]'s project on building a treehouse: More specific, and describes a single topic.
-        - [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.
-
-        BAD:
-        - [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.
-
-        BETTER:
-        - [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.
-
-        BAD:
-        - [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.
-
-        BETTER:
-        - [User Name]'s preferred name: Describes a specific topic.
-        - [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.
+    def _message_stream(self, input: str) -> Generator[str, None, None]:
+        """Process a message to the assistant and yield response chunks
 
         Args:
-            context (ElroyContext): _description_
-            name (str): The name of the memory. Should be specific and discuss one topic.
-            text (str): The text of the memory.
+            input (str): The message to process
 
         Returns:
-            str: Confirmation message that the memory was created.
+            Generator[str, None, None]: Generator yielding response chunks
         """
-
-        if not name:
-            name = f"Memory from {datetime.now(UTC)}"
-        return create_memory(self.ctx, name, message)
+        for chunk in process_message(USER, self.ctx, input):
+            if not isinstance(chunk, AssistantInternalThought) or self.ctx.show_internal_thought:
+                yield from self.formatter.format(chunk)
 
     @db
     def context_refresh(self) -> None:

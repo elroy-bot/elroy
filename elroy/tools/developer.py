@@ -15,7 +15,6 @@ from .. import __version__
 from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, tool
 from ..config.ctx import ElroyContext
 from ..config.paths import get_home_dir, get_log_file_path
-from ..utils.ops import experimental
 
 
 @tool
@@ -134,7 +133,6 @@ def create_bug_report(
     Generate a bug report and open it as a GitHub issue.
 
     Args:
-        context: The Elroy context
         title: The title for the bug report
         description: Detailed description of the issue
     """
@@ -175,7 +173,6 @@ def create_bug_report(
     webbrowser.open(github_url)
 
 
-@experimental
 @tool
 def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
     """Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction.

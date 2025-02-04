@@ -1,3 +1,4 @@
+import logging
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import cached_property
@@ -5,8 +6,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, Generator, List, Optional, TypeVar
 
-import typer
+from toolz.curried import dissoc
 
+from ..cli.options import DEPRECATED_KEYS
 from ..db.db_manager import DbManager
 from ..db.postgres.postgres_manager import PostgresManager
 from ..db.sqlite.sqlite_manager import SqliteManager
@@ -87,6 +89,18 @@ class ElroyContext:
 
     from ..tools.registry import ToolRegistry
 
+    @classmethod
+    def init(cls, **kwargs):
+        invalid_params = set(kwargs.keys()) - set(ElroyContext.__init__.__annotations__.keys())
+
+        for k in invalid_params:
+            if k in DEPRECATED_KEYS:
+                logging.warning(f"Ignoring deprecated config (will be removed in future releases): '{k}'")
+            else:
+                logging.warning("Ignoring invalid parameter: {k}")
+
+        return cls(**dissoc(kwargs, *invalid_params))  # type: ignore
+
     @cached_property
     def tool_registry(self) -> ToolRegistry:
         from ..tools.registry import ToolRegistry
@@ -141,24 +155,6 @@ class ElroyContext:
         return get_user_id_if_exists(self.db, self.user_token) or create_user_id(self.db, self.user_token)
 
     @property
-    def io(self) -> ElroyIO:
-        from ..io.cli import CliIO
-
-        if not self._io:
-            self._io = CliIO(
-                show_internal_thought=self.params.show_internal_thought,
-                system_message_color=self.params.system_message_color,
-                assistant_message_color=self.params.assistant_color,
-                user_input_color=self.params.user_input_color,
-                warning_color=self.params.warning_color,
-                internal_thought_color=self.params.internal_thought_color,
-            )
-        return self._io
-
-    def set_io(self, io: ElroyIO) -> None:
-        self._io = io
-
-    @property
     def db(self) -> DbManager:
         if not self._db:
             raise ValueError("No db session open")
@@ -190,9 +186,3 @@ class ElroyContext:
 
 
 T = TypeVar("T", bound=Callable[..., Any])
-
-
-def get_ctx(typer_ctx: typer.Context) -> ElroyContext:
-    ctx = typer_ctx.obj
-    assert isinstance(ctx, ElroyContext), f"Context must be ElroyContext, got {type(ctx)}"
-    return ctx

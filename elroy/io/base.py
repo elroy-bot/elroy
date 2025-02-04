@@ -6,10 +6,12 @@ from rich.console import Console, RenderableType
 from ..db.db_models import FunctionCall
 from ..llm.stream_parser import (
     AssistantInternalThought,
+    AssistantResponse,
     SystemInfo,
     SystemWarning,
     TextOutput,
 )
+from .formatters.plain_formatter import PlainFormatter
 
 
 class ElroyIO:
@@ -26,9 +28,6 @@ class ElroyIO:
         else:
             raise NotImplementedError(f"Invalid message type: {type(message)}")
 
-    def internal_thought(self, message: str):
-        self.print(AssistantInternalThought(message))
-
     def info(self, message: Union[str, RenderableType]):
         if isinstance(message, str):
             self.print(SystemInfo(message))
@@ -42,22 +41,24 @@ class ElroyIO:
             self.print(message)
 
 
-class StdIO(ElroyIO):
+class PlainIO(ElroyIO):
     """
     IO which emits plain text to stdin and stdout.
     """
 
-    def __init__(self):
-        self.console = Console(no_color=True)
+    def __init__(self) -> None:
+        self.console = Console()
+        self.formatter = PlainFormatter()
 
     def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
-        if isinstance(message, AssistantInternalThought):
+        if isinstance(message, AssistantResponse):
+            for output in self.formatter.format(message):
+                self.console.print(output, end=end)
+        elif isinstance(message, AssistantInternalThought):
             logging.info(f"{type(message)}: {message}")
         elif isinstance(message, SystemWarning):
             logging.warning(message)
         elif isinstance(message, FunctionCall):
             logging.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
-        elif isinstance(message, TextOutput):
-            self.console.print(message.content, end=end)
         else:
-            super().print(message, end)
+            raise NotImplementedError(f"Invalid message type: {type(message)}")

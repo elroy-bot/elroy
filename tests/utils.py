@@ -11,6 +11,7 @@ from elroy.config.constants import USER
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import EmbeddableSqlModel, FunctionCall
 from elroy.io.cli import CliIO
+from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.llm.client import get_embedding, query_llm
 from elroy.llm.stream_parser import SystemInfo, TextOutput
 from elroy.messenger import process_message
@@ -21,15 +22,17 @@ from elroy.repository.goals.queries import get_active_goals
 from elroy.utils.utils import first_or_none
 
 
-class TestCliIO(CliIO):
-    def __init__(self, *args, **kwargs):
+class MockCliIO(CliIO):
+    def __init__(self):
         super().__init__(
+            RichFormatter(
+                system_message_color="blue",
+                assistant_message_color="green",
+                user_input_color="red",
+                warning_color="yellow",
+                internal_thought_color="magenta",
+            ),
             show_internal_thought=False,
-            system_message_color="blue",
-            assistant_message_color="green",
-            user_input_color="red",
-            warning_color="yellow",
-            internal_thought_color="magenta",
         )
 
         self._user_responses: List[str] = []
@@ -41,9 +44,9 @@ class TestCliIO(CliIO):
             self._sys_messages.append(message.content)
         super().print(message, end)
 
-    def get_sys_messages(self) -> Optional[str]:
+    def get_sys_messages(self) -> str:
         if not self._sys_messages:
-            return None
+            return ""
         else:
             response = "".join(self._sys_messages)
             self._sys_messages.clear()

@@ -1,6 +1,6 @@
 {
-    "python.analysis.typeCheckingMode": "standard",
-    "include": ["elroy"],
+    "include": ["elroy", "tests"],
+    "exclude": [".venv/**", "**/*.ipynb"],
     "executionEnvironments": [
         {
             "root": "elroy"

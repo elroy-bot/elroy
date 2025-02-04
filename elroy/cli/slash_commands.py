@@ -12,7 +12,6 @@ from toolz.curried import map
 
 from ..config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
 from ..config.ctx import ElroyContext
-from ..io.cli import CliIO
 from ..llm.client import query_llm
 from ..llm.prompts import contemplate_prompt
 from ..repository.context_messages.data_models import ContextMessage
@@ -138,12 +137,10 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
         ],
     )
 
-    ctx.io.internal_thought(response)
-
     return response
 
 
-def help(ctx: ElroyContext) -> None:
+def help(ctx: ElroyContext) -> Table:
     """Prints the available system commands
 
     Returns:
@@ -151,33 +148,25 @@ def help(ctx: ElroyContext) -> None:
     """
     from ..tools.tools_and_commands import SYSTEM_COMMANDS
 
-    if isinstance(ctx.io, CliIO):
-        from rich.table import Table
+    commands = pipe(
+        SYSTEM_COMMANDS,
+        map(
+            lambda f: (
+                f.__name__,
+                inspect.getdoc(f).split("\n")[0],  # type: ignore
+            )
+        ),
+        list,
+        sorted,
+    )
 
-        commands = pipe(
-            SYSTEM_COMMANDS,
-            map(
-                lambda f: (
-                    f.__name__,
-                    inspect.getdoc(f).split("\n")[0],  # type: ignore
-                )
-            ),
-            list,
-            sorted,
-        )
+    table = Table(title="Available Slash Commands")
+    table.add_column("Command", justify="left", style="cyan", no_wrap=True)
+    table.add_column("Description", justify="left", style="green")
 
-        table = Table(title="Available Slash Commands")
-        table.add_column("Command", justify="left", style="cyan", no_wrap=True)
-        table.add_column("Description", justify="left", style="green")
-
-        for command, description in commands:  # type: ignore
-            table.add_row(command, description)
-
-        ctx.io.print(table)
-    else:
-        # not really expecting to use this function outside of CLI, but just in case
-        for f in SYSTEM_COMMANDS:
-            ctx.io.print(f.__name__)
+    for command, description in commands:  # type: ignore
+        table.add_row(command, description)
+    return table
 
 
 def print_system_instruction(ctx: ElroyContext) -> Optional[str]:

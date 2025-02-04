@@ -3,6 +3,7 @@ import json
 import logging
 import sys
 from bdb import BdbQuit
+from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from typing import List, Optional
@@ -12,11 +13,12 @@ from rich.table import Table
 from toolz import pipe
 
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
-from ..config.ctx import ElroyContext, get_ctx
+from ..config.ctx import ElroyContext
 from ..config.logging import setup_logging
 from ..config.paths import get_default_config_path, get_default_sqlite_url
-from ..io.base import StdIO
+from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
+from ..io.formatters.rich_formatter import RichFormatter
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
@@ -35,10 +37,17 @@ from .updater import check_latest_version, check_updates
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
+
+@dataclass
+class ElroyContextInitializer:
+    ctx: ElroyContext
+    io: ElroyIO
+
+
 app = typer.Typer(
     help="Elroy CLI",
     context_settings={
-        "obj": {},
+        "obj": None,
     },
     no_args_is_help=False,
 )
@@ -283,9 +292,24 @@ def common(
                 typer_ctx.params["chat_model"] = resolved
         del typer_ctx.params[m]
 
-    typer_ctx.obj = ElroyContext(
-        **get_resolved_params(**typer_ctx.params),
-    )
+    params = get_resolved_params(**typer_ctx.params)
+
+    elroy_ctx = ElroyContext.init(**params)
+    if sys.stdin.isatty():
+        io = CliIO(
+            RichFormatter(
+                system_message_color=params["system_message_color"],
+                assistant_message_color=params["assistant_color"],
+                user_input_color=params["user_input_color"],
+                warning_color=params["warning_color"],
+                internal_thought_color=params["internal_thought_color"],
+            ),
+            show_internal_thought=params["show_internal_thought"],
+        )
+    else:
+        io = PlainIO()
+
+    typer_ctx.obj = ElroyContextInitializer(ctx=elroy_ctx, io=io)
 
     setup_logging()
 
@@ -297,22 +321,24 @@ def common(
 def chat(typer_ctx: typer.Context):
     """Opens an interactive chat session. (default command)"""
     ctx = get_ctx(typer_ctx)
+    io = get_io(typer_ctx)
     with ctx.dbsession():
         if sys.stdin.isatty():
+            assert isinstance(io, CliIO)
             check_updates()
             try:
                 if not get_user_id_if_exists(ctx.db, ctx.user_token):
-                    asyncio.run(onboard_interactive(ctx))
-                asyncio.run(handle_chat(ctx))
+                    asyncio.run(onboard_interactive(io, ctx))
+                asyncio.run(handle_chat(io, ctx))
             except BdbQuit:
                 logging.info("Exiting...")
             except EOFError:
                 logging.info("Exiting...")
             except Exception as e:
-                create_bug_report_from_exception_if_confirmed(ctx, e)
+                create_bug_report_from_exception_if_confirmed(io, ctx, e)
         else:
             message = sys.stdin.read()
-            handle_message_stdio(ctx, StdIO(), message, None)
+            handle_message_stdio(ctx, PlainIO(), message, None)
 
 
 @app.command(name="message")
@@ -330,12 +356,12 @@ def message(
     ctx = get_ctx(typer_ctx)
     with ctx.dbsession():
         if sys.stdin.isatty() and not message:
-            io = ctx.io
+            io = get_io(typer_ctx)
             assert isinstance(io, CliIO)
             handle_message_interactive(ctx, io, tool)
         else:
             assert message
-            handle_message_stdio(ctx, StdIO(), message, tool)
+            handle_message_stdio(ctx, PlainIO(), message, tool)
 
 
 @app.command(name="print-tool-schemas")
@@ -345,7 +371,8 @@ def print_tools(
 ):
     """Prints the schema for a tool and exits."""
     ctx = get_ctx(typer_ctx)
-    ctx.io.print(ctx.tool_registry.get_schemas())  # type: ignore
+    io = get_io(typer_ctx)
+    io.print(ctx.tool_registry.get_schemas())  # type: ignore
 
 
 @app.command(name="remember")
@@ -358,18 +385,18 @@ def cli_remember(
 ):
     """Create a new memory from text or interactively."""
     ctx = get_ctx(typer_ctx)
+    io = get_io(typer_ctx)
     with ctx.dbsession():
         if not get_user_id_if_exists(ctx.db, ctx.user_token):
-            ctx.io.warning("Creating memory for new user")
+            io.warning("Creating memory for new user")
 
         if text:
             memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
             manually_record_user_memory(ctx, text, memory_name)
-            ctx.io.info(f"Memory created: {memory_name}")
+            io.info(f"Memory created: {memory_name}")
             raise typer.Exit()
 
         elif sys.stdin.isatty():
-            io = ctx.io
             assert isinstance(io, CliIO)
             memory_text = asyncio.run(io.prompt_user("Enter the memory text:"))
             memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
@@ -377,10 +404,10 @@ def cli_remember(
             memory_name = asyncio.run(io.prompt_user("Enter memory name (optional, press enter to skip):"))
             try:
                 manually_record_user_memory(ctx, memory_text, memory_name)
-                ctx.io.info(f"Memory created: {memory_name}")
+                io.info(f"Memory created: {memory_name}")
                 raise typer.Exit()
             except ValueError as e:
-                ctx.io.warning(f"Error creating memory: {e}")
+                io.warning(f"Error creating memory: {e}")
                 raise typer.Exit(1)
         else:
             memory_text = sys.stdin.read()
@@ -388,7 +415,7 @@ def cli_remember(
             memory_text = f"{metadata}\n{memory_text}"
             memory_name = f"Memory from stdin, ingested {datetime_to_string(datetime.now())}"
             manually_record_user_memory(ctx, memory_text, memory_name)
-            ctx.io.info(f"Memory created: {memory_name}")
+            io.info(f"Memory created: {memory_name}")
             raise typer.Exit()
 
 
@@ -412,6 +439,7 @@ def list_tools(
     typer_ctx: typer.Context,
 ):
     ctx = get_ctx(typer_ctx)
+    io = get_io(typer_ctx)
     tools = ctx.tool_registry.get_schemas()
 
     table = Table(title="Available Tools")
@@ -425,8 +453,7 @@ def list_tools(
             tool["function"]["name"],
             tool["function"]["description"].split("\n")[0],
         )
-
-    ctx.io.console.print(table)
+    io.console.print(table)
 
 
 @app.command(name="print-config")
@@ -440,7 +467,8 @@ def print_config(
 ):
     """Shows current configuration and exits."""
     ctx = get_ctx(typer_ctx)
-    ctx.io.print(do_print_config(ctx, show_secrets))
+    io = get_io(typer_ctx)
+    io.print(do_print_config(ctx, show_secrets))
 
 
 @app.command()
@@ -510,9 +538,10 @@ def mcp_print_config(
     from ..mcp.config import get_mcp_config, is_uv_installed
 
     ctx = get_ctx(typer_ctx)
+    io = get_io(typer_ctx)
 
     if not is_uv_installed():
-        ctx.io.warning("uv not detected. uv is required to run Elroy MCP server")
+        io.warning("uv not detected. uv is required to run Elroy MCP server")
 
     pipe(
         ctx,
@@ -520,6 +549,18 @@ def mcp_print_config(
         lambda d: json.dumps(d, indent=2),
         print,
     )
+
+
+def get_ctx(typer_ctx: typer.Context) -> ElroyContext:
+    ctx = typer_ctx.obj.ctx
+    assert isinstance(ctx, ElroyContext), f"Context must be ElroyContext, got {type(ctx)}"
+    return ctx
+
+
+def get_io(typer_ctx: typer.Context) -> ElroyIO:
+    io = typer_ctx.obj.io
+    assert isinstance(io, ElroyIO), f"IO must be ElroyIO, got {type(io)}"
+    return io
 
 
 if __name__ == "__main__":
