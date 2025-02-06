@@ -129,7 +129,6 @@ def get_embedding_model(
         api_key = embedding_model_api_key or chat_model_api_key
         api_base = embedding_model_api_base or chat_model_api_base
 
-
     return EmbeddingModel(
         name=model_name,
         embedding_size=embedding_size,

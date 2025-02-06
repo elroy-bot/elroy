@@ -185,7 +185,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
         "model": model.name,
         "input": [text],
         "caching": model.enable_caching,
-        "api_key": model.api_key,
+        "api_key": model.api_key,  # TODO: Just let this be empty when supported params are not set!
     }
 
     if model.api_base:
@@ -213,6 +213,7 @@ def _build_completion_kwargs(
         "tool_choice": tool_choice,
         "tools": tools,
     }
+    # TODO: Just let this be empty when supported params are not set!
 
     if model.api_base:
         kwargs["api_base"] = model.api_base
