@@ -86,6 +86,7 @@ class GoalDoesNotExistError(RecoverableToolError):
 class Provider(enum.Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
     OTHER = "other"
 
 

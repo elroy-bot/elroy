@@ -2,7 +2,7 @@
 
 # params that should work for all models
 chat-model # model name (unchanged) (if model-base-url is set, prefix with openai (for litellm))
-chat-model-base-url
+chat-model-api-base
 chat-model-api-key
 
 embeddings-model # embeddings model name (unchanged)

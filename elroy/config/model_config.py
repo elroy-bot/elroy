@@ -5,7 +5,19 @@ from typing import List, Optional, Tuple
 from toolz import assoc, first, pipe
 from toolz.curried import filter
 
-from .llm import ChatModel
+from .constants import KNOWN_MODELS, Provider
+from .llm import ChatModel, EmbeddingModel
+
+
+def resolve_chat_model_config(**kwargs) -> ChatModel:
+    model_name = resolve_model_alias(kwargs["chat_model"])
+    if "claude" in model_name:
+        kwargs.get("chat_model_api_key") or kwargs.get("anthropic_api_key")
+        Provider.ANTHROPIC
+    else:
+        kwargs.get("chat_model_api_key") or kwargs.get("openai_api_key")
+
+    kwargs.get("chat_model_base_url") or kwargs.get("openai_api_base")
 
 
 def resolve_anthropic(pattern: str) -> str:
@@ -72,16 +84,6 @@ def get_supported_openai_models() -> List[str]:
         list,
     )
 
-def is_gemini_model(model_name: str) -> bool:
-    return "gemini" in model_name or model_name == "text-embedding-004":
-
-
-def is_anthropic_model(model_name: str) -> bool:
-    for shortname in ["claude", "opus", "sonnet", "haiku"]:
-        if shortname in model_name:
-            return True
-    return False
-
 
 # This may result in API calls!
 def get_supported_anthropic_models() -> List[str]:
@@ -146,3 +148,92 @@ def get_fallback_model(chat_model: ChatModel) -> Optional[ChatModel]:
         lambda x: assoc(x, "name", name),
         lambda x: ChatModel(**x),
     )  # type: ignore
+
+
+def resolve_model_alias(model_name: str) -> str:
+    if model_name in ["sonnet", "opus", "haiku"]:
+        return resolve_anthropic(model_name)
+    else:
+        return {
+            "gpt4o": "gpt-4o",
+            "gpt4o_mini": "gpt-4o-mini",
+            "o1": "o1",
+            "o1_mini": "o1-mini",
+        }.get(model_name, model_name)
+
+
+def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
+    # check a hard coded dict to short circuit API calls to list models, if possible:
+
+    for provider, models in KNOWN_MODELS.items():
+        if model_name in models:
+            return provider
+
+    from .model_config import get_supported_openai_models
+
+    if model_name in get_supported_openai_models():
+        return Provider.OPENAI
+
+    elif api_base:
+        return Provider.OTHER
+
+    from .model_config import get_supported_anthropic_models
+
+    if model_name in get_supported_anthropic_models():
+        return Provider.ANTHROPIC
+    else:
+        raise ValueError("Cannot determine provider for model")
+
+
+def get_chat_model(
+    model_name: str,
+    openai_api_key: Optional[str],
+    anthropic_api_key: Optional[str],
+    api_base: Optional[str],
+    organization: Optional[str],
+    enable_caching: bool,
+    inline_tool_calls: bool,
+) -> ChatModel:
+
+    provider = get_provider(model_name, api_base)
+
+    if provider == Provider.ANTHROPIC:
+        assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
+        ensure_alternating_roles = True
+        api_key = anthropic_api_key
+    elif provider == Provider.OPENAI:
+        assert openai_api_key is not None, "OpenAI API key is required for OpenAI chat models"
+        ensure_alternating_roles = False
+        api_key = openai_api_key
+    else:
+        ensure_alternating_roles = False
+        api_key = openai_api_key
+
+    return ChatModel(
+        name=model_name,
+        api_key=api_key,
+        ensure_alternating_roles=ensure_alternating_roles,
+        inline_tool_calls=inline_tool_calls,
+        api_base=api_base,
+        organization=organization,
+        enable_caching=enable_caching,
+        provider=provider,
+    )
+
+
+def get_embedding_model(
+    model_name: str, embedding_size: int, api_key: Optional[str], api_base: Optional[str], organization: Optional[str], enable_caching: bool
+) -> EmbeddingModel:
+    from litellm import open_ai_embedding_models
+
+    if model_name in open_ai_embedding_models:
+        assert api_key is not None, "OpenAI API key is required for OpenAI embedding models"
+
+    return EmbeddingModel(
+        name=model_name,
+        embedding_size=embedding_size,
+        api_key=api_key,
+        api_base=api_base,
+        organization=organization,
+        enable_caching=enable_caching,
+    )

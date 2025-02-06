@@ -5,6 +5,8 @@ from typing import Optional
 import yaml
 
 from .constants import KNOWN_MODELS, Provider
+from .model_config import resolve_model_alias
+from .models_aliases import is_anthropic_model, is_gemini_model
 from .paths import APP_NAME
 
 with open_text(APP_NAME, "defaults.yml") as f:
@@ -37,13 +39,15 @@ def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
     if model_name in get_supported_openai_models():
         return Provider.OPENAI
 
+    elif is_gemini_model(model_name):
+        return Provider.GEMINI
+
+    if is_anthropic_model(model_name):
+        return Provider.ANTHROPIC
+
     elif api_base:
         return Provider.OTHER
 
-    from .models_aliases import get_supported_anthropic_models
-
-    if model_name in get_supported_anthropic_models():
-        return Provider.ANTHROPIC
     else:
         raise ValueError("Cannot determine provider for model")
 
@@ -60,27 +64,32 @@ class EmbeddingModel:
 
 def get_chat_model(
     model_name: str,
+    chat_model_api_key: Optional[str],
+    chat_model_api_base: Optional[str],
     openai_api_key: Optional[str],
+    openai_api_base: Optional[str],
     anthropic_api_key: Optional[str],
-    api_base: Optional[str],
+    gemini_api_key: Optional[str],
     organization: Optional[str],
     enable_caching: bool,
     inline_tool_calls: bool,
 ) -> ChatModel:
-
+    model_name = resolve_model_alias(model_name)
+    api_base = chat_model_api_base or openai_api_base
     provider = get_provider(model_name, api_base)
 
     if provider == Provider.ANTHROPIC:
-        assert anthropic_api_key is not None, "Anthropic API key is required for Anthropic chat models"
+        api_key = chat_model_api_key or anthropic_api_key
         ensure_alternating_roles = True
-        api_key = anthropic_api_key
     elif provider == Provider.OPENAI:
-        assert openai_api_key is not None, "OpenAI API key is required for OpenAI chat models"
+        api_key = chat_model_api_key or openai_api_key
         ensure_alternating_roles = False
-        api_key = openai_api_key
+    elif provider == Provider.GEMINI:
+        api_key = chat_model_api_key or gemini_api_key
+        ensure_alternating_roles = False
     else:
         ensure_alternating_roles = False
-        api_key = openai_api_key
+        api_key = chat_model_api_key or openai_api_key
 
     return ChatModel(
         name=model_name,
@@ -95,12 +104,31 @@ def get_chat_model(
 
 
 def get_embedding_model(
-    model_name: str, embedding_size: int, api_key: Optional[str], api_base: Optional[str], organization: Optional[str], enable_caching: bool
+    model_name: str,
+    chat_model_api_key: Optional[str],
+    chat_model_api_base: Optional[str],
+    embedding_model_api_key: Optional[str],
+    embedding_model_api_base: Optional[str],
+    openai_api_key: Optional[str],
+    openai_api_base: Optional[str],
+    gemini_api_key: Optional[str],
+    embedding_size: int,
+    organization: Optional[str],
+    enable_caching: bool,
 ) -> EmbeddingModel:
     from litellm import open_ai_embedding_models
 
     if model_name in open_ai_embedding_models:
+        api_key = embedding_model_api_key or openai_api_key or chat_model_api_key
+        api_base = embedding_model_api_base or openai_api_base or chat_model_api_base
         assert api_key is not None, "OpenAI API key is required for OpenAI embedding models"
+    elif is_gemini_model(model_name):
+        api_key = embedding_model_api_key or gemini_api_key or chat_model_api_key
+        api_base = embedding_model_api_base
+    else:
+        api_key = embedding_model_api_key or chat_model_api_key
+        api_base = embedding_model_api_base or chat_model_api_base
+
 
     return EmbeddingModel(
         name=model_name,
