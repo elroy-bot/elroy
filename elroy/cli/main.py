@@ -398,10 +398,10 @@ def cli_remember(
 
         elif sys.stdin.isatty():
             assert isinstance(io, CliIO)
-            memory_text = asyncio.run(io.prompt_user("Enter the memory text:"))
+            memory_text = asyncio.run(io.prompt_user(0, "Enter the memory text:"))
             memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
             # Optionally get memory name
-            memory_name = asyncio.run(io.prompt_user("Enter memory name (optional, press enter to skip):"))
+            memory_name = asyncio.run(io.prompt_user(0, "Enter memory name (optional, press enter to skip):"))
             try:
                 manually_record_user_memory(ctx, memory_text, memory_name)
                 io.info(f"Memory created: {memory_name}")
@@ -409,6 +409,9 @@ def cli_remember(
             except ValueError as e:
                 io.warning(f"Error creating memory: {e}")
                 raise typer.Exit(1)
+            except EOFError:
+                io.info("Cancelled.")
+                raise typer.Exit()
         else:
             memory_text = sys.stdin.read()
             metadata = "Memory ingested from stdin\n" f"Ingested at: {datetime_to_string(datetime.now())}\n"

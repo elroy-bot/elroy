@@ -26,5 +26,8 @@ def create_bug_report_from_exception_if_confirmed(
 
 async def get_confirm(io: CliIO, prompt: str) -> bool:
     """Prompt the user to confirm an action"""
-    response = await io.prompt_user(prompt)
-    return response.lower().startswith("y")
+    try:
+        response = await io.prompt_user(0, prompt)
+        return response.lower().startswith("y")
+    except EOFError:
+        return False
