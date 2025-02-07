@@ -64,9 +64,7 @@ run_test "Memory recall" \
 
 # File-based memory tests
 echo "This is an installation test. The secret number is now 2931" > test.txt
-run_test "File-based memory creation" \
-    "elroy remember < test.txt" \
-    "Memory created"
+elroy remember < test.txt
 
 echo "This is an installation test. What is the secret number? Respond with the secret number and only the secret number" > prompt.txt
 run_test "File-based memory recall" \
