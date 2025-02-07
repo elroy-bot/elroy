@@ -60,5 +60,7 @@ class PlainIO(ElroyIO):
             logging.warning(message)
         elif isinstance(message, FunctionCall):
             logging.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
+        elif isinstance(message, SystemInfo):
+            logging.info(message)
         else:
             raise NotImplementedError(f"Invalid message type: {type(message)}")
