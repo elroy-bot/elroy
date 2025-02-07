@@ -232,6 +232,25 @@ BETTER:
   {
     "type": "function",
     "function": {
+      "name": "examine_memories",
+      "description": "Search through memories and goals using semantic search and return a synthesized response.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query to find relevant memories and goals"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "get_user_full_name",
       "description": "Returns the user's full name.",
       "parameters": {
@@ -339,25 +358,6 @@ BETTER:
         },
         "required": [
           "memory_name"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "query_memory",
-      "description": "Search through memories and goals using semantic search and return a synthesized response.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string",
-            "description": "Search query to find relevant memories and goals"
-          }
-        },
-        "required": [
-          "query"
         ]
       }
     }

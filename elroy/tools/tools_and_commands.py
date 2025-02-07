@@ -34,7 +34,7 @@ from ..repository.memories.queries import (
     examine_memories,
     print_memories,
     print_memory,
-    search_memory,
+    search_memories,
 )
 from ..repository.user.operations import (
     set_assistant_name,
@@ -95,7 +95,7 @@ USER_ONLY_COMMANDS = {
     print_active_goals,
     print_complete_goals,
     print_memories,
-    search_memory,
+    search_memories,
     help,
     create_bug_report,
     set_assistant_name,

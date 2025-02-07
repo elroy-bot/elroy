@@ -404,9 +404,6 @@ if __name__ == "__main__":
     else:
         run_tests(errors)
 
-    handle_errors(errors)
-    errors = Errors([])
-
     if args.skip_docker:
         print("Skipping docker build test")
     else:
@@ -441,7 +438,7 @@ if __name__ == "__main__":
 
     print("Please provide feedback on the changes made in this release")
     feedback = input()
-    elroy.create_memory(feedback, name=f"Feedback for release {next_tag}")
+    elroy.create_memory(name=f"Feedback for release {next_tag}", text=feedback)
 
     # if local git state is not clean, await for user confirmation
     if not is_local_git_clean():
