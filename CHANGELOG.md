@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.0.72] - 2025-02-07
+
+### Added
+- New slash commands!
+    - Accessing memories and goals:
+        - /search_memories: Search against goals and memories
+        - /print_active_goals
+        - /print_complete_goals
+        - /print_memories
+    - Managing context messages:
+        - /pop: Remove n messages from convo
+        - /rewrite: Rewrite the last assistant response
+- New API function: record_message, useful for backfilling (see [examples/backfill_chat_logs.py](examples/backfill_chat_logs.py))
+- Discord bot script
+
+### Fixed
+- Clearer error handling for SQLite platform mismatch
+- Slash commands can now be cancelled
+
 ## [0.0.70] - 2025-02-03
 
 ### Added

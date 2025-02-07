@@ -197,7 +197,7 @@ def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, s
     return table
 
 
-def search_memory(ctx: ElroyContext, query: str) -> Union[str, Table]:
+def search_memories(ctx: ElroyContext, query: str) -> Union[str, Table]:
     """Search for a memory by its text content.
 
     Args:
