@@ -138,11 +138,13 @@ async def handle_chat(io: CliIO, ctx: ElroyContext):
 async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str):
     if user_input.startswith("/") and role == USER:
         try:
-            result = await invoke_slash_command(io, ctx, user_input)
-            if isinstance(result, (Iterator, AsyncIterator)):
-                io.print_stream(result)
-            else:
-                io.info(result)
+            with io.create_status_display():
+                io.update_status("Invoking system command...")
+                result = await invoke_slash_command(io, ctx, user_input)
+                if isinstance(result, (Iterator, AsyncIterator)):
+                    io.print_stream(result)
+                else:
+                    io.info(result)
         except Exception as e:
             pipe(
                 traceback.format_exception(type(e), e, e.__traceback__),

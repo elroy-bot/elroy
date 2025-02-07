@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Text, UniqueConstraint
@@ -70,6 +70,9 @@ class VectorStorage(SQLModel, table=True):
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
 
 
+
+
+
 class MemorySource(ABC, SQLModel):
     """Abstract base class for memory sources"""
 
@@ -128,7 +131,41 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return f"#{self.name}\n{self.text}"
 
 
-class Goal(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
+class SourceDocument(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "address"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    user_id: int = Field(..., description="Elroy user for context")
+    address: str = Field(..., description="The address of the document")
+    name: str = Field(..., description="The name of the document")
+    content: Optional[str] = Field(..., description="The extracted content of the document")
+    extracted_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    extraction_error: Optional[str] = Field(None, description="The error message if extraction failed")
+    content_md5: Optional[str] = Field(..., description="The MD5 hash of the extracted content")
+
+
+class DocumentExcerpt(EmbeddableSqlModel, MemorySource, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "source_document_id", "chunk_index", "is_active"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    user_id: int = Field(..., description="Elroy user for context")
+    name: str = Field(..., description="The name of the document")
+    content: str = Field(..., description="The text of the document")
+    source_document_id: int = Field(..., description="The source document ID")
+    chunk_index: int = Field(..., description="The index of the chunk in the source document")
+    content_md5: str = Field(..., description="The MD5 hash of the text")
+    is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
+
+    def get_name(self) -> str:
+        return self.name
+
+    def to_fact(self) -> str:
+        return f"#{self.name}\n{self.content}"
+
+
+class Goal(EmbeddableSqlModel, MemorySource, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -229,3 +266,7 @@ class ContextMessageSet(MemorySource, SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
+
+
+MEMORY_SOURCE = Union[Goal, Memory,DocumentExcerpt]
+EMBEDDABLE_SQL_MODEL = Union[Goal, Memory, DocumentExcerpt]

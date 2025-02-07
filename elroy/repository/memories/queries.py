@@ -14,7 +14,18 @@ from ...utils.clock import db_time_to_local, get_utc_now
 from ...utils.utils import logged_exec_time
 from ..context_messages.data_models import ContextMessage
 from ..embeddable import is_in_context
-from ..embeddings import get_most_relevant_goal, get_most_relevant_memory
+from ..embeddings import (
+    get_most_relevant_doc,
+    get_most_relevant_goal,
+    get_most_relevant_memory,
+)
+
+def get_memory_sources(ctx: ElroyContext, memory: Memory) -> List[str]:
+    srcs = []
+    for source in memory.source_metadata:
+
+
+        srcs.append(source.name)
 
 
 def get_active_memories(ctx: ElroyContext) -> List[Memory]:
@@ -138,7 +149,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     new_memory_messages = pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(ctx, x),
+        lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory, get_most_relevant_doc)(ctx, x),
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
         map(

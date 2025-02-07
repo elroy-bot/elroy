@@ -145,10 +145,10 @@ def generate_chat_completion_message(
             raise e
 
 
-def query_llm(model: ChatModel, prompt: str, system: str) -> str:
+def query_llm(model: ChatModel, prompt: str, system: str, primer_messages: List[Dict[str, str]] = []) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
-    return _query_llm(model=model, prompt=prompt, system=system)
+    return _query_llm(model=model, prompt=prompt, system=system, primer_messages=[])
 
 
 def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
@@ -224,10 +224,16 @@ def _build_completion_kwargs(
     return kwargs
 
 
-def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
+def _query_llm(model: ChatModel, prompt: str, system: str, primer_messages: List[Dict[str, str]]) -> str:
     from litellm import completion
 
-    messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
+    messages = (
+        [{"role": SYSTEM, "content": system}]
+        + primer_messages
+        + [
+            {"role": USER, "content": prompt},
+        ]
+    )
     completion_kwargs = _build_completion_kwargs(
         model=model,
         messages=messages,

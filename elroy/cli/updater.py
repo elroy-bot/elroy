@@ -1,12 +1,75 @@
 import logging
 import os
+import platform
+import shlex
+import subprocess
 import sys
 
 import requests
 import typer
+from aider.dump import dump  # noqa: F401
 from semantic_version import Version
 
 from .. import __version__
+
+# largely adatped from: https://github.com/Aider-AI/aider/blob/main/aider/utils.py
+
+
+def printable_shell_command(cmd_list):
+    """
+    Convert a list of command arguments to a properly shell-escaped string.
+
+    Args:
+        cmd_list (list): List of command arguments.
+
+    Returns:
+        str: Shell-escaped command string.
+    """
+    if platform.system() == "Windows":
+        return subprocess.list2cmdline(cmd_list)
+    else:
+        return shlex.join(cmd_list)
+
+
+def run_install(cmd):
+    print()
+    print("Installing:", printable_shell_command(cmd))
+    output = []
+
+    try:
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True,
+            encoding=sys.stdout.encoding,
+            errors="replace",
+        )
+        print("Installing...")
+
+        while True:
+            char = process.stdout.read(1)  # type: ignore
+            if not char:
+                break
+
+            output.append(char)
+
+        return_code = process.wait()
+        output = "".join(output)
+
+        if return_code == 0:
+            print("Installation complete.")
+            print()
+            return True, output
+
+    except subprocess.CalledProcessError as e:
+        print(f"\nError running pip install: {e}")
+
+    print("\nInstallation failed.\n")
+
+    return False, output
 
 
 def check_updates():

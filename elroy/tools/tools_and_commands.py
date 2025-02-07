@@ -18,6 +18,7 @@ from ..repository.context_messages.operations import (
     rewrite,
     save,
 )
+from ..repository.documents.chunker import scrape_doc
 from ..repository.goals.operations import (
     add_goal_status_update,
     create_goal,
@@ -45,6 +46,7 @@ from ..repository.user.operations import (
 from ..repository.user.queries import get_user_full_name, get_user_preferred_name
 from .developer import (
     create_bug_report,
+    create_expandable_graph,
     make_coding_edit,
     print_config,
     tail_elroy_logs,
@@ -73,6 +75,7 @@ ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
 }
 NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
+    scrape_doc,
     create_goal,
     create_memory,
     contemplate,

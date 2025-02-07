@@ -59,7 +59,7 @@ context_refresh_trigger_tokens: 10000  # Number of tokens that triggers a contex
 context_refresh_target_tokens: 5000  # Target number of tokens after context refresh / context compression, how many tokens to aim to keep in context
 max_context_age_minutes: 720.0  # Maximum age in minutes to keep messages in context
 enable_assistant_greeting: true  # Whether to allow the assistant to send the first message
-min_convo_age_for_greeting_minutes: 10.0  # Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set enable_assistant_greeting=False
+min_convo_age_for_greeting_minutes: 120.0  # Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set enable_assistant_greeting=False
 
 # Memory Consolidation
 memory_cluster_similarity_threshold: 0.21125  # Threshold for memory cluster similarity
