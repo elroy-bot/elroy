@@ -7,6 +7,10 @@ from pytz import UTC
 get_utc_now = lambda: datetime.now(UTC)
 
 
+def db_time_to_local(dt: datetime):
+    return dt.replace(tzinfo=UTC).astimezone(datetime.now().astimezone().tzinfo)
+
+
 def string_to_timedelta(time_to_completion: str) -> timedelta:
     # validate that the time_to_completion is in the form of NUMBER TIME_UNIT
     # where TIME_UNIT is one of HOUR, DAY, WEEK, MONTH

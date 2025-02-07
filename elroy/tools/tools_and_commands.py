@@ -12,8 +12,10 @@ from ..repository.context_messages.operations import (
     add_memory_to_current_context,
     drop_goal_from_current_context,
     drop_memory_from_current_context,
+    pop,
     refresh_system_instructions,
     reset_messages,
+    rewrite,
 )
 from ..repository.goals.operations import (
     add_goal_status_update,
@@ -22,9 +24,18 @@ from ..repository.goals.operations import (
     mark_goal_completed,
     rename_goal,
 )
-from ..repository.goals.queries import print_goal
+from ..repository.goals.queries import (
+    print_active_goals,
+    print_complete_goals,
+    print_goal,
+)
 from ..repository.memories.operations import create_memory, remember_convo
-from ..repository.memories.queries import print_memory, query_memory
+from ..repository.memories.queries import (
+    examine_memories,
+    print_memories,
+    print_memory,
+    search_memory,
+)
 from ..repository.user.operations import (
     set_assistant_name,
     set_user_full_name,
@@ -64,7 +75,7 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     create_goal,
     create_memory,
     contemplate,
-    query_memory,
+    examine_memories,
     get_user_full_name,
     set_user_full_name,
     get_user_preferred_name,
@@ -78,7 +89,13 @@ USER_ONLY_COMMANDS = {
     reset_messages,
     print_context_messages,
     print_system_instruction,
+    pop,
+    rewrite,
     refresh_system_instructions,
+    print_active_goals,
+    print_complete_goals,
+    print_memories,
+    search_memory,
     help,
     create_bug_report,
     set_assistant_name,

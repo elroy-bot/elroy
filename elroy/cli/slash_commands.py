@@ -7,7 +7,7 @@ from typing import Any, Optional, Union, get_args, get_origin
 from rich.console import Group
 from rich.pretty import Pretty
 from rich.table import Table
-from toolz import pipe
+from toolz import pipe, tail
 from toolz.curried import map
 
 from ..config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
@@ -24,14 +24,20 @@ from ..repository.context_messages.transform import format_context_messages
 from ..repository.user.queries import get_user_preferred_name
 
 
-def print_context_messages(ctx: ElroyContext) -> Table:
-    """Logs all of the current context messages to stdout
+def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
+    """Logs the last n current context messages to stdout
 
     Args:
-        session (Session): _description_
-        user_id (int): _description_
+
+        n (Optional[int]): The number of messages to print. If not provided, prints all messages.
+
+    Returns:
+        the formatted last n messages.
     """
-    messages = get_context_messages(ctx)
+    if not n:
+        messages = get_context_messages(ctx)
+    else:
+        messages = list(tail(n, get_context_messages(ctx)))
 
     table = Table(show_header=True, padding=(0, 2), show_lines=True)
     table.add_column("#", style="dim", width=3)

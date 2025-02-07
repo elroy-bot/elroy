@@ -10,6 +10,7 @@ from toolz import pipe
 from toolz.curried import pipe
 
 from ...config.constants import (
+    ASSISTANT,
     FORMATTING_INSTRUCT,
     SYSTEM,
     SYSTEM_INSTRUCTION_LABEL,
@@ -212,6 +213,59 @@ def refresh_context_if_needed(ctx: ElroyContext):
     context_messages = get_context_messages(ctx)
     if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.context_refresh_trigger_tokens):
         asyncio.run(context_refresh(ctx, context_messages))
+
+
+def pop(ctx: ElroyContext, n: int) -> str:
+    """
+    Removes the last n messages from the context
+
+    Args:
+        n (int): The number of messages to remove
+
+    Returns:
+       str: The result of the pop operation.
+    """
+    if n <= 0:
+        return "Cannot pop 0 or fewer messages"
+    if n > len(get_context_messages(ctx)):
+        return f"Cannot pop {n} messages, only {len(get_context_messages(ctx))} messages in context"
+    context_messages = get_context_messages(ctx)[:-n]
+
+    if context_messages[-1].role == ASSISTANT and context_messages[-1].tool_calls:
+        return f"Popping {n} message would separate an assistant message with a tool call from the tool result. Please pop fewer or more messages."
+
+    else:
+        replace_context_messages(ctx, context_messages[:-n])
+        return f"Popped {n} messages from context, new context has {len(get_context_messages(ctx))} messages"
+
+
+def rewrite(ctx: ElroyContext, new_message: str) -> str:
+    """
+    Replaces the last message assistant in the context with the new message
+        new_message (str): The new message to replace the last message with
+
+    Returns:
+        str: The result of the rewrite operation
+    """
+    if not new_message:
+        return "Cannot rewrite message with empty message"
+
+    context_messages = get_context_messages(ctx)
+    if len(context_messages) == 0:
+        return "No messages to rewrite"
+
+    i = -1
+    while context_messages[i].role != ASSISTANT:
+        i -= 1
+
+    context_messages[i] = ContextMessage(role=ASSISTANT, content=new_message, chat_model=None)
+    import pdb
+
+    pdb.set_trace()
+
+    replace_context_messages(ctx, context_messages)
+
+    return "Replaced last assistant message with new message"
 
 
 def refresh_system_instructions(ctx: ElroyContext) -> str:

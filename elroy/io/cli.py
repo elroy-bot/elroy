@@ -117,17 +117,19 @@ class CliIO(ElroyIO):
         self.last_output_type = None
         self.console.rule(style=self.user_input_color)
 
-    async def prompt_user(self, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0) -> str:
+    async def prompt_user(self, retries: int, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0) -> str:
         try:
-            return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), default=prefill, style=self.style)
+            return await self._prompt_user(prompt, prefill)
         except KeyboardInterrupt:
             keyboard_interrupt_count += 1
-            if keyboard_interrupt_count == 3:
-                self.info("To exit, type /exit, exit, or press Ctrl-D.")
-
-            elif keyboard_interrupt_count >= 5:
+            if keyboard_interrupt_count >= retries:
                 raise EOFError
-            return await self.prompt_user(prompt, prefill, keyboard_interrupt_count)
+            elif keyboard_interrupt_count == 2:
+                self.info("To exit, type /exit, exit, or press Ctrl-D.")
+            return await self.prompt_user(retries, prompt, prefill, keyboard_interrupt_count)
+
+    async def _prompt_user(self, prompt=">", prefill: str = "") -> str:
+        return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), default=prefill, style=self.style)
 
     def update_completer(self, goals: List[Goal], memories: List[Memory], context_messages: List[ContextMessage]) -> None:
         from ..repository.embeddable import is_in_context

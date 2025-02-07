@@ -7,6 +7,7 @@ from functools import partial
 from operator import add
 from typing import AsyncIterator, Iterator, Optional
 
+import typer
 from colorama import init
 from pytz import UTC
 from sqlmodel import select
@@ -44,8 +45,12 @@ from ..utils.utils import datetime_to_string, run_in_background_thread
 
 
 def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
-    message = asyncio.run(io.prompt_user("Enter your message"))
-    io.print_stream(process_message(USER, ctx, message, tool))
+    try:
+        message = asyncio.run(io.prompt_user(0, "Enter your message"))
+        io.print_stream(process_message(USER, ctx, message, tool))
+    except EOFError:
+        io.info("Cancelled.")
+        raise typer.Exit()
 
 
 def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
@@ -115,7 +120,7 @@ async def handle_chat(io: CliIO, ctx: ElroyContext):
             get_context_messages(ctx),
         )
 
-        user_input = await io.prompt_user()
+        user_input = await io.prompt_user(3)
         if user_input.lower().startswith(f"/{EXIT}") or user_input == EXIT:
             break
         elif user_input:
@@ -155,7 +160,10 @@ async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_
 async def onboard_interactive(io: CliIO, ctx: ElroyContext):
     from .chat import process_and_deliver_msg
 
-    preferred_name = await io.prompt_user(f"Welcome! I'm assistant named {get_assistant_name(ctx)}. What should I call you?")
+    preferred_name = await io.prompt_user(
+        3,
+        f"Welcome! I'm assistant named {get_assistant_name(ctx)}. What should I call you?",
+    )
 
     set_user_preferred_name(ctx, preferred_name)
 

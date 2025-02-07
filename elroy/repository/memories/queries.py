@@ -1,6 +1,7 @@
 from functools import partial
-from typing import Iterable, List
+from typing import Iterable, List, Optional, Union
 
+from rich.table import Table
 from sqlmodel import select
 from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
@@ -9,7 +10,7 @@ from ...config.constants import SYSTEM, tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal, Memory, MemoryMetadata
 from ...llm.client import get_embedding, query_llm
-from ...utils.clock import get_utc_now
+from ...utils.clock import db_time_to_local, get_utc_now
 from ...utils.utils import logged_exec_time
 from ..context_messages.data_models import ContextMessage
 from ..embeddable import is_in_context
@@ -28,20 +29,9 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
     )
 
 
-@tool
-def query_memory(ctx: ElroyContext, query: str) -> str:
-    """Search through memories and goals using semantic search and return a synthesized response.
-
-    Args:
-        query (str): Search query to find relevant memories and goals
-
-    Returns:
-        str: A natural language response synthesizing relevant memories and goals
-    """
-    # Get query embedding
+def get_relevant_relevant_memories(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
     query_embedding = get_embedding(ctx.embedding_model, query)
 
-    # Search memories and goals
     relevant_memories = [
         memory
         for memory in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Memory, ctx.user_id, query_embedding)
@@ -53,6 +43,24 @@ def query_memory(ctx: ElroyContext, query: str) -> str:
         for goal in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Goal, ctx.user_id, query_embedding)
         if isinstance(goal, Goal)
     ]
+
+    return relevant_memories + relevant_goals
+
+
+@tool
+def examine_memories(ctx: ElroyContext, query: str) -> str:
+    """Search through memories and goals using semantic search and return a synthesized response.
+
+    Args:
+        query (str): Search query to find relevant memories and goals
+
+    Returns:
+        str: A natural language response synthesizing relevant memories and goals
+    """
+
+    recalled_items = get_relevant_relevant_memories(ctx, query)
+    relevant_memories = [item for item in recalled_items if isinstance(item, Memory)]
+    relevant_goals = [item for item in recalled_items if isinstance(item, Goal)]
 
     # Format context for LLM
     context_parts = []
@@ -111,7 +119,7 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
 
 
 @logged_exec_time
-def get_relevant_memories(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     message_content = pipe(
         context_messages,
         remove(lambda x: x.role == SYSTEM),
@@ -159,3 +167,55 @@ def get_in_context_memories(ctx: ElroyContext, context_messages: Iterable[Contex
         list,
         sorted,
     )  # type: ignore
+
+
+def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, str]:
+    """Print all memories.
+
+    Returns:
+        str: A formatted string containing all memories.
+    """
+    memories = ctx.db.exec(
+        select(Memory).where(Memory.user_id == ctx.user_id).order_by(Memory.created_at.desc()).limit(n if n else 1000)  # type: ignore
+    ).all()
+
+    if not memories:
+        return "No memories found."
+
+    table = Table(title="Memories", show_lines=True)
+    table.add_column("Name", style="cyan")
+    table.add_column("Text", style="green")
+    table.add_column("Created", style="magenta")
+
+    for memory in memories:
+        table.add_row(
+            memory.name,
+            memory.text,
+            db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+    return table
+
+
+def search_memory(ctx: ElroyContext, query: str) -> Union[str, Table]:
+    """Search for a memory by its text content.
+
+    Args:
+        query (str): Search query to find relevant memories
+
+    Returns:
+        str: A natural language response synthesizing relevant memories
+    """
+
+    items = get_relevant_relevant_memories(ctx, query)
+
+    if not items:
+        return "No relevant memories found"
+
+    table = Table(title="Search Results", show_lines=True)
+    table.add_column("Type", style="cyan")
+    table.add_column("Name", style="cyan")
+    table.add_column("Text", style="green")
+    for item in items:
+        table.add_row(item.__class__.__name__, item.name, item.to_fact())
+    return table

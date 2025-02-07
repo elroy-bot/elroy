@@ -22,7 +22,7 @@ from .repository.goals.operations import mark_goal_completed as do_mark_goal_com
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
 from .repository.memories.operations import create_memory as do_create_memory
-from .repository.memories.queries import query_memory as do_query_memory
+from .repository.memories.queries import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 

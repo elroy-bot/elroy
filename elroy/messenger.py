@@ -22,7 +22,7 @@ from .repository.context_messages.data_models import ContextMessage
 from .repository.context_messages.operations import add_context_messages
 from .repository.context_messages.queries import get_context_messages
 from .repository.context_messages.validations import validate
-from .repository.memories.queries import get_relevant_memories
+from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS
 
 
@@ -38,7 +38,7 @@ def process_message(
     )
 
     new_msgs = [ContextMessage(role=role, content=msg, chat_model=None)]
-    new_msgs += get_relevant_memories(ctx, context_messages + new_msgs)
+    new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
     loops = 0
     while True:
@@ -156,21 +156,24 @@ async def invoke_slash_command(
             lambda _: func(**_),
         )  # type: ignore
 
-    # Otherwise, fall back to interactive parameter collection
-    input_used = False
-    for param in params:
-        if param.annotation == ElroyContext:
-            func_args[param.name] = ctx
-        elif input_arg and not input_used:
-            argument = await io.prompt_user(_get_prompt_for_param(param), prefill=input_arg)
-            func_args[param.name] = _get_casted_value(param, argument)
-            input_used = True
-        elif input_used or not input_arg:
-            argument = await io.prompt_user(_get_prompt_for_param(param))
-            func_args[param.name] = _get_casted_value(param, argument)
+    try:
+        # Otherwise, fall back to interactive parameter collection
+        input_used = False
+        for param in params:
+            if param.annotation == ElroyContext:
+                func_args[param.name] = ctx
+            elif input_arg and not input_used:
+                argument = await io.prompt_user(0, _get_prompt_for_param(param), prefill=input_arg)
+                func_args[param.name] = _get_casted_value(param, argument)
+                input_used = True
+            elif input_used or not input_arg:
+                argument = await io.prompt_user(0, _get_prompt_for_param(param))
+                func_args[param.name] = _get_casted_value(param, argument)
 
-    return pipe(
-        func_args,
-        valfilter(lambda _: _ is not None and _ != ""),
-        lambda _: func(**_),
-    )  # type: ignore
+        return pipe(
+            func_args,
+            valfilter(lambda _: _ is not None and _ != ""),
+            lambda _: func(**_),
+        )  # type: ignore
+    except EOFError:
+        return "Cancelled."
