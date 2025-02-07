@@ -6,7 +6,7 @@ from typing import Iterable, List, Type
 from toolz import compose
 
 from ..config.ctx import ElroyContext
-from ..db.db_models import EmbeddableSqlModel, Goal, Memory
+from ..db.db_models import DocumentExcerpt, EmbeddableSqlModel, Goal, Memory
 from ..utils.utils import first_or_none
 
 
@@ -36,6 +36,7 @@ def query_vector(
 
 get_most_relevant_goal = compose(first_or_none, partial(query_vector, Goal))
 get_most_relevant_memory = compose(first_or_none, partial(query_vector, Memory))
+get_most_relevant_doc = compose(first_or_none, partial(query_vector, DocumentExcerpt))
 
 
 def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> None:

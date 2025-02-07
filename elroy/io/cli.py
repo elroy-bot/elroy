@@ -9,7 +9,9 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style as PTKStyle
 from pygments.lexers.special import TextLexer
 from rich.console import Console, RenderableType
+from rich.live import Live
 from rich.panel import Panel
+from rich.spinner import Spinner
 from toolz import concatv, pipe
 from toolz.curried import map
 
@@ -84,6 +86,15 @@ class CliIO(ElroyIO):
         )
 
         self.last_output_type = None
+
+    def create_status_display(self):
+        self.status_panel = Panel(Spinner("dots", style=self.user_input_color), expand=False, border_style=self.user_input_color, height=3)
+        self.status_live = Live(self.status_panel, console=self.console, auto_refresh=True, transient=True)  # Makes it disappear when done
+        return self.status_live
+
+    def update_status(self, message: str):
+        self.status_panel.renderable = message
+        self.status_live.refresh()
 
     def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
         try:
