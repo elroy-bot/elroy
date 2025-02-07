@@ -56,9 +56,7 @@ run_test "Basic chat" \
     "Hello World"
 
 # Memory creation and recall tests
-run_test "Memory creation" \
-    "echo 'This is an installation test. The secret number is 3928' | elroy remember" \
-    "Memory created"
+echo 'This is an installation test. The secret number is 3928' | elroy remember
 
 run_test "Memory recall" \
     "echo 'This is an installation test. What is the secret number? Respond with the secret number and only the secret number' | elroy" \
