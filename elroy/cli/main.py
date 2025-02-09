@@ -1,6 +1,8 @@
 import asyncio
+import atexit
 import json
 import logging
+import pstats
 import sys
 from bdb import BdbQuit
 from dataclasses import dataclass
@@ -567,4 +569,39 @@ def get_io(typer_ctx: typer.Context) -> ElroyIO:
 
 
 if __name__ == "__main__":
+    import cProfile
+    profiler = cProfile.Profile()
+    profiler.enable()
+
+    def save_profile():
+        profiler.disable()
+        profiler.dump_stats("elroy_profile.prof")
+        with open("elroy_profile.txt", "w") as f:
+             stats = pstats.Stats(profiler, stream=f)
+
+             # Overall summary - top 50 cumulative time entries
+             f.write("\n=== Top 50 Cumulative Time Entries ===\n")
+             stats.sort_stats(pstats.SortKey.CUMULATIVE).print_stats(50)
+
+             # Time spent in functions themselves (excluding subcalls)
+             f.write("\n=== Top 50 Time Entries (excluding subcalls) ===\n")
+             stats.sort_stats(pstats.SortKey.TIME).print_stats(50)
+
+             # Focus on elroy code paths
+             f.write("\n=== Elroy Code Paths ===\n")
+             stats.sort_stats(pstats.SortKey.CUMULATIVE).print_stats('elroy')
+
+             # Show callers of the slowest functions
+             f.write("\n=== Callers of Top Functions ===\n")
+             stats.sort_stats(pstats.SortKey.CUMULATIVE).print_callers(20)
+
+             # Show what the slowest functions are calling
+             f.write("\n=== Functions Called by Top Functions ===\n")
+             stats.sort_stats(pstats.SortKey.CUMULATIVE).print_callees(20)
+
+    atexit.register(save_profile)
     app()
+
+    profiler.disable()
+    profiler.dump_stats("elroy_profile.prof")
+
