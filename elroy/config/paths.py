@@ -18,6 +18,12 @@ def get_home_dir() -> Path:
     return home_dir
 
 
+def get_save_dir() -> Path:
+    path = get_home_dir() / "saves"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def get_default_config_path() -> Path:
     return get_home_dir() / "elroy.conf.yaml"
 

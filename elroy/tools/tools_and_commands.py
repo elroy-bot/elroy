@@ -16,6 +16,7 @@ from ..repository.context_messages.operations import (
     refresh_system_instructions,
     reset_messages,
     rewrite,
+    save,
 )
 from ..repository.goals.operations import (
     add_goal_status_update,
@@ -90,6 +91,7 @@ USER_ONLY_COMMANDS = {
     print_context_messages,
     print_system_instruction,
     pop,
+    save,
     rewrite,
     refresh_system_instructions,
     print_active_goals,

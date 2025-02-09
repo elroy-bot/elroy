@@ -17,6 +17,18 @@ class ContextMessage:
     tool_call_id: Optional[str] = None
     memory_metadata: List[MemoryMetadata] = field(default_factory=list)
 
+    def to_json(self):
+        return {
+            "content": self.content,
+            "role": self.role,
+            "chat_model": self.chat_model,
+            "id": self.id,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at is not None else None,
+            "tool_calls": [tc.to_json() for tc in self.tool_calls] if self.tool_calls is not None else None,
+            "tool_call_id": self.tool_call_id,
+            "memory_metadata": [mm.to_json() for mm in self.memory_metadata],
+        }
+
     def __post_init__(self):
 
         if self.tool_calls is not None:
