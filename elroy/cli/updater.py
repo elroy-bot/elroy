@@ -9,7 +9,7 @@ from semantic_version import Version
 from .. import __version__
 
 
-def check_updates():
+async def check_updates_async():
     try:
         logging.info("Checking for updates...")
         current_version, latest_version = check_latest_version()
@@ -26,6 +26,10 @@ def check_updates():
                     raise Exception("Upgrade return nonzero exit.")
     except requests.Timeout:
         logging.warning("Failed to check for updates: Timeout")
+
+def check_updates():
+    import asyncio
+    asyncio.create_task(check_updates_async())
 
 
 def check_latest_version() -> tuple[Version, Version]:
