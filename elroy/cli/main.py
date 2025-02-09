@@ -327,7 +327,12 @@ def chat(typer_ctx: typer.Context):
     with ctx.dbsession():
         if sys.stdin.isatty():
             assert isinstance(io, CliIO)
-            check_updates()
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            loop.run_until_complete(check_updates_async())
             try:
                 if not get_user_id_if_exists(ctx.db, ctx.user_token):
                     asyncio.run(onboard_interactive(io, ctx))

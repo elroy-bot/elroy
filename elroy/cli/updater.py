@@ -27,7 +27,12 @@ async def check_updates_async():
 
 def check_updates():
     """Start background update check"""
-    asyncio.create_task(check_updates_async())
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    loop.create_task(check_updates_async())
 
 def check_latest_version() -> Tuple[Version, Version]:
     """Check latest version of elroy on PyPI
