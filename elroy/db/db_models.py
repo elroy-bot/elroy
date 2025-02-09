@@ -24,6 +24,9 @@ class ToolCall:
     function: Dict[str, Any]
     type: str = "function"
 
+    def to_json(self) -> Dict[str, Any]:
+        return {"id": self.id, "function": self.function, "type": self.type}
+
 
 @dataclass
 class FunctionCall:
@@ -49,6 +52,9 @@ class MemoryMetadata:
     memory_type: str
     id: int
     name: str
+
+    def to_json(self) -> Dict[str, Any]:
+        return {"memory_type": self.memory_type, "id": self.id, "name": self.name}
 
 
 class VectorStorage(SQLModel, table=True):

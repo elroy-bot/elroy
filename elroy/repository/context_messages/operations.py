@@ -3,11 +3,10 @@ import json
 import logging
 import traceback
 from functools import partial
-from typing import List, Union
+from typing import List, Optional, Union
 
 from sqlmodel import select
-from toolz import pipe
-from toolz.curried import pipe
+from toolz import pipe, tail
 
 from ...config.constants import (
     ASSISTANT,
@@ -20,8 +19,10 @@ from ...config.constants import (
     tool,
 )
 from ...config.ctx import ElroyContext
+from ...config.paths import get_save_dir
 from ...db.db_models import ContextMessageSet, Goal, Memory
 from ...llm.prompts import summarize_conversation
+from ...utils.clock import db_time_to_local
 from ...utils.utils import logged_exec_time
 from ..embeddable import add_to_current_context_by_name, drop_from_context_by_name
 from ..memories.operations import create_memory, formulate_memory
@@ -213,6 +214,26 @@ def refresh_context_if_needed(ctx: ElroyContext):
     context_messages = get_context_messages(ctx)
     if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.context_refresh_trigger_tokens):
         asyncio.run(context_refresh(ctx, context_messages))
+
+
+def save(ctx: ElroyContext, n: Optional[int]) -> str:
+    """
+    Saves the last n message from context. If n is None, saves all messages in context.
+    """
+
+    msgs = pipe(
+        get_context_messages(ctx),
+        lambda x: tail(n, x) if n is not None else x,
+        list,
+        list,
+    )
+
+    filename = db_time_to_local(msgs[0].created_at).strftime("%Y-%m-%d_%H-%M-%S") + "__" + db_time_to_local(msgs[-1].created_at).strftime("%Y-%m-%d_%H-%M-%S") + ".json"  # type: ignore
+    full_path = get_save_dir() / filename
+
+    with open(full_path, "w") as f:
+        f.write(json.dumps([msg.to_json() for msg in msgs]))
+    return "Saved messages to " + str(full_path)
 
 
 def pop(ctx: ElroyContext, n: int) -> str:
