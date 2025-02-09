@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Optional, Tuple
+from typing import Tuple
 
 import requests
 import typer
@@ -25,6 +25,7 @@ async def check_updates_async():
         logging.debug(f"Failed to check for updates: {e}")
     return None
 
+
 def check_updates():
     """Start background update check"""
     try:
@@ -33,6 +34,7 @@ def check_updates():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     loop.create_task(check_updates_async())
+
 
 def check_latest_version() -> Tuple[Version, Version]:
     """Check latest version of elroy on PyPI
@@ -48,6 +50,7 @@ def check_latest_version() -> Tuple[Version, Version]:
     except Exception as e:
         logging.debug(f"Failed to check latest version: {e}")
         return current_version, current_version
+
 
 def prompt_and_upgrade(current_version: Version, latest_version: Version):
     """Handle the interactive upgrade flow"""

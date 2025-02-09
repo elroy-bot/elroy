@@ -120,6 +120,8 @@ async def handle_chat(io: CliIO, ctx: ElroyContext):
             get_context_messages(ctx),
         )
 
+        return
+
         user_input = await io.prompt_user(3)
         if user_input.lower().startswith(f"/{EXIT}") or user_input == EXIT:
             break
