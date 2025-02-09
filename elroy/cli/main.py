@@ -35,7 +35,7 @@ from .chat import (
     onboard_interactive,
 )
 from .options import ElroyOption, get_resolved_params, resolve_model_alias
-from .updater import check_latest_version, check_updates
+from .updater import check_latest_version, check_updates, check_updates_async
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
