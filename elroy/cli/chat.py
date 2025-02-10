@@ -1,4 +1,3 @@
-import asyncio
 import html
 import logging
 import traceback
@@ -41,12 +40,12 @@ from ..repository.user.queries import (
     get_user_preferred_name,
     is_user_exists,
 )
-from ..utils.utils import datetime_to_string, run_in_background_thread
+from ..utils.utils import datetime_to_string, do_asyncio_run, run_in_background_thread
 
 
 def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
     try:
-        message = asyncio.run(io.prompt_user(0, "Enter your message"))
+        message = do_asyncio_run(io.prompt_user(0, "Enter your message"))
         io.print_stream(process_message(USER, ctx, message, tool))
     except EOFError:
         io.info("Cancelled.")
@@ -55,7 +54,7 @@ def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]
 
 def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
     if not is_user_exists(ctx.db.session, ctx.user_token):
-        asyncio.run(onboard_non_interactive(ctx))
+        do_asyncio_run(onboard_non_interactive(ctx))
     io.print_stream(process_message(USER, ctx, message, tool))
 
 

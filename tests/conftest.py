@@ -1,4 +1,3 @@
-import asyncio
 import os
 import subprocess
 import uuid
@@ -29,6 +28,7 @@ from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.goals.operations import create_goal
 from elroy.repository.user.operations import create_user_id
+from elroy.utils.utils import do_asyncio_run
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
@@ -219,7 +219,7 @@ def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyConte
     ctx = ElroyContext(**params)
 
     with ctx.dbsession():
-        asyncio.run(onboard_non_interactive(ctx))
+        do_asyncio_run(onboard_non_interactive(ctx))
         yield ctx
 
 

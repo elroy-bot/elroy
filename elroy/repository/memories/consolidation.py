@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from dataclasses import dataclass
 from functools import cached_property, partial
@@ -13,6 +12,7 @@ from toolz.curried import map, take
 from ...config.ctx import ElroyContext
 from ...db.db_models import Memory
 from ...llm.client import query_llm
+from ...utils.utils import do_asyncio_run
 from .prompts import MEMORY_CONSOLIDATION
 
 
@@ -116,7 +116,7 @@ def consolidate_memories(ctx: ElroyContext):
 
     for cluster in clusters:
         assert isinstance(cluster, MemoryCluster)
-        asyncio.run(consolidate_memory_cluster(ctx, cluster))
+        do_asyncio_run(consolidate_memory_cluster(ctx, cluster))
 
 
 def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryCluster]:

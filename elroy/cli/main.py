@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import sys
@@ -24,7 +23,7 @@ from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
 from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
-from ..utils.utils import datetime_to_string
+from ..utils.utils import datetime_to_string, do_asyncio_run
 from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import (
     handle_chat,
@@ -328,8 +327,8 @@ def chat(typer_ctx: typer.Context):
             check_updates()
             try:
                 if not get_user_id_if_exists(ctx.db, ctx.user_token):
-                    asyncio.run(onboard_interactive(io, ctx))
-                asyncio.run(handle_chat(io, ctx))
+                    do_asyncio_run(onboard_interactive(io, ctx))
+                do_asyncio_run(handle_chat(io, ctx))
             except BdbQuit:
                 logging.info("Exiting...")
             except EOFError:
@@ -398,10 +397,10 @@ def cli_remember(
 
         elif sys.stdin.isatty():
             assert isinstance(io, CliIO)
-            memory_text = asyncio.run(io.prompt_user(0, "Enter the memory text:"))
+            memory_text = do_asyncio_run(io.prompt_user(0, "Enter the memory text:"))
             memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
             # Optionally get memory name
-            memory_name = asyncio.run(io.prompt_user(0, "Enter memory name (optional, press enter to skip):"))
+            memory_name = do_asyncio_run(io.prompt_user(0, "Enter memory name (optional, press enter to skip):"))
             try:
                 manually_record_user_memory(ctx, memory_text, memory_name)
                 io.info(f"Memory created: {memory_name}")
