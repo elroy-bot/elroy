@@ -12,8 +12,9 @@ from toolz.curried import map
 
 from ... import PACKAGE_ROOT
 from ...config.constants import EMBEDDING_SIZE, RESULT_SET_LIMIT_COUNT
+from ...repository.recall.transforms import Embeddable
 from ..db_manager import DbManager
-from ..db_models import EmbeddableSqlModel, VectorStorage
+from ..db_models import VectorStorage
 
 
 class SqliteManager(DbManager):
@@ -21,7 +22,7 @@ class SqliteManager(DbManager):
     def _get_config_path(cls):
         return Path(str(PACKAGE_ROOT / "db" / "sqlite" / "alembic" / "alembic.ini"))
 
-    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
+    def get_vector_storage_row(self, row: Embeddable) -> Optional[VectorStorage]:
         """Get vector storage entry for a given source type and id"""
         result = self.session.exec(
             text(
@@ -67,7 +68,7 @@ class SqliteManager(DbManager):
         )
         self.session.commit()
 
-    def insert_embedding(self, row: EmbeddableSqlModel, embedding_data, embedding_text_md5):
+    def insert_embedding(self, row: Embeddable, embedding_data, embedding_text_md5):
         # Use sqlite_vec's serialize_float32 to properly format the vector data
 
         row_id = row.id
@@ -90,7 +91,7 @@ class SqliteManager(DbManager):
         )
         self.session.commit()
 
-    def get_embedding(self, row: EmbeddableSqlModel) -> Optional[List[float]]:
+    def get_embedding(self, row: Embeddable) -> Optional[List[float]]:
         result = self.session.exec(
             text(
                 """
@@ -114,9 +115,7 @@ class SqliteManager(DbManager):
         """Deserialize binary vector data from SQLite into a list of floats"""
         return list(unpack(f"{EMBEDDING_SIZE}f", data))
 
-    def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
-    ) -> Iterable[EmbeddableSqlModel]:
+    def query_vector(self, l2_distance_threshold: float, table: Type[Embeddable], user_id: int, query: List[float]) -> Iterable[Embeddable]:
 
         # Serialize the vector once
         serialized_query = sqlite_vec.serialize_float32(query)

@@ -8,12 +8,7 @@ from sqlmodel import select
 from ...config.constants import MAX_MEMORY_LENGTH, SYSTEM, tool
 from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
-from ...db.db_models import (
-    EmbeddableSqlModel,
-    Memory,
-    MemoryOperationTracker,
-    MemorySource,
-)
+from ...db.db_models import Memory, MemoryOperationTracker
 from ...llm.client import query_llm
 from ...utils.utils import run_in_background_thread
 from ..context_messages.data_models import ContextMessage
@@ -21,6 +16,7 @@ from ..context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
 )
+from ..recall.transforms import Embeddable, MemorySource, to_memory_source_d
 from .consolidation import consolidate_memories
 
 
@@ -145,7 +141,7 @@ async def formulate_memory(
     chat_model: ChatModel, user_preferred_name: Optional[str], context_messages: List[ContextMessage]
 ) -> Tuple[str, str]:
     from ...llm.prompts import summarize_for_memory
-    from ..context_messages.transform import format_context_messages
+    from ..context_messages.transforms import format_context_messages
 
     return await summarize_for_memory(
         chat_model,
@@ -154,8 +150,8 @@ async def formulate_memory(
     )
 
 
-def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
-    from ..embeddable import remove_from_context
+def mark_inactive(ctx: ElroyContext, item: Embeddable):
+    from ..recall.operations import remove_from_context
 
     item.is_active = False
     ctx.db.add(item)
@@ -169,12 +165,9 @@ def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> M
 
 
 def do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[MemorySource]) -> Memory:
-    from ...repository.embeddings import upsert_embedding_if_needed
-    from ..embeddable import add_to_context
+    from ..recall.operations import add_to_context, upsert_embedding_if_needed
 
-    memory = Memory(
-        user_id=ctx.user_id, name=name, text=text, source_metadata=json.dumps([x.to_memory_source_json() for x in source_metadata])
-    )
+    memory = Memory(user_id=ctx.user_id, name=name, text=text, source_metadata=json.dumps([to_memory_source_d(x) for x in source_metadata]))
 
     ctx.db.add(memory)
     ctx.db.commit()

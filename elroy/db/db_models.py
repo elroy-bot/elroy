@@ -1,8 +1,7 @@
 import json
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Text, UniqueConstraint
@@ -11,7 +10,7 @@ from toolz import pipe
 from toolz.curried import filter
 
 from ..config.constants import EMBEDDING_SIZE
-from ..utils.clock import get_utc_now
+from ..utils.clock import db_time_to_local, get_utc_now
 
 
 @dataclass
@@ -47,16 +46,6 @@ class FunctionCall:
         return ToolCall(id=self.id, function={"name": self.function_name, "arguments": json.dumps(self.arguments)})
 
 
-@dataclass
-class RecalledMemoryMetadata:
-    memory_type: str
-    id: int
-    name: str
-
-    def to_json(self) -> Dict[str, Any]:
-        return {"memory_type": self.memory_type, "id": self.id, "name": self.name}
-
-
 class VectorStorage(SQLModel, table=True):
     """Table for storing vector embeddings for any model type"""
 
@@ -70,38 +59,6 @@ class VectorStorage(SQLModel, table=True):
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
 
 
-class MemorySource(ABC, SQLModel):
-    """Abstract base class for memory sources"""
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-
-    @property
-    def source_type(self) -> str:
-        return self.__class__.__name__
-
-    def to_memory_source_json(self) -> Dict[str, Any]:
-        return {"source_type": self.source_type, "id": self.id}
-
-
-class EmbeddableSqlModel(ABC, SQLModel):
-    id: Optional[int]
-    created_at: datetime
-    updated_at: datetime  # noqa F841
-    user_id: int
-    is_active: Optional[bool]
-
-    @abstractmethod
-    def get_name(self) -> str:
-        pass
-
-    @abstractmethod
-    def to_fact(self) -> str:
-        raise NotImplementedError
-
-    def to_memory_metadata(self) -> RecalledMemoryMetadata:
-        return RecalledMemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
-
-
 class User(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -110,7 +67,7 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
 
 
-class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
+class Memory(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -121,6 +78,12 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     source_metadata: str = Field(sa_column=Column(Text), default="[]", description="Metadata for the memory as JSON string")
     is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
 
+    def get_source_metadata(self) -> List[Dict[str, Union[str, int]]]:
+        if not self.source_metadata:
+            return []
+        else:
+            return json.loads(self.source_metadata)
+
     def get_name(self) -> str:
         return self.name
 
@@ -128,7 +91,7 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return f"#{self.name}\n{self.text}"
 
 
-class Goal(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
+class Goal(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -221,7 +184,7 @@ class UserPreference(SQLModel, table=True):
     assistant_name: Optional[str] = Field(default=None, description="The assistant name for the user")
 
 
-class ContextMessageSet(MemorySource, SQLModel, table=True):
+class ContextMessageSet(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -229,3 +192,30 @@ class ContextMessageSet(MemorySource, SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
+
+    @property
+    def name(self) -> str:
+        return "Converstaion from " + db_time_to_local(self.created_at).strftime("%Y-%m-%d %H:%M")
+
+    def to_fact(self) -> str:
+        return f"Context window from {db_time_to_local(self.created_at).strftime('%Y-%m-%d %H:%M')}"
+
+
+
+# class Embeddable(ABC, SQLModel):
+#     id: Optional[int]
+#     created_at: datetime
+#     updated_at: datetime  # noqa F841
+#     user_id: int
+#     is_active: Optional[bool]
+
+#     @abstractmethod
+#     def get_name(self) -> str:
+#         pass
+
+#     @abstractmethod
+#     def to_fact(self) -> str:
+#         raise NotImplementedError
+
+#     def to_memory_metadata(self) -> RecalledMemoryMetadata:
+#         return RecalledMemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore

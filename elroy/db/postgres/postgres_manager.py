@@ -9,8 +9,9 @@ from toolz.curried import map
 
 from ... import PACKAGE_ROOT
 from ...config.constants import RESULT_SET_LIMIT_COUNT
+from ...repository.recall.transforms import Embeddable
 from ..db_manager import DbManager
-from ..db_models import EmbeddableSqlModel, VectorStorage
+from ..db_models import VectorStorage  # type: ignore
 
 
 class PostgresManager(DbManager):
@@ -32,14 +33,14 @@ class PostgresManager(DbManager):
 
         return create_engine(url, poolclass=NullPool)
 
-    def get_embedding(self, row: EmbeddableSqlModel) -> Optional[List[float]]:
+    def get_embedding(self, row: Embeddable) -> Optional[List[float]]:
         return self.exec(
             select(VectorStorage.embedding_data).where(
                 VectorStorage.source_id == row.id, VectorStorage.source_type == row.__class__.__name__
             )  # type: ignore
         ).first()  # type: ignore
 
-    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
+    def get_vector_storage_row(self, row: Embeddable) -> Optional[VectorStorage]:
         return self.session.exec(
             select(VectorStorage).where(VectorStorage.source_type == row.__class__.__name__, VectorStorage.source_id == row.id)
         ).first()
@@ -50,7 +51,7 @@ class PostgresManager(DbManager):
         self.session.add(vector_storage)
         self.session.commit()
 
-    def insert_embedding(self, row: EmbeddableSqlModel, embedding_data, embedding_text_md5):
+    def insert_embedding(self, row: Embeddable, embedding_data, embedding_text_md5):
         row_id = row.id
         assert row_id
         self.session.add(
@@ -60,15 +61,13 @@ class PostgresManager(DbManager):
         )
         self.session.commit()
 
-    def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
-    ) -> Iterable[EmbeddableSqlModel]:
+    def query_vector(self, l2_distance_threshold: float, table: Type[Embeddable], user_id: int, query: List[float]) -> Iterable[Embeddable]:
         """
         Perform a vector search on the specified table using the given query.
 
         Args:
             query (str): The search query.
-            table (EmbeddableSqlModel): The SQLModel table to search.
+            table (Embeddable): The SQLModel table to search.
 
         Returns:
             List[Tuple[Fact, float]]: A list of tuples containing the matching Fact and its similarity score.

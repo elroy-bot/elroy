@@ -20,7 +20,7 @@ from ..repository.context_messages.queries import (
     get_context_messages,
     get_current_system_message,
 )
-from ..repository.context_messages.transform import format_context_messages
+from ..repository.context_messages.transforms import format_context_messages
 from ..repository.user.queries import get_user_preferred_name
 
 

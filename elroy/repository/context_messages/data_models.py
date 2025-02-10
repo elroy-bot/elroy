@@ -3,7 +3,8 @@ from datetime import datetime
 from typing import List, Optional
 
 from ...config.constants import ASSISTANT, TOOL
-from ...db.db_models import RecalledMemoryMetadata, ToolCall
+from ...db.db_models import ToolCall
+from ..recall.transforms import RecalledMemoryMetadata
 
 
 @dataclass

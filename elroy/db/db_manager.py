@@ -13,7 +13,8 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import Engine
 from sqlmodel import Session, select, text
 
-from .db_models import EmbeddableSqlModel, VectorStorage
+from ..repository.recall.transforms import Embeddable
+from .db_models import VectorStorage
 
 
 class DbManager(ABC):
@@ -31,21 +32,21 @@ class DbManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
+    def get_vector_storage_row(self, row: Embeddable) -> Optional[VectorStorage]:
         raise NotImplementedError
 
     @abstractmethod
-    def insert_embedding(self, row: EmbeddableSqlModel, embedding_data: List[float], embedding_text_md5: str):
+    def insert_embedding(self, row: Embeddable, embedding_data: List[float], embedding_text_md5: str):
         raise NotImplementedError
 
     def update_embedding(self, vector_storage: VectorStorage, embedding: List[float], embedding_text_md5: str):
         raise NotImplementedError
 
     @abstractmethod
-    def get_embedding(self, row: EmbeddableSqlModel) -> Optional[List[float]]:
+    def get_embedding(self, row: Embeddable) -> Optional[List[float]]:
         raise NotImplementedError
 
-    def get_embedding_text_md5(self, row: EmbeddableSqlModel) -> Optional[str]:
+    def get_embedding_text_md5(self, row: Embeddable) -> Optional[str]:
         return self.session.exec(
             select(VectorStorage.embedding_text_md5).where(
                 VectorStorage.source_id == row.id, VectorStorage.source_type == row.__class__.__name__
@@ -53,9 +54,7 @@ class DbManager(ABC):
         ).first()
 
     @abstractmethod
-    def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
-    ) -> Iterable[EmbeddableSqlModel]:
+    def query_vector(self, l2_distance_threshold: float, table: Type[Embeddable], user_id: int, query: List[float]) -> Iterable[Embeddable]:
         raise NotImplementedError
 
     @classmethod

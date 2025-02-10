@@ -12,10 +12,11 @@ from toolz import concat, pipe
 from toolz.curried import filter, map, pipe, remove
 
 from ...config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
-from ...db.db_models import Message, RecalledMemoryMetadata, ToolCall
+from ...db.db_models import Message, ToolCall
 from ...llm.utils import count_tokens
 from ...utils.clock import ensure_utc, get_utc_now
 from ...utils.utils import datetime_to_string, last_or_none
+from ..recall.transforms import RecalledMemoryMetadata
 from .data_models import ContextMessage
 
 

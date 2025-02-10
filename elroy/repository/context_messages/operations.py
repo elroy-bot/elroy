@@ -23,13 +23,16 @@ from ...db.db_models import ContextMessageSet, Goal, Memory
 from ...llm.prompts import summarize_conversation
 from ...utils.clock import db_time_to_local
 from ...utils.utils import do_asyncio_run, logged_exec_time
-from ..embeddable import add_to_current_context_by_name, drop_from_context_by_name
 from ..memories.operations import create_memory, formulate_memory
+from ..recall.operations import (
+    add_to_current_context_by_name,
+    drop_from_context_by_name,
+)
 from ..user.operations import get_or_create_user_preference
 from ..user.queries import get_persona, get_user_preferred_name
 from .data_models import ContextMessage
 from .queries import get_context_messages
-from .transform import (
+from .transforms import (
     compress_context_messages,
     context_message_to_db_message,
     format_context_messages,

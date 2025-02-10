@@ -1,6 +1,12 @@
 from functools import wraps
 from typing import Callable, Generator, List, Optional
 
+from .repository.recall.queries import get_sources
+
+from .repository.recall.transforms import MemorySource
+
+from .db.db_models import Memory
+
 from .cli.options import get_resolved_params
 from .config.constants import USER
 from .config.ctx import ElroyContext
@@ -22,7 +28,7 @@ from .repository.goals.operations import mark_goal_completed as do_mark_goal_com
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
 from .repository.memories.operations import create_memory as do_create_memory
-from .repository.memories.queries import examine_memories as do_query_memory
+from .repository.memories.queries import examine_memories as do_query_memory, get_active_memories
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 
@@ -146,6 +152,29 @@ class Elroy:
             List[str]: List of names for all active goals
         """
         return do_get_active_goal_names(self.ctx)
+
+    @db
+    def get_memories(self) -> List[Memory]:
+        """
+        Returns a list of all active memories
+        """
+
+        memories = get_active_memories(self.ctx)
+        self.ctx.db.session.expunge_all()
+        return memories
+
+    @db
+    def get_memory_sources(self, memory: Memory) -> List[MemorySource]:
+        """
+        Returns the source of the memory
+        """
+        srcs = get_sources(self.ctx, memory)
+        if srcs:
+            self.ctx.db.session.expunge_all()
+            return srcs
+        else:
+            return []
+
 
     @db
     def get_goal_by_name(self, goal_name: str) -> Optional[str]:

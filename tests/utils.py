@@ -9,7 +9,7 @@ from toolz.curried import do, map
 
 from elroy.config.constants import USER
 from elroy.config.ctx import ElroyContext
-from elroy.db.db_models import EmbeddableSqlModel, FunctionCall
+from elroy.db.db_models import FunctionCall
 from elroy.io.cli import CliIO
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.llm.client import get_embedding, query_llm
@@ -17,8 +17,9 @@ from elroy.llm.stream_parser import SystemInfo, TextOutput
 from elroy.messenger import process_message
 from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.embeddings import query_vector
 from elroy.repository.goals.queries import get_active_goals
+from elroy.repository.recall.queries import query_vector
+from elroy.repository.recall.transforms import Embeddable
 from elroy.utils.utils import first_or_none
 
 
@@ -84,7 +85,7 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] 
     )  # type: ignore
 
 
-def vector_search_by_text(ctx: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
+def vector_search_by_text(ctx: ElroyContext, query: str, table: Type[Embeddable]) -> Optional[Embeddable]:
     return pipe(
         get_embedding(ctx.embedding_model, query),
         partial(query_vector, table, ctx),

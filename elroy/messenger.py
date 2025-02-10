@@ -177,3 +177,5 @@ async def invoke_slash_command(
         )  # type: ignore
     except EOFError:
         return "Cancelled."
+    except RecoverableToolError as e:
+        return str(e)
