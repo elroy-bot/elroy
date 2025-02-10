@@ -8,7 +8,7 @@ from toolz.curried import filter, map, remove, tail
 
 from ...config.constants import SYSTEM, tool
 from ...config.ctx import ElroyContext
-from ...db.db_models import Goal, Memory, MemoryMetadata
+from ...db.db_models import Goal, Memory, RecalledMemoryMetadata
 from ...llm.client import get_embedding, query_llm
 from ...utils.clock import db_time_to_local, get_utc_now
 from ...utils.utils import logged_exec_time
@@ -144,7 +144,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
         map(
             lambda x: ContextMessage(
                 role=SYSTEM,
-                memory_metadata=[MemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
+                memory_metadata=[RecalledMemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
                 content="Information recalled from assistant memory: " + x.to_fact(),
                 chat_model=None,
             )

@@ -23,7 +23,7 @@ from ..context_messages.operations import (
 )
 from ..embeddable import add_to_context, remove_from_context
 from ..embeddings import upsert_embedding_if_needed
-from .queries import get_active_goals
+from .queries import get_active_goals, get_db_goal_by_name
 
 
 @tool
@@ -242,16 +242,12 @@ def delete_goal_permanently(ctx: ElroyContext, goal_name: str) -> str:
 
 
 def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
-    active_goals = get_active_goals(ctx)
+    from ..memories.operations import do_create_memory
 
-    goal = pipe(
-        active_goals,
-        filter(lambda g: g.name == goal_name),
-        first_or_none,
-    )
+    goal = get_db_goal_by_name(ctx, goal_name)
 
     if not goal:
-        raise GoalDoesNotExistError(goal_name, [g.name for g in active_goals])
+        raise GoalDoesNotExistError(goal_name, [g.name for g in get_active_goals(ctx)])
     assert isinstance(goal, Goal)
 
     logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
@@ -266,6 +262,7 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
     if is_terminal:
         goal.is_active = None
         remove_from_context(ctx, goal)
+        do_create_memory(ctx, "Completed Goal: " + goal_name, goal.to_fact(), [goal])
     else:
         add_to_context(ctx, goal)
 

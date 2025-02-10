@@ -1,18 +1,26 @@
 import json
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from sqlmodel import select
 
 from ...config.constants import MAX_MEMORY_LENGTH, SYSTEM, tool
 from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
-from ...db.db_models import EmbeddableSqlModel, Memory, MemoryOperationTracker
+from ...db.db_models import (
+    EmbeddableSqlModel,
+    Memory,
+    MemoryOperationTracker,
+    MemorySource,
+)
 from ...llm.client import query_llm
 from ...utils.utils import run_in_background_thread
 from ..context_messages.data_models import ContextMessage
-from ..context_messages.queries import get_context_messages
+from ..context_messages.queries import (
+    get_context_messages,
+    get_or_create_context_message_set,
+)
 from .consolidation import consolidate_memories
 
 
@@ -88,7 +96,8 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     Returns:
         str: Confirmation message that the memory was created.
     """
-    do_create_memory(ctx, name, text)
+
+    do_create_memory_from_ctx_msgs(ctx, name, text)
 
     return f"New memory created: {name}"
 
@@ -154,20 +163,22 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
     remove_from_context(ctx, item)
 
 
-def do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[Dict] = []) -> Memory:
+def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> Memory:
+    msg_set = get_or_create_context_message_set(ctx)
+    return do_create_memory(ctx, name, text, [msg_set])
+
+
+def do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[MemorySource]) -> Memory:
     from ...repository.embeddings import upsert_embedding_if_needed
     from ..embeddable import add_to_context
 
     memory = Memory(
-        user_id=ctx.user_id,
-        name=name,
-        text=text,
-        source_metadata=json.dumps(source_metadata),
+        user_id=ctx.user_id, name=name, text=text, source_metadata=json.dumps([x.to_memory_source_json() for x in source_metadata])
     )
+
     ctx.db.add(memory)
     ctx.db.commit()
     ctx.db.refresh(memory)
-
     upsert_embedding_if_needed(ctx, memory)
     add_to_context(ctx, memory)
     return memory

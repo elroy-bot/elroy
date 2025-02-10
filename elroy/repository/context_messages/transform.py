@@ -12,7 +12,7 @@ from toolz import concat, pipe
 from toolz.curried import filter, map, pipe, remove
 
 from ...config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
-from ...db.db_models import MemoryMetadata, Message, ToolCall
+from ...db.db_models import Message, RecalledMemoryMetadata, ToolCall
 from ...llm.utils import count_tokens
 from ...utils.clock import ensure_utc, get_utc_now
 from ...utils.utils import datetime_to_string, last_or_none
@@ -52,7 +52,7 @@ def db_message_to_context_message(db_message: Message) -> ContextMessage:
         chat_model=db_message.model,
         memory_metadata=pipe(
             json.loads(db_message.memory_metadata or "[]") or [],
-            map(lambda x: MemoryMetadata(**x)),
+            map(lambda x: RecalledMemoryMetadata(**x)),
             list,
         ),
     )

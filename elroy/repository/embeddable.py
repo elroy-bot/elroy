@@ -8,7 +8,7 @@ from toolz.curried import filter
 
 from ..config.constants import SYSTEM
 from ..config.ctx import ElroyContext
-from ..db.db_models import EmbeddableSqlModel, MemoryMetadata
+from ..db.db_models import EmbeddableSqlModel, RecalledMemoryMetadata
 from .context_messages.data_models import ContextMessage
 
 
@@ -47,7 +47,7 @@ def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
             [
                 ContextMessage(
                     role=SYSTEM,
-                    memory_metadata=[MemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
+                    memory_metadata=[RecalledMemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
                     content=memory.to_fact(),
                     chat_model=None,
                 )

@@ -2,7 +2,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from functools import cached_property, partial
-from typing import List, Sequence
+from typing import List
 
 import numpy as np
 from scipy.spatial.distance import cosine
@@ -11,7 +11,7 @@ from toolz import pipe
 from toolz.curried import map, take
 
 from ...config.ctx import ElroyContext
-from ...db.db_models import EmbeddableSqlModel, Memory
+from ...db.db_models import Memory
 from ...llm.client import query_llm
 from .prompts import MEMORY_CONSOLIDATION
 
@@ -166,18 +166,12 @@ def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClus
     return clusters
 
 
-def _create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: Sequence[EmbeddableSqlModel]):
+def _create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: List[Memory]):
     from .operations import do_create_memory, mark_inactive
 
     logging.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
 
-    memory = pipe(
-        sources,
-        map(lambda x: {"source_id": x.id, "source_type": x.__class__.__name__}),
-        list,
-        partial(do_create_memory, ctx, name, text),
-        # Do NOT add this memory to context, it's not necessarrily relevant to the conversation
-    )
+    memory = do_create_memory(ctx, name, text, sources)  # type: ignore
 
     [mark_inactive(ctx, m) for m in sources]
     assert isinstance(memory, Memory)
@@ -186,7 +180,7 @@ def _create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources
     return memory_id
 
 
-async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
+async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_on_failure: bool = False):
 
     logging.info(f"Consolidating memories {len(cluster)} memories in cluster.")
     response = query_llm(
@@ -196,8 +190,7 @@ async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
     )
 
     new_ids = []
-    current_title = ""
-    current_content = []
+
     reasoning = None
 
     new_memory_parsing_line_start = 0
@@ -226,6 +219,9 @@ async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
                     break
     if not reasoning:
         logging.error("No reasoning section found in consolidation response, interpreting all sections as memories")
+
+    current_title = ""
+    current_content = []
 
     for line in lines[new_memory_parsing_line_start:]:
         line = line.strip()
@@ -267,7 +263,10 @@ async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
             )
             new_ids.append(new_id)
         except Exception as e:
-            logging.warning(f"Failed to create memory '{current_title}': {e}")
+            if raise_on_failure:
+                raise
+            else:
+                logging.warning(f"Failed to create memory '{current_title}': {e}")
 
     if not new_ids:
         logging.info("No new memories were created from consolidation response. Original memories left unchanged.")
