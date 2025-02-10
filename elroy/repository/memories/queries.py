@@ -20,6 +20,13 @@ from ..embeddings import (
     get_most_relevant_memory,
 )
 
+def get_memory_sources(ctx: ElroyContext, memory: Memory) -> List[str]:
+    srcs = []
+    for source in memory.source_metadata:
+
+
+        srcs.append(source.name)
+
 
 def get_active_memories(ctx: ElroyContext) -> List[Memory]:
     """Fetch all active memories for the user"""

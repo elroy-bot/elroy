@@ -31,6 +31,9 @@ dependencies = [
     "scikit-learn>=1.6.0",
     "lock>=2018.3.25.2110",
     "mcp",
+    "plotly",
+    "pyvis",
+    "streamlit",
 ]
 
 [project.optional-dependencies]

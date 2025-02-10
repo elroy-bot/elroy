@@ -46,6 +46,7 @@ from ..repository.user.operations import (
 from ..repository.user.queries import get_user_full_name, get_user_preferred_name
 from .developer import (
     create_bug_report,
+    create_expandable_graph,
     make_coding_edit,
     print_config,
     tail_elroy_logs,

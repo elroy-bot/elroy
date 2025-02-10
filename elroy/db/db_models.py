@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Text, UniqueConstraint
@@ -68,6 +68,9 @@ class VectorStorage(SQLModel, table=True):
         ..., description="The vector embedding data", sa_column=Column(Vector(EMBEDDING_SIZE), nullable=False)
     )
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
+
+
+
 
 
 class MemorySource(ABC, SQLModel):
@@ -263,3 +266,7 @@ class ContextMessageSet(MemorySource, SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
+
+
+MEMORY_SOURCE = Union[Goal, Memory,DocumentExcerpt]
+EMBEDDABLE_SQL_MODEL = Union[Goal, Memory, DocumentExcerpt]

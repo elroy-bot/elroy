@@ -22,7 +22,7 @@ from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
 from ..repository.user.queries import get_persona, get_user_id_if_exists
-from ..tools.developer import do_print_config
+from ..tools.developer import create_expandable_graph, do_print_config
 from ..utils.utils import datetime_to_string, do_asyncio_run
 from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import (
@@ -471,6 +471,10 @@ def print_config(
     ctx = get_ctx(typer_ctx)
     io = get_io(typer_ctx)
     io.print(do_print_config(ctx, show_secrets))
+
+@app.command(name="memory-graph")
+def memory_graph(typer_ctx: typer.Context):
+    create_expandable_graph()
 
 
 @app.command()

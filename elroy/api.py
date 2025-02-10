@@ -1,6 +1,8 @@
 from functools import wraps
 from typing import Callable, Generator, List, Optional
 
+from .db.db_models import Memory, MemorySource
+
 from .cli.options import get_resolved_params
 from .config.constants import USER
 from .config.ctx import ElroyContext
@@ -22,7 +24,7 @@ from .repository.goals.operations import mark_goal_completed as do_mark_goal_com
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
 from .repository.memories.operations import create_memory as do_create_memory
-from .repository.memories.queries import examine_memories as do_query_memory
+from .repository.memories.queries import examine_memories as do_query_memory, get_active_memories as do_get_active_memories
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 
@@ -108,6 +110,12 @@ class Elroy:
             time_to_completion,
             priority,
         )
+
+    def get_active_memories(self) -> List[Memory]:
+        return do_get_active_memories(self.ctx)
+
+    def get_memory_sources(self) -> List[MemorySource]:
+        
 
     @db
     def add_goal_status_update(self, goal_name: str, status_update_or_note: str) -> str:

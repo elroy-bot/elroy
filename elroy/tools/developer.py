@@ -16,6 +16,30 @@ from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, tool
 from ..config.ctx import ElroyContext
 from ..config.paths import get_home_dir, get_log_file_path
 
+import networkx as nx
+import plotly.graph_objects as go
+
+from pyvis.network import Network
+import streamlit as st
+import streamlit.components.v1 as components
+
+def create_expandable_graph():
+    net = Network(height="750px", width="100%", bgcolor="#ffffff",
+                 font_color="black")
+
+    net.add_node(1, label="Memory 1",
+                 title="Click to expand...",
+                 shape="box",
+                 physics=False)
+    net.add_node(2, label="Memory 2")
+    net.add_edge(1, 2)
+
+    net.save_graph("memory_graph.html")
+    HtmlFile = open("memory_graph.html", 'r', encoding='utf-8')
+    source_code = HtmlFile.read()
+    components.html(source_code, height=800)
+    return "graph"
+
 
 @tool
 def tail_elroy_logs(lines: int = 10) -> str:
