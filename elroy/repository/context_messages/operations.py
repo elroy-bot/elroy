@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import traceback
@@ -23,7 +22,7 @@ from ...config.paths import get_save_dir
 from ...db.db_models import ContextMessageSet, Goal, Memory
 from ...llm.prompts import summarize_conversation
 from ...utils.clock import db_time_to_local
-from ...utils.utils import logged_exec_time
+from ...utils.utils import do_asyncio_run, logged_exec_time
 from ..embeddable import add_to_current_context_by_name, drop_from_context_by_name
 from ..memories.operations import create_memory, formulate_memory
 from ..user.operations import get_or_create_user_preference
@@ -185,7 +184,7 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages: List[Conte
 
 
 def context_refresh_sync(ctx: ElroyContext, context_messages: List[ContextMessage]):
-    asyncio.run(context_refresh(ctx, context_messages))
+    do_asyncio_run(context_refresh(ctx, context_messages))
 
 
 @logged_exec_time
@@ -213,7 +212,7 @@ async def context_refresh(ctx: ElroyContext, context_messages: List[ContextMessa
 def refresh_context_if_needed(ctx: ElroyContext):
     context_messages = get_context_messages(ctx)
     if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.context_refresh_trigger_tokens):
-        asyncio.run(context_refresh(ctx, context_messages))
+        do_asyncio_run(context_refresh(ctx, context_messages))
 
 
 def save(ctx: ElroyContext, n: Optional[int]) -> str:
