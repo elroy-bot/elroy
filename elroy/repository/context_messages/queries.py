@@ -11,6 +11,19 @@ from .data_models import ContextMessage
 from .transform import db_message_to_context_message
 
 
+def get_or_create_context_message_set(ctx: ElroyContext) -> ContextMessageSet:
+    message_set = get_current_context_message_set_db(ctx)
+
+    if message_set:
+        return message_set
+
+    message_set = ContextMessageSet(user_id=ctx.user_id, message_ids="[]", is_active=True)
+    ctx.db.add(message_set)
+    ctx.db.commit()
+
+    return message_set
+
+
 def get_current_context_message_set_db(ctx: ElroyContext) -> Optional[ContextMessageSet]:
     return ctx.db.exec(
         select(ContextMessageSet).where(

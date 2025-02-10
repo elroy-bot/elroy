@@ -48,7 +48,7 @@ class FunctionCall:
 
 
 @dataclass
-class MemoryMetadata:
+class RecalledMemoryMetadata:
     memory_type: str
     id: int
     name: str
@@ -70,6 +70,19 @@ class VectorStorage(SQLModel, table=True):
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
 
 
+class MemorySource(ABC, SQLModel):
+    """Abstract base class for memory sources"""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    @property
+    def source_type(self) -> str:
+        return self.__class__.__name__
+
+    def to_memory_source_json(self) -> Dict[str, Any]:
+        return {"source_type": self.source_type, "id": self.id}
+
+
 class EmbeddableSqlModel(ABC, SQLModel):
     id: Optional[int]
     created_at: datetime
@@ -85,21 +98,21 @@ class EmbeddableSqlModel(ABC, SQLModel):
     def to_fact(self) -> str:
         raise NotImplementedError
 
-    def to_memory_metadata(self) -> MemoryMetadata:
-        return MemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
+    def to_memory_metadata(self) -> RecalledMemoryMetadata:
+        return RecalledMemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
 
 
 class User(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     token: str = Field(..., description="The unique token for the user")
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
 
 
-class Memory(EmbeddableSqlModel, table=True):
+class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
@@ -115,9 +128,9 @@ class Memory(EmbeddableSqlModel, table=True):
         return f"#{self.name}\n{self.text}"
 
 
-class Goal(EmbeddableSqlModel, table=True):
+class Goal(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user whose assistant is being reminded")
@@ -181,7 +194,7 @@ class MemoryOperationTracker(SQLModel, table=True):
 
 
 class Message(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
@@ -195,7 +208,7 @@ class Message(SQLModel, table=True):
 
 class UserPreference(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="User for context")
@@ -208,9 +221,9 @@ class UserPreference(SQLModel, table=True):
     assistant_name: Optional[str] = Field(default=None, description="The assistant name for the user")
 
 
-class ContextMessageSet(SQLModel, table=True):
+class ContextMessageSet(MemorySource, SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
-    id: Optional[int] = Field(default=None, description="The unique identifier for the user", primary_key=True, index=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")

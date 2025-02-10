@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from ...config.constants import ASSISTANT, TOOL
-from ...db.db_models import MemoryMetadata, ToolCall
+from ...db.db_models import RecalledMemoryMetadata, ToolCall
 
 
 @dataclass
@@ -15,7 +15,7 @@ class ContextMessage:
     created_at: Optional[datetime] = None
     tool_calls: Optional[List[ToolCall]] = None
     tool_call_id: Optional[str] = None
-    memory_metadata: List[MemoryMetadata] = field(default_factory=list)
+    memory_metadata: List[RecalledMemoryMetadata] = field(default_factory=list)
 
     def to_json(self):
         return {

@@ -2,14 +2,11 @@ from typing import List, Optional, Union
 
 from rich.table import Table
 from sqlmodel import select
-from toolz import pipe
-from toolz.curried import filter
 
 from ...config.constants import RecoverableToolError, allow_unused, tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal
 from ...utils.clock import db_time_to_local
-from ...utils.utils import first_or_none
 
 
 def get_active_goals(ctx: ElroyContext) -> List[Goal]:
@@ -38,11 +35,13 @@ def get_goals(ctx: ElroyContext, active: bool):
 
 
 def get_db_goal_by_name(ctx: ElroyContext, name: str) -> Optional[Goal]:
-    return pipe(
-        get_active_goals(ctx),
-        filter(lambda g: g.name == name),
-        first_or_none,
-    )  # type: ignore
+    return ctx.db.exec(
+        select(Goal).where(
+            Goal.user_id == ctx.user_id,
+            Goal.name == name,
+            Goal.is_active == True,
+        )
+    ).first()
 
 
 def get_active_goal_names(ctx: ElroyContext) -> List[str]:
