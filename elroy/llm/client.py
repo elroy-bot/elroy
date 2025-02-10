@@ -22,7 +22,7 @@ from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
 
-def generate_chat_completion_message(
+async def generate_chat_completion_message(
     chat_model: ChatModel,
     context_messages: List[ContextMessage],
     tool_schemas: List[Dict[str, Any]],
@@ -40,7 +40,7 @@ def generate_chat_completion_message(
         logging.error("Force tool requested, but tools are disabled. Ignoring force tool request")
         force_tool = None
 
-    from litellm import completion
+    from litellm import acompletion
     from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
 
     if context_messages[-1].role == ASSISTANT:
@@ -113,7 +113,7 @@ def generate_chat_completion_message(
             tools=tool_schemas,
         )
 
-        return StreamParser(chat_model, completion(**completion_kwargs))  # type: ignore
+        return StreamParser(chat_model, acompletion(**completion_kwargs))
 
     except Exception as e:
         if isinstance(e, BadRequestError):

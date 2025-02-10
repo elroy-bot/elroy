@@ -1,6 +1,6 @@
 import logging
 from itertools import product
-from typing import Iterator, List, Union
+from typing import AsyncIterator, Iterator, List, Union
 
 from prompt_toolkit import HTML, PromptSession
 from prompt_toolkit.completion import Completion, WordCompleter
@@ -85,9 +85,9 @@ class CliIO(ElroyIO):
 
         self.last_output_type = None
 
-    def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
+    async def print_stream(self, messages: AsyncIterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
         try:
-            for message in messages:
+            async for message in messages:
                 self.print(message, end="")
         except KeyboardInterrupt:
             pass

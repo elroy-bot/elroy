@@ -44,19 +44,19 @@ from ..repository.user.queries import (
 from ..utils.utils import datetime_to_string, run_in_background_thread
 
 
-def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
+async def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
     try:
-        message = asyncio.run(io.prompt_user(0, "Enter your message"))
-        io.print_stream(process_message(USER, ctx, message, tool))
+        message = await io.prompt_user(0, "Enter your message")
+        await io.print_stream(process_message(USER, ctx, message, tool))
     except EOFError:
         io.info("Cancelled.")
         raise typer.Exit()
 
 
-def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
+async def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
     if not is_user_exists(ctx.db.session, ctx.user_token):
-        asyncio.run(onboard_non_interactive(ctx))
-    io.print_stream(process_message(USER, ctx, message, tool))
+        await onboard_non_interactive(ctx)
+    await io.print_stream(process_message(USER, ctx, message, tool))
 
 
 def get_user_logged_in_message(ctx: ElroyContext) -> str:
@@ -141,7 +141,7 @@ async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_
         try:
             result = await invoke_slash_command(io, ctx, user_input)
             if isinstance(result, (Iterator, AsyncIterator)):
-                io.print_stream(result)
+                await io.print_stream(result)
             else:
                 io.info(result)
         except Exception as e:

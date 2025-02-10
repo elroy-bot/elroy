@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Callable, Generator, List, Optional
+from typing import AsyncGenerator, Callable, Generator, List, Optional
 
 from .cli.options import get_resolved_params
 from .config.constants import USER
@@ -25,6 +25,7 @@ from .repository.memories.operations import create_memory as do_create_memory
 from .repository.memories.queries import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
+from toolz import pipe
 
 
 def db(f: Callable) -> Callable:
@@ -216,9 +217,17 @@ class Elroy:
         Returns:
             str: The response from the assistant
         """
-        return "".join(list(self._message_stream(input)))
+        async def collect(stream: AsyncGenerator[str, None]) -> str:
+            results = []
+            async for chunk in stream:
+                results.append(chunk)
+            return "".join(results)
 
-    def _message_stream(self, input: str) -> Generator[str, None, None]:
+
+
+        return self.ctx.event_loop.run_until_complete(collect(self._message_stream(input)))
+
+    async def _message_stream(self, input: str) -> AsyncGenerator[str, None]:
         """Process a message to the assistant and yield response chunks
 
         Args:
@@ -227,9 +236,10 @@ class Elroy:
         Returns:
             Generator[str, None, None]: Generator yielding response chunks
         """
-        for chunk in process_message(USER, self.ctx, input):
+        async for chunk in process_message(USER, self.ctx, input):
             if not isinstance(chunk, AssistantInternalThought) or self.ctx.show_internal_thought:
-                yield from self.formatter.format(chunk)
+                for formatted_chunk in self.formatter.format(chunk):
+                    yield formatted_chunk
 
     @db
     def context_refresh(self) -> None:

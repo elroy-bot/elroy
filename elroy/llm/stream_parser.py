@@ -3,7 +3,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generator, Generic, Iterator, List, Optional, TypeVar, Union
+from typing import AsyncGenerator, Generator, Generic, Iterator, List, Optional, TypeVar, Union
 
 from litellm.types.utils import Delta, ModelResponse
 
@@ -323,18 +323,19 @@ class StreamParser:
 
     """
 
-    def __init__(self, chat_model: ChatModel, chunks: Iterator[ModelResponse]):
+    def __init__(self, chat_model: ChatModel, chunks: AsyncGenerator[ModelResponse]):
         self.chunks = chunks
         self.openai_tool_call_accumulator = OpenAIToolCallAccumulator(chat_model)
         self.stream_text_processor = StreamTextProcessor()
         self.raw_text = ""
 
-    def process_stream(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
-        for chunk in self.chunks:
+    async def process_stream(self) -> AsyncGenerator[Union[TextOutput, FunctionCall], None]:
+        async for chunk in self.chunks:
             delta = chunk.choices[0].delta  # type: ignore
             assert isinstance(delta, Delta)
             if delta.tool_calls:
-                yield from self.openai_tool_call_accumulator.update(delta.tool_calls)
+                for tc in self.openai_tool_call_accumulator.update(delta.tool_calls):
+                    yield tc
             if delta.content:
                 text = delta.content
                 if not self.raw_text:
@@ -342,12 +343,14 @@ class StreamParser:
                 else:
                     self.raw_text += text
                 assert isinstance(text, str)
-                yield from self.stream_text_processor.process(text)
-        yield from self.stream_text_processor.flush()
+                for processed_chunk in self.stream_text_processor.process(text):
+                    yield processed_chunk
+        for processed_chunk in self.stream_text_processor.flush():
+            yield processed_chunk
 
-    def collect(self) -> List[Union[TextOutput, FunctionCall]]:
+    async def collect(self) -> List[Union[TextOutput, FunctionCall]]:
         response = []
-        for processed_chunk in self.process_stream():
+        async for processed_chunk in self.process_stream():
             if isinstance(processed_chunk, TextOutput):
                 if len(response) == 0 or not type(response[-1]) == type(processed_chunk):
                     response.append(processed_chunk)

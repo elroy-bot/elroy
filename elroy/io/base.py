@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Iterator, Union
+from typing import Any, AsyncIterator, Iterator, Union
 
 from rich.console import Console, RenderableType
 
@@ -21,8 +21,8 @@ def is_rich_printable(obj: Any) -> bool:
 class ElroyIO:
     console: Console
 
-    def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
-        for message in messages:
+    async def print_stream(self, messages: AsyncIterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
+        async for message in messages:
             self.print(message, end="")
         self.console.print("")
 

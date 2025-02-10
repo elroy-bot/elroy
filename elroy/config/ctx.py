@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import contextmanager
 from datetime import timedelta
@@ -164,6 +165,18 @@ class ElroyContext:
     @allow_unused
     def is_db_connected(self) -> bool:
         return bool(self._db)
+
+    @property
+    def event_loop(self) -> asyncio.AbstractEventLoop:
+        """Get existing event loop or create one if none exists"""
+        if (loop := asyncio._get_running_loop()) is not None:
+            return loop
+        try:
+            return asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop
 
     @contextmanager
     def dbsession(self) -> Generator[None, None, None]:

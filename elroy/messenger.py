@@ -1,7 +1,7 @@
 import traceback
 from functools import partial
 from inspect import signature
-from typing import Iterator, List, Optional, Union
+from typing import AsyncIterator, Iterator, List, Optional, Union
 
 from toolz import merge, pipe
 from toolz.curried import valfilter
@@ -26,9 +26,9 @@ from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS
 
 
-def process_message(
+async def process_message(
     role: str, ctx: ElroyContext, msg: str, force_tool: Optional[str] = None
-) -> Iterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult, FunctionCall]]:
+) -> AsyncIterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult, FunctionCall]]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
     context_messages = pipe(
@@ -47,14 +47,14 @@ def process_message(
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        stream = generate_chat_completion_message(
+        stream = await generate_chat_completion_message(
             chat_model=ctx.chat_model,
             context_messages=context_messages + new_msgs,
             tool_schemas=ctx.tool_registry.get_schemas(),
             enable_tools=(not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,
             force_tool=force_tool,
         )
-        for stream_chunk in stream.process_stream():
+        async for stream_chunk in stream.process_stream():
             if isinstance(stream_chunk, (AssistantResponse, AssistantInternalThought, CodeBlock)):
                 yield stream_chunk
             elif isinstance(stream_chunk, FunctionCall):
