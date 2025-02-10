@@ -1,7 +1,7 @@
 """add source documents
 
 Revision ID: 8c81a491f69a
-Revises: 0fe803cc98f1
+Revises: e8f85ea5a3ff
 Create Date: 2025-02-07 16:13:29.930586
 
 """
@@ -15,7 +15,7 @@ from sqlmodel.sql.sqltypes import AutoString
 
 # revision identifiers, used by Alembic.
 revision: str = "8c81a491f69a"
-down_revision: Union[str, None] = "0fe803cc98f1"
+down_revision: Union[str, None] = "e8f85ea5a3ff"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,4 +1,3 @@
-
 from elroy.cli.chat import get_user_logged_in_message
 from elroy.repository.context_messages.operations import context_refresh
 from elroy.repository.context_messages.queries import get_context_messages
