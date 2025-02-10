@@ -7,6 +7,8 @@ from urllib.parse import urlparse, urlunparse
 
 from sqlmodel import select
 
+from ..memories.operations import do_create_memory
+
 from ...config.constants import ASSISTANT, USER, tool
 from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
@@ -105,7 +107,7 @@ def get_title(chat_model: ChatModel, content: str) -> str:
 
 
 @tool
-def scrape_url(ctx: ElroyContext, address: str) -> str:
+def scrape_doc(ctx: ElroyContext, address: str) -> str:
     """Downloads the url, and extracts content from it into memory
 
     Args:
@@ -195,6 +197,8 @@ def scrape_url(ctx: ElroyContext, address: str) -> str:
         ctx.db.commit()
         ctx.db.refresh(doc_excerpt)
         upsert_embedding_if_needed(ctx, doc_excerpt)
+
+        do_create_memory(ctx, doc_excerpt.name, doc_excerpt.content, [doc_excerpt])
     return f"Ingested doc with {chunk_count} chunks"
 
 

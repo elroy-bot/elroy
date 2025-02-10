@@ -18,7 +18,7 @@ from ..repository.context_messages.operations import (
     rewrite,
     save,
 )
-from ..repository.documents.chunker import scrape_url
+from ..repository.documents.chunker import scrape_doc
 from ..repository.goals.operations import (
     add_goal_status_update,
     create_goal,
@@ -74,7 +74,7 @@ ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
 }
 NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
-    scrape_url,
+    scrape_doc,
     create_goal,
     create_memory,
     contemplate,
