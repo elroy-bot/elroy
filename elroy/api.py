@@ -153,27 +153,7 @@ class Elroy:
         """
         return do_get_active_goal_names(self.ctx)
 
-    @db
-    def get_memories(self) -> List[Memory]:
-        """
-        Returns a list of all active memories
-        """
 
-        memories = get_active_memories(self.ctx)
-        self.ctx.db.session.expunge_all()
-        return memories
-
-    @db
-    def get_memory_sources(self, memory: Memory) -> List[MemorySource]:
-        """
-        Returns the source of the memory
-        """
-        srcs = get_sources(self.ctx, memory)
-        if srcs:
-            self.ctx.db.session.expunge_all()
-            return srcs
-        else:
-            return []
 
 
     @db
