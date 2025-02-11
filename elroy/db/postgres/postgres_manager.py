@@ -11,7 +11,7 @@ from ... import PACKAGE_ROOT
 from ...config.constants import RESULT_SET_LIMIT_COUNT
 from ...repository.recall.transforms import Embeddable
 from ..db_manager import DbManager
-from ..db_models import VectorStorage  # type: ignore
+from ..db_models import VectorStorage
 
 
 class PostgresManager(DbManager):
