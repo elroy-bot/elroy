@@ -1,6 +1,5 @@
 from functools import partial
 from typing import Iterable, List, Type
-from sqlmodel import select
 
 from toolz import compose
 
@@ -8,18 +7,7 @@ from ...config.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 from ...utils.utils import first_or_none
 from ..context_messages.data_models import ContextMessage
-from .transforms import MEMORY_SOURCE_TYPES, Embeddable, MemorySource
-
-
-def get_sources(ctx: ElroyContext, memory: Memory) -> List[MemorySource]:
-    srcs = []
-    for x in memory.get_source_metadata():
-        tbl = next(y for y in MEMORY_SOURCE_TYPES if x['source_type'] == y.__name__)
-        print(x)
-        id = x.get('source_id') or x.get('id')
-        assert id
-        srcs.append(ctx.db.exec(select(tbl).where(tbl.id == id)).first())
-    return srcs
+from .transforms import Embeddable
 
 
 def is_in_context_message(memory: Embeddable, context_message: ContextMessage) -> bool:

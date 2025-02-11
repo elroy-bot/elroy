@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Text, UniqueConstraint
@@ -77,12 +77,6 @@ class Memory(SQLModel, table=True):
     text: str = Field(..., description="The text of the message")
     source_metadata: str = Field(sa_column=Column(Text), default="[]", description="Metadata for the memory as JSON string")
     is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
-
-    def get_source_metadata(self) -> List[Dict[str, Union[str, int]]]:
-        if not self.source_metadata:
-            return []
-        else:
-            return json.loads(self.source_metadata)
 
     def get_name(self) -> str:
         return self.name
@@ -199,7 +193,6 @@ class ContextMessageSet(SQLModel, table=True):
 
     def to_fact(self) -> str:
         return f"Context window from {db_time_to_local(self.created_at).strftime('%Y-%m-%d %H:%M')}"
-
 
 
 # class Embeddable(ABC, SQLModel):
