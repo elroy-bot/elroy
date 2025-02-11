@@ -23,13 +23,12 @@ from ...db.db_models import ContextMessageSet, Goal, Memory
 from ...llm.prompts import summarize_conversation
 from ...utils.clock import db_time_to_local
 from ...utils.utils import do_asyncio_run, logged_exec_time
-from ..embeddable import add_to_current_context_by_name, drop_from_context_by_name
 from ..memories.operations import create_memory, formulate_memory
 from ..user.operations import get_or_create_user_preference
 from ..user.queries import get_persona, get_user_preferred_name
 from .data_models import ContextMessage
 from .queries import get_context_messages
-from .transform import (
+from .transforms import (
     compress_context_messages,
     context_message_to_db_message,
     format_context_messages,
@@ -105,6 +104,8 @@ def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     Returns:
         str: Status message indicating success or failure of adding memory
     """
+    from ..recall.operations import add_to_current_context_by_name
+
     return add_to_current_context_by_name(ctx, memory_name, Memory)
 
 
@@ -118,6 +119,9 @@ def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
     Returns:
         str: Status message indicating success or failure of adding goal
     """
+
+    from ..recall.operations import add_to_current_context_by_name
+
     return add_to_current_context_by_name(ctx, goal_name, Goal)
 
 
@@ -131,6 +135,8 @@ def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
     Returns:
         str: Status message indicating success or failure of removing goal
     """
+    from ..recall.operations import drop_from_context_by_name
+
     return drop_from_context_by_name(ctx, goal_name, Goal)
 
 
@@ -144,6 +150,8 @@ def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str
     Returns:
         str: Status message indicating success or failure of removing memory
     """
+    from ..recall.operations import drop_from_context_by_name
+
     return drop_from_context_by_name(ctx, memory_name, Memory)
 
 
@@ -231,7 +239,7 @@ def save(ctx: ElroyContext, n: Optional[int]) -> str:
     full_path = get_save_dir() / filename
 
     with open(full_path, "w") as f:
-        f.write(json.dumps([msg.to_json() for msg in msgs]))
+        f.write(json.dumps([msg.as_dict() for msg in msgs]))
     return "Saved messages to " + str(full_path)
 
 

@@ -15,7 +15,7 @@ from ...config.ctx import ElroyContext
 from .data_models import ContextMessage
 from .inspect import has_assistant_tool_call
 from .operations import get_refreshed_system_message, replace_context_messages
-from .transform import is_system_instruction
+from .transforms import is_system_instruction
 
 
 def validate_assistant_tool_calls_followed_by_tool(debug_mode: bool, context_messages: List[ContextMessage]) -> List[ContextMessage]:

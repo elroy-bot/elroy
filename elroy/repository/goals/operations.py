@@ -21,8 +21,12 @@ from ..context_messages.operations import (
     add_context_messages,
     drop_goal_from_current_context,
 )
-from ..embeddable import add_to_context, remove_from_context
-from ..embeddings import upsert_embedding_if_needed
+from ..recall.operations import (
+    add_to_context,
+    remove_from_context,
+    upsert_embedding_if_needed,
+)
+from ..recall.transforms import to_recalled_memory_metadata
 from .queries import get_active_goals, get_db_goal_by_name
 
 
@@ -87,7 +91,7 @@ def create_goal(
                 ContextMessage(
                     role=SYSTEM,
                     content=f"New goal created: {goal.to_fact()}",
-                    memory_metadata=[goal.to_memory_metadata()],
+                    memory_metadata=[to_recalled_memory_metadata(goal)],
                     chat_model=ctx.chat_model.name,
                 )
             ],
@@ -155,7 +159,7 @@ def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> st
             ContextMessage(
                 role=SYSTEM,
                 content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
-                memory_metadata=[old_goal.to_memory_metadata()],
+                memory_metadata=[to_recalled_memory_metadata(old_goal)],
                 chat_model=ctx.chat_model.name,
             )
         ],
