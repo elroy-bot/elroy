@@ -132,7 +132,7 @@ class CliIO(ElroyIO):
         return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), default=prefill, style=self.style)
 
     def update_completer(self, goals: List[Goal], memories: List[Memory], context_messages: List[ContextMessage]) -> None:
-        from ..repository.embeddable import is_in_context
+        from ..repository.recall.queries import is_in_context
         from ..tools.tools_and_commands import (
             ALL_ACTIVE_GOAL_COMMANDS,
             ALL_ACTIVE_MEMORY_COMMANDS,

@@ -8,13 +8,16 @@ from toolz.curried import filter, map, remove, tail
 
 from ...config.constants import SYSTEM, tool
 from ...config.ctx import ElroyContext
-from ...db.db_models import Goal, Memory, RecalledMemoryMetadata
+from ...db.db_models import Goal, Memory
 from ...llm.client import get_embedding, query_llm
 from ...utils.clock import db_time_to_local, get_utc_now
 from ...utils.utils import logged_exec_time
-from ..context_messages.data_models import ContextMessage
-from ..embeddable import is_in_context
-from ..embeddings import get_most_relevant_goal, get_most_relevant_memory
+from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
+from ..recall.queries import (
+    get_most_relevant_goal,
+    get_most_relevant_memory,
+    is_in_context,
+)
 
 
 def get_active_memories(ctx: ElroyContext) -> List[Memory]:

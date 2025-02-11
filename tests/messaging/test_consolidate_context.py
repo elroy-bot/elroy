@@ -7,7 +7,7 @@ from elroy.config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, 
 from elroy.config.ctx import ElroyContext
 from elroy.llm.utils import count_tokens
 from elroy.repository.context_messages.data_models import ContextMessage
-from elroy.repository.context_messages.transform import compress_context_messages
+from elroy.repository.context_messages.transforms import compress_context_messages
 
 
 def test_compress_context_messages(george_ctx: ElroyContext):
