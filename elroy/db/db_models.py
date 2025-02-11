@@ -193,22 +193,3 @@ class ContextMessageSet(SQLModel, table=True):
 
     def to_fact(self) -> str:
         return f"Context window from {db_time_to_local(self.created_at).strftime('%Y-%m-%d %H:%M')}"
-
-
-# class Embeddable(ABC, SQLModel):
-#     id: Optional[int]
-#     created_at: datetime
-#     updated_at: datetime  # noqa F841
-#     user_id: int
-#     is_active: Optional[bool]
-
-#     @abstractmethod
-#     def get_name(self) -> str:
-#         pass
-
-#     @abstractmethod
-#     def to_fact(self) -> str:
-#         raise NotImplementedError
-
-#     def to_memory_metadata(self) -> RecalledMemoryMetadata:
-#         return RecalledMemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
