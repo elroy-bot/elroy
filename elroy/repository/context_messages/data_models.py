@@ -1,9 +1,18 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
 from ...config.constants import ASSISTANT, TOOL
-from ...db.db_models import RecalledMemoryMetadata, ToolCall
+from ...db.db_models import ToolCall
+
+# Dataclasses and transforms defined here. Model taken out of the db get converted to these when used by API
+
+
+@dataclass
+class RecalledMemoryMetadata:
+    memory_type: str
+    id: int
+    name: str
 
 
 @dataclass
@@ -17,7 +26,7 @@ class ContextMessage:
     tool_call_id: Optional[str] = None
     memory_metadata: List[RecalledMemoryMetadata] = field(default_factory=list)
 
-    def to_json(self):
+    def as_dict(self):
         return {
             "content": self.content,
             "role": self.role,
@@ -26,7 +35,7 @@ class ContextMessage:
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at is not None else None,
             "tool_calls": [tc.to_json() for tc in self.tool_calls] if self.tool_calls is not None else None,
             "tool_call_id": self.tool_call_id,
-            "memory_metadata": [mm.to_json() for mm in self.memory_metadata],
+            "memory_metadata": [asdict(mm) for mm in self.memory_metadata],
         }
 
     def __post_init__(self):

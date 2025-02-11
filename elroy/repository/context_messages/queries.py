@@ -8,7 +8,7 @@ from toolz.curried import map, pipe
 from ...config.ctx import ElroyContext
 from ...db.db_models import ContextMessageSet, Message
 from .data_models import ContextMessage
-from .transform import db_message_to_context_message
+from .transforms import db_message_to_context_message
 
 
 def get_or_create_context_message_set(ctx: ElroyContext) -> ContextMessageSet:

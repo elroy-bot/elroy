@@ -12,7 +12,7 @@ from ...db.db_models import (
     EmbeddableSqlModel,
     Memory,
     MemoryOperationTracker,
-    MemorySource,
+    MemorySourceSqlModel,
 )
 from ...llm.client import query_llm
 from ...utils.utils import run_in_background_thread
@@ -145,7 +145,7 @@ async def formulate_memory(
     chat_model: ChatModel, user_preferred_name: Optional[str], context_messages: List[ContextMessage]
 ) -> Tuple[str, str]:
     from ...llm.prompts import summarize_for_memory
-    from ..context_messages.transform import format_context_messages
+    from ..context_messages.transforms import format_context_messages
 
     return await summarize_for_memory(
         chat_model,
@@ -155,7 +155,7 @@ async def formulate_memory(
 
 
 def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
-    from ..embeddable import remove_from_context
+    from ..recall.operations import remove_from_context
 
     item.is_active = False
     ctx.db.add(item)
@@ -168,9 +168,8 @@ def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> M
     return do_create_memory(ctx, name, text, [msg_set])
 
 
-def do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[MemorySource]) -> Memory:
-    from ...repository.embeddings import upsert_embedding_if_needed
-    from ..embeddable import add_to_context
+def do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[MemorySourceSqlModel]) -> Memory:
+    from ..recall.operations import add_to_context, upsert_embedding_if_needed
 
     memory = Memory(
         user_id=ctx.user_id, name=name, text=text, source_metadata=json.dumps([x.to_memory_source_json() for x in source_metadata])

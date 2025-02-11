@@ -17,8 +17,8 @@ from elroy.llm.stream_parser import SystemInfo, TextOutput
 from elroy.messenger import process_message
 from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.embeddings import query_vector
 from elroy.repository.goals.queries import get_active_goals
+from elroy.repository.recall.queries import query_vector
 from elroy.utils.utils import first_or_none
 
 

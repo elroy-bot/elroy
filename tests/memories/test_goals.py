@@ -9,10 +9,11 @@ from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import Goal
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.embeddable import is_in_context, remove_from_context
 from elroy.repository.goals.operations import create_goal, mark_goal_completed
 from elroy.repository.goals.queries import get_db_goal_by_name
 from elroy.repository.memories.queries import get_in_context_memories
+from elroy.repository.recall.operations import remove_from_context
+from elroy.repository.recall.queries import is_in_context
 
 
 def test_assistant_goal_in_context(io: MockCliIO, ctx: ElroyContext):

@@ -47,16 +47,6 @@ class FunctionCall:
         return ToolCall(id=self.id, function={"name": self.function_name, "arguments": json.dumps(self.arguments)})
 
 
-@dataclass
-class RecalledMemoryMetadata:
-    memory_type: str
-    id: int
-    name: str
-
-    def to_json(self) -> Dict[str, Any]:
-        return {"memory_type": self.memory_type, "id": self.id, "name": self.name}
-
-
 class VectorStorage(SQLModel, table=True):
     """Table for storing vector embeddings for any model type"""
 
@@ -70,7 +60,7 @@ class VectorStorage(SQLModel, table=True):
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
 
 
-class MemorySource(ABC, SQLModel):
+class MemorySourceSqlModel(ABC, SQLModel):
     """Abstract base class for memory sources"""
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -98,9 +88,6 @@ class EmbeddableSqlModel(ABC, SQLModel):
     def to_fact(self) -> str:
         raise NotImplementedError
 
-    def to_memory_metadata(self) -> RecalledMemoryMetadata:
-        return RecalledMemoryMetadata(memory_type=self.__class__.__name__, id=self.id, name=self.get_name())  # type: ignore
-
 
 class User(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
@@ -110,7 +97,7 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
 
 
-class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
+class Memory(EmbeddableSqlModel, MemorySourceSqlModel, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -128,7 +115,7 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return f"#{self.name}\n{self.text}"
 
 
-class Goal(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
+class Goal(EmbeddableSqlModel, MemorySourceSqlModel, SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -221,7 +208,7 @@ class UserPreference(SQLModel, table=True):
     assistant_name: Optional[str] = Field(default=None, description="The assistant name for the user")
 
 
-class ContextMessageSet(MemorySource, SQLModel, table=True):
+class ContextMessageSet(MemorySourceSqlModel, SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
