@@ -63,6 +63,7 @@ class Elroy:
                 **kwargs,
             ),
         )
+        self.ctx.migrate_db_if_needed()
         with self.ctx.dbsession():
             if persona:
                 set_persona(self.ctx, persona)

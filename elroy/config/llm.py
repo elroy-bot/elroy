@@ -4,7 +4,7 @@ from typing import Optional
 
 import yaml
 
-from .constants import KNOWN_MODELS, Provider
+from .constants import KNOWN_MODELS, OPENAI_EMBEDDINGS_MODELS, Provider
 from .paths import APP_NAME
 
 with open_text(APP_NAME, "defaults.yml") as f:
@@ -97,9 +97,8 @@ def get_chat_model(
 def get_embedding_model(
     model_name: str, embedding_size: int, api_key: Optional[str], api_base: Optional[str], organization: Optional[str], enable_caching: bool
 ) -> EmbeddingModel:
-    from litellm import open_ai_embedding_models
 
-    if model_name in open_ai_embedding_models:
+    if model_name in OPENAI_EMBEDDINGS_MODELS:
         assert api_key is not None, "OpenAI API key is required for OpenAI embedding models"
 
     return EmbeddingModel(

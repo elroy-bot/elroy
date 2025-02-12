@@ -7,12 +7,14 @@ import typer
 from semantic_version import Version
 
 from .. import __version__
+from ..io.cli import CliIO
 
 
-def check_updates():
+def check_updates(io: CliIO):
     try:
-        logging.info("Checking for updates...")
-        current_version, latest_version = check_latest_version()
+        with io.status("Checking for updates..."):
+            logging.info("Checking for updates...")
+            current_version, latest_version = check_latest_version()
         if latest_version > current_version:
             if typer.confirm(f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"):
                 typer.echo("Upgrading elroy...")

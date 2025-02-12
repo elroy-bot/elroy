@@ -103,7 +103,6 @@ async def handle_chat(io: CliIO, ctx: ElroyContext):
         logging.info("User has interacted recently, skipping greeting.")
     else:
         get_user_preferred_name(ctx)
-
         await process_and_deliver_msg(
             io,
             SYSTEM,

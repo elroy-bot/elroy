@@ -21,10 +21,10 @@ def do_asyncio_run(coro):
     Returns:
         The result of the coroutine
     """
-    try:
-        loop = asyncio.get_running_loop()
+    loop = asyncio._get_running_loop()
+    if loop is not None:
         return loop.run_until_complete(coro)
-    except RuntimeError:  # No running loop
+    else:
         return asyncio.run(coro)
 
 

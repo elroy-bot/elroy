@@ -90,8 +90,11 @@ def db(
 ):
     if db_type == "postgres":
         database_url = request.getfixturevalue("postgres_url")
+        engine = PostgresManager.get_engine(database_url)
 
-        with PostgresManager.open_session(database_url, True) as db:
+        PostgresManager.migrate(engine)
+
+        with PostgresManager.open_session(database_url) as db:
             for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
                 db.exec(delete(table))  # type: ignore
             db.commit()
@@ -103,7 +106,11 @@ def db(
             do(lambda x: x.mkdir(exist_ok=True)),
             lambda x: f"sqlite:///{x}/test.db",
         )
-        with SqliteManager.open_session(url, True) as db:
+        engine = SqliteManager.get_engine(url)
+
+        SqliteManager.migrate(engine)
+
+        with SqliteManager.open_session(url) as db:
             for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
                 db.exec(delete(table))  # type: ignore
             db.commit()

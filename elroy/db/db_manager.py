@@ -1,8 +1,6 @@
-import contextlib
 import logging
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from io import StringIO
 from pathlib import Path
 from typing import Any, Generator, Iterable, List, Optional, Type
 
@@ -11,7 +9,7 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Engine
-from sqlmodel import Session, select, text
+from sqlmodel import Session, select
 
 from .db_models import EmbeddableSqlModel, VectorStorage
 
@@ -60,11 +58,8 @@ class DbManager(ABC):
 
     @classmethod
     @contextmanager
-    def open_session(cls, url: str, check_migrations: bool) -> Generator["DbManager", Any, None]:
+    def open_session(cls, url: str) -> Generator["DbManager", Any, None]:
         engine = cls.get_engine(url)
-        if check_migrations:
-            cls._migrate_if_needed(engine)
-
         session = Session(engine)
         try:
             yield cls(url, session)
@@ -85,7 +80,7 @@ class DbManager(ABC):
         Spawns a new DbManager with same params
         """
 
-        with self.__class__.open_session(self.url, False) as db:
+        with self.__class__.open_session(self.url) as db:
             yield db
 
     @property
@@ -113,40 +108,30 @@ class DbManager(ABC):
         raise NotImplementedError
 
     @classmethod
-    def _migrate_if_needed(cls, engine: Engine):
-        """Check if all migrations have been run.
-        Returns True if migrations are up to date, False otherwise."""
-        try:
-            with Session(engine) as session:
-                session.exec(text("SELECT 1")).first()  # type: ignore
-        except Exception as e:
-            if "ELFCLASS32" in str(e) and str(engine.url).startswith("sqlite"):
-                raise Exception(
-                    "Architecture mismatch between compiled SQLite extension and env os. If you are using docker, consider adding --platform linux/amd64 to your command, or provide a Postgres value for --database-url."
-                )
-            else:
-                logging.error(f"Database connectivity check failed: {e}")
-                raise Exception(f"Could not connect to database {engine.url.render_as_string(hide_password=True)}: {e}")
+    def check_connection(cls, engine: Engine):
+        raise NotImplementedError
 
-        """Check if all migrations have been run.
-        Returns True if migrations are up to date, False otherwise."""
+    @classmethod
+    def get_config(cls, engine: Engine):
         config = Config(cls._get_config_path())
         config.set_main_option("sqlalchemy.url", engine.url.render_as_string(hide_password=False))
+        return config
 
-        script = ScriptDirectory.from_config(config)
-
+    @classmethod
+    def is_migration_needed(cls, engine: Engine) -> bool:
+        cls.check_connection(engine)
+        script = ScriptDirectory.from_config(cls.get_config(engine))
         with engine.connect() as connection:
             context = MigrationContext.configure(connection)
             current_rev = context.get_current_revision()
             head_rev = script.get_current_head()
+            return current_rev != head_rev
 
-            if current_rev != head_rev:
-                # Capture and redirect alembic output to logging
+    @classmethod
+    def migrate(cls, engine: Engine):
+        """Check if all migrations have been run.
+        Returns True if migrations are up to date, False otherwise."""
+        config = cls.get_config(engine)
+        logging.getLogger("alembic").setLevel(logging.INFO)
 
-                with contextlib.redirect_stdout(StringIO()) as stdout:
-                    command.upgrade(config, "head")
-                    for line in stdout.getvalue().splitlines():
-                        if line.strip():
-                            logging.info(f"Alembic: {line.strip()}")
-            else:
-                logging.debug("Database is up to date.")
+        command.upgrade(config, "head")
