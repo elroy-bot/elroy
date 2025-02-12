@@ -4,8 +4,9 @@ from datetime import timedelta
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Generator, List, Optional, TypeVar
+from typing import Any, Callable, Generator, List, Optional, Type, TypeVar
 
+from sqlalchemy import Engine
 from toolz.curried import dissoc
 
 from ..cli.options import DEPRECATED_KEYS
@@ -161,23 +162,40 @@ class ElroyContext:
         else:
             return self._db
 
+    @cached_property
+    def engine(self) -> Engine:
+        return self.db_manager_class.get_engine(self.params.database_url)
+
+    @cached_property
+    def db_manager_class(self) -> Type[DbManager]:
+        assert self.params.database_url, "Database URL not set"
+
+        if self.params.database_url.startswith("postgresql://"):
+            return PostgresManager
+        elif self.params.database_url.startswith("sqlite:///"):
+            return SqliteManager
+        else:
+            raise ValueError(f"Unsupported database URL: {self.params.database_url}. Must be either a postgresql:// or sqlite:/// URL")
+
+    def is_migration_needed(self) -> bool:
+        return self.db_manager_class.is_migration_needed(self.engine)
+
+    def migrate_db(self) -> None:
+        self.db_manager_class.migrate(self.engine)
+
     @allow_unused
     def is_db_connected(self) -> bool:
         return bool(self._db)
 
+    @allow_unused
+    def migrate_db_if_needed(self) -> None:
+        if self.is_migration_needed():
+            self.migrate_db()
+
     @contextmanager
     def dbsession(self) -> Generator[None, None, None]:
         """Context manager for database sessions"""
-        assert self.params.database_url, "Database URL not set"
-
-        if self.params.database_url.startswith("postgresql://"):
-            db_manager = PostgresManager
-        elif self.params.database_url.startswith("sqlite:///"):
-            db_manager = SqliteManager
-        else:
-            raise ValueError(f"Unsupported database URL: {self.params.database_url}. Must be either a postgresql:// or sqlite:/// URL")
-
-        with db_manager.open_session(self.params.database_url, True) as db:
+        with self.db_manager_class.open_session(self.params.database_url) as db:
             try:
                 self._db = db
                 yield

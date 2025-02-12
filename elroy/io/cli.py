@@ -1,4 +1,5 @@
 import logging
+from contextlib import contextmanager
 from itertools import product
 from typing import Iterator, List, Union
 
@@ -10,6 +11,7 @@ from prompt_toolkit.styles import Style as PTKStyle
 from pygments.lexers.special import TextLexer
 from rich.console import Console, RenderableType
 from rich.panel import Panel
+from rich.text import Text
 from toolz import concatv, pipe
 from toolz.curried import map
 
@@ -85,8 +87,21 @@ class CliIO(ElroyIO):
 
         self.last_output_type = None
 
+    @contextmanager
+    def status(self, message: str = ""):
+        """Context manager for status messages with spinner."""
+        with self.console.status(
+            Text(message, style=self.formatter.internal_thought_color),
+            spinner="squareCorners",
+            spinner_style=self.formatter.internal_thought_color,
+        ):
+            yield
+
     def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
         try:
+            with self.status():
+                first_msg = next(messages)
+            self.print(first_msg, end="")
             for message in messages:
                 self.print(message, end="")
         except KeyboardInterrupt:

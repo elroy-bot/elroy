@@ -105,8 +105,16 @@ class PostgresManager(DbManager):
         return Path(str(PACKAGE_ROOT / "db" / "postgres" / "alembic" / "alembic.ini"))
 
     @classmethod
-    def _migrate_if_needed(cls, engine: Engine):
+    def check_connection(cls, engine: Engine):
+        try:
+            with Session(engine) as session:
+                session.exec(text("SELECT 1")).first()  # type: ignore
+        except Exception as e:
+            raise Exception(f"Could not connect to database {engine.url.render_as_string(hide_password=True)}: {e}")
+
+    @classmethod
+    def migrate(cls, engine: Engine):
         with Session(engine) as session:
             session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))  # type: ignore
 
-        return super()._migrate_if_needed(engine)
+        return super().migrate(engine)

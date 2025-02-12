@@ -275,7 +275,4 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
     ctx.db.commit()
     ctx.db.refresh(goal)
 
-    if status:
-        assert status in goal.status_updates, "Status update not found in goal status updates"
-
     upsert_embedding_if_needed(ctx, goal)

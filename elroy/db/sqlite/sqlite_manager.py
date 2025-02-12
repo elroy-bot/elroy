@@ -7,6 +7,7 @@ from typing import Iterable, List, Optional, Type
 
 import sqlite_vec
 from sqlalchemy import Engine, create_engine, text
+from sqlmodel import Session
 from toolz import assoc, pipe
 from toolz.curried import map
 
@@ -150,6 +151,20 @@ class SqliteManager(DbManager):
             list,
             iter,
         )
+
+    @classmethod
+    def check_connection(cls, engine: Engine):
+        try:
+            with Session(engine) as session:
+                session.exec(text("SELECT 1")).first()  # type: ignore
+        except Exception as e:
+            if "ELFCLASS32" in str(e) and str(engine.url).startswith("sqlite"):
+                raise Exception(
+                    "Architecture mismatch between compiled SQLite extension and env os. If you are using docker, consider adding --platform linux/amd64 to your command, or provide a Postgres value for --database-url."
+                )
+            else:
+                logging.error(f"Database connectivity check failed: {e}")
+                raise Exception(f"Could not connect to database {engine.url.render_as_string(hide_password=True)}: {e}")
 
     @classmethod
     def is_valid_url(cls, url):

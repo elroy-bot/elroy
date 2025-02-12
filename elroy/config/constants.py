@@ -39,6 +39,8 @@ EXIT = "exit"
 
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
+OPENAI_EMBEDDINGS_MODELS = ["text-embedding-ada-002"]
+
 
 # Empty decorator just meaning to communicate a function should be a tool
 def tool(func: Callable) -> Callable:

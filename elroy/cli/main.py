@@ -15,6 +15,7 @@ from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext
 from ..config.logging import setup_logging
 from ..config.paths import get_default_config_path, get_default_sqlite_url
+from ..db.dbsession import get_db_session
 from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
 from ..io.formatters.rich_formatter import RichFormatter
@@ -321,10 +322,13 @@ def chat(typer_ctx: typer.Context):
     """Opens an interactive chat session. (default command)"""
     ctx = get_ctx(typer_ctx)
     io = get_io(typer_ctx)
-    with ctx.dbsession():
-        if sys.stdin.isatty():
-            assert isinstance(io, CliIO)
-            check_updates()
+
+    if sys.stdin.isatty():
+        assert isinstance(io, CliIO)
+
+        check_updates(io)
+
+        with get_db_session(ctx, io):
             try:
                 if not get_user_id_if_exists(ctx.db, ctx.user_token):
                     do_asyncio_run(onboard_interactive(io, ctx))
@@ -335,9 +339,11 @@ def chat(typer_ctx: typer.Context):
                 logging.info("Exiting...")
             except Exception as e:
                 create_bug_report_from_exception_if_confirmed(io, ctx, e)
-        else:
-            message = sys.stdin.read()
-            handle_message_stdio(ctx, PlainIO(), message, None)
+    else:
+        message = sys.stdin.read()
+        assert isinstance(io, PlainIO)
+        with get_db_session(ctx, io):
+            handle_message_stdio(ctx, io, message, None)
 
 
 @app.command(name="message")
@@ -353,14 +359,15 @@ def message(
 ):
     """Process a single message and exit."""
     ctx = get_ctx(typer_ctx)
-    with ctx.dbsession():
+    io = get_io(typer_ctx)
+    with get_db_session(ctx, io):
         if sys.stdin.isatty() and not message:
-            io = get_io(typer_ctx)
             assert isinstance(io, CliIO)
             handle_message_interactive(ctx, io, tool)
         else:
             assert message
-            handle_message_stdio(ctx, PlainIO(), message, tool)
+            assert isinstance(io, PlainIO)
+            handle_message_stdio(ctx, io, message, tool)
 
 
 @app.command(name="print-tool-schemas")
@@ -385,7 +392,7 @@ def cli_remember(
     """Create a new memory from text or interactively."""
     ctx = get_ctx(typer_ctx)
     io = get_io(typer_ctx)
-    with ctx.dbsession():
+    with get_db_session(ctx, io):
         if not get_user_id_if_exists(ctx.db, ctx.user_token):
             io.warning("Creating memory for new user")
 
@@ -494,7 +501,8 @@ def cli_set_persona(
 ):
     """Set a custom persona for the assistant."""
     ctx = get_ctx(typer_ctx)
-    with ctx.dbsession():
+    io = get_io(typer_ctx)
+    with get_db_session(ctx, io):
         if get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.info(f"No user found for token {ctx.user_token}, creating one")
         do_set_persona(ctx, persona)
@@ -505,7 +513,8 @@ def cli_set_persona(
 def reset_persona(typer_ctx: typer.Context):
     """Removes any custom persona, reverting to the default."""
     ctx = get_ctx(typer_ctx)
-    with ctx.dbsession():
+    io = get_io(typer_ctx)
+    with get_db_session(ctx, io):
         if not get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
             return typer.Exit()
@@ -518,7 +527,8 @@ def reset_persona(typer_ctx: typer.Context):
 def show_persona(typer_ctx: typer.Context):
     """Print the system persona and exit."""
     ctx = get_ctx(typer_ctx)
-    with ctx.dbsession():
+    io = get_io(typer_ctx)
+    with get_db_session(ctx, io):
         print(get_persona(ctx))
         raise typer.Exit()
 
