@@ -9,9 +9,7 @@ from .io.formatters.plain_formatter import PlainFormatter
 from .llm.stream_parser import AssistantInternalThought
 from .messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
-from .repository.context_messages.operations import (
-    add_context_messages,
-)
+from .repository.context_messages.operations import add_context_messages
 from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )

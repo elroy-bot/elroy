@@ -44,10 +44,10 @@ elroy chat
 elroy
 
 # Process a single message and exit
-elroy --message "Say hello world"
+elroy message "Say hello world"
 
 # Force use of a specific tool
-elroy --message "Create a goal" --tool create_goal
+elroy message "Create a goal" --tool create_goal
 
 # Elroy also accepts stdin
 echo "Say hello world" | elroy
@@ -75,7 +75,15 @@ For full configuration options, see [configuration documentation](docs/configura
 
 ### Supported Models
 
-Elroy supports OpenAI, Anthropic, and any OpenAI-compatible API's.
+Elroy supports OpenAI, Anthropic, Google (Gemini), and any OpenAI-compatible API's.
+
+Model aliases are available for quick selection:
+- `--sonnet`: Anthropic's Sonnet model
+- `--opus`: Anthropic's Opus model
+- `--4o`: OpenAI's GPT-4o model
+- `--4o-mini`: OpenAI's GPT-4o-mini model
+- `--o1`: OpenAI's o1 model
+- `--o1-mini`: OpenAI's o1-mini model
 
 
 ### Scripting Elroy

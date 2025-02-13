@@ -1,4 +1,3 @@
-
 # CLI Reference
 
 These commands can be run directly from your terminal:
@@ -16,6 +15,7 @@ These commands can be run directly from your terminal:
     - From file: `cat notes.txt | elroy remember`
 
 - `elroy list-models` - Lists supported chat models and exits
+- `elroy list-tools` - Lists all available tools and their descriptions
 - `elroy print-config` - Shows current configuration and exits
   - `elroy print-config --show-secrets` to include API keys
   - Shows:
@@ -30,8 +30,11 @@ These commands can be run directly from your terminal:
   - Example: `elroy set-persona "You are a helpful coding assistant"`
 - `elroy reset-persona` - Removes any custom persona, reverting to the default
 - `elroy show-persona` - Print the system persona and exit
-- `elroy print-tools` - Display available tools and their schemas
+- `elroy print-tool-schemas` - Display available tools and their schemas
 
+### MCP Server Commands
+- `elroy mcp print-config` - Print MCP server configuration
+  - `--local` - Print config using local Elroy instance
 
 ### Shell Integration
 * `--install-completion`: Install completion for the current shell.

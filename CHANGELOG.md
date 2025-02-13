@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.72] - 2025-02-13
+
+### Added
+- /save command
+
+### Improved
+- Updated logic for selecting chat and embedding model API
+- Support for Gemini models
+
 ## [0.0.71] - 2025-02-07
 
 ### Added

@@ -24,6 +24,9 @@ These commands can be used by both users and Elroy:
 - `/add_memory_to_current_context` - Include a memory in the current conversation
 - `/drop_memory_from_current_context` - Remove a memory from the current conversation
 - `/query_memory` - Search through memories and goals using semantic search
+- `/search_memories` - Search against goals and memories with semantic search
+- `/print_memories` - Display all stored memories
+- `/remember_convo` - Save the current conversation as a memory
 
 ##### Reflection & Contemplation
 - `/contemplate [prompt]` - Request Elroy to reflect on the conversation or analyze a specific topic
@@ -37,6 +40,8 @@ These commands can be used by both users and Elroy:
 ##### Development Tools
 - `/tail_elroy_logs` - Display Elroy's log output for debugging purposes
 - `/make_coding_edit` - Make and manage changes to code files in the repository
+- `/print_elroy_config` - View current Elroy configuration settings
+- `/create_bug_report` - Generate a pre-filled bug report in browser
 
 
 #### User-Only Commands
@@ -52,9 +57,16 @@ These commands can only be used by human users:
 - `/create_bug_report` - Generate a detailed bug report with current context
 - `/set_assistant_name` - Customize the assistant's name
 - `/exit` - End the chat session
+- `/save` - Save the current state of the conversation
+- `/pop` - Remove n messages from conversation history
+- `/rewrite` - Rewrite the last assistant response
 
 ## Adding your own Tools
 
-You can add your own tools by specifying a directory or Python file via the `--custom-tools-path` parameter.
+You can add your own tools by specifying one or more directories or Python files via the `--custom-tools-path` parameter. Multiple paths can be specified to load tools from different locations.
 
-Tools should be annotated with the either the `@tool` decorator that comes with Elroy, or langchains `@tool` decorator.
+Tools should be annotated with either:
+- The `@tool` decorator that comes with Elroy
+- The langchain `@tool` decorator
+
+Both decorators are supported and will work identically.
