@@ -15,7 +15,7 @@ def is_in_context_message(memory: EmbeddableSqlModel, context_message: ContextMe
     return any(x.memory_type == memory.__class__.__name__ and x.id == memory.id for x in context_message.memory_metadata)
 
 
-def is_in_context(context_messages: List[ContextMessage], memory: EmbeddableSqlModel) -> bool:
+def is_in_context(context_messages: Iterable[ContextMessage], memory: EmbeddableSqlModel) -> bool:
     return any(is_in_context_message(memory, x) for x in context_messages)
 
 

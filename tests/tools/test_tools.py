@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 import pytest
 from tests.fixtures.custom_tools import (
@@ -156,7 +157,7 @@ def _missing_tool_message(ctx: ElroyContext):
     ]
 
 
-def _missing_tool_call(ctx: ElroyContext):
+def _missing_tool_call(ctx: ElroyContext) -> List[ContextMessage]:
     return [
         ContextMessage(
             role=SYSTEM,

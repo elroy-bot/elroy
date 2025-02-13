@@ -38,14 +38,14 @@ def test_goal_in_context(george_ctx):
 
     process_test_message(george_ctx, "I'm off to go play basketball!")
 
-    context_messages = get_context_messages(george_ctx)
+    context_messages = list(get_context_messages(george_ctx))
 
     assert len(messages_with_goal_id(context_messages, goal_id)) == 1
 
     # Ensure we do not redundantly add the same goal to the context
     process_test_message(george_ctx, "I'm in the car, heading over to play basketball")
 
-    context_messages = get_context_messages(george_ctx)
+    context_messages = list(get_context_messages(george_ctx))
 
     assert len(messages_with_goal_id(context_messages, goal_id)) == 1
 

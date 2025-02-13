@@ -1,4 +1,3 @@
-import inspect
 import json
 import logging
 from inspect import Parameter
@@ -7,15 +6,15 @@ from typing import Any, Optional, Union, get_args, get_origin
 from rich.console import Group
 from rich.pretty import Pretty
 from rich.table import Table
-from toolz import pipe, tail
-from toolz.curried import map
+from toolz import pipe
+from toolz.curried import map, tail
 
-from ..config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
+from ..config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool, user_only_tool
 from ..config.ctx import ElroyContext
 from ..llm.client import query_llm
 from ..llm.prompts import contemplate_prompt
 from ..repository.context_messages.data_models import ContextMessage
-from ..repository.context_messages.operations import add_context_messages
+from ..repository.context_messages.operations import add_context_message
 from ..repository.context_messages.queries import (
     get_context_messages,
     get_current_system_instruct,
@@ -24,6 +23,7 @@ from ..repository.context_messages.transforms import format_context_messages
 from ..repository.user.queries import get_user_preferred_name
 
 
+@user_only_tool
 def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
     """Logs the last n current context messages to stdout
 
@@ -34,19 +34,13 @@ def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
     Returns:
         the formatted last n messages.
     """
-    if not n:
-        messages = get_context_messages(ctx)
-    else:
-        messages = list(tail(n, get_context_messages(ctx)))
-
     table = Table(show_header=True, padding=(0, 2), show_lines=True)
     table.add_column("#", style="dim", width=3)
     table.add_column("Message Details")
 
-    for idx, message in enumerate(messages, 1):
-        # Determine style based on role
+    msgs = pipe(get_context_messages(ctx), tail(n or 1000))
 
-        # Create message details
+    for idx, message in enumerate(msgs):
         details = [
             f"[bold]ID[/]: {message.id}",
             f"[bold]Role[/]: {message.role}",
@@ -82,6 +76,7 @@ def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
     return table
 
 
+@user_only_tool
 def add_internal_thought(ctx: ElroyContext, thought: str) -> str:
     """Inserts internal thought for the assistant. Useful for guiding the assistant's thoughts in a specific direction.
 
@@ -93,15 +88,13 @@ def add_internal_thought(ctx: ElroyContext, thought: str) -> str:
         str: The result of the internal thought addition
     """
 
-    add_context_messages(
+    add_context_message(
         ctx,
-        [
-            ContextMessage(
-                role=SYSTEM,
-                content=thought,
-                chat_model=ctx.chat_model.name,
-            )
-        ],
+        ContextMessage(
+            role=SYSTEM,
+            content=thought,
+            chat_model=ctx.chat_model.name,
+        ),
     )
 
     return f"Internal thought added: {thought}"
@@ -120,11 +113,12 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
     """
 
     logging.info("Contemplating...")
-
     user_preferred_name = get_user_preferred_name(ctx)
-    context_messages = get_context_messages(ctx)
 
-    msgs_input = format_context_messages(context_messages, user_preferred_name)
+    msgs_input: str = pipe(
+        get_context_messages(ctx),
+        lambda x: format_context_messages(x, user_preferred_name),
+    )  # type: ignore
 
     response = query_llm(
         model=ctx.chat_model,
@@ -132,49 +126,19 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
         system=contemplate_prompt(user_preferred_name, contemplation_prompt),
     )
 
-    add_context_messages(
+    add_context_message(
         ctx,
-        [
-            ContextMessage(
-                role=SYSTEM,
-                content=response,
-                chat_model=ctx.chat_model.name,
-            )
-        ],
+        ContextMessage(
+            role=SYSTEM,
+            content=response,
+            chat_model=ctx.chat_model.name,
+        ),
     )
 
     return response
 
 
-def help(ctx: ElroyContext) -> Table:
-    """Prints the available system commands
-
-    Returns:
-        str: The available system commands
-    """
-    from ..tools.tools_and_commands import SYSTEM_COMMANDS
-
-    commands = pipe(
-        SYSTEM_COMMANDS,
-        map(
-            lambda f: (
-                f.__name__,
-                inspect.getdoc(f).split("\n")[0],  # type: ignore
-            )
-        ),
-        list,
-        sorted,
-    )
-
-    table = Table(title="Available Slash Commands")
-    table.add_column("Command", justify="left", style="cyan", no_wrap=True)
-    table.add_column("Description", justify="left", style="green")
-
-    for command, description in commands:  # type: ignore
-        table.add_row(command, description)
-    return table
-
-
+@user_only_tool
 def print_system_instruction(ctx: ElroyContext) -> Optional[str]:
     """Prints the current system instruction for the assistant
 
@@ -195,7 +159,7 @@ def _is_optional(param: Parameter) -> bool:
     return get_origin(param.annotation) is Union and type(None) in get_args(param.annotation)
 
 
-def _get_casted_value(parameter: Parameter, str_value: str) -> Optional[Any]:
+def get_casted_value(parameter: Parameter, str_value: str) -> Optional[Any]:
     if not str_value:
         return None
     # detect if it is union
@@ -206,7 +170,7 @@ def _get_casted_value(parameter: Parameter, str_value: str) -> Optional[Any]:
     return arg_type(str_value)
 
 
-def _get_prompt_for_param(param: Parameter) -> str:
+def get_prompt_for_param(param: Parameter) -> str:
     prompt_title = pipe(
         param.name,
         lambda x: x.split("_"),

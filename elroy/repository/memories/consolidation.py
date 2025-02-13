@@ -180,6 +180,7 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
         text,
         sources,
         False,
+        False,
     )[0]
 
     [mark_inactive(ctx, m) for m in sources]

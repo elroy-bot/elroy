@@ -1,64 +1,41 @@
-import json
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
 
 from sqlmodel import select
-from toolz import first, pipe
-from toolz.curried import map, pipe
+from toolz import first
 
 from ...config.ctx import ElroyContext
-from ...db.db_models import ContextMessageSet, Message
+from ...db.db_models import ContextMessageSet
 from .data_models import ContextMessage
-from .transforms import db_message_to_context_message
+from .transforms import ContextMessageSetWithMessages
 
 
-def get_or_create_context_message_set(ctx: ElroyContext) -> ContextMessageSet:
-    message_set = get_current_context_message_set_db(ctx)
-
-    if message_set:
-        return message_set
-
-    message_set = ContextMessageSet(user_id=ctx.user_id, message_ids="[]", is_active=True)
-    ctx.db.add(message_set)
-    ctx.db.commit()
-
-    return message_set
-
-
-def get_current_context_message_set_db(ctx: ElroyContext) -> Optional[ContextMessageSet]:
-    return ctx.db.exec(
+def get_or_create_context_message_set(ctx: ElroyContext) -> ContextMessageSetWithMessages:
+    db_entry = ctx.db.exec(
         select(ContextMessageSet).where(
             ContextMessageSet.user_id == ctx.user_id,
             ContextMessageSet.is_active == True,
         )
     ).first()
+    if db_entry:
+        return ContextMessageSetWithMessages.from_context_message_set(ctx.db.session, db_entry)
+    else:
+        db_entry = ContextMessageSet(user_id=ctx.user_id, message_ids="[]", is_active=True)
+        ctx.db.add(db_entry)
+        ctx.db.commit()
+        ctx.db.refresh(db_entry)
+        return ContextMessageSetWithMessages.from_context_message_set(ctx.db.session, db_entry)
 
 
-def get_context_messages_iter(ctx: ElroyContext) -> Iterable[ContextMessage]:
+def get_context_messages(ctx: ElroyContext) -> Iterable[ContextMessage]:
     """
     Gets context messages from db, in order of their position in ContextMessageSet
     """
 
-    message_ids = pipe(
-        get_current_context_message_set_db(ctx),
-        lambda x: x.message_ids if x else "[]",
-        json.loads,
-    )
-
-    assert isinstance(message_ids, list)
-
-    return pipe(
-        ctx.db.exec(select(Message).where(Message.id.in_(message_ids))),  # type: ignore
-        lambda messages: sorted(messages, key=lambda m: message_ids.index(m.id)),
-        map(db_message_to_context_message),
-    )  # type: ignore
-
-
-def get_context_messages(ctx: ElroyContext) -> List[ContextMessage]:
-    return list(get_context_messages_iter(ctx))
+    yield from get_or_create_context_message_set(ctx).messages
 
 
 def get_current_system_instruct(ctx: ElroyContext) -> Optional[ContextMessage]:
     try:
-        return first(get_context_messages_iter(ctx))
+        return first(get_context_messages(ctx))
     except StopIteration:
         return None

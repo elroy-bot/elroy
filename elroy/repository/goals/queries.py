@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 from rich.table import Table
 from sqlmodel import select
 
-from ...config.constants import RecoverableToolError, allow_unused, tool
+from ...config.constants import RecoverableToolError, allow_unused, tool, user_only_tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal
 from ...utils.clock import db_time_to_local
@@ -92,9 +92,11 @@ def print_goal(ctx: ElroyContext, goal_name: str) -> str:
     if goal:
         return goal.to_fact()
     else:
-        raise RecoverableToolError(f"Goal '{goal_name}' not found")
+        valid_goals = ",".join(sorted(get_active_goal_names(ctx)))
+        raise RecoverableToolError(f"Goal '{goal_name}' not found. Valid goals: {valid_goals}")
 
 
+@user_only_tool
 def print_active_goals(ctx: ElroyContext, n: Optional[int] = None) -> Union[str, Table]:
     """Prints the last n active goals. If n is None, prints all active goals.
 
@@ -106,6 +108,7 @@ def print_active_goals(ctx: ElroyContext, n: Optional[int] = None) -> Union[str,
     return _print_goals(ctx, True, n)
 
 
+@user_only_tool
 def print_complete_goals(ctx: ElroyContext, n: Optional[int] = None) -> Union[str, Table]:
     """Prints the last n complete goals. If n is None, prints all complete goals.
 

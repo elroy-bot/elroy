@@ -6,9 +6,9 @@ from elroy.api import Elroy
 from elroy.config.ctx import ElroyContext
 
 
-def test_api():
+def test_api(ctx: ElroyContext):
     """Test that all methods on Elroy class have complete parameter documentation."""
-    elroy = Elroy()
+    elroy = Elroy(database_url=ctx.db.url)
 
     for name, func in inspect.getmembers(elroy, predicate=inspect.ismethod):
         # Skip private methods

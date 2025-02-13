@@ -11,7 +11,7 @@ from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.goals.operations import create_goal, mark_goal_completed
 from elroy.repository.goals.queries import get_db_goal_by_name
-from elroy.repository.memories.queries import get_in_context_memories
+from elroy.repository.memories.queries import get_in_context_memories_metadata
 from elroy.repository.recall.operations import remove_from_context
 from elroy.repository.recall.queries import is_in_context
 
@@ -21,15 +21,15 @@ def test_assistant_goal_in_context(io: MockCliIO, ctx: ElroyContext):
     process_test_message(ctx, "I ran a marathon today, please create a memory")
 
     assert any(
-        "marathon" in title.lower() for title in get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Memory")
+        "marathon" in title.lower() for title in get_in_context_memories_metadata(get_context_messages(ctx)) if title.startswith("Memory")
     ), "Marathon memory not found in context"
     process_test_message(ctx, "Please create a new goal for me: Run a second marathon")
     assert any(
-        "marathon" in title.lower() for title in get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Goal")
+        "marathon" in title.lower() for title in get_in_context_memories_metadata(get_context_messages(ctx)) if title.startswith("Goal")
     ), "Marathon goal not found in context"
     process_test_message(ctx, "I ran a second marathon today, please mark my goal complete")
     assert not any(
-        "marathon" in title.lower() for title in get_in_context_memories(ctx, get_context_messages(ctx)) if title.startswith("Goal")
+        "marathon" in title.lower() for title in get_in_context_memories_metadata(get_context_messages(ctx)) if title.startswith("Goal")
     ), "Marathon goal still in context"
 
 
@@ -136,6 +136,6 @@ def test_duplicate_goal(io: MockCliIO, ctx: ElroyContext):
 
 def test_update_nonexistent_goal(io: MockCliIO, ctx: ElroyContext):
     process_test_message(ctx, "I ran 4 miles today. Please update my goal: Run 100 miles this year")
-    quiz_assistant_bool(False, ctx, "Did the goal I asked you to update already exist?")
+    quiz_assistant_bool(False, ctx, "Did the goal I asked you to update exist before you processed my update?")
 
     assert not io._warnings

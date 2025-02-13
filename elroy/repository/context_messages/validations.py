@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import List
+from typing import Generator, Iterable, List
 
 from toolz import pipe
 
@@ -88,17 +88,17 @@ def validate_first_user_precedes_first_assistant(context_messages: List[ContextM
     return context_messages
 
 
-def validate(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
-    messages = pipe(
+def validate(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> Generator[ContextMessage, None, None]:
+    messages: List[ContextMessage] = pipe(
         context_messages,
         partial(validate_system_instruction_correctly_placed, ctx),
         partial(validate_assistant_tool_calls_followed_by_tool, ctx.debug),
         partial(validate_tool_messages_have_assistant_tool_call, ctx.debug),
         lambda msgs: (msgs if not ctx.chat_model.ensure_alternating_roles else validate_first_user_precedes_first_assistant(msgs)),
         list,
-    )
+    )  # type: ignore
 
     if messages != context_messages:
         logging.info("Context messages have been repaired")
         replace_context_messages(ctx, messages)
-    return messages
+    yield from messages

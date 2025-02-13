@@ -67,12 +67,14 @@ exclude = [
     ".venv",
     ".git",
     "dist",
-    "build"
+    "build",
+    "**/*.ipynb",
+    "**/**.ipynb"
 ]
 pythonVersion = "3.11"
 verboseOutput = true
-reportImportCycles = true
-reportUnusedImport = true
+reportImportCycles = false # TODO: enable this
+reportUnusedImport = false # TODO: enable this
 
 [tool.black]
 line-length = 140

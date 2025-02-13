@@ -27,7 +27,7 @@ class PostgresManager(DbManager[PostgresSession]):
 
     @cached_property
     def engine(self) -> Engine:
-        if not self.__class__.is_url_valid(self.url):
+        if not self.is_url_valid(self.url):
             raise ValueError(f"Invalid database URL: {self.url}")
 
         return create_engine(self.url, poolclass=NullPool)

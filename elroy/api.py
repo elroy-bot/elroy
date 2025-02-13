@@ -12,7 +12,7 @@ from .io.formatters.plain_formatter import PlainFormatter
 from .llm.stream_parser import AssistantInternalThought, AssistantResponse
 from .messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
-from .repository.context_messages.operations import add_context_messages
+from .repository.context_messages.operations import add_context_message
 from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
@@ -25,7 +25,7 @@ from .repository.goals.operations import mark_goal_completed as do_mark_goal_com
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
 from .repository.memories.operations import create_memory as do_create_memory
-from .repository.memories.queries import examine_memories as do_query_memory
+from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 from .repository.user.queries import is_user_exists
@@ -276,7 +276,7 @@ class Elroy:
             message (str): The message content
         """
 
-        add_context_messages(
+        add_context_message(
             self.ctx,
             ContextMessage(
                 content=message,
