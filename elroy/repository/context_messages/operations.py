@@ -2,10 +2,11 @@ import json
 import logging
 import traceback
 from functools import partial
-from typing import List, Optional, Union
+from typing import Iterable, Iterator, List, Optional
 
 from sqlmodel import select
-from toolz import pipe, tail
+from toolz import concatv, pipe
+from toolz.curried import tail
 
 from ...config.constants import (
     ASSISTANT,
@@ -15,6 +16,7 @@ from ...config.constants import (
     SYSTEM_INSTRUCTION_LABEL_END,
     USER,
     tool,
+    user_only_tool,
 )
 from ...config.ctx import ElroyContext
 from ...config.paths import get_save_dir
@@ -38,25 +40,24 @@ from .transforms import (
 )
 
 
-def persist_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> List[int]:
-    msg_ids = []
+def persist_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> Iterator[int]:
     for msg in messages:
         if not msg.content and not msg.tool_calls:
-            logging.warning(f"Skipping message with no content or tool calls: {msg}\n{traceback.format_exc()}")
+            logging.info(f"Skipping message with no content or tool calls: {msg}\n{traceback.format_exc()}")
         elif msg.id:
-            msg_ids.append(msg.id)
+            yield msg.id
         else:
             db_message = context_message_to_db_message(ctx.user_id, msg)
             ctx.db.add(db_message)
             ctx.db.commit()
             ctx.db.refresh(db_message)
-            msg_ids.append(db_message.id)
-    return msg_ids
+            assert db_message.id
+            yield db_message.id
 
 
-def replace_context_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> None:
+def replace_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> None:
     # Dangerous! The message set might have been updated since we fetched it
-    msg_ids = persist_messages(ctx, messages)
+    msg_ids = list(persist_messages(ctx, messages))
 
     existing_context = ctx.db.exec(
         select(ContextMessageSet).where(
@@ -85,11 +86,13 @@ def remove_context_messages(ctx: ElroyContext, messages: List[ContextMessage]) -
     replace_context_messages(ctx, [m for m in get_context_messages(ctx) if m.id not in msg_ids])
 
 
-def add_context_messages(ctx: ElroyContext, messages: Union[ContextMessage, List[ContextMessage]]) -> None:
+def add_context_message(ctx: ElroyContext, message: ContextMessage) -> None:
+    add_context_messages(ctx, [message])
+
+
+def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> None:
     pipe(
-        messages,
-        lambda x: x if isinstance(x, List) else [x],
-        lambda x: get_context_messages(ctx) + x,
+        concatv(get_context_messages(ctx), messages),
         partial(replace_context_messages, ctx),
     )
 
@@ -155,8 +158,10 @@ def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str
     return drop_from_context_by_name(ctx, memory_name, Memory)
 
 
-def get_refreshed_system_message(ctx: ElroyContext, context_messages: List[ContextMessage]) -> ContextMessage:
+def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Iterable[ContextMessage]) -> ContextMessage:
     user_preference = get_or_create_user_preference(ctx)
+
+    context_messages = list(context_messages_iter)
 
     assert isinstance(context_messages, list)
     if len(context_messages) > 0 and context_messages[0].role == SYSTEM:
@@ -191,22 +196,23 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages: List[Conte
     )
 
 
-def context_refresh_sync(ctx: ElroyContext, context_messages: List[ContextMessage]):
+def context_refresh_sync(ctx: ElroyContext, context_messages: Iterable[ContextMessage]):
     do_asyncio_run(context_refresh(ctx, context_messages))
 
 
 @logged_exec_time
-async def context_refresh(ctx: ElroyContext, context_messages: List[ContextMessage]) -> None:
+async def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
+    context_message_list = list(context_messages)
 
     user_preferred_name = get_user_preferred_name(ctx)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
-    memory_title, memory_text = await formulate_memory(ctx.chat_model, user_preferred_name, context_messages)
+    memory_title, memory_text = await formulate_memory(ctx.chat_model, user_preferred_name, context_message_list)
     create_memory(ctx, memory_title, memory_text)
 
     pipe(
-        get_refreshed_system_message(ctx, context_messages),
-        partial(replace_system_instruction, context_messages),
+        get_refreshed_system_message(ctx, context_message_list),
+        partial(replace_system_instruction, context_message_list),
         partial(
             compress_context_messages,
             ctx.chat_model.name,
@@ -218,11 +224,12 @@ async def context_refresh(ctx: ElroyContext, context_messages: List[ContextMessa
 
 
 def refresh_context_if_needed(ctx: ElroyContext):
-    context_messages = get_context_messages(ctx)
+    context_messages = list(get_context_messages(ctx))
     if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.max_tokens):
         do_asyncio_run(context_refresh(ctx, context_messages))
 
 
+@user_only_tool
 def save(ctx: ElroyContext, n: Optional[int]) -> str:
     """
     Saves the last n message from context. If n is None, saves all messages in context.
@@ -230,8 +237,7 @@ def save(ctx: ElroyContext, n: Optional[int]) -> str:
 
     msgs = pipe(
         get_context_messages(ctx),
-        lambda x: tail(n, x) if n is not None else x,
-        list,
+        tail(n or 1000),
         list,
     )
 
@@ -243,6 +249,7 @@ def save(ctx: ElroyContext, n: Optional[int]) -> str:
     return "Saved messages to " + str(full_path)
 
 
+@user_only_tool
 def pop(ctx: ElroyContext, n: int) -> str:
     """
     Removes the last n messages from the context
@@ -253,20 +260,23 @@ def pop(ctx: ElroyContext, n: int) -> str:
     Returns:
        str: The result of the pop operation.
     """
+    original_list = list(get_context_messages(ctx))
+
     if n <= 0:
         return "Cannot pop 0 or fewer messages"
-    if n > len(get_context_messages(ctx)):
-        return f"Cannot pop {n} messages, only {len(get_context_messages(ctx))} messages in context"
-    context_messages = get_context_messages(ctx)[:-n]
+    if n > len(original_list):
+        return f"Cannot pop {n} messages, only {len(original_list)} messages in context"
+    context_messages = original_list[:-n]
 
     if context_messages[-1].role == ASSISTANT and context_messages[-1].tool_calls:
         return f"Popping {n} message would separate an assistant message with a tool call from the tool result. Please pop fewer or more messages."
 
     else:
         replace_context_messages(ctx, context_messages[:-n])
-        return f"Popped {n} messages from context, new context has {len(get_context_messages(ctx))} messages"
+        return f"Popped {n} messages from context, new context has {len(list(get_context_messages(ctx)))} messages"
 
 
+@user_only_tool
 def rewrite(ctx: ElroyContext, new_message: str) -> str:
     """
     Replaces the last message assistant in the context with the new message
@@ -278,7 +288,7 @@ def rewrite(ctx: ElroyContext, new_message: str) -> str:
     if not new_message:
         return "Cannot rewrite message with empty message"
 
-    context_messages = get_context_messages(ctx)
+    context_messages = list(get_context_messages(ctx))
     if len(context_messages) == 0:
         return "No messages to rewrite"
 
@@ -293,6 +303,7 @@ def rewrite(ctx: ElroyContext, new_message: str) -> str:
     return "Replaced last assistant message with new message"
 
 
+@user_only_tool
 def refresh_system_instructions(ctx: ElroyContext) -> str:
     """Refreshes the system instructions
 
@@ -303,7 +314,7 @@ def refresh_system_instructions(ctx: ElroyContext) -> str:
         str: The result of the system instruction refresh
     """
 
-    context_messages = get_context_messages(ctx)
+    context_messages = list(get_context_messages(ctx))
     if len(context_messages) == 0:
         context_messages.append(
             get_refreshed_system_message(ctx, []),
@@ -317,6 +328,7 @@ def refresh_system_instructions(ctx: ElroyContext) -> str:
     return "System instruction refresh complete"
 
 
+@user_only_tool
 def reset_messages(ctx: ElroyContext) -> str:
     """Resets the context for the user, removing all messages from the context except the system message.
     This should be used sparingly, only at the direct request of the user.

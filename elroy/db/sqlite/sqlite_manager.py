@@ -70,7 +70,7 @@ class SqliteManager(DbManager):
             logging.debug("Connection vec extension enabled and verified")
             return conn
 
-        if not self.__class__.is_url_valid(self.url):
+        if not self.is_url_valid(self.url):
             raise ValueError(f"Invalid database URL: {self.url}")
 
         return create_engine(

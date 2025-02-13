@@ -8,7 +8,7 @@ from elroy.repository.user.operations import reset_system_persona, set_persona
 from elroy.repository.user.queries import get_persona
 
 
-def test_persona(user_token):
+def test_persona(ctx: ElroyContext):
 
     runner = CliRunner(mix_stderr=True)
     config_path = str(Path(__file__).parent / "fixtures" / "test_config.yml")
@@ -18,7 +18,9 @@ def test_persona(user_token):
             "--config",
             config_path,
             "--user-token",
-            user_token,
+            ctx.user_token,
+            "--database-url",
+            ctx.db.url,
             "show-persona",
         ],
         env={},

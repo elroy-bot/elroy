@@ -6,7 +6,7 @@ from rich.table import Table
 from tests.utils import process_test_message
 from typer.testing import CliRunner
 
-from elroy.cli.main import MODEL_ALIASES, app, common
+from elroy.cli.main import CLI_ONLY_PARAMS, MODEL_ALIASES, app, common
 from elroy.cli.options import DEPRECATED_KEYS
 from elroy.config.llm import DEFAULTS_CONFIG
 from elroy.tools.developer import print_config
@@ -79,7 +79,7 @@ def test_cli_params_match_defaults():
     default_keys = set(DEFAULTS_CONFIG.keys())
 
     # Find any mismatches
-    missing_from_defaults = cli_params - default_keys - DEPRECATED_KEYS
+    missing_from_defaults = cli_params - default_keys - DEPRECATED_KEYS - CLI_ONLY_PARAMS
     missing_from_cli = default_keys - cli_params - {"default_persona"}
 
     # Build error message if there are mismatches

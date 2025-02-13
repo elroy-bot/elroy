@@ -117,7 +117,7 @@ async def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
         io.update_completer(
             get_active_goals(ctx),
             get_active_memories(ctx),
-            get_context_messages(ctx),
+            list(get_context_messages(ctx)),
         )
 
         user_input = await io.prompt_user(3)
@@ -149,6 +149,7 @@ async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_
             io.print("Cancelled")
         except KeyboardInterrupt:
             ctx.db.rollback()
+            io.print("Cancelled")
         except Exception as e:
             pipe(
                 traceback.format_exception(type(e), e, e.__traceback__),

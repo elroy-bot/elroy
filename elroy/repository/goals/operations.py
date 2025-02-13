@@ -18,7 +18,7 @@ from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import first_or_none, is_blank
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.operations import (
-    add_context_messages,
+    add_context_message,
     drop_goal_from_current_context,
 )
 from ..recall.operations import (
@@ -85,16 +85,14 @@ def create_goal(
         ctx.db.commit()
         ctx.db.refresh(goal)
 
-        add_context_messages(
+        add_context_message(
             ctx,
-            [
-                ContextMessage(
-                    role=SYSTEM,
-                    content=f"New goal created: {goal.to_fact()}",
-                    memory_metadata=[to_recalled_memory_metadata(goal)],
-                    chat_model=ctx.chat_model.name,
-                )
-            ],
+            ContextMessage(
+                role=SYSTEM,
+                content=f"New goal created: {goal.to_fact()}",
+                memory_metadata=[to_recalled_memory_metadata(goal)],
+                chat_model=ctx.chat_model.name,
+            ),
         )
 
         upsert_embedding_if_needed(ctx, goal)
@@ -153,16 +151,14 @@ def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> st
 
     upsert_embedding_if_needed(ctx, old_goal)
 
-    add_context_messages(
+    add_context_message(
         ctx,
-        [
-            ContextMessage(
-                role=SYSTEM,
-                content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
-                memory_metadata=[to_recalled_memory_metadata(old_goal)],
-                chat_model=ctx.chat_model.name,
-            )
-        ],
+        ContextMessage(
+            role=SYSTEM,
+            content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
+            memory_metadata=[to_recalled_memory_metadata(old_goal)],
+            chat_model=ctx.chat_model.name,
+        ),
     )
     return f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}'."
 
@@ -271,6 +267,7 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
             "Completed Goal: " + goal_name,
             goal.to_fact(),
             [goal],
+            True,
             True,
         )
     else:

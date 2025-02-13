@@ -4,12 +4,14 @@ from typing import List, Pattern, Set
 
 from sqlmodel import SQLModel
 
-from elroy.db.db_manager import DbManager
+from elroy.config.ctx import ElroyContext
 
 
-def test_migrations_in_sync(db_manager: DbManager):
+def test_migrations_in_sync(ctx: ElroyContext):
     from alembic.autogenerate import compare_metadata
     from alembic.migration import MigrationContext
+
+    db_manager = ctx.db_manager
 
     # Define regex patterns for tables to ignore
     IGNORED_TABLE_PATTERNS = {
@@ -24,8 +26,8 @@ def test_migrations_in_sync(db_manager: DbManager):
     compiled_patterns: Set[Pattern] = {re.compile(pattern) for pattern in IGNORED_TABLE_PATTERNS}
 
     with db_manager.engine.connect() as conn:
-        ctx = MigrationContext.configure(conn)
-        diff = compare_metadata(ctx, SQLModel.metadata)
+        db_ctx = MigrationContext.configure(conn)
+        diff = compare_metadata(db_ctx, SQLModel.metadata)
 
     # Convert all changes to strings first
     changes: List[str] = [str(change) for change in diff]
@@ -36,6 +38,6 @@ def test_migrations_in_sync(db_manager: DbManager):
         if not any(pattern.search(change) for pattern in compiled_patterns):
             filtered_changes.append(change)
         else:
-            logging.warning(f"Ignoring migration: {change}")
+            logging.info(f"Ignoring migration: {change}")
 
     assert not filtered_changes, f"Database migrations are not in sync with models: " + ",".join(filtered_changes)

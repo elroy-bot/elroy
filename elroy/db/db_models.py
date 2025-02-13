@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Text, UniqueConstraint
@@ -10,7 +10,7 @@ from sqlmodel import Column, Field, SQLModel
 from toolz import pipe
 from toolz.curried import filter
 
-from ..config.constants import EMBEDDING_SIZE
+from ..config.constants import EMBEDDING_SIZE, RecoverableToolError
 from ..utils.clock import get_utc_now
 
 
@@ -60,23 +60,30 @@ class VectorStorage(SQLModel, table=True):
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
 
 
-class MemorySourceSqlModel(ABC, SQLModel):
+class MemorySource(ABC):
     """Abstract base class for memory sources"""
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: Optional[int]
+    user_id: int
 
-    @property
-    def source_type(self) -> str:
-        return self.__class__.__name__
+    @abstractmethod
+    def get_name(self) -> str:
+        raise NotImplementedError
 
-    def to_memory_source_json(self) -> Dict[str, Any]:
-        return {"source_type": self.source_type, "id": self.id}
+    @abstractmethod
+    def to_fact(self) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    def source_type(cls) -> str:
+        return cls.__name__
+
+    def to_memory_source_d(self) -> Dict[str, Any]:
+        return {"source_type": self.source_type(), "id": self.id}
 
 
 class EmbeddableSqlModel(ABC, SQLModel):
     id: Optional[int]
-    created_at: datetime
-    updated_at: datetime  # noqa F841
     user_id: int
     is_active: Optional[bool]
 
@@ -97,7 +104,7 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
 
 
-class Memory(EmbeddableSqlModel, MemorySourceSqlModel, SQLModel, table=True):
+class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -115,7 +122,7 @@ class Memory(EmbeddableSqlModel, MemorySourceSqlModel, SQLModel, table=True):
         return f"#{self.name}\n{self.text}"
 
 
-class Goal(EmbeddableSqlModel, MemorySourceSqlModel, SQLModel, table=True):
+class Goal(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -208,7 +215,7 @@ class UserPreference(SQLModel, table=True):
     assistant_name: Optional[str] = Field(default=None, description="The assistant name for the user")
 
 
-class ContextMessageSet(MemorySourceSqlModel, SQLModel, table=True):
+class ContextMessageSet(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
@@ -216,3 +223,25 @@ class ContextMessageSet(MemorySourceSqlModel, SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
+
+
+def get_mem_source_options() -> Dict[str, Type[MemorySource]]:
+    # Note, this is brittle! Should be replaced in the future with a registration process.
+    from ..repository.context_messages.transforms import ContextMessageSetWithMessages
+
+    return {source_class.source_type(): source_class for source_class in MemorySource.__subclasses__() + [ContextMessageSetWithMessages]}
+
+
+class InvalidMemorySourceTypeError(RecoverableToolError):
+    def __init__(self, source_type: str):
+        super().__init__(f"Invalid memory source type: {source_type}. Valid options are: {get_mem_source_options().keys()}")
+
+
+def get_memory_source_class(source_type: str) -> Type[MemorySource]:
+
+    options = get_mem_source_options()
+
+    if source_type in options:
+        return options[source_type]
+    else:
+        raise InvalidMemorySourceTypeError(source_type)

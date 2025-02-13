@@ -46,6 +46,11 @@ def tool(func: Callable) -> Callable:
     return func
 
 
+def user_only_tool(func: Callable) -> Callable:
+    setattr(func, "_is_user_only_tool", True)
+    return func
+
+
 def allow_unused(func: Callable) -> Callable:
     setattr(func, "_allow_unused", True)
     return func
