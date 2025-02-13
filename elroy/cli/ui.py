@@ -1,5 +1,3 @@
-from functools import partial
-
 from rich.text import Text
 from toolz import pipe
 
@@ -15,11 +13,11 @@ def print_memory_panel(io: CliIO, ctx: ElroyContext) -> None:
 
     """
     from ..repository.context_messages.queries import get_context_messages
-    from ..repository.memories.queries import get_in_context_memories
+    from ..repository.memories.queries import get_in_context_memories_metadata
 
     pipe(
         get_context_messages(ctx),
-        partial(get_in_context_memories, ctx),
+        get_in_context_memories_metadata,
         io.print_memory_panel,
     )
 

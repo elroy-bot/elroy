@@ -1,7 +1,7 @@
 import logging
 from contextlib import contextmanager
 from itertools import product
-from typing import Iterator, List, Union
+from typing import Iterable, List, Union
 
 from prompt_toolkit import HTML, PromptSession
 from prompt_toolkit.completion import Completion, WordCompleter
@@ -97,10 +97,10 @@ class CliIO(ElroyIO):
         ):
             yield
 
-    def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
+    def print_stream(self, messages: Iterable[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
         try:
             with self.status():
-                first_msg = next(messages, None)
+                first_msg = next(iter(messages), None)
             if first_msg:
                 self.print(first_msg, end="")
             for message in messages:
@@ -124,7 +124,7 @@ class CliIO(ElroyIO):
             self.console.print(output, end=end)
             self.last_output_type = type(message)
 
-    def print_memory_panel(self, titles: List[str]):
+    def print_memory_panel(self, titles: Iterable[str]):
         if titles:
             panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
@@ -178,6 +178,6 @@ class CliIO(ElroyIO):
             map(lambda x: f"/{x[0].__name__} {x[1]}"),
             list,
             lambda x: x + [f"/{f.__name__}" for f in NON_ARG_PREFILL_COMMANDS | USER_ONLY_COMMANDS],
-            ["/" + EXIT].__add__,
+            ["/" + EXIT, "/help"].__add__,
             lambda x: SlashCompleter(words=x),  # type: ignore
         )

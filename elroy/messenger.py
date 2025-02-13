@@ -6,7 +6,7 @@ from typing import Iterator, List, Optional, Union
 from toolz import merge, pipe
 from toolz.curried import valfilter
 
-from .cli.slash_commands import _get_casted_value, _get_prompt_for_param
+from .cli.slash_commands import get_casted_value, get_prompt_for_param
 from .config.constants import ASSISTANT, SYSTEM, TOOL, USER, RecoverableToolError
 from .config.ctx import ElroyContext
 from .db.db_models import FunctionCall
@@ -23,7 +23,7 @@ from .repository.context_messages.operations import add_context_messages
 from .repository.context_messages.queries import get_context_messages
 from .repository.context_messages.validations import validate
 from .repository.memories.queries import get_relevant_memory_context_msgs
-from .tools.tools_and_commands import SYSTEM_COMMANDS
+from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
 
 def process_message(
@@ -31,11 +31,11 @@ def process_message(
 ) -> Iterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult, FunctionCall]]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
-    context_messages = pipe(
+    context_messages: List[ContextMessage] = pipe(
         get_context_messages(ctx),
         partial(validate, ctx),
         list,
-    )
+    )  # type: ignore
 
     new_msgs = [ContextMessage(role=role, content=msg, chat_model=None)]
     new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
@@ -134,7 +134,10 @@ async def invoke_slash_command(
     command = msg.split(" ")[0]
     input_arg = " ".join(msg.split(" ")[1:])
 
-    func = next((f for f in SYSTEM_COMMANDS if f.__name__ == command), None)
+    if command == "help":
+        func = get_help
+    else:
+        func = next((f for f in SYSTEM_COMMANDS if f.__name__ == command), None)
 
     if not func:
         raise RecoverableToolError(f"Invalid command: {command}. Use /help for a list of valid commands")
@@ -149,7 +152,7 @@ async def invoke_slash_command(
     # If exactly one non-context parameter and we have input, execute directly
     if len(non_ctx_params) == 1 and input_arg:
         func_args["ctx"] = ctx
-        func_args[non_ctx_params[0].name] = _get_casted_value(non_ctx_params[0], input_arg)
+        func_args[non_ctx_params[0].name] = get_casted_value(non_ctx_params[0], input_arg)
         return pipe(
             func_args,
             valfilter(lambda _: _ is not None and _ != ""),
@@ -163,12 +166,12 @@ async def invoke_slash_command(
             if param.annotation == ElroyContext:
                 func_args[param.name] = ctx
             elif input_arg and not input_used:
-                argument = await io.prompt_user(0, _get_prompt_for_param(param), prefill=input_arg)
-                func_args[param.name] = _get_casted_value(param, argument)
+                argument = await io.prompt_user(0, get_prompt_for_param(param), prefill=input_arg)
+                func_args[param.name] = get_casted_value(param, argument)
                 input_used = True
             elif input_used or not input_arg:
-                argument = await io.prompt_user(0, _get_prompt_for_param(param))
-                func_args[param.name] = _get_casted_value(param, argument)
+                argument = await io.prompt_user(0, get_prompt_for_param(param))
+                func_args[param.name] = get_casted_value(param, argument)
 
         return pipe(
             func_args,
