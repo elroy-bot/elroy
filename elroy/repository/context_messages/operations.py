@@ -15,19 +15,19 @@ from ...config.constants import (
     SYSTEM_INSTRUCTION_LABEL,
     SYSTEM_INSTRUCTION_LABEL_END,
     USER,
-    tool,
     user_only_tool,
 )
 from ...config.ctx import ElroyContext
 from ...config.paths import get_save_dir
-from ...db.db_models import ContextMessageSet, Goal, Memory
+from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
 from ...utils.clock import db_time_to_local
 from ...utils.utils import do_asyncio_run, logged_exec_time
-from ..memories.operations import create_memory, formulate_memory
+from ..memories.operations import formulate_memory
+from ..memories.tools import create_memory
 from ..user.operations import get_or_create_user_preference
-from ..user.queries import get_persona, get_user_preferred_name
+from ..user.queries import do_get_user_preferred_name, get_persona
 from .data_models import ContextMessage
 from .queries import get_context_messages
 from .transforms import (
@@ -97,67 +97,6 @@ def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) 
     )
 
 
-@tool
-def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
-    """Adds memory with the given name to the current conversation context.
-
-    Args:
-        memory_name (str): The name of the memory to add to context
-
-    Returns:
-        str: Status message indicating success or failure of adding memory
-    """
-    from ..recall.operations import add_to_current_context_by_name
-
-    return add_to_current_context_by_name(ctx, memory_name, Memory)
-
-
-@tool
-def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
-    """Adds goal with the given name to the current conversation context.
-
-    Args:
-        goal_name (str): The name of the goal to add to context
-
-    Returns:
-        str: Status message indicating success or failure of adding goal
-    """
-
-    from ..recall.operations import add_to_current_context_by_name
-
-    return add_to_current_context_by_name(ctx, goal_name, Goal)
-
-
-@tool
-def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
-    """Drops the goal with the given name from current context. Does NOT delete or mark the goal completed.
-
-    Args:
-        goal_name (str): Name of the goal to remove from context
-
-    Returns:
-        str: Status message indicating success or failure of removing goal
-    """
-    from ..recall.operations import drop_from_context_by_name
-
-    return drop_from_context_by_name(ctx, goal_name, Goal)
-
-
-@tool
-def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str:
-    """Drops the memory with the given name from current context. Does NOT delete the memory.
-
-    Args:
-        memory_name (str): Name of the memory to remove from context
-
-    Returns:
-        str: Status message indicating success or failure of removing memory
-    """
-    from ..recall.operations import drop_from_context_by_name
-
-    return drop_from_context_by_name(ctx, memory_name, Memory)
-
-
 def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Iterable[ContextMessage]) -> ContextMessage:
     user_preference = get_or_create_user_preference(ctx)
 
@@ -204,7 +143,7 @@ def context_refresh_sync(ctx: ElroyContext, context_messages: Iterable[ContextMe
 async def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
     context_message_list = list(context_messages)
 
-    user_preferred_name = get_user_preferred_name(ctx)
+    user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
     memory_title, memory_text = await formulate_memory(ctx.chat_model, user_preferred_name, context_message_list)

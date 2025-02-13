@@ -34,12 +34,12 @@ from ..repository.context_messages.validations import validate
 from ..repository.goals.operations import create_onboarding_goal
 from ..repository.goals.queries import get_active_goals
 from ..repository.memories.queries import get_active_memories
-from ..repository.user.operations import set_user_preferred_name
 from ..repository.user.queries import (
+    do_get_user_preferred_name,
     get_assistant_name,
-    get_user_preferred_name,
     is_user_exists,
 )
+from ..repository.user.tools import set_user_preferred_name
 from ..utils.utils import datetime_to_string, do_asyncio_run, run_in_background_thread
 
 
@@ -59,7 +59,7 @@ def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Opt
 
 
 def get_user_logged_in_message(ctx: ElroyContext) -> str:
-    preferred_name = get_user_preferred_name(ctx)
+    preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
 
     if preferred_name == "Unknown":
         preferred_name = "User (preferred name unknown)"
@@ -104,7 +104,7 @@ async def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
         logging.info(f"User has interacted within {ctx.min_convo_age_for_greeting}, skipping greeting.")
     else:
         print_model_selection(io, ctx)
-        get_user_preferred_name(ctx)
+        do_get_user_preferred_name(ctx.db.session, ctx.user_id)
         await process_and_deliver_msg(
             io,
             SYSTEM,
@@ -159,7 +159,10 @@ async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_
             )
             ctx.db.rollback()
     else:
-        io.print_stream(process_message(role, ctx, user_input))
+        try:
+            io.print_stream(process_message(role, ctx, user_input))
+        except KeyboardInterrupt:
+            ctx.db.rollback()
 
 
 async def onboard_interactive(io: CliIO, ctx: ElroyContext):

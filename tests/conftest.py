@@ -28,7 +28,7 @@ from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
-from elroy.repository.goals.operations import create_goal
+from elroy.repository.goals.operations import do_create_goal
 from elroy.repository.user.operations import create_user_id
 from elroy.utils.utils import do_asyncio_run
 
@@ -196,7 +196,7 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
 
     add_context_messages(ctx, messages)
 
-    create_goal(
+    do_create_goal(
         ctx,
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
@@ -206,7 +206,7 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
         0,
     )
 
-    create_goal(
+    do_create_goal(
         ctx,
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",

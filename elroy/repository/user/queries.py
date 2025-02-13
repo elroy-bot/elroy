@@ -2,7 +2,7 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from ...config.constants import ASSISTANT_ALIAS_STRING, UNKNOWN, USER_ALIAS_STRING, tool
+from ...config.constants import ASSISTANT_ALIAS_STRING, UNKNOWN, USER_ALIAS_STRING
 from ...config.ctx import ElroyContext
 from ...db.db_models import User
 from ...db.db_session import DbSession
@@ -50,30 +50,6 @@ def get_user_id_if_exists(db: DbSession, user_token: str) -> Optional[int]:
 
 def is_user_exists(session: Session, user_token: str) -> bool:
     return bool(session.exec(select(User).where(User.token == user_token)).first())
-
-
-@tool
-def get_user_full_name(ctx: ElroyContext) -> str:
-    """Returns the user's full name.
-
-    Returns:
-        str: String representing the user's full name.
-    """
-
-    user_preference = get_or_create_user_preference(ctx)
-
-    return user_preference.full_name or "Unknown name"
-
-
-@tool
-def get_user_preferred_name(ctx: ElroyContext) -> str:
-    """Returns the user's preferred name.
-
-    Returns:
-        str: String representing the user's preferred name.
-    """
-
-    return do_get_user_preferred_name(ctx.db.session, ctx.user_id)
 
 
 def do_get_user_preferred_name(session: Session, user_id: int) -> str:

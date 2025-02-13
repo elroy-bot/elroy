@@ -1,22 +1,23 @@
 from tests.utils import process_test_message
 
+from elroy.config.ctx import ElroyContext
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.user.operations import (
     reset_system_persona,
     set_assistant_name,
     set_persona,
 )
-from elroy.repository.user.queries import get_user_preferred_name
+from elroy.repository.user.queries import do_get_user_preferred_name
 
 
-def test_update_user_preferred_name(ctx):
+def test_update_user_preferred_name(ctx: ElroyContext):
 
     process_test_message(
         ctx,
         "Please call me TestUser500 from now on.",
     )
 
-    assert get_user_preferred_name(ctx) == "TestUser500"
+    assert do_get_user_preferred_name(ctx.db.session, ctx.user_id) == "TestUser500"
 
 
 def test_update_persona(ctx):

@@ -13,30 +13,37 @@ from ..cli.slash_commands import (
 )
 from ..config.constants import user_only_tool
 from ..repository.context_messages.operations import (
-    add_goal_to_current_context,
-    add_memory_to_current_context,
-    drop_goal_from_current_context,
-    drop_memory_from_current_context,
     pop,
     refresh_system_instructions,
     reset_messages,
     rewrite,
     save,
 )
-from ..repository.goals.operations import (
+from ..repository.context_messages.tools import (
+    add_goal_to_current_context,
+    add_memory_to_current_context,
+    drop_goal_from_current_context,
+    drop_memory_from_current_context,
+)
+from ..repository.documents.tools import (
+    get_document_excerpt,
+    get_source_doc_metadata,
+    get_source_documents,
+    ingest_doc,
+    reingest_doc,
+)
+from ..repository.goals.queries import print_active_goals, print_complete_goals
+from ..repository.goals.tools import (
     add_goal_status_update,
     create_goal,
     delete_goal_permanently,
     mark_goal_completed,
+    print_goal,
     rename_goal,
 )
-from ..repository.goals.queries import (
-    print_active_goals,
-    print_complete_goals,
-    print_goal,
-)
-from ..repository.memories.operations import create_memory, remember_convo
+from ..repository.memories.operations import remember_convo
 from ..repository.memories.tools import (
+    create_memory,
     examine_memories,
     get_source_content,
     get_source_list_for_memory,
@@ -44,12 +51,14 @@ from ..repository.memories.tools import (
     print_memory,
     search_memories,
 )
-from ..repository.user.operations import (
-    set_assistant_name,
+from ..repository.recall.queries import search_documents
+from ..repository.user.operations import set_assistant_name
+from ..repository.user.tools import (
+    get_user_full_name,
+    get_user_preferred_name,
     set_user_full_name,
     set_user_preferred_name,
 )
-from ..repository.user.queries import get_user_full_name, get_user_preferred_name
 from .developer import (
     create_bug_report,
     make_coding_edit,
@@ -88,12 +97,18 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     examine_memories,
     get_user_full_name,
     set_user_full_name,
+    search_documents,
+    get_document_excerpt,
+    get_source_doc_metadata,
+    get_source_documents,
     get_user_preferred_name,
     set_user_preferred_name,
     tail_elroy_logs,
     make_coding_edit,
 }
 USER_ONLY_COMMANDS = {
+    ingest_doc,
+    reingest_doc,
     print_config,
     add_internal_thought,
     reset_messages,

@@ -3,24 +3,14 @@ import logging
 from typing import Optional
 
 from sqlmodel import select
-from toolz import pipe
-from toolz.curried import filter
 
-from ...config.constants import (
-    SYSTEM,
-    GoalAlreadyExistsError,
-    GoalDoesNotExistError,
-    tool,
-)
+from ...config.constants import SYSTEM, GoalAlreadyExistsError, GoalDoesNotExistError
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal
 from ...utils.clock import get_utc_now, string_to_timedelta
-from ...utils.utils import first_or_none, is_blank
+from ...utils.utils import is_blank
 from ..context_messages.data_models import ContextMessage
-from ..context_messages.operations import (
-    add_context_message,
-    drop_goal_from_current_context,
-)
+from ..context_messages.operations import add_context_message
 from ..recall.operations import (
     add_to_context,
     remove_from_context,
@@ -30,8 +20,7 @@ from ..recall.transforms import to_recalled_memory_metadata
 from .queries import get_active_goals, get_db_goal_by_name
 
 
-@tool
-def create_goal(
+def do_create_goal(
     ctx: ElroyContext,
     goal_name: str,
     strategy: Optional[str] = None,
@@ -39,26 +28,7 @@ def create_goal(
     end_condition: Optional[str] = None,
     time_to_completion: Optional[str] = None,
     priority: Optional[int] = None,
-) -> str:
-    """Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.
-    Goals should be *specific* and *measurable*. They should be based on the user's needs and desires, and should
-    be achievable within a reasonable timeframe.
-
-    Args:
-        goal_name (str): Name of the goal
-        strategy (str): The strategy to achieve the goal. Your strategy should detail either how you (the personal assistant) will achieve the goal, or how you will assist your user to solve the goal. Limit to 100 words.
-        description (str): A brief description of the goal. Limit to 100 words.
-        end_condition (str): The condition that indicate to you (the personal assistant) that the goal is achieved or terminated. It is critical that this end condition be OBSERVABLE BY YOU (the assistant). For example, the end_condition may be that you've asked the user about the goal status.
-        time_to_completion (str): The amount of time from now until the goal can be completed. Should be in the form of NUMBER TIME_UNIT, where TIME_UNIT is one of HOURS, DAYS, WEEKS, MONTHS. For example, "1 DAYS" would be a goal that should be completed within 1 day.
-        priority (int, optional): The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest.
-
-    Returns:
-        str: A confirmation message that the goal was created.
-
-    Raises:
-        ValueError: If goal_name is empty
-        GoalAlreadyExistsError: If a goal with the same name already exists
-    """
+) -> Goal:
     if is_blank(goal_name):
         raise ValueError("Goal name cannot be empty")
 
@@ -96,93 +66,13 @@ def create_goal(
         )
 
         upsert_embedding_if_needed(ctx, goal)
-
-        return f"Goal '{goal_name}' has been created."
-
-
-@tool
-def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> str:
-    """Renames an existing active goal.
-
-    Args:
-        old_goal_name (str): The current name of the goal
-        new_goal_name (str): The new name for the goal
-
-    Returns:
-        str: A confirmation message that the goal was renamed
-
-    Raises:
-        GoalDoesNotExistError: If the goal with old_goal_name doesn't exist
-        Exception: If a goal with new_goal_name already exists
-    """
-    # Check if the old goal exists and is active
-    active_goals = get_active_goals(ctx)
-    old_goal = pipe(
-        active_goals,
-        filter(lambda g: g.name == old_goal_name),
-        first_or_none,
-    )
-
-    if not old_goal:
-        raise Exception(
-            f"Active goal '{old_goal_name}' not found for user {ctx.user_id}. Active goals: " + ", ".join([g.name for g in active_goals])
-        )
-
-    existing_goal_with_new_name = pipe(
-        active_goals,
-        filter(lambda g: g.name == new_goal_name),
-        first_or_none,
-    )
-
-    assert isinstance(old_goal, Goal)
-
-    if existing_goal_with_new_name:
-        raise Exception(f"Active goal '{new_goal_name}' already exists for user {ctx.user_id}")
-
-    # we need to drop the goal from context as the metadata includes the goal name.
-    drop_goal_from_current_context(ctx, old_goal.name)
-
-    # Rename the goal
-    old_goal.name = new_goal_name
-    old_goal.updated_at = get_utc_now()  # noqa F841
-
-    ctx.db.commit()
-    ctx.db.refresh(old_goal)
-
-    upsert_embedding_if_needed(ctx, old_goal)
-
-    add_context_message(
-        ctx,
-        ContextMessage(
-            role=SYSTEM,
-            content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
-            memory_metadata=[to_recalled_memory_metadata(old_goal)],
-            chat_model=ctx.chat_model.name,
-        ),
-    )
-    return f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}'."
-
-
-@tool
-def add_goal_status_update(ctx: ElroyContext, goal_name: str, status_update_or_note: str) -> str:
-    """Captures either a progress update or note relevant to the goal.
-
-    Args:
-        goal_name (str): Name of the goal
-        status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
-
-    Returns:
-        str: Confirmation message that the status update was added.
-    """
-    logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
-    _update_goal_status(ctx, goal_name, False, status_update_or_note)
-
-    return f"Status update added to goal '{goal_name}'."
+        return goal
 
 
 def create_onboarding_goal(ctx: ElroyContext, preferred_name: str) -> None:
+    from elroy.repository.goals.tools import add_goal_status_update
 
-    create_goal(
+    do_create_goal(
         ctx=ctx,
         goal_name=f"Introduce myself to {preferred_name}",
         description="Introduce myself - a few things that make me unique are my ability to form long term memories, and the ability to set and track goals.",
@@ -193,55 +83,7 @@ def create_onboarding_goal(ctx: ElroyContext, preferred_name: str) -> None:
     )
 
 
-@tool
-def mark_goal_completed(ctx: ElroyContext, goal_name: str, closing_comments: Optional[str] = None) -> str:
-    """Marks a goal as completed, with closing comments.
-
-    Args:
-        goal_name (str): The name of the goal
-        closing_comments (Optional[str]): Updated status with a short account of how the goal was completed and what was learned
-
-    Returns:
-        str: Confirmation message that the goal was marked as completed
-
-    Raises:
-        GoalDoesNotExistError: If the goal doesn't exist
-    """
-    _update_goal_status(
-        ctx,
-        goal_name,
-        True,
-        closing_comments,
-    )
-
-    return f"Goal '{goal_name}' has been marked as completed."
-
-
-@tool
-def delete_goal_permanently(ctx: ElroyContext, goal_name: str) -> str:
-    """Permanently deletes a goal.
-
-    Args:
-        goal_name (str): The name of the goal to delete
-
-    Returns:
-        str: Confirmation message that the goal was deleted
-
-    Raises:
-        GoalDoesNotExistError: If the goal doesn't exist
-    """
-
-    _update_goal_status(
-        ctx,
-        goal_name,
-        True,
-        "Goal has been deleted",
-    )
-
-    return f"Goal '{goal_name}' has been deleted."
-
-
-def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
+def update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, status: Optional[str]) -> None:
     from ..memories.operations import do_create_memory
 
     goal = get_db_goal_by_name(ctx, goal_name)

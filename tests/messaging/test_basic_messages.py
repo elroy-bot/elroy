@@ -2,8 +2,8 @@ import pytest
 from tests.utils import process_test_message
 
 from elroy.config.constants import InvalidForceToolError
-from elroy.repository.user.operations import set_user_preferred_name
-from elroy.repository.user.queries import get_user_preferred_name
+from elroy.repository.user.queries import do_get_user_preferred_name
+from elroy.repository.user.tools import set_user_preferred_name
 
 
 def test_hello_world(ctx):
@@ -23,7 +23,7 @@ def test_hello_world(ctx):
 
 def test_force_tool(ctx):
     process_test_message(ctx, "Jimmy", set_user_preferred_name.__name__)
-    assert get_user_preferred_name(ctx) == "Jimmy"
+    assert do_get_user_preferred_name(ctx.db.session, ctx.user_id) == "Jimmy"
 
 
 def test_force_invalid_tool(ctx):
