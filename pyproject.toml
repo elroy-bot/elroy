@@ -1,6 +1,6 @@
 [project]
 name = "elroy"
-version = "0.0.71"
+version = "0.0.72"
 description = ""
 authors = [
     { name = "Elroy Bot", email = "bot@elroy.ai" }

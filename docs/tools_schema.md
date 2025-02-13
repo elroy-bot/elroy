@@ -252,24 +252,14 @@ BETTER:
     "type": "function",
     "function": {
       "name": "get_user_full_name",
-      "description": "Returns the user's full name.",
-      "parameters": {
-        "type": "object",
-        "properties": {},
-        "required": []
-      }
+      "description": "Returns the user's full name."
     }
   },
   {
     "type": "function",
     "function": {
       "name": "get_user_preferred_name",
-      "description": "Returns the user's preferred name.",
-      "parameters": {
-        "type": "object",
-        "properties": {},
-        "required": []
-      }
+      "description": "Returns the user's preferred name."
     }
   },
   {

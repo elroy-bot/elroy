@@ -1,6 +1,6 @@
-# Basic Configuration
+### Basic Configuration ###
 user_token: DEFAULT  # User token to use for Elroy
-database_url: null  # Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.
+database_url: null  # Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed
 debug: false  # Enable fail-fast error handling and verbose logging output
 default_assistant_name: "Elroy"  # Default name for the assistant
 custom_tools_path: null  # Path to custom functions to load
@@ -42,16 +42,22 @@ default_persona: |  # Default system persona for the assistant
   - To reemphasize - Avoid platitudes! Be concise!
   </style_guide>
 
-# Model Selection & Configuration
-openai_api_key: null  # OpenAI API key, required for OpenAI (or OpenAI compatible) models
-openai_api_base: null  # OpenAI API (or OpenAI compatible) base URL
-openai_embedding_api_base: null  # OpenAI API (or OpenAI compatible) base URL for embeddings
-openai_organization: null  # OpenAI (or OpenAI compatible) organization ID
-anthropic_api_key: null  # Anthropic API key, required for Anthropic models
+### Model Selection & Configuration ###
 chat_model: "gpt-4o"  # The model to use for chat completions
+chat_model_api_base: null  # Base URL for OpenAI compatible chat model API. Litellm will recognize vars too
+chat_model_api_key: null  # API key for OpenAI compatible chat model API
 embedding_model: "text-embedding-3-small"  # The model to use for text embeddings
 embedding_model_size: 1536  # The size of the embedding model
+embedding_model_api_base: null  # Base URL for OpenAI compatible embedding model API
+embedding_model_api_key: null  # API key for OpenAI compatible embedding model API
 enable_caching: true  # Whether to enable caching for the LLM, both for embeddings and completions
+
+# Deprecated configuration options
+openai_api_key: null  # OpenAI API key (deprecated)
+openai_api_base: null  # OpenAI API base URL (deprecated)
+openai_embedding_api_base: null  # OpenAI API base URL for embeddings (deprecated)
+openai_organization: null  # OpenAI organization ID (deprecated)
+anthropic_api_key: null  # Anthropic API key (deprecated)
 
 # Context Management
 max_assistant_loops: 4  # Maximum number of loops the assistant can run before tools are temporarily made unvailable (returning for the next user message)
