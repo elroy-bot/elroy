@@ -93,41 +93,20 @@ def common(
         rich_help_panel="Basic Configuration",
     ),
     # API Configuration
-    openai_api_key: Optional[str] = ElroyOption(
-        "openai_api_key",
-        help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
-        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-    ),
-    openai_api_base: Optional[str] = ElroyOption(
-        "openai_api_base",
-        help="OpenAI API (or OpenAI compatible) base URL.",
-        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-    ),
-    openai_embedding_api_base: Optional[str] = ElroyOption(
-        "openai_embedding_api_base",
-        help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
-        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-    ),
-    openai_organization: Optional[str] = ElroyOption(
-        "openai_organization",
-        help="OpenAI (or OpenAI compatible) organization ID.",
-        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-    ),
-    anthropic_api_key: Optional[str] = ElroyOption(
-        "anthropic_api_key",
-        help="Anthropic API key, required for Anthropic models.",
-        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-    ),
-    # Model Configuration
     chat_model: str = ElroyOption(
         "chat_model",
         help="The model to use for chat completions.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    inline_tool_calls: bool = ElroyOption(
-        "inline_tool_calls",
-        help="Whether to enable inline tool calls in the assistant (better for some open source models)",
-        rich_help_panel="Basic Configuration",
+    chat_model_api_base: Optional[str] = ElroyOption(
+        "chat_model_api_base",
+        help="Base URL for OpenAI compatible chat model API. Litellm will recognize vars too",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    chat_model_api_key: Optional[str] = ElroyOption(
+        "chat_model_api_key",
+        help="API key for OpenAI compatible chat model API.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
     embedding_model: str = ElroyOption(
         "embedding_model",
@@ -138,6 +117,22 @@ def common(
         "embedding_model_size",
         help="The size of the embedding model.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    embedding_model_api_base: Optional[str] = ElroyOption(
+        "embedding_model_api_base",
+        help="Base URL for OpenAI compatible embedding model API.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    embedding_model_api_key: Optional[str] = ElroyOption(
+        "embedding_model_api_key",
+        help="API key for OpenAI compatible embedding model API.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    # Model Configuration
+    inline_tool_calls: bool = ElroyOption(
+        "inline_tool_calls",
+        help="Whether to enable inline tool calls in the assistant (better for some open source models)",
+        rich_help_panel="Basic Configuration",
     ),
     enable_caching: bool = ElroyOption(
         "enable_caching",
@@ -201,11 +196,6 @@ def common(
         help="The minimum number of memories that can be consolidated into a single memory at once.",
         rich_help_panel="Memory Consolidation",
     ),
-    initial_context_refresh_wait_seconds: int = ElroyOption(  # noqa F841 remove in 0.1.0
-        "initial_context_refresh_wait_seconds",
-        help="Deprecated, will be removed in future releases",
-        rich_help_panel="Memory Consolidation",
-    ),
     # UI Configuration
     show_internal_thought: bool = ElroyOption(
         "show_internal_thought",
@@ -216,26 +206,31 @@ def common(
         "system_message_color",
         help="Color for system messages.",
         rich_help_panel="UI Configuration",
+        hidden=True,
     ),
     user_input_color: str = ElroyOption(
         "user_input_color",
         help="Color for user input.",
         rich_help_panel="UI Configuration",
+        hidden=True,
     ),
     assistant_color: str = ElroyOption(
         "assistant_color",
         help="Color for assistant output.",
         rich_help_panel="UI Configuration",
+        hidden=True,
     ),
     warning_color: str = ElroyOption(
         "warning_color",
         help="Color for warning messages.",
         rich_help_panel="UI Configuration",
+        hidden=True,
     ),
     internal_thought_color: str = ElroyOption(
         "internal_thought_color",
         help="Color for internal thought messages.",
         rich_help_panel="UI Configuration",
+        hidden=True,
     ),
     sonnet: bool = typer.Option(  # noqa F841
         False,
@@ -278,6 +273,43 @@ def common(
         help="Use OpenAI's o1-mini model",
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    # Deprecated params
+    initial_context_refresh_wait_seconds: int = ElroyOption(  # noqa F841 remove in 0.1.0
+        "initial_context_refresh_wait_seconds",
+        help="Deprecated, will be removed in future releases",
+        rich_help_panel="Memory Consolidation",
+        deprecated=True,
+    ),
+    openai_organization: Optional[str] = ElroyOption(  # noqa F841
+        "openai_organization",
+        help="OpenAI (or OpenAI compatible) organization ID.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+        deprecated=True,
+    ),
+    anthropic_api_key: Optional[str] = ElroyOption(  # noqa F841
+        "anthropic_api_key",
+        help="Anthropic API key, required for Anthropic models.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+        deprecated=True,
+    ),
+    openai_api_key: Optional[str] = ElroyOption(
+        "openai_api_key",
+        help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+        deprecated=True,
+    ),
+    openai_api_base: Optional[str] = ElroyOption(
+        "openai_api_base",
+        help="OpenAI API (or OpenAI compatible) base URL.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+        deprecated=True,
+    ),
+    openai_embedding_api_base: Optional[str] = ElroyOption(  # noqa F841
+        "openai_embedding_api_base",
+        help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+        deprecated=True,
     ),
 ):
     """Common parameters."""

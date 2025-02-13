@@ -79,11 +79,16 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
             "Caching Enabled": ctx.params.enable_caching,
         },
         "API Configuration": {
-            "OpenAI API Base": ctx.params.openai_api_base or "None",
-            "OpenAI Embedding API Base": ctx.params.openai_embedding_api_base or "None",
-            "OpenAI Organization": ctx.params.openai_organization or "None",
-            "OpenAI API key": "*" * 8 if ctx.params.openai_api_key and not show_secrets else ctx.params.openai_api_key or "None",
-            "Anthropic API key": "*" * 8 if ctx.params.anthropic_api_key and not show_secrets else ctx.params.anthropic_api_key or "None",
+            "Chat API Base": ctx.chat_model.api_base or "None (May be read from env vars)",
+            "Chat API Key": (
+                "*" * 8 if ctx.chat_model.api_key and not show_secrets else ctx.chat_model.api_key or "None (May be read from env vars)"
+            ),
+            "Embeddings API Base": ctx.embedding_model.api_base or "None (May be read from env vars)",
+            "Embeddings API Key": (
+                "*" * 8
+                if ctx.embedding_model.api_key and not show_secrets
+                else ctx.embedding_model.api_key or "None (May be read from env vars)"
+            ),
         },
         "Context Management": {
             "Max Assistant Loops": ctx.max_assistant_loops,

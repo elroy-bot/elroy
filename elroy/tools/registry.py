@@ -1,4 +1,5 @@
 import inspect
+import json
 import logging
 from functools import partial
 from pathlib import Path
@@ -72,6 +73,12 @@ class ToolRegistry:
             list,
         )
 
+    def has_non_ctx_args(self, func: Callable) -> bool:
+        from ..config.ctx import ElroyContext
+
+        inspect.signature(func)
+        return any(param for param in inspect.signature(func).parameters.values() if param.annotation != ElroyContext)
+
     def register(self, func: Callable, raise_on_error: bool = True) -> None:
         if is_langchain_tool(func):
             func = func.func  # type: ignore
@@ -83,10 +90,10 @@ class ToolRegistry:
 
         schema = get_function_schema(func)
 
-        errors = validate_schema(schema)
+        errors = validate_schema(schema, self.has_non_ctx_args(func))
         if errors:
             if raise_on_error:
-                raise ValueError(f"Invalid schema for function {func.__name__}:\n" + "\n".join(errors))
+                raise ValueError(f"Invalid schema for function {func.__name__}:\n{json.dumps(schema)}\n" + "\n".join(errors))
             else:
                 logging.warning(f"Invalid schema for function {func.__name__}:\n" + "\n".join(errors))
         self._schemas.append(schema)

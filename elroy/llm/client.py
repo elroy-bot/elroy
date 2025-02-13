@@ -190,8 +190,6 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
 
     if model.api_base:
         embedding_kwargs["api_base"] = model.api_base
-    if model.organization:
-        embedding_kwargs["organization"] = model.organization
 
     response = embedding(**embedding_kwargs)
     return response.data[0]["embedding"]
@@ -208,16 +206,15 @@ def _build_completion_kwargs(
     kwargs = {
         "messages": messages,
         "model": model.name,
-        "api_key": model.api_key,
         "caching": model.enable_caching,
         "tool_choice": tool_choice,
         "tools": tools,
     }
+    if model.api_key:
+        kwargs["api_key"] = model.api_key
 
     if model.api_base:
         kwargs["api_base"] = model.api_base
-    if model.organization:
-        kwargs["organization"] = model.organization
     if stream:
         kwargs["stream"] = True
 
