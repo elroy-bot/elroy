@@ -17,14 +17,12 @@ from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
 from .repository.context_messages.queries import get_context_messages
-from .repository.goals.operations import (
-    add_goal_status_update as do_add_goal_status_update,
-)
-from .repository.goals.operations import create_goal as do_create_goal
-from .repository.goals.operations import mark_goal_completed as do_mark_goal_completed
+from .repository.goals.operations import do_create_goal
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
-from .repository.memories.operations import create_memory as do_create_memory
+from .repository.goals.tools import add_goal_status_update as do_add_goal_status_update
+from .repository.goals.tools import mark_goal_completed as do_mark_goal_completed
+from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
@@ -106,7 +104,7 @@ class Elroy:
             ValueError: If goal_name is empty
             GoalAlreadyExistsError: If a goal with the same name already exists
         """
-        return do_create_goal(
+        goal = do_create_goal(
             self.ctx,
             goal_name,
             strategy,
@@ -115,6 +113,7 @@ class Elroy:
             time_to_completion,
             priority,
         )
+        return f"Goal '{goal_name}' has been created."
 
     @db
     def add_goal_status_update(self, goal_name: str, status_update_or_note: str) -> str:

@@ -4,7 +4,6 @@ from itertools import product
 from typing import Iterable, List, Union
 
 from prompt_toolkit import HTML, PromptSession
-from prompt_toolkit.completion import Completion, WordCompleter
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style as PTKStyle
@@ -15,6 +14,8 @@ from rich.text import Text
 from toolz import concatv, pipe
 from toolz.curried import map
 
+from elroy.io.completer import SlashCompleter
+
 from ..config.constants import EXIT
 from ..config.paths import get_prompt_history_path
 from ..db.db_models import FunctionCall, Goal, Memory
@@ -22,42 +23,6 @@ from ..io.base import ElroyIO
 from ..llm.stream_parser import AssistantInternalThought, TextOutput
 from ..repository.context_messages.data_models import ContextMessage
 from .formatters.rich_formatter import RichFormatter
-
-
-class SlashCompleter(WordCompleter):
-    def get_completions(self, document, complete_event):  # noqa F811
-        text = document.text
-        if not text.startswith("/"):
-            return
-
-        words = text.split()
-
-        exact_cmd_prefix = False
-        # If we just have "/" or are typing the command part
-        if len(words) <= 1:
-            cmds = {c.split()[0] for c in self.words}  # type: ignore # Get just the command parts
-            for cmd in cmds:
-                if cmd.startswith(text) and text != cmd:
-                    yield Completion(cmd, start_position=-len(text))
-                    exact_cmd_prefix = True
-            if exact_cmd_prefix:
-                return
-
-        # If we have a command and are typing arguments
-        cmd = words[0]
-        # Get the full command templates that start with this command
-        matching_commands = [w for w in self.words if w.startswith(cmd)]  # type: ignore
-        if matching_commands:
-            # Create a completer just for the arguments of this command
-            arg_text = " ".join(words[1:])
-            # Extract just the argument parts from the matching commands
-            arg_options = [" ".join(m.split()[1:]) for m in matching_commands if len(m.split()) > 1]
-            if arg_options:
-                # Complete from the start of the argument portion
-                arg_start_position = -len(arg_text) if arg_text else 0
-                for arg in arg_options:
-                    if arg.startswith(arg_text):
-                        yield Completion(arg, start_position=arg_start_position)
 
 
 class CliIO(ElroyIO):

@@ -10,6 +10,7 @@ from ...config.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 from ...llm.client import query_llm
 from ...utils.clock import db_time_to_local
+from .operations import do_create_memory_from_ctx_msgs
 from .queries import (
     db_get_memory_source_by_name,
     db_get_source_list_for_memory,
@@ -184,3 +185,42 @@ def search_memories(ctx: ElroyContext, query: str) -> Union[str, Table]:
     for item in items:
         table.add_row(item.__class__.__name__, item.name, item.to_fact())
     return table
+
+
+@tool
+def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
+    """Creates a new memory for the assistant.
+
+    Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
+
+    BAD:
+    - [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
+
+    BETTER:
+    - [User Name]'s project on building a treehouse: More specific, and describes a single topic.
+    - [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.
+
+    BAD:
+    - [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.
+
+    BETTER:
+    - [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.
+
+    BAD:
+    - [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.
+
+    BETTER:
+    - [User Name]'s preferred name: Describes a specific topic.
+    - [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.
+
+    Args:
+        name (str): The name of the memory. Should be specific and discuss one topic.
+        text (str): The text of the memory.
+
+    Returns:
+        str: Confirmation message that the memory was created.
+    """
+
+    do_create_memory_from_ctx_msgs(ctx, name, text)
+
+    return f"New memory created: {name}"

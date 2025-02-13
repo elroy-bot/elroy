@@ -139,27 +139,28 @@ async def invoke_slash_command(
     else:
         func = next((f for f in SYSTEM_COMMANDS if f.__name__ == command), None)
 
-    if not func:
-        raise RecoverableToolError(f"Invalid command: {command}. Use /help for a list of valid commands")
-
-    params = list(signature(func).parameters.values())
-
-    # Count non-context parameters
-    non_ctx_params = [p for p in params if p.annotation != ElroyContext]
-
-    func_args = {}
-
-    # If exactly one non-context parameter and we have input, execute directly
-    if len(non_ctx_params) == 1 and input_arg:
-        func_args["ctx"] = ctx
-        func_args[non_ctx_params[0].name] = get_casted_value(non_ctx_params[0], input_arg)
-        return pipe(
-            func_args,
-            valfilter(lambda _: _ is not None and _ != ""),
-            lambda _: func(**_),
-        )  # type: ignore
-
     try:
+
+        if not func:
+            raise RecoverableToolError(f"Invalid command: {command}. Use /help for a list of valid commands")
+
+        params = list(signature(func).parameters.values())
+
+        # Count non-context parameters
+        non_ctx_params = [p for p in params if p.annotation != ElroyContext]
+
+        func_args = {}
+
+        # If exactly one non-context parameter and we have input, execute directly
+        if len(non_ctx_params) == 1 and input_arg:
+            func_args["ctx"] = ctx
+            func_args[non_ctx_params[0].name] = get_casted_value(non_ctx_params[0], input_arg)
+            return pipe(
+                func_args,
+                valfilter(lambda _: _ is not None and _ != ""),
+                lambda _: func(**_),
+            )  # type: ignore
+
         # Otherwise, fall back to interactive parameter collection
         input_used = False
         for param in params:
@@ -178,5 +179,7 @@ async def invoke_slash_command(
             valfilter(lambda _: _ is not None and _ != ""),
             lambda _: func(**_),
         )  # type: ignore
+    except RecoverableToolError as e:
+        return str(e)
     except EOFError:
         return "Cancelled."

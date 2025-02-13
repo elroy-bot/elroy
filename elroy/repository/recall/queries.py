@@ -3,8 +3,10 @@ from typing import Iterable, List, Type
 
 from toolz import compose
 
+from ...config.constants import tool
 from ...config.ctx import ElroyContext
-from ...db.db_models import EmbeddableSqlModel, Goal, Memory
+from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Goal, Memory
+from ...llm.client import get_embedding
 from ...utils.utils import first_or_none
 from ..context_messages.data_models import ContextMessage
 
@@ -41,6 +43,38 @@ def query_vector(
         ctx.user_id,
         query,
     )
+
+
+@tool
+def search_documents(ctx: ElroyContext, query: str) -> str:
+    """
+    Search through document excerpts using semantic similarity.
+
+    Args:
+        query: The search query string
+
+    Returns:
+        str: A description of the found documents, or a message if none found
+    """
+
+    # Get embedding for the search query
+    query_embedding = get_embedding(ctx.embedding_model, query)
+
+    # Search for relevant documents using vector similarity
+    results = query_vector(DocumentExcerpt, ctx, query_embedding)
+
+    # Convert results to readable format
+    found_docs = list(results)
+
+    if not found_docs:
+        return "No relevant documents found."
+
+    # Format results into a response string
+    response = "Found relevant document excerpts:\n\n"
+    for doc in found_docs:
+        response += f"- {doc.to_fact()}\n"
+
+    return response
 
 
 get_most_relevant_goal = compose(first_or_none, partial(query_vector, Goal))

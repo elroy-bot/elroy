@@ -9,8 +9,9 @@ from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import Goal
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.goals.operations import create_goal, mark_goal_completed
+from elroy.repository.goals.operations import do_create_goal
 from elroy.repository.goals.queries import get_db_goal_by_name
+from elroy.repository.goals.tools import mark_goal_completed
 from elroy.repository.memories.queries import get_in_context_memories_metadata
 from elroy.repository.recall.operations import remove_from_context
 from elroy.repository.recall.queries import is_in_context
@@ -81,7 +82,7 @@ def test_goal(io: MockCliIO, ctx: ElroyContext):
 
 
 def test_goal_update_goal_slight_difference(io: MockCliIO, ctx: ElroyContext):
-    create_goal(ctx, "Run 100 miles this year")
+    do_create_goal(ctx, "Run 100 miles this year")
     reset_messages(ctx)
 
     reply = process_test_message(
@@ -93,7 +94,7 @@ def test_goal_update_goal_slight_difference(io: MockCliIO, ctx: ElroyContext):
 
 
 def test_goal_is_in_context_only_when_active(io: MockCliIO, ctx: ElroyContext):
-    create_goal(ctx, "Run 100 miles this year")
+    do_create_goal(ctx, "Run 100 miles this year")
     goal = get_db_goal_by_name(ctx, "Run 100 miles this year")
     assert isinstance(goal, Goal)
     assert is_in_context(get_context_messages(ctx), goal)
@@ -106,7 +107,7 @@ def test_goal_is_in_context_only_when_active(io: MockCliIO, ctx: ElroyContext):
 
 
 def test_status_update_brings_into_context(io: MockCliIO, ctx: ElroyContext):
-    create_goal(ctx, "Run 100 miles this year")
+    do_create_goal(ctx, "Run 100 miles this year")
     goal = get_db_goal_by_name(ctx, "Run 100 miles this year")
     assert goal
 
@@ -121,7 +122,7 @@ def test_status_update_brings_into_context(io: MockCliIO, ctx: ElroyContext):
 
 def test_duplicate_goal(io: MockCliIO, ctx: ElroyContext):
     """The result should not raise an error, but should not create a duplicate goal."""
-    create_goal(ctx, "Run 100 miles this year")
+    do_create_goal(ctx, "Run 100 miles this year")
     remove_from_context(ctx, get_db_goal_by_name(ctx, "Run 100 miles this year"))  # type: ignore
 
     process_test_message(
