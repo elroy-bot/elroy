@@ -1,5 +1,7 @@
 from typing import Callable, Set
 
+from ..cli.local_files import ingest_local_file
+
 from ..cli.slash_commands import (
     add_internal_thought,
     contemplate,
@@ -102,6 +104,7 @@ USER_ONLY_COMMANDS = {
     create_bug_report,
     set_assistant_name,
     remember_convo,
+    ingest_local_file,
 }
 ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = (
     NON_ARG_PREFILL_COMMANDS

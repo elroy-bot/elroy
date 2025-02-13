@@ -1,12 +1,11 @@
 from pathlib import Path
-from InquirerPy.prompts import FilePathPrompt
+from InquirerPy.prompts.filepath import FilePathPrompt
 
 def browse_files() -> Path:
     """Browse and select a file from the current directory."""
     directory: str = FilePathPrompt(
         message="Select a file to open:",
-        only_files=True,
-        base_directory="."
+        default=str(Path.cwd()),
     ).execute()
 
     return Path(directory)
