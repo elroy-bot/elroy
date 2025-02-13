@@ -1,10 +1,9 @@
 from pathlib import Path
-from InquirerPy import inquirer
-from InquirerPy.base.control import Choice
+from InquirerPy.prompts import FilePathPrompt
 
 def browse_files() -> Path:
     """Browse and select a file from the current directory."""
-    directory: str = inquirer.filepath(
+    directory: str = FilePathPrompt(
         message="Select a file to open:",
         only_files=True,
         base_directory="."
