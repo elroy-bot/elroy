@@ -106,7 +106,12 @@ def test_tool_schema_does_not_have_elroy_ctx():
 
     argument_names = pipe(
         get_system_tool_schemas(),
-        map(lambda x: (x["function"]["name"], list(x["function"]["parameters"]["properties"].keys()))),
+        map(
+            lambda x: (
+                x["function"]["name"],
+                list(x["function"]["parameters"]["properties"].keys()) if "parameters" in x["function"] else [],
+            )
+        ),
         dict,
     )
 
