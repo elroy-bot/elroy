@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.72] - 2025-02-07
+## [0.0.71] - 2025-02-07
 
 ### Added
 - New slash commands!
