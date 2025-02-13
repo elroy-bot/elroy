@@ -12,7 +12,12 @@ from rich.table import Table
 from rich.text import Text
 
 from .. import __version__
-from ..config.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, tool
+from ..config.constants import (
+    BUG_REPORT_LOG_LINES,
+    REPO_ISSUES_URL,
+    tool,
+    user_only_tool,
+)
 from ..config.ctx import ElroyContext
 from ..config.paths import get_home_dir, get_log_file_path
 
@@ -33,6 +38,7 @@ def tail_elroy_logs(lines: int = 10) -> str:
         return "".join(f.readlines()[-lines:])
 
 
+@user_only_tool
 def print_config(ctx: ElroyContext) -> Table:
     """
     Prints the current Elroy configuration in a formatted table.
@@ -129,6 +135,7 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
     return table
 
 
+@user_only_tool
 def create_bug_report(
     ctx: ElroyContext,
     title: str,

@@ -68,7 +68,7 @@ Model Aliases:
 ### Memory Consolidation
 * `--memories-between-consolidation INTEGER`: Memories before consolidation. [env var: ELROY_MEMORIES_BETWEEN_CONSOLIDATION] [default: 4]
 * `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD] [default: 1.24]
-* `--memory-cluster-similarity-threshold FLOAT`: Cluster similarity threshold. [env var: ELROY_MEMORY_CLUSTER_SIMILARITY_THRESHOLD] [default: 0.21125]
+* `--memory-cluster-similarity-threshold FLOAT`: Cluster similarity threshold. The lower the parameter is, the less likely memories are to be consolidated. [env var: ELROY_MEMORY_CLUSTER_SIMILARITY_THRESHOLD] [default: 0.21125]
 * `--max-memory-cluster-size INTEGER`: Maximum memories per consolidation. [env var: ELROY_MAX_MEMORY_CLUSTER_SIZE] [default: 5]
 * `--min-memory-cluster-size INTEGER`: Minimum memories per consolidation. [env var: ELROY_MIN_MEMORY_CLUSTER_SIZE] [default: 3]
 

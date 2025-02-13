@@ -6,7 +6,7 @@ from ...config.constants import ASSISTANT_ALIAS_STRING, UNKNOWN, USER_ALIAS_STRI
 from ...config.ctx import ElroyContext
 from ...db.db_models import User
 from ...db.db_session import DbSession
-from .operations import get_or_create_user_preference
+from .operations import do_get_or_create_user_preference, get_or_create_user_preference
 
 
 def get_assistant_name(ctx: ElroyContext) -> str:
@@ -73,6 +73,10 @@ def get_user_preferred_name(ctx: ElroyContext) -> str:
         str: String representing the user's preferred name.
     """
 
-    user_preference = get_or_create_user_preference(ctx)
+    return do_get_user_preferred_name(ctx.db.session, ctx.user_id)
+
+
+def do_get_user_preferred_name(session: Session, user_id: int) -> str:
+    user_preference = do_get_or_create_user_preference(session, user_id)
 
     return user_preference.preferred_name or UNKNOWN

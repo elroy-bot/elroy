@@ -7,7 +7,7 @@ from rich.console import RenderableType
 from toolz import pipe
 from toolz.curried import do, map
 
-from elroy.config.constants import USER
+from elroy.config.constants import USER, RecoverableToolError
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import EmbeddableSqlModel, FunctionCall
 from elroy.io.cli import CliIO
@@ -120,11 +120,25 @@ def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str)
 
     question += " Your response to this question is being evaluated as part of an automated test. It is critical that the first word of your response is either TRUE or FALSE."
 
-    full_response = "".join(process_test_message(ctx, question))
+    MAX_ATTEMPTS = 3
+    attempt = 1
+
+    full_response = None
+
+    while attempt <= MAX_ATTEMPTS:
+        try:
+            full_response = "".join(process_test_message(ctx, question))
+            break
+        except RecoverableToolError as e:
+            logging.warning(f"Error processing question: {e}. Retrying")
+            question = f"Error: {e}. Try again. Original question: {question}"
+            attempt += 1
+
+    if not full_response:
+        raise ValueError("Could not process question")
 
     # evict question and answer from context
-    context_messages = get_context_messages(ctx)
-    assert isinstance(context_messages, list)
+    context_messages = list(get_context_messages(ctx))
     endpoint_index = -1
     for idx, message in enumerate(context_messages[::-1]):
         if message.role == USER and message.content == question:

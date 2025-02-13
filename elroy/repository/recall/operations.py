@@ -12,7 +12,7 @@ from ...config.ctx import ElroyContext
 from ...db.db_models import EmbeddableSqlModel
 from ...llm.client import get_embedding
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
-from ..context_messages.operations import add_context_messages, remove_context_messages
+from ..context_messages.operations import add_context_message, remove_context_messages
 from ..context_messages.queries import get_context_messages
 from .queries import is_in_context, is_in_context_message
 
@@ -46,16 +46,14 @@ def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
     if is_in_context(context_messages, memory):
         logging.info(f"Memory of type {memory.__class__.__name__} with id {memory_id} already in context.")
     else:
-        add_context_messages(
+        add_context_message(
             ctx,
-            [
-                ContextMessage(
-                    role=SYSTEM,
-                    memory_metadata=[RecalledMemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
-                    content=memory.to_fact(),
-                    chat_model=None,
-                )
-            ],
+            ContextMessage(
+                role=SYSTEM,
+                memory_metadata=[RecalledMemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
+                content=memory.to_fact(),
+                chat_model=None,
+            ),
         )
 
 

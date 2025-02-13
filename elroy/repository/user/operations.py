@@ -2,10 +2,11 @@ import logging
 from typing import Optional
 
 import typer
+from sqlmodel import Session, select
 from toolz import do, pipe
 from toolz.curried import do
 
-from ...config.constants import UNKNOWN, tool
+from ...config.constants import UNKNOWN, tool, user_only_tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import User, UserPreference
 from ...db.db_session import DbSession
@@ -23,23 +24,26 @@ def create_user_id(db: DbSession, user_token: str) -> int:
 
 
 def get_or_create_user_preference(ctx: ElroyContext) -> UserPreference:
-    from sqlmodel import select
+    return do_get_or_create_user_preference(ctx.db.session, ctx.user_id)
 
-    user_preference = ctx.db.exec(
+
+def do_get_or_create_user_preference(session: Session, user_id: int) -> UserPreference:
+    user_preference = session.exec(
         select(UserPreference).where(
-            UserPreference.user_id == ctx.user_id,
+            UserPreference.user_id == user_id,
             UserPreference.is_active == True,
         )
     ).first()
 
     if user_preference is None:
-        user_preference = UserPreference(user_id=ctx.user_id, is_active=True)
-        ctx.db.add(user_preference)
-        ctx.db.commit()
-        ctx.db.refresh(user_preference)
+        user_preference = UserPreference(user_id=user_id, is_active=True)
+        session.add(user_preference)
+        session.commit()
+        session.refresh(user_preference)
     return user_preference
 
 
+@user_only_tool
 def set_assistant_name(ctx: ElroyContext, assistant_name: str) -> str:
     """
     Sets the assistant name for the user

@@ -6,16 +6,18 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 from functools import partial, reduce
 from operator import add
-from typing import Iterable, List, Optional, Sequence
+from typing import Iterable, Iterator, List, Optional
 
+from sqlmodel import Session, col, select
 from toolz import concat, pipe
 from toolz.curried import filter, map, pipe, remove
 
 from ...config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
-from ...db.db_models import Message, ToolCall
+from ...db.db_models import ContextMessageSet, MemorySource, Message, ToolCall
 from ...llm.utils import count_tokens
 from ...utils.clock import ensure_utc, get_utc_now
 from ...utils.utils import datetime_to_string, last_or_none
+from ..user.queries import do_get_user_preferred_name
 from .data_models import ContextMessage, RecalledMemoryMetadata
 
 
@@ -72,7 +74,7 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
     )
 
 
-def is_context_refresh_needed(context_messages: List[ContextMessage], chat_model_name: str, max_tokens: int) -> bool:
+def is_context_refresh_needed(context_messages: Iterable[ContextMessage], chat_model_name: str, max_tokens: int) -> bool:
 
     if sum(1 for m in context_messages if m.role == USER) == 0:
         logging.info("No user messages in context, no context refresh needed")
@@ -137,7 +139,7 @@ def format_message(message: ContextMessage, user_preferred_name: Optional[str]) 
         return []
 
 
-def format_context_messages(context_messages: Sequence[ContextMessage], user_preferred_name: Optional[str]) -> str:
+def format_context_messages(context_messages: Iterable[ContextMessage], user_preferred_name: Optional[str]) -> str:
     convo_range = pipe(
         context_messages,
         filter(lambda _: _.role == USER),
@@ -205,3 +207,72 @@ def compress_context_messages(
 
     # Keep system message first, but reverse the rest to maintain chronological order
     return [system_message] + list(kept_messages)
+
+
+class ContextMessageSetWithMessages(MemorySource):
+    _context_message_set: Optional[ContextMessageSet]
+    _messages: Optional[List[ContextMessage]]
+    user_id: int
+
+    @classmethod
+    def from_context_message_set(cls, session: Session, context_message_set: ContextMessageSet) -> "ContextMessageSetWithMessages":
+        assert context_message_set.id
+        return cls(session=session, id=context_message_set.id, user_id=context_message_set.user_id, context_message_set=context_message_set)
+
+    def __init__(self, session: Session, id: int, user_id: int, context_message_set: Optional[ContextMessageSet] = None):
+        self._context_message_set = context_message_set
+        self.session = session
+        self.user_id = user_id
+        self.id = id
+        self._messages = None
+
+    def get_name(self) -> str:
+        return str(self.id)
+
+    @classmethod
+    def source_type(cls) -> str:
+        return ContextMessageSet.__name__
+
+    @property
+    def context_message_set(self) -> ContextMessageSet:
+        if self._context_message_set is not None:
+            return self._context_message_set
+        else:
+            self._context_message_set = self.session.exec(
+                select(ContextMessageSet).where(
+                    ContextMessageSet.id == self.id,
+                    ContextMessageSet.user_id == self.user_id,
+                )
+            ).first()
+            if not self._context_message_set:
+                raise ValueError(f"Context message set not found for ID {self.id}")
+            else:
+                return self._context_message_set
+
+    def to_fact(self) -> str:
+        return format_context_messages(
+            self.messages_list,
+            do_get_user_preferred_name(self.session, self.user_id),
+        )
+
+    @property
+    def messages(self) -> Iterator[ContextMessage]:
+        if self._messages:
+            return iter(self._messages)
+        else:
+            msgs = self.session.exec(
+                select(Message).where(col(Message.id).in_(json.loads(self.context_message_set.message_ids))).order_by(col(Message.id))
+            )
+            full_list = []
+            for msg in msgs:
+                ctx_msg = db_message_to_context_message(msg)
+                full_list.append(msg)
+                yield ctx_msg
+            self._messages = full_list
+
+    @property
+    def messages_list(self) -> List[ContextMessage]:
+        if self._messages:
+            return self._messages
+        else:
+            return list(self.messages)
