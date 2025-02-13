@@ -43,11 +43,13 @@ class ElroyContext:
         openai_api_key: Optional[str] = None,
         openai_api_base: Optional[str] = None,
         openai_embedding_api_base: Optional[str] = None,
-        openai_organization: Optional[str] = None,
-        anthropic_api_key: Optional[str] = None,
         # Model Configuration
         chat_model: str,
+        chat_model_api_key: Optional[str] = None,
+        chat_model_api_base: Optional[str] = None,
         embedding_model: str,
+        embedding_model_api_key: Optional[str] = None,
+        embedding_model_api_base: Optional[str] = None,
         embedding_model_size: int,
         enable_caching: bool = True,
         inline_tool_calls: bool = False,
@@ -98,7 +100,7 @@ class ElroyContext:
             if k in DEPRECATED_KEYS:
                 logging.warning(f"Ignoring deprecated config (will be removed in future releases): '{k}'")
             else:
-                logging.warning("Ignoring invalid parameter: {k}")
+                logging.warning(f"Ignoring invalid parameter: {k}")
 
         return cls(**dissoc(kwargs, *invalid_params))  # type: ignore
 
@@ -130,9 +132,9 @@ class ElroyContext:
         return get_chat_model(
             model_name=self.params.chat_model,
             openai_api_key=self.params.openai_api_key,
-            anthropic_api_key=self.params.anthropic_api_key,
-            api_base=self.params.openai_api_base,
-            organization=self.params.openai_organization,
+            openai_api_base=self.params.openai_api_base,
+            api_key=self.params.chat_model_api_key,
+            api_base=self.params.chat_model_api_base,
             enable_caching=self.params.enable_caching,
             inline_tool_calls=self.params.inline_tool_calls,
         )
@@ -142,9 +144,13 @@ class ElroyContext:
         return get_embedding_model(
             model_name=self.params.embedding_model,
             embedding_size=self.params.embedding_model_size,
-            api_key=self.params.openai_api_key,
-            api_base=self.params.openai_api_base,
-            organization=self.params.openai_organization,
+            api_key=self.params.embedding_model_api_key,
+            api_base=self.params.embedding_model_api_base,
+            chat_api_key=self.params.chat_model_api_key,
+            openai_embedding_api_base=self.params.openai_embedding_api_base,
+            chat_api_base=self.params.chat_model_api_base,
+            openai_api_key=self.params.openai_api_key,
+            openai_api_base=self.params.openai_api_base,
             enable_caching=self.params.enable_caching,
         )
 

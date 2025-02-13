@@ -287,9 +287,6 @@ def rewrite(ctx: ElroyContext, new_message: str) -> str:
         i -= 1
 
     context_messages[i] = ContextMessage(role=ASSISTANT, content=new_message, chat_model=None)
-    import pdb
-
-    pdb.set_trace()
 
     replace_context_messages(ctx, context_messages)
 

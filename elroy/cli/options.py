@@ -45,7 +45,15 @@ def load_config_file_params(config_path: Optional[str] = None) -> Dict:
         return load_config_if_exists(user_config_path)
 
 
-def ElroyOption(key: str, rich_help_panel: str, help: str, default_factory: Optional[Callable] = None, *args):
+def ElroyOption(
+    key: str,
+    rich_help_panel: str,
+    help: str,
+    deprecated: bool = False,
+    hidden: bool = False,
+    default_factory: Optional[Callable] = None,
+    *args,
+):
     """
     Typer options that have values in the user config file
 
@@ -58,22 +66,16 @@ def ElroyOption(key: str, rich_help_panel: str, help: str, default_factory: Opti
     return Option(
         *args,
         default_factory=default_factory if default_factory else lambda: load_config_file_params().get(key),
-        envvar=get_env_var_name(key),
+        envvar=get_env_var_name(key) if not deprecated else None,
         rich_help_panel=rich_help_panel,
         help=help,
         show_default=str(DEFAULTS_CONFIG.get(key)),
-        hidden=key in DEPRECATED_KEYS,
+        hidden=hidden or deprecated,
     )
 
 
 def get_env_var_name(parameter_name: str):
-    return {
-        "openai_api_key": "OPENAI_API_KEY",
-        "openai_api_base": "OPENAI_API_BASE",
-        "openai_embedding_api_base": "OPENAI_API_BASE",
-        "openai_organization": "OPENAI_ORGANIZATION",
-        "anthropic_api_key": "ANTHROPIC_API_KEY",
-    }.get(parameter_name, "ELROY_" + parameter_name.upper())
+    return "ELROY_" + parameter_name.upper()
 
 
 def get_resolved_params(**kwargs) -> Dict[str, Any]:

@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 from toolz import assoc, first, pipe
 from toolz.curried import filter
 
+from .constants import KNOWN_MODELS, Provider
 from .llm import ChatModel
 
 
@@ -75,8 +76,6 @@ def get_supported_openai_models() -> List[str]:
 
 # This may result in API calls!
 def get_supported_anthropic_models() -> List[str]:
-    from litellm import anthropic_models
-
     def _model_sort(model_name: str) -> Tuple[int, float, int]:
         """
         Returns a numeric score representing the relative power of an Anthropic model.
@@ -110,7 +109,7 @@ def get_supported_anthropic_models() -> List[str]:
 
         return (score, version, date)
 
-    return sorted(anthropic_models, key=_model_sort, reverse=True)
+    return sorted(KNOWN_MODELS[Provider.ANTHROPIC], key=_model_sort, reverse=True)
 
 
 def get_fallback_model(chat_model: ChatModel) -> Optional[ChatModel]:

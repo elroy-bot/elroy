@@ -14,7 +14,7 @@ from typing import (
 
 from docstring_parser import parse
 from pydantic import BaseModel
-from toolz import pipe
+from toolz import dissoc, pipe
 from toolz.curried import map, remove
 
 PY_TO_JSON_TYPE = {
@@ -73,8 +73,7 @@ def get_json_type(py_type: Type) -> Union[str, Dict[str, Any]]:
 
     if isinstance(py_type, type) and issubclass(py_type, BaseModel):
         schema = py_type.model_json_schema()
-        cleaned = _pydantic_to_openai_schema(schema)
-        return cleaned.get("properties", {})
+        return _pydantic_to_openai_schema(schema).get("properties", {})
 
     raise ValueError(f"Unsupported type: {py_type}")
 
@@ -164,11 +163,12 @@ def get_function_schema(function: Callable) -> Dict:
                 "required": [p.name for p in properties if not p.optional],  # type: ignore
             },
         },
+        lambda d: dissoc(d, "parameters") if not d["parameters"]["properties"] else d,
         lambda d: {"type": "function", "function": d},
     )
 
 
-def validate_schema(func_schema: Dict[str, Any]) -> List[str]:
+def validate_schema(func_schema: Dict[str, Any], has_args: bool) -> List[str]:
     """
     Validates the schema for OpenAI function tools' parameters.
 
@@ -196,8 +196,11 @@ def validate_schema(func_schema: Dict[str, Any]) -> List[str]:
         errors.append(f"Missing 'name' key.")
 
     if "parameters" not in function:
-        errors.append(f"Missing 'parameters' key.")
-        return errors
+        if has_args:
+            errors.append(f"Function is missing 'parameters' key, required if source function has arguments")
+            return errors
+        else:
+            return errors
 
     parameters = function["parameters"]
     if not isinstance(parameters, dict) or parameters.get("type") != "object":

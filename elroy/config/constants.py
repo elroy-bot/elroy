@@ -39,8 +39,6 @@ EXIT = "exit"
 
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
-OPENAI_EMBEDDINGS_MODELS = ["text-embedding-ada-002"]
-
 
 # Empty decorator just meaning to communicate a function should be a tool
 def tool(func: Callable) -> Callable:
@@ -88,7 +86,11 @@ class GoalDoesNotExistError(RecoverableToolError):
 class Provider(enum.Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
     OTHER = "other"
+
+
+GEMINI_PREFIX = "gemini"
 
 
 KNOWN_MODELS: Dict[Provider, List[str]] = {
@@ -144,6 +146,14 @@ KNOWN_MODELS: Dict[Provider, List[str]] = {
         "claude-2",
         "claude-instant-1.2",
         "claude-instant-1",
+    ],
+    Provider.GEMINI: [
+        "gemini/gemini-pro",
+        "gemini/gemini-1.5-pro-latest",
+        "gemini/gemini-2.0-flash",
+        "gemini/gemini-2.0-flash-exp",
+        "gemini/gemini-2.0-flash-lite-preview-02-05",
+        "gemini/text-embedding-004",
     ],
 }
 
