@@ -20,23 +20,23 @@ Note: Running just `elroy` without any command will default to `elroy chat`.
 ## Configuration Options
 
 ### Basic Configuration
-- `--config` - YAML config file path
+- `--config` - YAML config file path. Values override defaults but are overridden by CLI flags and environment variables
 - `--default-assistant-name` - Default name for the assistant
-- `--debug` - Enable fail-fast error handling and verbose logging
+- `--debug` - Enable fail-fast error handling and verbose logging output
 - `--user-token` - User token for Elroy
-- `--custom-tools-path` - Path to custom functions
-- `--database-url` - SQLite or Postgres URL for the database
-- `--inline-tool-calls` - Enable inline tool calls in the assistant
+- `--custom-tools-path` - Path to custom functions to load
+- `--database-url` - SQLite or Postgres URL for the database (pgvector extension required for Postgres)
+- `--inline-tool-calls` - Enable inline tool calls in the assistant (better for some open source models)
 
 ### Model Selection
 - `--chat-model` - Model for chat completions
-- `--chat-model-api-base` - Base URL for chat model API
-- `--chat-model-api-key` - API key for chat model
+- `--chat-model-api-base` - Base URL for OpenAI compatible chat model API
+- `--chat-model-api-key` - API key for OpenAI compatible chat model API
 - `--embedding-model` - Model for text embeddings
-- `--embedding-model-size` - Size of embedding model
-- `--embedding-model-api-base` - Base URL for embedding model API
-- `--embedding-model-api-key` - API key for embedding model
-- `--enable-caching` - Enable LLM caching
+- `--embedding-model-size` - Size of embedding model (default: 1536)
+- `--embedding-model-api-base` - Base URL for OpenAI compatible embedding model API
+- `--embedding-model-api-key` - API key for OpenAI compatible embedding model API
+- `--enable-caching` - Enable caching for LLM (both embeddings and completions)
 
 Quick Model Selection:
 - `--sonnet` - Use Anthropic's Sonnet model
@@ -47,24 +47,26 @@ Quick Model Selection:
 - `--o1-mini` - Use OpenAI's o1-mini model
 
 ### Context Management
-- `--max-assistant-loops` - Maximum loops before tool timeout
-- `--context-refresh-trigger-tokens` - Token threshold for context refresh
-- `--context-refresh-target-tokens` - Target tokens after refresh
-- `--max-context-age-minutes` - Maximum age to keep messages
-- `--min-convo-age-for-greeting-minutes` - Minimum age before greeting
-- `--enable-assistant-greeting` - Allow assistant first message
+- `--max-assistant-loops` - Maximum loops assistant is available to execute in a row (default: 4)
+- `--context-refresh-trigger-tokens` - Token threshold for context refresh (default: 10000)
+- `--context-refresh-target-tokens` - Target tokens after context refresh (default: 5000)
+- `--max-context-age-minutes` - Maximum age in minutes to keep messages in context (default: 720.0)
+- `--min-convo-age-for-greeting-minutes` - Minimum conversation age before greeting on login (default: 10.0)
+- `--enable-assistant-greeting` - Allow assistant to send first message
 
 ### Memory Settings
-- `--memories-between-consolidation` - Memories before consolidation
-- `--l2-memory-relevance-distance-threshold` - Memory relevance threshold
-- `--memory-cluster-similarity-threshold` - Cluster similarity threshold
-- `--max-memory-cluster-size` - Maximum memories per cluster
-- `--min-memory-cluster-size` - Minimum memories per cluster
+- `--memories-between-consolidation` - Memories before consolidation (default: 4)
+- `--l2-memory-relevance-distance-threshold` - Memory relevance threshold (default: 1.24)
+- `--memory-cluster-similarity-threshold` - Cluster similarity threshold (default: 0.21125)
+- `--max-memory-cluster-size` - Maximum memories per cluster (default: 5)
+- `--min-memory-cluster-size` - Minimum memories per cluster (default: 3)
 
 ### UI Configuration
-- `--show-internal-thought` - Show assistant's internal thoughts
+- `--show-internal-thought` - Show assistant's internal thought monologue
 
 ### Shell Integration
-- `--install-completion` - Install shell completion
+- `--install-completion` - Install completion for the current shell
 - `--show-completion` - Show completion for current shell
 - `--help` - Show help message and exit
+
+Note: All configuration options can be set via environment variables with the prefix `ELROY_` (e.g., `ELROY_DEBUG`, `ELROY_CHAT_MODEL`).
