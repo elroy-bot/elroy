@@ -1,72 +1,39 @@
 # Tools Guide
 
-### In-Chat Commands
-While chatting with Elroy, commands can be used by typing a forward slash (/) followed by the command name. The user or assistant can invoke some commands, while others are available only to the user.
+Elroy provides a set of tools that can be used by typing a forward slash (/) followed by the command name. These tools are organized into the following categories:
 
-
-#### Assistant and User Commands
-These commands can be used by both users and Elroy:
-
-##### Goal Management
-- `/create_goal` - Create a new goal with name, description and optional deadline
-- `/rename_goal` - Change a goal's name while preserving its history and status
-- `/print_goal` - Display details of a specific goal including status updates
+### Goal Management
+- `/create_goal` - Creates a goal for either the AI or to help the user
+- `/rename_goal` - Change a goal's name while preserving its history
+- `/print_goal` - Display details of an existing goal and its status
 - `/add_goal_to_current_context` - Include a goal in the current conversation
-- `/drop_goal_from_current_context` - Remove a goal from the current conversation
+- `/drop_goal_from_current_context` - Remove a goal from current context (does not delete)
 - `/add_goal_status_update` - Add progress updates or notes to a goal
-- `/mark_goal_completed` - Mark a goal as finished with final status
-- `/delete_goal_permanently` - Remove a goal and its entire history
-- `/get_active_goal_names` - Show a list of all current active goals
+- `/mark_goal_completed` - Mark a goal as finished with closing comments
+- `/delete_goal_permanently` - Permanently remove a goal and its history
 
-##### Memory Management
+### Memory Management
 - `/create_memory` - Store new information as a long-term memory
-- `/print_memory` - Display a specific memory's complete content
+- `/print_memory` - Retrieve and display a specific memory by exact name
 - `/add_memory_to_current_context` - Include a memory in the current conversation
-- `/drop_memory_from_current_context` - Remove a memory from the current conversation
-- `/query_memory` - Search through memories and goals using semantic search
-- `/search_memories` - Search against goals and memories with semantic search
-- `/print_memories` - Display all stored memories
-- `/remember_convo` - Save the current conversation as a memory
+- `/drop_memory_from_current_context` - Remove a memory from context (does not delete)
+- `/examine_memories` - Search and synthesize information from memories and goals
 
-##### Reflection & Contemplation
-- `/contemplate [prompt]` - Request Elroy to reflect on the conversation or analyze a specific topic
+### User Preferences
+- `/get_user_full_name` - Retrieve stored full name
+- `/set_user_full_name` - Update full name
+- `/get_user_preferred_name` - Retrieve stored preferred name/nickname
+- `/set_user_preferred_name` - Set preferred name for casual interaction
 
-##### User Preferences
-- `/get_user_full_name` - Retrieve your stored full name
-- `/set_user_full_name` - Update your full name for personalization
-- `/get_user_preferred_name` - Retrieve your stored preferred name/nickname
-- `/set_user_preferred_name` - Set your preferred name for casual interaction
+### Utility Tools
+- `/contemplate` - Request analysis or reflection on current context
+- `/tail_elroy_logs` - Display recent log output for debugging
+- `/make_coding_edit` - Make changes to code using a specialized coding LLM
 
-##### Development Tools
-- `/tail_elroy_logs` - Display Elroy's log output for debugging purposes
-- `/make_coding_edit` - Make and manage changes to code files in the repository
-- `/print_elroy_config` - View current Elroy configuration settings
-- `/create_bug_report` - Generate a pre-filled bug report in browser
+## Adding Custom Tools
 
-
-#### User-Only Commands
-These commands can only be used by human users:
-
-- `/help` - Show all available commands and their descriptions
-- `/print_system_instruction` - View the current system instructions that guide Elroy's behavior
-- `/refresh_system_instructions` - Refresh and update the system instructions
-- `/reset_messages` - Clear the conversation context and start fresh
-- `/print_context_messages` - Display the current conversation context and history
-- `/add_internal_thought` - Insert a guiding thought for the assistant's reasoning
-- `/print_config` - Show current configuration settings and parameters
-- `/create_bug_report` - Generate a detailed bug report with current context
-- `/set_assistant_name` - Customize the assistant's name
-- `/exit` - End the chat session
-- `/save` - Save the current state of the conversation
-- `/pop` - Remove n messages from conversation history
-- `/rewrite` - Rewrite the last assistant response
-
-## Adding your own Tools
-
-You can add your own tools by specifying one or more directories or Python files via the `--custom-tools-path` parameter. Multiple paths can be specified to load tools from different locations.
-
-Tools should be annotated with either:
-- The `@tool` decorator that comes with Elroy
+Custom tools can be added by specifying directories or Python files via the `--custom-tools-path` parameter. Tools should be annotated with either:
+- The `@tool` decorator from Elroy
 - The langchain `@tool` decorator
 
 Both decorators are supported and will work identically.

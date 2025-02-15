@@ -1,44 +1,70 @@
 # CLI Reference
 
-These commands can be run directly from your terminal:
+## Commands
 
 - `elroy chat` - Opens an interactive chat session (default command)
 - `elroy message TEXT` - Process a single message and exit
-  - Usage: `elroy message "Your message" [--tool TOOL_NAME]`
-  - Example: `elroy message "Create a goal" --tool create_goal`
-
 - `elroy remember [TEXT]` - Create a new memory from text or interactively
-  - Usage: `elroy remember "Memory text"` or just `elroy remember` for interactive mode
-  - Examples:
-    - Interactive: `elroy remember` then type your memory
-    - Direct: `elroy remember "Important meeting notes"`
-    - From file: `cat notes.txt | elroy remember`
-
 - `elroy list-models` - Lists supported chat models and exits
-- `elroy list-tools` - Lists all available tools and their descriptions
+- `elroy list-tools` - Lists all available tools
 - `elroy print-config` - Shows current configuration and exits
-  - `elroy print-config --show-secrets` to include API keys
-  - Shows:
-    - Current model settings
-    - Database configuration
-    - Memory management settings
-    - Context management settings
-
 - `elroy version` - Show version and exit
-
+- `elroy print-tool-schemas` - Prints the schema for tools and exits
 - `elroy set-persona TEXT` - Set a custom persona for the assistant
-  - Example: `elroy set-persona "You are a helpful coding assistant"`
 - `elroy reset-persona` - Removes any custom persona, reverting to the default
 - `elroy show-persona` - Print the system persona and exit
-- `elroy print-tool-schemas` - Display available tools and their schemas
-
-### MCP Server Commands
-- `elroy mcp print-config` - Print MCP server configuration
-  - `--local` - Print config using local Elroy instance
-
-### Shell Integration
-* `--install-completion`: Install completion for the current shell.
-* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
-* `--help`: Show this message and exit.
+- `elroy mcp` - MCP server commands
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
+
+## Configuration Options
+
+### Basic Configuration
+- `--config` - YAML config file path
+- `--default-assistant-name` - Default name for the assistant
+- `--debug` - Enable fail-fast error handling and verbose logging
+- `--user-token` - User token for Elroy
+- `--custom-tools-path` - Path to custom functions
+- `--database-url` - SQLite or Postgres URL for the database
+- `--inline-tool-calls` - Enable inline tool calls in the assistant
+
+### Model Selection
+- `--chat-model` - Model for chat completions
+- `--chat-model-api-base` - Base URL for chat model API
+- `--chat-model-api-key` - API key for chat model
+- `--embedding-model` - Model for text embeddings
+- `--embedding-model-size` - Size of embedding model
+- `--embedding-model-api-base` - Base URL for embedding model API
+- `--embedding-model-api-key` - API key for embedding model
+- `--enable-caching` - Enable LLM caching
+
+Quick Model Selection:
+- `--sonnet` - Use Anthropic's Sonnet model
+- `--opus` - Use Anthropic's Opus model
+- `--4o` - Use OpenAI's GPT-4o model
+- `--4o-mini` - Use OpenAI's GPT-4o-mini model
+- `--o1` - Use OpenAI's o1 model
+- `--o1-mini` - Use OpenAI's o1-mini model
+
+### Context Management
+- `--max-assistant-loops` - Maximum loops before tool timeout
+- `--context-refresh-trigger-tokens` - Token threshold for context refresh
+- `--context-refresh-target-tokens` - Target tokens after refresh
+- `--max-context-age-minutes` - Maximum age to keep messages
+- `--min-convo-age-for-greeting-minutes` - Minimum age before greeting
+- `--enable-assistant-greeting` - Allow assistant first message
+
+### Memory Settings
+- `--memories-between-consolidation` - Memories before consolidation
+- `--l2-memory-relevance-distance-threshold` - Memory relevance threshold
+- `--memory-cluster-similarity-threshold` - Cluster similarity threshold
+- `--max-memory-cluster-size` - Maximum memories per cluster
+- `--min-memory-cluster-size` - Minimum memories per cluster
+
+### UI Configuration
+- `--show-internal-thought` - Show assistant's internal thoughts
+
+### Shell Integration
+- `--install-completion` - Install shell completion
+- `--show-completion` - Show completion for current shell
+- `--help` - Show help message and exit

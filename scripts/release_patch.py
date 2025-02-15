@@ -1,5 +1,4 @@
 import argparse
-import inspect
 import json
 import os
 import re
@@ -13,8 +12,6 @@ from aider.coders import Coder
 from aider.io import InputOutput
 from aider.models import Model
 from semantic_version import Version
-from toolz import pipe
-from toolz.curried import map
 
 from elroy import __version__
 from elroy.api import Elroy
@@ -37,26 +34,18 @@ class Errors:
     messages: list[str]
 
 
-def augment_with_memory(elroy: Elroy, instruction: str) -> str:
+def retrieve_feedback(elroy: Elroy, instruction: str) -> str:
     return elroy.message(
-        f"""The following is instructions for a task.
-                  If there are any specific memories that would be relevant to this task,
-                  update the text of the instructions to incorporate it.
-                  Be sure to retain any information that is in the original instruction.
-
-                  Maintain the tone and structure of the original instruction: Dry, concise, and to the point.
-
-                  Avoid superfluous greetings or pleasantries. There will be no means to ask followup questions, so do not invite responses or questions.
-
-                  The following is the original instruction:
-                  {instruction}
-                  """
+        f"""The following is instructions for a task. Search your memory to determine if there is any relevant feedback to the task in the past, and output a synthesis of this feedback.
+            The following is the original instruction:
+            {instruction}
+        """
     )
 
 
 def make_edit(elroy: Elroy, instruction: str, rw_files: List[str], ro_files: List[str] = []) -> None:
     print(f"# Original instruction:\n{instruction}")
-    memory_augmented_instructions = augment_with_memory(elroy, instruction)
+    memory_augmented_instructions = instruction + "\n\n#Feedback from past runs:\n" + retrieve_feedback(elroy, instruction)
     print(f"# Memory Augmented instruction:\n{memory_augmented_instructions}")
     os.chdir(REPO_ROOT)
 
@@ -69,30 +58,14 @@ def make_edit(elroy: Elroy, instruction: str, rw_files: List[str], ro_files: Lis
     ).run(memory_augmented_instructions)
 
 
-# aider --file elroy/cli/main.py elroy/defaults.yml elroy/config/ctx.py --no-auto-commit -m '
-def sync_configuration_and_cli_ops(elroy: Elroy):
-    make_edit(
-        elroy,
-        instruction=f"""
-Review main.py and elroy/defaults.yml. The configuration options in defaults.yml correspond to the command line options in main.py.
-Make sure the comments in defaults.yml are in sync with the command line options in main.py.
-The headings should be the same, ie the YAML should have comments corresponding to the name of the rich_help_panel of the main.py options
-These headings should also be present in ctx.py for the ElroyContext constructor.
-
-These should also be reflected in configuration.md
-    """,
-        rw_files=["elroy/cli/main.py", "elroy/defaults.yml", "elroy/docs/configuration.md"],
-    )
-
-
 def update_cli_reference(elroy: Elroy):
-    help_output = subprocess.run(["elroy", "help"], capture_output=True, text=True).stdout.strip()
+    help_output = subprocess.run(["elroy", "--help"], capture_output=True, text=True).stdout.strip()
     make_edit(
         elroy,
         instruction=f"""Review the cli_reference.md and the output of elroy help. Ensure the cli_reference.md is up to date with the latest changes in the CLI.
 For reference, the output of elroy --help is as below:
 {help_output}""",
-        rw_files=["elroy/docs/cli_reference.md"],
+        rw_files=["./docs/cli_reference.md"],
     )
 
 
@@ -102,13 +75,22 @@ def update_tool_guide(elroy: Elroy):
         elroy,
         instruction=f"""Review python commands and the output of elroy list-tools. Ensure the tool_reference.md is up to date with the latest changes in the tools.
 {help_output}""",
-        rw_files=["elroy/docs/tool_guide.md"],
+        rw_files=["./docs/tools_guide.md"],
+    )
+
+
+def update_configuration(elroy: Elroy):
+    make_edit(
+        elroy,
+        instruction=f"""Review the configuration.md and ensure it is consistent and complete given main.py and default.yml""",
+        rw_files=["./docs/configuration.md"],
+        ro_files=["./elroy/config/llm.py", "./elroy/config/constants.py", "elroy/cli/main.py"],
     )
 
 
 def update_changelog(elroy: Elroy):
     last_tag = os.popen("git describe --tags --abbrev=0 2>/dev/null || echo").read().strip()
-    commits = os.popen(f'git log {last_tag}..HEAD --pretty=format:"- %s"').read()
+    commits = os.popen(f'git log {last_tag}..HEAD --pretty=format:"- %s%n%b" -p').read()
 
     instruction = f"""
     Update CHANGELOG.md to add version {NEXT_PATCH}. Here are the commits since the last release:
@@ -128,33 +110,6 @@ def update_changelog(elroy: Elroy):
     """
 
     make_edit(elroy, instruction, ["CHANGELOG.md"])
-
-
-def update_docstrings(elroy: Elroy):
-    def do_update_docstring(filepath: str) -> None:
-        make_edit(
-            elroy,
-            instruction=f"""Review the docstrings for any function annotated with @tool in the following file:
-        {filepath}
-
-        For each, ensure the docstring corresponds accurately to the actual funcion's arguments and return type.
-
-        Do NOT edit the main description unless it contains inaccurate descriptions of the arguments.
-
-        Omit param docstring annotations for any arguments with the annotation of ElroyContext.
-        """,
-            rw_files=[filepath],
-        )
-
-    pipe(
-        elroy.ctx.tool_registry.get_schemas(),
-        map(lambda x: x["function"]["name"]),
-        map(elroy.ctx.tool_registry.get),
-        map(inspect.getfile),
-        set,
-        map(do_update_docstring),
-        set,
-    )
 
 
 def check_main_up_to_date(errors: Errors):
@@ -382,8 +337,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Release a new patch version")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
     parser.add_argument("--skip-docker", action="store_true", help="Skip running docker build test")
-    parser.add_argument("--skip-readme", action="store_true", help="Skip updating README")
-    parser.add_argument("--skip-docstrings", action="store_true", help="Skip updating docstrings")
+    parser.add_argument("--skip-docs", action="store_true", help="Skip updating README")
     args = parser.parse_args()
 
     errors = Errors([])
@@ -418,11 +372,6 @@ if __name__ == "__main__":
     print("Running bumpversion...")
     subprocess.run(["bumpversion", "--new-version", NEXT_PATCH, "patch"], check=True)
 
-    if args.skip_docstrings:
-        print("skipping docstring update")
-    else:
-        update_docstrings(elroy)
-
     print("Updating docs...")
     update_schema_doc()
 
@@ -430,10 +379,10 @@ if __name__ == "__main__":
     os.chdir(repo_root)
 
     next_tag = Version(__version__).next_patch()
-    if not args.skip_readme:
-        sync_configuration_and_cli_ops(elroy)
+    if not args.skip_docs:
         update_cli_reference(elroy)
         update_tool_guide(elroy)
+        update_configuration(elroy)
     update_changelog(elroy)
 
     print("Please provide feedback on the changes made in this release")
