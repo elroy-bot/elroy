@@ -1,10 +1,19 @@
+import os
 from dataclasses import dataclass
 from importlib.resources import open_text
 from typing import Optional
 
 import yaml
 
-from .constants import GEMINI_PREFIX, KNOWN_MODELS, Provider
+from .constants import (
+    CLAUDE_3_5_SONNET,
+    GEMINI_2_0_FLASH,
+    GEMINI_PREFIX,
+    GPT_4O,
+    KNOWN_MODELS,
+    TEXT_EMBEDDING_3_SMALL,
+    Provider,
+)
 from .paths import APP_NAME
 
 with open_text(APP_NAME, "defaults.yml") as f:
@@ -45,6 +54,30 @@ class EmbeddingModel:
     enable_caching: bool
     api_key: Optional[str] = None
     api_base: Optional[str] = None
+
+
+def infer_chat_model_name() -> str:
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return CLAUDE_3_5_SONNET
+    elif os.environ.get("OPENAI_API_KEY"):
+        return GPT_4O
+    elif os.environ.get("GEMINI_API_KEY"):
+        return GEMINI_2_0_FLASH
+    else:
+        raise ValueError(
+            "Could not infer chat model. Please set chat model, or provide API keys. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
+        )
+
+
+def infer_embedding_model_name() -> str:
+    if os.environ.get("OPENAI_API_KEY"):
+        return TEXT_EMBEDDING_3_SMALL
+    # elif os.environ.get("GEMINI_API_KEY"): # TODO: figure out how to support different embedding sizes
+    # return GEMINI_TEXT_EMBEDDING_004
+    else:
+        raise ValueError(
+            "Could not infer embedding model. Please set embedding model, or provide API keys. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
+        )
 
 
 def get_chat_model(

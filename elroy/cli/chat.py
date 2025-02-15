@@ -12,7 +12,7 @@ from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
-from ..cli.ui import print_memory_panel, print_title_ruler
+from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
 from ..config.constants import EXIT, SYSTEM, USER
 from ..config.ctx import ElroyContext
 from ..db.db_models import Message
@@ -95,6 +95,7 @@ async def handle_chat(io: CliIO, ctx: ElroyContext):
     init(autoreset=True)
 
     print_title_ruler(io, get_assistant_name(ctx))
+
     context_messages = validate(ctx, get_context_messages(ctx))
 
     if not (ctx.enable_assistant_greeting):
@@ -102,6 +103,7 @@ async def handle_chat(io: CliIO, ctx: ElroyContext):
     elif (get_time_since_most_recent_user_message(context_messages) or timedelta()) < ctx.min_convo_age_for_greeting:
         logging.info("User has interacted recently, skipping greeting.")
     else:
+        print_model_selection(io, ctx)
         get_user_preferred_name(ctx)
         await process_and_deliver_msg(
             io,

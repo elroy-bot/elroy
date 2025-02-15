@@ -92,6 +92,12 @@ class Provider(enum.Enum):
 
 GEMINI_PREFIX = "gemini"
 
+CLAUDE_3_5_SONNET = "claude-3-5-sonnet-20241022"
+GPT_4O = "gpt-4o"
+GEMINI_2_0_FLASH = "gemini/gemini-2.0-flash"
+TEXT_EMBEDDING_3_SMALL = "text-embedding-3-small"
+GEMINI_TEXT_EMBEDDING_004 = "gemini/text-embedding-004"
+
 
 KNOWN_MODELS: Dict[Provider, List[str]] = {
     Provider.OPENAI: [
@@ -103,7 +109,7 @@ KNOWN_MODELS: Dict[Provider, List[str]] = {
         "o1-mini",
         "o1-mini-2024-09-12",
         # GPT-4O Models
-        "gpt-4o",
+        GPT_4O,
         "gpt-4o-2024-11-20",
         "gpt-4o-2024-08-06",
         "gpt-4o-2024-05-13",
@@ -134,10 +140,13 @@ KNOWN_MODELS: Dict[Provider, List[str]] = {
         "gpt-3.5-turbo-0125",
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-16k",
+        TEXT_EMBEDDING_3_SMALL,
+        "text-embedding-3-large,",
     ],
     Provider.ANTHROPIC: [
+        CLAUDE_3_5_SONNET,
+        "claude-3",
         "claude-3-opus-20240229",
-        "claude-3-5-sonnet-20241022",
         "claude-3-5-sonnet-20240620",
         "claude-3-sonnet-20240229",
         "claude-3-5-haiku-20241022",
@@ -150,10 +159,10 @@ KNOWN_MODELS: Dict[Provider, List[str]] = {
     Provider.GEMINI: [
         "gemini/gemini-pro",
         "gemini/gemini-1.5-pro-latest",
-        "gemini/gemini-2.0-flash",
+        GEMINI_2_0_FLASH,
         "gemini/gemini-2.0-flash-exp",
         "gemini/gemini-2.0-flash-lite-preview-02-05",
-        "gemini/text-embedding-004",
+        GEMINI_TEXT_EMBEDDING_004,
     ],
 }
 

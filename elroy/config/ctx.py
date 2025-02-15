@@ -14,7 +14,14 @@ from ..db.db_manager import DbManager
 from ..db.postgres.postgres_manager import PostgresManager
 from ..db.sqlite.sqlite_manager import SqliteManager
 from .constants import allow_unused
-from .llm import ChatModel, EmbeddingModel, get_chat_model, get_embedding_model
+from .llm import (
+    ChatModel,
+    EmbeddingModel,
+    get_chat_model,
+    get_embedding_model,
+    infer_chat_model_name,
+    infer_embedding_model_name,
+)
 from .paths import get_default_config_path
 
 
@@ -44,10 +51,10 @@ class ElroyContext:
         openai_api_base: Optional[str] = None,
         openai_embedding_api_base: Optional[str] = None,
         # Model Configuration
-        chat_model: str,
+        chat_model: Optional[str] = None,
         chat_model_api_key: Optional[str] = None,
         chat_model_api_base: Optional[str] = None,
-        embedding_model: str,
+        embedding_model: Optional[str] = None,
         embedding_model_api_key: Optional[str] = None,
         embedding_model_api_base: Optional[str] = None,
         embedding_model_size: int,
@@ -127,10 +134,23 @@ class ElroyContext:
     def min_convo_age_for_greeting(self) -> timedelta:
         return timedelta(minutes=self.params.min_convo_age_for_greeting_minutes)
 
+    @property
+    def is_chat_model_inferred(self) -> bool:
+        return self.params.chat_model is None
+
+    @property
+    def is_embedding_model_inferred(self) -> bool:
+        return self.params.embedding_model is None
+
     @cached_property
     def chat_model(self) -> ChatModel:
+        if not self.params.chat_model:
+            chat_model_name = infer_chat_model_name()
+        else:
+            chat_model_name = self.params.chat_model
+
         return get_chat_model(
-            model_name=self.params.chat_model,
+            model_name=chat_model_name,
             openai_api_key=self.params.openai_api_key,
             openai_api_base=self.params.openai_api_base,
             api_key=self.params.chat_model_api_key,
@@ -141,8 +161,13 @@ class ElroyContext:
 
     @cached_property
     def embedding_model(self) -> EmbeddingModel:
+        if not self.params.embedding_model:
+            embedding_model_name = infer_embedding_model_name()
+        else:
+            embedding_model_name = self.params.embedding_model
+
         return get_embedding_model(
-            model_name=self.params.embedding_model,
+            model_name=embedding_model_name,
             embedding_size=self.params.embedding_model_size,
             api_key=self.params.embedding_model_api_key,
             api_base=self.params.embedding_model_api_base,
