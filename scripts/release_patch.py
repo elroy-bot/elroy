@@ -222,7 +222,6 @@ def run_tests(errors: Errors):
         subprocess.run(
             [
                 "pytest",
-                "-x",
                 "--chat-models",
                 "haiku,4o-mini",
                 "--db-type",
