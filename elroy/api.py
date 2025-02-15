@@ -6,7 +6,7 @@ from .config.constants import USER
 from .config.ctx import ElroyContext
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
-from .llm.stream_parser import AssistantInternalThought
+from .llm.stream_parser import AssistantInternalThought, AssistantResponse
 from .messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
 from .repository.context_messages.operations import add_context_messages
@@ -229,7 +229,7 @@ class Elroy:
             Generator[str, None, None]: Generator yielding response chunks
         """
         for chunk in process_message(USER, self.ctx, input):
-            if not isinstance(chunk, AssistantInternalThought) or self.ctx.show_internal_thought:
+            if isinstance(chunk, AssistantResponse) or (isinstance(chunk, AssistantInternalThought) and self.ctx.show_internal_thought):
                 yield from self.formatter.format(chunk)
 
     @db
