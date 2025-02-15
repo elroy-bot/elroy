@@ -2,23 +2,14 @@ import re
 from functools import partial
 from typing import List, Optional, Tuple
 
-from toolz import assoc, first, pipe
+from toolz import assoc, pipe
 from toolz.curried import filter
 
 from .constants import KNOWN_MODELS, Provider
 from .llm import ChatModel
 
 
-def resolve_anthropic(pattern: str) -> str:
-    return pipe(
-        get_supported_anthropic_models(),
-        filter(lambda x: re.search(pattern, x, re.IGNORECASE)),
-        first,
-    )  # type: ignore
-
-
 def get_supported_openai_models() -> List[str]:
-    from litellm import open_ai_chat_completion_models
 
     # Returns supported chat models, in order of power
 
@@ -66,7 +57,7 @@ def get_supported_openai_models() -> List[str]:
         return (score, modifier, version_num, date_int)
 
     return pipe(
-        sorted(open_ai_chat_completion_models, key=_model_sort, reverse=True),
+        sorted(KNOWN_MODELS[Provider.OPENAI], key=_model_sort, reverse=True),
         filter(partial(re.search, r"^gpt-\d|^o1")),
         filter(lambda x: "vision" not in x),
         filter(lambda x: "audio" not in x),
@@ -74,7 +65,6 @@ def get_supported_openai_models() -> List[str]:
     )
 
 
-# This may result in API calls!
 def get_supported_anthropic_models() -> List[str]:
     def _model_sort(model_name: str) -> Tuple[int, float, int]:
         """
