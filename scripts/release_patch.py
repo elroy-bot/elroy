@@ -90,7 +90,7 @@ def update_configuration(elroy: Elroy):
 
 def update_changelog(elroy: Elroy):
     last_tag = os.popen("git describe --tags --abbrev=0 2>/dev/null || echo").read().strip()
-    commits = os.popen(f'git log {last_tag}..HEAD --pretty=format:"- %s%n%b" -p').read()
+    commits = os.popen(f'git log {last_tag}..HEAD --name-only --pretty=format:"- %s%n%b%nFiles changed:"').read()
 
     instruction = f"""
     Update CHANGELOG.md to add version {NEXT_PATCH}. Here are the commits since the last release:

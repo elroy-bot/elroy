@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.73] - 2025-02-15
+
+### Added
+- Automatic model selection based on available API keys:
+  - With ANTHROPIC_API_KEY: Uses Claude 3 Sonnet
+  - With OPENAI_API_KEY: Uses GPT-4o and text-embedding-3-small
+  - With GEMINI_API_KEY: Uses Gemini 2.0 Flash
+- Display of selected models at startup for better transparency
+
+### Fixed
+- Improved handling of new user creation in API mode
+
 ## [0.0.72] - 2025-02-13
 
 ### Added
