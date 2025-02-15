@@ -9,23 +9,24 @@ from toolz import assoc, merge, pipe
 from toolz.curried import map, valfilter
 from typer import Option
 
+from ..config.constants import CLAUDE_3_5_SONNET
 from ..config.llm import DEFAULTS_CONFIG
-from ..config.models_aliases import resolve_anthropic
 from ..config.paths import get_default_sqlite_url
 
 DEPRECATED_KEYS = {"initial_context_refresh_wait_seconds"}
 
 
 def resolve_model_alias(alias: str) -> Optional[str]:
-    if alias in ["sonnet", "opus", "haiku"]:
-        return resolve_anthropic(alias)
-    else:
-        return {
-            "gpt4o": "gpt-4o",
-            "gpt4o_mini": "gpt-4o-mini",
-            "o1": "o1",
-            "o1_mini": "o1-mini",
-        }.get(alias)
+    return {
+        "sonnet": CLAUDE_3_5_SONNET,
+        "claude-3.5": CLAUDE_3_5_SONNET,
+        "opus": "claude-3-opus-20240229",
+        "haiku": "claude-3-5-haiku-20241022",
+        "gpt4o": "gpt-4o",
+        "gpt4o_mini": "gpt-4o-mini",
+        "o1": "o1",
+        "o1_mini": "o1-mini",
+    }.get(alias)
 
 
 @lru_cache
