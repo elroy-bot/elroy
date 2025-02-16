@@ -179,7 +179,14 @@ class Elroy:
         return do_query_memory(self.ctx, query)
 
     @db
-    def create_memory(self, name: str, text: str):
+    def remember(self, name: str, text: str) -> str:
+        """
+        Alias for create_memory
+        """
+        return self.create_memory(name, text)
+
+    @db
+    def create_memory(self, name: str, text: str) -> str:
         """Creates a new memory for the assistant.
 
         Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
