@@ -72,7 +72,7 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
     )
 
 
-def is_context_refresh_needed(context_messages: List[ContextMessage], chat_model_name: str, context_refresh_trigger_tokens: int) -> bool:
+def is_context_refresh_needed(context_messages: List[ContextMessage], chat_model_name: str, max_tokens: int) -> bool:
 
     if sum(1 for m in context_messages if m.role == USER) == 0:
         logging.info("No user messages in context, skipping context refresh")
@@ -86,11 +86,11 @@ def is_context_refresh_needed(context_messages: List[ContextMessage], chat_model
     )
     assert isinstance(token_count, int)
 
-    if token_count > context_refresh_trigger_tokens:
-        logging.info(f"Token count {token_count} exceeds threshold {context_refresh_trigger_tokens}")
+    if token_count > max_tokens:
+        logging.info(f"Token count {token_count} exceeds threshold {max_tokens}")
         return True
     else:
-        logging.info(f"Token count {token_count} does not exceed threshold {context_refresh_trigger_tokens}")
+        logging.info(f"Token count {token_count} does not exceed threshold {max_tokens}")
         return False
 
 

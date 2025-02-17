@@ -7,6 +7,7 @@ from functools import partial, wraps
 from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
 
 from ..config.ctx import ElroyContext
+from ..config.initializer import dbsession
 
 T = TypeVar("T")
 
@@ -100,13 +101,11 @@ def run_in_background_thread(fn: Callable, ctx: ElroyContext, *args):
     def wrapped_fn():
         # Create completely new connection in the new thread
         new_ctx = ElroyContext(**vars(ctx.params))
-        with new_ctx.dbsession():
+        with dbsession(new_ctx):
             fn(new_ctx, *args)
 
-    with ctx.db.get_new_session() as db:
-
-        thread = threading.Thread(
-            target=wrapped_fn,
-            daemon=True,
-        )
-        thread.start()
+    thread = threading.Thread(
+        target=wrapped_fn,
+        daemon=True,
+    )
+    thread.start()

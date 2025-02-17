@@ -13,9 +13,9 @@ from toolz import pipe
 
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext
+from ..config.initializer import init_elroy_session
 from ..config.logging import setup_logging
 from ..config.paths import get_default_config_path, get_default_sqlite_url
-from ..db.dbsession import get_db_session
 from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
 from ..io.formatters.rich_formatter import RichFormatter
@@ -26,12 +26,7 @@ from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
 from ..utils.utils import datetime_to_string, do_asyncio_run
 from .bug_report import create_bug_report_from_exception_if_confirmed
-from .chat import (
-    handle_chat,
-    handle_message_interactive,
-    handle_message_stdio,
-    onboard_interactive,
-)
+from .chat import handle_chat, handle_message_interactive, handle_message_stdio
 from .options import ElroyOption, get_resolved_params, resolve_model_alias
 from .updater import check_latest_version, check_updates
 
@@ -39,7 +34,7 @@ MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
 
 @dataclass
-class ElroyContextInitializer:
+class CliContextObj:
     ctx: ElroyContext
     io: ElroyIO
 
@@ -145,14 +140,9 @@ def common(
         help="Maximum number of loops the assistant can run before tools are temporarily made unvailable (returning for the next user message).",
         rich_help_panel="Context Management",
     ),
-    context_refresh_trigger_tokens: int = ElroyOption(
-        "context_refresh_trigger_tokens",
+    max_tokens: int = ElroyOption(
+        "max_tokens",
         help="Number of tokens that triggers a context refresh and compresion of messages in the context window.",
-        rich_help_panel="Context Management",
-    ),
-    context_refresh_target_tokens: int = ElroyOption(
-        "context_refresh_target_tokens",
-        help="Target number of tokens after context refresh / context compression, how many tokens to aim to keep in context.",
         rich_help_panel="Context Management",
     ),
     max_context_age_minutes: float = ElroyOption(
@@ -274,6 +264,18 @@ def common(
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
+    openai_api_key: Optional[str] = ElroyOption(
+        "openai_api_key",
+        help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+        hidden=True,
+    ),
+    openai_api_base: Optional[str] = ElroyOption(
+        "openai_api_base",
+        help="OpenAI API (or OpenAI compatible) base URL.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+        hidden=True,
+    ),
     # Deprecated params
     initial_context_refresh_wait_seconds: int = ElroyOption(  # noqa F841 remove in 0.1.0
         "initial_context_refresh_wait_seconds",
@@ -293,26 +295,28 @@ def common(
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
         deprecated=True,
     ),
-    openai_api_key: Optional[str] = ElroyOption(
-        "openai_api_key",
-        help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
-        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-        hidden=True,
-    ),
-    openai_api_base: Optional[str] = ElroyOption(
-        "openai_api_base",
-        help="OpenAI API (or OpenAI compatible) base URL.",
-        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-        hidden=True,
-    ),
     openai_embedding_api_base: Optional[str] = ElroyOption(  # noqa F841
         "openai_embedding_api_base",
         help="OpenAI API (or OpenAI compatible) base URL for embeddings.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
         deprecated=True,
     ),
+    context_refresh_trigger_tokens: int = ElroyOption(  # noqa F841
+        "context_refresh_trigger_tokens",
+        help="Number of tokens that triggers a context refresh and compresion of messages in the context window.",
+        rich_help_panel="Context Management",
+        deprecated=True,
+    ),
+    context_refresh_target_tokens: int = ElroyOption(
+        "context_refresh_target_tokens",
+        help="Target number of tokens after context refresh / context compression, how many tokens to aim to keep in context.",
+        rich_help_panel="Context Management",
+        deprecated=True,
+    ),
 ):
     """Common parameters."""
+
+    setup_logging()
 
     for m in MODEL_ALIASES:
         if typer_ctx.params.get(m):
@@ -341,9 +345,7 @@ def common(
     else:
         io = PlainIO()
 
-    typer_ctx.obj = ElroyContextInitializer(ctx=elroy_ctx, io=io)
-
-    setup_logging()
+    typer_ctx.obj = CliContextObj(ctx=elroy_ctx, io=io)
 
     if typer_ctx.invoked_subcommand is None:
         chat(typer_ctx)
@@ -360,21 +362,24 @@ def chat(typer_ctx: typer.Context):
 
         check_updates(io)
 
-        with get_db_session(ctx, io):
+        with init_elroy_session(ctx, io, True):
             try:
-                if not get_user_id_if_exists(ctx.db, ctx.user_token):
-                    do_asyncio_run(onboard_interactive(io, ctx))
                 do_asyncio_run(handle_chat(io, ctx))
             except BdbQuit:
                 logging.info("Exiting...")
             except EOFError:
                 logging.info("Exiting...")
             except Exception as e:
-                create_bug_report_from_exception_if_confirmed(io, ctx, e)
+                if "Unsupported param: tools" in str(e):
+                    raise typer.BadParameter(
+                        f"Tool use not supported by model {ctx.chat_model.name}. Try starting with --inline-tool-calls"
+                    )
+                else:
+                    create_bug_report_from_exception_if_confirmed(io, ctx, e)
     else:
         message = sys.stdin.read()
         assert isinstance(io, PlainIO)
-        with get_db_session(ctx, io):
+        with init_elroy_session(ctx, io, True):
             handle_message_stdio(ctx, io, message, None)
 
 
@@ -392,7 +397,7 @@ def message(
     """Process a single message and exit."""
     ctx = get_ctx(typer_ctx)
     io = get_io(typer_ctx)
-    with get_db_session(ctx, io):
+    with init_elroy_session(ctx, io, True):
         if sys.stdin.isatty() and not message:
             assert isinstance(io, CliIO)
             handle_message_interactive(ctx, io, tool)
@@ -424,10 +429,7 @@ def cli_remember(
     """Create a new memory from text or interactively."""
     ctx = get_ctx(typer_ctx)
     io = get_io(typer_ctx)
-    with get_db_session(ctx, io):
-        if not get_user_id_if_exists(ctx.db, ctx.user_token):
-            io.warning("Creating memory for new user")
-
+    with init_elroy_session(ctx, io, True):
         if text:
             memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
             manually_record_user_memory(ctx, text, memory_name)
@@ -534,7 +536,7 @@ def cli_set_persona(
     """Set a custom persona for the assistant."""
     ctx = get_ctx(typer_ctx)
     io = get_io(typer_ctx)
-    with get_db_session(ctx, io):
+    with init_elroy_session(ctx, io, True):
         if get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.info(f"No user found for token {ctx.user_token}, creating one")
         do_set_persona(ctx, persona)
@@ -546,7 +548,7 @@ def reset_persona(typer_ctx: typer.Context):
     """Removes any custom persona, reverting to the default."""
     ctx = get_ctx(typer_ctx)
     io = get_io(typer_ctx)
-    with get_db_session(ctx, io):
+    with init_elroy_session(ctx, io, True):
         if not get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
             return typer.Exit()
@@ -560,7 +562,7 @@ def show_persona(typer_ctx: typer.Context):
     """Print the system persona and exit."""
     ctx = get_ctx(typer_ctx)
     io = get_io(typer_ctx)
-    with get_db_session(ctx, io):
+    with init_elroy_session(ctx, io, True):
         print(get_persona(ctx))
         raise typer.Exit()
 

@@ -1,18 +1,15 @@
 import logging
-from contextlib import contextmanager
 from datetime import timedelta
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Generator, List, Optional, Type, TypeVar
+from typing import Any, Callable, List, Optional, TypeVar
 
-from sqlalchemy import Engine
 from toolz.curried import dissoc
 
 from ..cli.options import DEPRECATED_KEYS
-from ..db.db_manager import DbManager
-from ..db.postgres.postgres_manager import PostgresManager
-from ..db.sqlite.sqlite_manager import SqliteManager
+from ..db.db_manager import DbManager, get_db_manager
+from ..db.db_session import DbSession
 from .constants import allow_unused
 from .llm import (
     ChatModel,
@@ -25,11 +22,7 @@ from .paths import get_default_config_path
 
 
 class ElroyContext:
-    from ..io.base import ElroyIO
-    from ..io.cli import CliIO
-
-    _db: Optional[DbManager] = None
-    _io: Optional[ElroyIO] = None
+    _db: Optional[DbSession] = None
 
     def __init__(
         self,
@@ -61,8 +54,7 @@ class ElroyContext:
         inline_tool_calls: bool = False,
         # Context Management
         max_assistant_loops: int,
-        context_refresh_trigger_tokens: int,
-        context_refresh_target_tokens: int,
+        max_tokens: int,
         max_context_age_minutes: float,
         min_convo_age_for_greeting_minutes: float,
         enable_assistant_greeting: bool,
@@ -86,15 +78,16 @@ class ElroyContext:
         self.default_persona = default_persona
         self.enable_assistant_greeting = enable_assistant_greeting
         self.debug = debug
-        self.context_refresh_trigger_tokens = context_refresh_trigger_tokens
+        self.max_tokens = max_tokens
         self.max_assistant_loops = max_assistant_loops
-        self.context_refresh_trigger_tokens = context_refresh_trigger_tokens
         self.l2_memory_relevance_distance_threshold = l2_memory_relevance_distance_threshold
-        self.context_refresh_target_tokens = context_refresh_target_tokens
+
+        self.context_refresh_target_tokens = int(max_tokens / 3)
         self.memory_cluster_similarity_threshold = memory_cluster_similarity_threshold
         self.min_memory_cluster_size = min_memory_cluster_size
         self.max_memory_cluster_size = max_memory_cluster_size
         self.memories_between_consolidation = memories_between_consolidation
+        self.inline_tool_calls = inline_tool_calls
 
     from ..tools.registry import ToolRegistry
 
@@ -177,51 +170,26 @@ class ElroyContext:
         return get_user_id_if_exists(self.db, self.user_token) or create_user_id(self.db, self.user_token)
 
     @property
-    def db(self) -> DbManager:
+    def db(self) -> DbSession:
         if not self._db:
             raise ValueError("No db session open")
         else:
             return self._db
 
     @cached_property
-    def engine(self) -> Engine:
-        return self.db_manager_class.get_engine(self.params.database_url)
-
-    @cached_property
-    def db_manager_class(self) -> Type[DbManager]:
+    def db_manager(self) -> DbManager:
         assert self.params.database_url, "Database URL not set"
-
-        if self.params.database_url.startswith("postgresql://"):
-            return PostgresManager
-        elif self.params.database_url.startswith("sqlite:///"):
-            return SqliteManager
-        else:
-            raise ValueError(f"Unsupported database URL: {self.params.database_url}. Must be either a postgresql:// or sqlite:/// URL")
-
-    def is_migration_needed(self) -> bool:
-        return self.db_manager_class.is_migration_needed(self.engine)
-
-    def migrate_db(self) -> None:
-        self.db_manager_class.migrate(self.engine)
+        return get_db_manager(self.params.database_url)
 
     @allow_unused
     def is_db_connected(self) -> bool:
         return bool(self._db)
 
-    @allow_unused
-    def migrate_db_if_needed(self) -> None:
-        if self.is_migration_needed():
-            self.migrate_db()
+    def set_db_session(self, db: DbSession):
+        self._db = db
 
-    @contextmanager
-    def dbsession(self) -> Generator[None, None, None]:
-        """Context manager for database sessions"""
-        with self.db_manager_class.open_session(self.params.database_url) as db:
-            try:
-                self._db = db
-                yield
-            finally:
-                self._db = None
+    def unset_db_session(self):
+        self._db = None
 
 
 T = TypeVar("T", bound=Callable[..., Any])

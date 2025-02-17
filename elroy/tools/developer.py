@@ -92,7 +92,7 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
         },
         "Context Management": {
             "Max Assistant Loops": ctx.max_assistant_loops,
-            "Context Refresh Trigger Tokens": ctx.context_refresh_trigger_tokens,
+            "Max tokens": ctx.max_tokens,
             "Context Refresh Target Tokens": ctx.context_refresh_target_tokens,
             "Max Context Age (minutes)": ctx.params.max_context_age_minutes,
         },

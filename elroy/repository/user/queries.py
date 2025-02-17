@@ -4,8 +4,8 @@ from sqlmodel import Session, select
 
 from ...config.constants import ASSISTANT_ALIAS_STRING, UNKNOWN, USER_ALIAS_STRING, tool
 from ...config.ctx import ElroyContext
-from ...db.db_manager import DbManager
 from ...db.db_models import User
+from ...db.db_session import DbSession
 from .operations import get_or_create_user_preference
 
 
@@ -40,7 +40,7 @@ def get_persona(ctx: ElroyContext):
     return raw_persona.replace(USER_ALIAS_STRING, user_noun).replace(ASSISTANT_ALIAS_STRING, get_assistant_name(ctx))
 
 
-def get_user_id_if_exists(db: DbManager, user_token: str) -> Optional[int]:
+def get_user_id_if_exists(db: DbSession, user_token: str) -> Optional[int]:
     user = db.exec(select(User).where(User.token == user_token)).first()
     if user:
         id = user.id

@@ -14,13 +14,13 @@ from ...config.constants import (
     SYSTEM_INSTRUCTION_LABEL,
     SYSTEM_INSTRUCTION_LABEL_END,
     USER,
-    inline_tool_instruct,
     tool,
 )
 from ...config.ctx import ElroyContext
 from ...config.paths import get_save_dir
 from ...db.db_models import ContextMessageSet, Goal, Memory
 from ...llm.prompts import summarize_conversation
+from ...tools.inline_tools import inline_tool_instruct
 from ...utils.clock import db_time_to_local
 from ...utils.utils import do_asyncio_run, logged_exec_time
 from ..memories.operations import create_memory, formulate_memory
@@ -219,7 +219,7 @@ async def context_refresh(ctx: ElroyContext, context_messages: List[ContextMessa
 
 def refresh_context_if_needed(ctx: ElroyContext):
     context_messages = get_context_messages(ctx)
-    if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.context_refresh_trigger_tokens):
+    if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.max_tokens):
         do_asyncio_run(context_refresh(ctx, context_messages))
 
 

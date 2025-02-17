@@ -36,7 +36,7 @@ else:
         lambda x: [x.get("database_url"), os.environ.get("ELROY_DATABASE_URL"), get_default_sqlite_url()],
         filter(lambda x: x is not None),
         map(str),
-        filter(SqliteManager.is_valid_url),
+        filter(SqliteManager.is_url_valid),
         first_or_none,
         partial(config.set_main_option, "sqlalchemy.url"),
     )

@@ -22,6 +22,7 @@ from elroy.db.db_models import (
     User,
     UserPreference,
 )
+from elroy.db.db_session import DbSession
 from elroy.db.postgres.postgres_manager import PostgresManager
 from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.repository.context_messages.data_models import ContextMessage
@@ -83,44 +84,42 @@ def pytest_generate_tests(metafunc):
 
 
 @pytest.fixture(scope="session")
-def db(
+def db_manager(
     request,
     tmp_path_factory,
     db_type: str,
 ):
     if db_type == "postgres":
         database_url = request.getfixturevalue("postgres_url")
-        engine = PostgresManager.get_engine(database_url)
+        db_manager = PostgresManager(database_url)
 
-        PostgresManager.migrate(engine)
-
-        with PostgresManager.open_session(database_url) as db:
-            for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
-                db.exec(delete(table))  # type: ignore
-            db.commit()
-
-            yield db
     else:
         url = pipe(
             tmp_path_factory.mktemp("data"),
             do(lambda x: x.mkdir(exist_ok=True)),
             lambda x: f"sqlite:///{x}/test.db",
         )
-        engine = SqliteManager.get_engine(url)
+        db_manager = SqliteManager(url)
 
-        SqliteManager.migrate(engine)
+    db_manager.migrate()
 
-        with SqliteManager.open_session(url) as db:
-            for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
-                db.exec(delete(table))  # type: ignore
-            db.commit()
+    with db_manager.open_session() as db:
+        for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
+            db.exec(delete(table))  # type: ignore
+        db.commit()
 
-            yield db
+    yield db_manager
+
+
+@pytest.fixture(scope="session")
+def db_session(db_manager: DbManager) -> Generator[DbSession, None, None]:
+    with db_manager.open_session() as db:
+        yield db
 
 
 @pytest.fixture(scope="function")
-def user_id(db, user_token) -> Generator[int, Any, None]:
-    yield create_user_id(db, user_token)
+def user_id(db_session, user_token) -> Generator[int, Any, None]:
+    yield create_user_id(db_session, user_token)
 
 
 @pytest.fixture(scope="function")
@@ -214,20 +213,21 @@ def user_token() -> Generator[str, None, None]:
 
 
 @pytest.fixture(scope="function")
-def ctx(db: DbManager, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
+def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext for testing, using the same defaults as the CLI"""
     params = get_resolved_params(
         user_token=user_token,
-        database_url=db.url,
+        database_url=db_manager.url,
         chat_model=chat_model_name,
     )
 
     # Create new context with all parameters
     ctx = ElroyContext(**params)
+    ctx.set_db_session(db_session)
 
-    with ctx.dbsession():
-        do_asyncio_run(onboard_non_interactive(ctx))
-        yield ctx
+    do_asyncio_run(onboard_non_interactive(ctx))
+    yield ctx
+    ctx.unset_db_session()
 
 
 def is_docker_running():

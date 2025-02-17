@@ -53,7 +53,7 @@ Model configuration options:
 
 Model Aliases:
 * `--sonnet`: Use Anthropic's Claude 3 Sonnet model
-* `--opus`: Use Anthropic's Claude 3 Opus model  
+* `--opus`: Use Anthropic's Claude 3 Opus model
 * `--4o`: Use OpenAI's GPT-4o model
 * `--4o-mini`: Use OpenAI's GPT-4o-mini model
 * `--o1`: Use OpenAI's o1 model
@@ -61,7 +61,7 @@ Model Aliases:
 
 ### Context Management
 * `--max-assistant-loops INTEGER`: Maximum number of loops before tools are temporarily disabled. [env var: ELROY_MAX_ASSISTANT_LOOPS] [default: 4]
-* `--context-refresh-trigger-tokens INTEGER`: Token count that triggers context refresh. [env var: ELROY_CONTEXT_REFRESH_TRIGGER_TOKENS] [default: 10000]
+* `--max-tokens INTEGER`: Token count that triggers context refresh. [env var: ELROY_MAX_TOKENS] [default: 10000]
 * `--context-refresh-target-tokens INTEGER`: Target token count after context refresh. [env var: ELROY_CONTEXT_REFRESH_TARGET_TOKENS] [default: 5000]
 * `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages. [env var: ELROY_MAX_CONTEXT_AGE_MINUTES] [default: 720.0]
 * `--min-convo-age-for-greeting-minutes FLOAT`: Minimum conversation age before greeting. [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 10.0]

@@ -1,5 +1,5 @@
 import enum
-from typing import Any, Callable, Dict, List
+from typing import Callable, Dict, List
 
 MEMORY_WORD_COUNT_LIMIT = 300
 
@@ -173,30 +173,9 @@ Include in your response internal thoughts. Indicate internal thought content wi
 
 An example response might look like:
 
-<internal thought> THis is a good opportunity to ask about a due goal</internal thought> What are your thoughts on the upcoming project deadline?"
+<internal thought> This is a good opportunity to ask about a due goal</internal thought> What are your thoughts on the upcoming project deadline?"
 </formatting>
 """
-
-
-def inline_tool_instruct(schemas: List[Dict[str, Any]]) -> str:
-    return (
-        "\n".join(["<tool_call_schemas>", *[str(x) for x in schemas], "</tool_call_schemas>"])
-        + """
-<tool_call_instructions>
-To make tool calls, include the following in your response:
-<tool_call>
-{"arguments": <args-dict>, "name": <function-name>}
-</tool_call>
-
-The tool call MUST BE VALID JSON.
-
-For example, to use a tool to create a memory, you could include the following in your response:
-<tool_call>
-{"arguments": {"name": "Receiving instructions for tool calling", "text": "Today I learned how to call tools in Elroy."}, "name": "create_memory"}
-</tool_call>
-<tool_call_instructions>
-"""
-    )
 
 
 MAX_MEMORY_LENGTH = 12000  # Characters
