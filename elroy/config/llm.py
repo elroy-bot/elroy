@@ -11,7 +11,6 @@ from .constants import (
     GEMINI_PREFIX,
     GPT_4O,
     KNOWN_MODELS,
-    TEXT_EMBEDDING_3_SMALL,
     Provider,
 )
 from .paths import APP_NAME
@@ -41,10 +40,10 @@ def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
             return provider
     if model_name.startswith(GEMINI_PREFIX):
         return Provider.GEMINI
-    elif api_base:
-        return Provider.OTHER
+    elif model_name.startswith("openai"):
+        return Provider.OPENAI
     else:
-        raise ValueError("Cannot determine provider for model")
+        return Provider.OTHER
 
 
 @dataclass
@@ -66,17 +65,6 @@ def infer_chat_model_name() -> str:
     else:
         raise ValueError(
             "Could not infer chat model. Please set chat model, or provide API keys. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
-        )
-
-
-def infer_embedding_model_name() -> str:
-    if os.environ.get("OPENAI_API_KEY"):
-        return TEXT_EMBEDDING_3_SMALL
-    # elif os.environ.get("GEMINI_API_KEY"): # TODO: figure out how to support different embedding sizes
-    # return GEMINI_TEXT_EMBEDDING_004
-    else:
-        raise ValueError(
-            "Could not infer embedding model. Please set embedding model, or provide API keys. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
         )
 
 

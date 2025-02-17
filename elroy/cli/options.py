@@ -76,7 +76,10 @@ def ElroyOption(
 
 
 def get_env_var_name(parameter_name: str):
-    return "ELROY_" + parameter_name.upper()
+    return {
+        "openai_api_key": "OPENAI_API_KEY",
+        "openai_api_base": "OPENAI_API_BASE",
+    }.get(parameter_name, f"ELROY_{parameter_name.upper()}")
 
 
 def get_resolved_params(**kwargs) -> Dict[str, Any]:

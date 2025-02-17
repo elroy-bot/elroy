@@ -46,7 +46,7 @@ default_persona: |  # Default system persona for the assistant
 chat_model: null  # The model to use for chat completions, if not provided, inferred from env variables
 chat_model_api_base: null  # Base URL for OpenAI compatible chat model API. Litellm will recognize vars too
 chat_model_api_key: null  # API key for OpenAI compatible chat model API
-embedding_model: # The model to use for text embeddings. If not provided, inferred from env variables
+embedding_model: "text-embedding-3-small" # The model to use for text embeddings. If not provided, inferred from env variables
 embedding_model_size: 1536  # The size of the embedding model
 embedding_model_api_base: null  # Base URL for OpenAI compatible embedding model API
 embedding_model_api_key: null  # API key for OpenAI compatible embedding model API

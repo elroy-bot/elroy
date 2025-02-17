@@ -16,6 +16,9 @@ from .tool_call_accumulator import OpenAIToolCallAccumulator
 class TextOutput(ABC):
     content: str
 
+    def __str__(self):
+        return self.content
+
 
 @dataclass
 class AssistantInternalThought(TextOutput):

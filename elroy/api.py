@@ -182,6 +182,13 @@ class Elroy:
     def remember(self, name: str, text: str) -> str:
         """
         Alias for create_memory
+
+        Args:
+            name (str): The name of the memory. Should be specific and discuss one topic.
+            text (str): The text of the memory.
+
+        Returns:
+            str: The result of the memory creation
         """
         return self.create_memory(name, text)
 
@@ -216,7 +223,7 @@ class Elroy:
             text (str): The text of the memory.
 
         Returns:
-            int: The database ID of the memory.
+            str: The result of the memory creation
         """
         return do_create_memory(self.ctx, name, text)
 

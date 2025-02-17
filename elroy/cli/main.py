@@ -297,13 +297,13 @@ def common(
         "openai_api_key",
         help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-        deprecated=True,
+        hidden=True,
     ),
     openai_api_base: Optional[str] = ElroyOption(
         "openai_api_base",
         help="OpenAI API (or OpenAI compatible) base URL.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
-        deprecated=True,
+        hidden=True,
     ),
     openai_embedding_api_base: Optional[str] = ElroyOption(  # noqa F841
         "openai_embedding_api_base",
