@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 from elroy.db.db_manager import DbManager
 
 
-def test_migrations_in_sync(db: DbManager):
+def test_migrations_in_sync(db_manager: DbManager):
     from alembic.autogenerate import compare_metadata
     from alembic.migration import MigrationContext
 
@@ -23,9 +23,7 @@ def test_migrations_in_sync(db: DbManager):
     # Compile patterns for better performance
     compiled_patterns: Set[Pattern] = {re.compile(pattern) for pattern in IGNORED_TABLE_PATTERNS}
 
-    engine = db.get_engine(db.url)
-
-    with engine.connect() as conn:
+    with db_manager.engine.connect() as conn:
         ctx = MigrationContext.configure(conn)
         diff = compare_metadata(ctx, SQLModel.metadata)
 

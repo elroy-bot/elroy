@@ -18,7 +18,7 @@ from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import (
     get_context_messages,
-    get_current_system_message,
+    get_current_system_instruct,
 )
 from ..repository.context_messages.transforms import format_context_messages
 from ..repository.user.queries import get_user_preferred_name
@@ -186,7 +186,7 @@ def print_system_instruction(ctx: ElroyContext) -> Optional[str]:
     """
 
     return pipe(
-        get_current_system_message(ctx),
+        get_current_system_instruct(ctx),
         lambda _: _.content if _ else None,
     )  # type: ignore
 

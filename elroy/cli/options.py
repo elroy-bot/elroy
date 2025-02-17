@@ -13,7 +13,11 @@ from ..config.constants import CLAUDE_3_5_SONNET
 from ..config.llm import DEFAULTS_CONFIG
 from ..config.paths import get_default_sqlite_url
 
-DEPRECATED_KEYS = {"initial_context_refresh_wait_seconds"}
+DEPRECATED_KEYS = {
+    "initial_context_refresh_wait_seconds",
+    "context_refresh_target_tokens",
+    "context_refresh_trigger_tokens",
+}
 
 
 def resolve_model_alias(alias: str) -> Optional[str]:

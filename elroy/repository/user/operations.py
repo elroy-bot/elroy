@@ -7,12 +7,12 @@ from toolz.curried import do
 
 from ...config.constants import UNKNOWN, tool
 from ...config.ctx import ElroyContext
-from ...db.db_manager import DbManager
 from ...db.db_models import User, UserPreference
+from ...db.db_session import DbSession
 from ...utils.utils import is_blank
 
 
-def create_user_id(db: DbManager, user_token: str) -> int:
+def create_user_id(db: DbSession, user_token: str) -> int:
     return pipe(
         User(token=user_token),
         do(db.add),

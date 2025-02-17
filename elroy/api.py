@@ -5,6 +5,8 @@ from .cli.chat import onboard_non_interactive
 from .cli.options import get_resolved_params
 from .config.constants import USER
 from .config.ctx import ElroyContext
+from .config.initializer import dbsession, init_elroy_session
+from .io.base import PlainIO
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
 from .llm.stream_parser import AssistantInternalThought, AssistantResponse
@@ -35,10 +37,7 @@ def db(f: Callable) -> Callable:
 
     @wraps(f)
     def wrapper(self, *args, **kwargs):
-        if not self.ctx.is_db_connected():
-            with self.ctx.dbsession():
-                return f(self, *args, **kwargs)
-        else:
+        with dbsession(self.ctx):
             return f(self, *args, **kwargs)
 
     return wrapper
@@ -54,6 +53,7 @@ class Elroy:
         persona: Optional[str] = None,
         assistant_name: Optional[str] = None,
         database_url: Optional[str] = None,
+        check_db_migration: bool = True,
         **kwargs,
     ):
         self.formatter = formatter
@@ -66,8 +66,8 @@ class Elroy:
                 **kwargs,
             ),
         )
-        self.ctx.migrate_db_if_needed()
-        with self.ctx.dbsession():
+
+        with init_elroy_session(self.ctx, PlainIO(), check_db_migration):
             if persona:
                 set_persona(self.ctx, persona)
 

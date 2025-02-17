@@ -57,7 +57,7 @@ def get_context_messages(ctx: ElroyContext) -> List[ContextMessage]:
     return list(_get_context_messages_iter(ctx))
 
 
-def get_current_system_message(ctx: ElroyContext) -> Optional[ContextMessage]:
+def get_current_system_instruct(ctx: ElroyContext) -> Optional[ContextMessage]:
     try:
         return first(_get_context_messages_iter(ctx))
     except StopIteration:
