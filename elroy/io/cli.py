@@ -100,8 +100,9 @@ class CliIO(ElroyIO):
     def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
         try:
             with self.status():
-                first_msg = next(messages)
-            self.print(first_msg, end="")
+                first_msg = next(messages, None)
+            if first_msg:
+                self.print(first_msg, end="")
             for message in messages:
                 self.print(message, end="")
         except KeyboardInterrupt:

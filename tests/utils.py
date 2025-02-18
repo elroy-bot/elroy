@@ -23,15 +23,9 @@ from elroy.utils.utils import first_or_none
 
 
 class MockCliIO(CliIO):
-    def __init__(self):
+    def __init__(self, formatter: RichFormatter) -> None:
         super().__init__(
-            RichFormatter(
-                system_message_color="blue",
-                assistant_message_color="green",
-                user_input_color="red",
-                warning_color="yellow",
-                internal_thought_color="magenta",
-            ),
+            formatter=formatter,
             show_internal_thought=False,
         )
 

@@ -166,12 +166,18 @@ def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClus
     return clusters
 
 
-def _create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: List[Memory]):
+def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: List[Memory]):
     from .operations import do_create_memory, mark_inactive
 
     logging.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
 
-    memory = do_create_memory(ctx, name, text, sources)  # type: ignore
+    memory = do_create_memory(
+        ctx,
+        name,
+        text,
+        sources,  # type: ignore
+        False,
+    )[0]
 
     [mark_inactive(ctx, m) for m in sources]
     assert isinstance(memory, Memory)
@@ -234,7 +240,7 @@ async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, 
                 content = "\n".join(current_content).strip()
                 try:
 
-                    new_id = _create_consolidated_memory(
+                    new_id = create_consolidated_memory(
                         ctx=ctx,
                         name=current_title,
                         text=content,
@@ -255,7 +261,7 @@ async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, 
         content = "\n".join(current_content).strip()
         try:
             logging.info("Creating consolidated memory")
-            new_id = _create_consolidated_memory(
+            new_id = create_consolidated_memory(
                 ctx=ctx,
                 name=current_title,
                 text=content,
