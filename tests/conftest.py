@@ -25,6 +25,7 @@ from elroy.db.db_models import (
 from elroy.db.db_session import DbSession
 from elroy.db.postgres.postgres_manager import PostgresManager
 from elroy.db.sqlite.sqlite_manager import SqliteManager
+from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.goals.operations import create_goal
@@ -123,8 +124,19 @@ def user_id(db_session, user_token) -> Generator[int, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def io() -> Generator[MockCliIO, Any, None]:
-    yield MockCliIO()
+def io(rich_formatter: RichFormatter) -> Generator[MockCliIO, Any, None]:
+    yield MockCliIO(rich_formatter)
+
+
+@pytest.fixture(scope="session")
+def rich_formatter():
+    return RichFormatter(
+        system_message_color="blue",
+        assistant_message_color="green",
+        user_input_color="red",
+        warning_color="yellow",
+        internal_thought_color="magenta",
+    )
 
 
 @pytest.fixture(scope="function")

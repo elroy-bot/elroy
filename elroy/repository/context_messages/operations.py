@@ -42,7 +42,7 @@ def persist_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> List[
     msg_ids = []
     for msg in messages:
         if not msg.content and not msg.tool_calls:
-            logging.error(f"Skipping message with no content or tool calls: {msg}\n{traceback.format_exc()}")
+            logging.warning(f"Skipping message with no content or tool calls: {msg}\n{traceback.format_exc()}")
         elif msg.id:
             msg_ids.append(msg.id)
         else:

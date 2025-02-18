@@ -93,7 +93,7 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def run_in_background_thread(fn: Callable, ctx: ElroyContext, *args):
+def run_in_background_thread(fn: Callable, ctx: ElroyContext, *args) -> threading.Thread:
     from ..config.ctx import ElroyContext
 
     # hack to get a new session for the thread
@@ -109,3 +109,4 @@ def run_in_background_thread(fn: Callable, ctx: ElroyContext, *args):
         daemon=True,
     )
     thread.start()
+    return thread

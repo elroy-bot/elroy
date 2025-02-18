@@ -1,7 +1,7 @@
 import json
 import logging
-from functools import wraps
-from typing import Any, Callable, List, Optional, Tuple
+from threading import Thread
+from typing import List, Optional, Tuple
 
 from sqlmodel import select
 
@@ -35,34 +35,30 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
         return tracker
 
 
-def memory_consolidation_check(func) -> Callable[..., Any]:
-    @wraps(func)  # Add this line
-    def wrapper(ctx: ElroyContext, *args, **kwargs):
-        result = func(ctx, *args, **kwargs)
+def do_memory_consolidation_check(ctx: ElroyContext) -> Optional[Thread]:
+    logging.info("Checking memory consolidation")
 
-        logging.info("Checking memory consolidation")
+    tracker = get_or_create_memory_op_tracker(ctx)
 
-        tracker = get_or_create_memory_op_tracker(ctx)
+    tracker.memories_since_consolidation += 1
+    logging.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
 
-        tracker.memories_since_consolidation += 1
-        logging.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
-
-        if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
-            # Run consolidate_memories in a background thread
-            logging.info("Running memory consolidation")
-            run_in_background_thread(consolidate_memories, ctx)
-            logging.info("Memory consolidation started in background thread")
-            tracker.memories_since_consolidation = 0
-        else:
-            logging.info("Not running memory consolidation")
-        ctx.db.add(tracker)
-        ctx.db.commit()
-        return result
-
-    return wrapper
+    if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
+        # Run consolidate_memories in a background thread.
+        # Note: this will reset the tracker, whether or not the background task completes.
+        # This prevents infinite retries if consolidation is failing, but it might be better to fail fast here
+        logging.info("Running memory consolidation")
+        thread = run_in_background_thread(consolidate_memories, ctx)
+        logging.info("Memory consolidation started in background thread")
+        tracker.memories_since_consolidation = 0
+    else:
+        logging.info("Not running memory consolidation")
+        thread = None
+    ctx.db.add(tracker)
+    ctx.db.commit()
+    return thread
 
 
-@memory_consolidation_check
 @tool
 def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     """Creates a new memory for the assistant.
@@ -163,12 +159,19 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
     remove_from_context(ctx, item)
 
 
-def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> Memory:
+def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> Tuple[Memory, Optional[Thread]]:
+    """Creates a memory with the current context message set designated as source."""
     msg_set = get_or_create_context_message_set(ctx)
-    return do_create_memory(ctx, name, text, [msg_set])
+    return do_create_memory(ctx, name, text, [msg_set], True)
 
 
-def do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: List[MemorySourceSqlModel]) -> Memory:
+def do_create_memory(
+    ctx: ElroyContext,
+    name: str,
+    text: str,
+    source_metadata: List[MemorySourceSqlModel],
+    check_consolidation: bool,
+) -> Tuple[Memory, Optional[Thread]]:
     from ..recall.operations import add_to_context, upsert_embedding_if_needed
 
     memory = Memory(
@@ -180,4 +183,8 @@ def do_create_memory(ctx: ElroyContext, name: str, text: str, source_metadata: L
     ctx.db.refresh(memory)
     upsert_embedding_if_needed(ctx, memory)
     add_to_context(ctx, memory)
-    return memory
+
+    if check_consolidation:
+        return (memory, do_memory_consolidation_check(ctx))
+    else:
+        return (memory, None)
