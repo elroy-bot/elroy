@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.74] - 2025-02-18
+
+### Added
+- Support for configuring OpenAI API base URL and API key
+- Remember function restored to API
+
+### Fixed
+- More reliable handling of empty messages
+- Better string conversion for text outputs
+
+### Improved
+- Enhanced inline tool handling with validation
+
 ## [0.0.73] - 2025-02-15
 
 ### Added

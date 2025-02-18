@@ -5,7 +5,7 @@ Elroy provides a set of tools that can be used by typing a forward slash (/) fol
 ### Goal Management
 - `/create_goal` - Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.
 - `/rename_goal` - Renames an existing active goal.
-- `/print_goal` - Prints the goal with the given name. This does NOT create a goal, it only prints the existing goal if it has been created already.
+- `/print_goal` - Prints the goal with the given name. This does NOT create a goal, it only prints the existing goal with the given name if it has been created already.
 - `/add_goal_to_current_context` - Adds goal with the given name to the current conversation context.
 - `/drop_goal_from_current_context` - Drops the goal with the given name from current context. Does NOT delete or mark the goal completed.
 - `/add_goal_status_update` - Captures either a progress update or note relevant to the goal.
