@@ -10,7 +10,7 @@ from ...config.constants import SYSTEM, tool
 from ...config.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 from ...llm.client import get_embedding, query_llm
-from ...utils.clock import db_time_to_local, get_utc_now
+from ...utils.clock import db_time_to_local
 from ...utils.utils import logged_exec_time
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
 from ..recall.queries import (
@@ -161,7 +161,6 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
 def get_in_context_memories(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> List[str]:
     return pipe(
         context_messages,
-        filter(lambda m: not m.created_at or m.created_at > get_utc_now() - ctx.max_in_context_message_age),
         map(lambda m: m.memory_metadata),
         filter(lambda m: m is not None),
         concat,
