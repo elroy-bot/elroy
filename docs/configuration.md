@@ -37,15 +37,15 @@ For default config values, see [defaults.yml](../elroy/defaults.yml)
 
 ### Model Selection and Configuration
 Elroy will automatically select appropriate models based on available API keys:
-- With ANTHROPIC_API_KEY: Uses Claude 3 Sonnet
-- With OPENAI_API_KEY: Uses GPT-4o and text-embedding-3-small
-- With GEMINI_API_KEY: Uses Gemini 2.0 Flash
+- With ANTHROPIC_API_KEY: Uses Claude 3 Sonnet (claude-3-5-sonnet-20241022)
+- With OPENAI_API_KEY: Uses GPT-4o (gpt-4o) and text-embedding-3-small
+- With GEMINI_API_KEY: Uses Gemini 2.0 Flash (gemini/gemini-2.0-flash)
 
 Model configuration options:
 * `--chat-model TEXT`: The model to use for chat completions. [env var: ELROY_CHAT_MODEL]
-* `--chat-model-api-base TEXT`: Base URL for OpenAI compatible chat model API. [env var: ELROY_CHAT_MODEL_API_BASE]
+* `--chat-model-api-base TEXT`: Base URL for OpenAI compatible chat model API. Litellm will recognize vars too. [env var: ELROY_CHAT_MODEL_API_BASE]
 * `--chat-model-api-key TEXT`: API key for OpenAI compatible chat model API. [env var: ELROY_CHAT_MODEL_API_KEY]
-* `--embedding-model TEXT`: The model to use for text embeddings. [env var: ELROY_EMBEDDING_MODEL]
+* `--embedding-model TEXT`: The model to use for text embeddings. [env var: ELROY_EMBEDDING_MODEL] [default: text-embedding-3-small]
 * `--embedding-model-size INTEGER`: The size of the embedding model. [env var: ELROY_EMBEDDING_MODEL_SIZE] [default: 1536]
 * `--embedding-model-api-base TEXT`: Base URL for OpenAI compatible embedding model API. [env var: ELROY_EMBEDDING_MODEL_API_BASE]
 * `--embedding-model-api-key TEXT`: API key for OpenAI compatible embedding model API. [env var: ELROY_EMBEDDING_MODEL_API_KEY]
@@ -60,12 +60,11 @@ Model Aliases:
 * `--o1-mini`: Use OpenAI's o1-mini model
 
 ### Context Management
-* `--max-assistant-loops INTEGER`: Maximum number of loops before tools are temporarily disabled. [env var: ELROY_MAX_ASSISTANT_LOOPS] [default: 4]
-* `--max-tokens INTEGER`: Token count that triggers context refresh. [env var: ELROY_MAX_TOKENS] [default: 10000]
-* `--context-refresh-target-tokens INTEGER`: Target token count after context refresh. [env var: ELROY_CONTEXT_REFRESH_TARGET_TOKENS] [default: 5000]
-* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages. [env var: ELROY_MAX_CONTEXT_AGE_MINUTES] [default: 720.0]
-* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum conversation age before greeting. [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 10.0]
-* `--enable-assistant-greeting / --no-enable-assistant-greeting`: Allow assistant to send first message. [env var: ELROY_ENABLE_ASSISTANT_GREETING] [default: true]
+* `--max-assistant-loops INTEGER`: Maximum number of loops the assistant can run before tools are temporarily made unvailable. [env var: ELROY_MAX_ASSISTANT_LOOPS] [default: 4]
+* `--max-tokens INTEGER`: Number of tokens that triggers a context refresh and compresion of messages in the context window. [env var: ELROY_MAX_TOKENS] [default: 10000]
+* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages in context. [env var: ELROY_MAX_CONTEXT_AGE_MINUTES] [default: 720.0]
+* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set enable_assistant_greeting=False. [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 10.0]
+* `--enable-assistant-greeting / --no-enable-assistant-greeting`: Whether to allow the assistant to send the first message. [env var: ELROY_ENABLE_ASSISTANT_GREETING] [default: true]
 
 ### Memory Consolidation
 * `--memories-between-consolidation INTEGER`: Memories before consolidation. [env var: ELROY_MEMORIES_BETWEEN_CONSOLIDATION] [default: 4]
