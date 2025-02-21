@@ -6,7 +6,7 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 from functools import partial, reduce
 from operator import add
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Sequence
 
 from toolz import concat, pipe
 from toolz.curried import filter, map, pipe, remove
@@ -75,7 +75,7 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
 def is_context_refresh_needed(context_messages: List[ContextMessage], chat_model_name: str, max_tokens: int) -> bool:
 
     if sum(1 for m in context_messages if m.role == USER) == 0:
-        logging.info("No user messages in context, skipping context refresh")
+        logging.info("No user messages in context, no context refresh needed")
         return False
 
     token_count = pipe(
@@ -137,7 +137,7 @@ def format_message(message: ContextMessage, user_preferred_name: Optional[str]) 
         return []
 
 
-def format_context_messages(context_messages: List[ContextMessage], user_preferred_name: Optional[str]) -> str:
+def format_context_messages(context_messages: Sequence[ContextMessage], user_preferred_name: Optional[str]) -> str:
     convo_range = pipe(
         context_messages,
         filter(lambda _: _.role == USER),

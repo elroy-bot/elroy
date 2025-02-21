@@ -33,7 +33,7 @@ def get_current_context_message_set_db(ctx: ElroyContext) -> Optional[ContextMes
     ).first()
 
 
-def _get_context_messages_iter(ctx: ElroyContext) -> Iterable[ContextMessage]:
+def get_context_messages_iter(ctx: ElroyContext) -> Iterable[ContextMessage]:
     """
     Gets context messages from db, in order of their position in ContextMessageSet
     """
@@ -54,11 +54,11 @@ def _get_context_messages_iter(ctx: ElroyContext) -> Iterable[ContextMessage]:
 
 
 def get_context_messages(ctx: ElroyContext) -> List[ContextMessage]:
-    return list(_get_context_messages_iter(ctx))
+    return list(get_context_messages_iter(ctx))
 
 
 def get_current_system_instruct(ctx: ElroyContext) -> Optional[ContextMessage]:
     try:
-        return first(_get_context_messages_iter(ctx))
+        return first(get_context_messages_iter(ctx))
     except StopIteration:
         return None

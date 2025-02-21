@@ -1,7 +1,7 @@
 import json
 import logging
 from threading import Thread
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from sqlmodel import select
 
@@ -169,7 +169,7 @@ def do_create_memory(
     ctx: ElroyContext,
     name: str,
     text: str,
-    source_metadata: List[MemorySourceSqlModel],
+    source_metadata: Sequence[MemorySourceSqlModel],
     check_consolidation: bool,
 ) -> Tuple[Memory, Optional[Thread]]:
     from ..recall.operations import add_to_context, upsert_embedding_if_needed

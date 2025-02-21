@@ -2,7 +2,7 @@ from functools import partial
 from typing import Iterable, List, Optional, Union
 
 from rich.table import Table
-from sqlmodel import select
+from sqlmodel import desc, select
 from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
@@ -178,7 +178,7 @@ def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, s
         str: A formatted string containing all memories.
     """
     memories = ctx.db.exec(
-        select(Memory).where(Memory.user_id == ctx.user_id).order_by(Memory.created_at.desc()).limit(n if n else 1000)  # type: ignore
+        select(Memory).where(Memory.user_id == ctx.user_id).order_by(desc(Memory.created_at)).limit(n if n else 1000)
     ).all()
 
     if not memories:
@@ -189,7 +189,7 @@ def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, s
     table.add_column("Text", style="green")
     table.add_column("Created", style="magenta")
 
-    for memory in memories:
+    for memory in reversed(memories):
         table.add_row(
             memory.name,
             memory.text,

@@ -266,7 +266,13 @@ def _update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, st
     if is_terminal:
         goal.is_active = None
         remove_from_context(ctx, goal)
-        do_create_memory(ctx, "Completed Goal: " + goal_name, goal.to_fact(), [goal], True)
+        do_create_memory(
+            ctx,
+            "Completed Goal: " + goal_name,
+            goal.to_fact(),
+            [goal],
+            True,
+        )
     else:
         add_to_context(ctx, goal)
 

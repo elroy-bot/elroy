@@ -1,5 +1,5 @@
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
@@ -36,8 +36,8 @@ class DbManager(ABC, Generic[TSession]):
     def alembic_script(self) -> ScriptDirectory:
         return ScriptDirectory.from_config(self.alembic_config)
 
-    @abstractmethod
-    def is_url_valid(self) -> bool:
+    @classmethod
+    def is_url_valid(cls, url: str) -> bool:
         raise NotImplementedError
 
     @contextmanager
