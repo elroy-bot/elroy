@@ -91,17 +91,17 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
 
 
-async def handle_chat(io: CliIO, ctx: ElroyContext):
+async def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
     init(autoreset=True)
 
     print_title_ruler(io, get_assistant_name(ctx))
 
     context_messages = validate(ctx, get_context_messages(ctx))
 
-    if not (ctx.enable_assistant_greeting):
-        logging.info("enable_assistant_greeting param disabled, skipping greeting")
+    if disable_greeting:
+        logging.info("assistant greeting disabled")
     elif (get_time_since_most_recent_user_message(context_messages) or timedelta()) < ctx.min_convo_age_for_greeting:
-        logging.info("User has interacted recently, skipping greeting.")
+        logging.info(f"User has interacted within {ctx.min_convo_age_for_greeting}, skipping greeting.")
     else:
         print_model_selection(io, ctx)
         get_user_preferred_name(ctx)
