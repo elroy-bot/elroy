@@ -9,7 +9,7 @@ from typing import List, Optional
 
 import typer
 from rich.table import Table
-from toolz import pipe
+from toolz import dissoc, pipe
 
 from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext
@@ -31,6 +31,8 @@ from .options import ElroyOption, get_resolved_params, resolve_model_alias
 from .updater import check_latest_version, check_updates
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
+
+CLI_ONLY_PARAMS = {"disable_assistant_greeting"}
 
 
 @dataclass
@@ -152,12 +154,14 @@ def common(
     ),
     min_convo_age_for_greeting_minutes: Optional[float] = ElroyOption(
         "min_convo_age_for_greeting_minutes",
-        help="Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set enable_assistant_greeting=False (This will override any value for min_convo_age_for_greeting_minutes)",
+        help="Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set --first=True (This will override any value for min_convo_age_for_greeting_minutes)",
         rich_help_panel="Context Management",
     ),
-    enable_assistant_greeting: bool = ElroyOption(
-        "enable_assistant_greeting",
-        help="Whether to allow the assistant to send the first message",
+    disable_assistant_greeting: bool = typer.Option(  # noqa F841
+        False,
+        "--first",
+        "--no-enable-assistant-greeting",
+        help="If true, assistant will not send the first message",
         rich_help_panel="Context Management",
     ),
     # Memory Consolidation
@@ -328,7 +332,11 @@ def common(
                 typer_ctx.params["chat_model"] = resolved
         del typer_ctx.params[m]
 
-    params = get_resolved_params(**typer_ctx.params)
+    params = pipe(
+        typer_ctx.params,
+        lambda x: dissoc(x, *CLI_ONLY_PARAMS),
+        lambda x: get_resolved_params(**x),
+    )
 
     elroy_ctx = ElroyContext.init(**params)
     if sys.stdin.isatty():
@@ -364,7 +372,7 @@ def chat(typer_ctx: typer.Context):
 
         with init_elroy_session(ctx, io, True):
             try:
-                do_asyncio_run(handle_chat(io, ctx))
+                do_asyncio_run(handle_chat(io, typer_ctx.params["disable_assistant_greeting"], ctx))
             except BdbQuit:
                 logging.info("Exiting...")
             except EOFError:

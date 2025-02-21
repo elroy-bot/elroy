@@ -63,8 +63,7 @@ Model Aliases:
 * `--max-assistant-loops INTEGER`: Maximum number of loops the assistant can run before tools are temporarily made unvailable. [env var: ELROY_MAX_ASSISTANT_LOOPS] [default: 4]
 * `--max-tokens INTEGER`: Number of tokens that triggers a context refresh and compresion of messages in the context window. [env var: ELROY_MAX_TOKENS] [default: 10000]
 * `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages in context. [env var: ELROY_MAX_CONTEXT_AGE_MINUTES] [default: 720.0]
-* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set enable_assistant_greeting=False. [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 10.0]
-* `--enable-assistant-greeting / --no-enable-assistant-greeting`: Whether to allow the assistant to send the first message. [env var: ELROY_ENABLE_ASSISTANT_GREETING] [default: true]
+* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set --first=True. [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 10.0]
 
 ### Memory Consolidation
 * `--memories-between-consolidation INTEGER`: Memories before consolidation. [env var: ELROY_MEMORIES_BETWEEN_CONSOLIDATION] [default: 4]

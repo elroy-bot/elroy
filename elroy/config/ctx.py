@@ -57,7 +57,6 @@ class ElroyContext:
         max_tokens: int,
         max_context_age_minutes: float,
         min_convo_age_for_greeting_minutes: float,
-        enable_assistant_greeting: bool,
         # Memory Management
         memory_cluster_similarity_threshold: float,
         max_memory_cluster_size: int,
@@ -76,7 +75,6 @@ class ElroyContext:
         self.show_internal_thought = show_internal_thought
         self.default_assistant_name = default_assistant_name
         self.default_persona = default_persona
-        self.enable_assistant_greeting = enable_assistant_greeting
         self.debug = debug
         self.max_tokens = max_tokens
         self.max_assistant_loops = max_assistant_loops
