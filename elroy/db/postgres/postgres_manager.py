@@ -15,18 +15,19 @@ class PostgresManager(DbManager[PostgresSession]):
         self.session_class = PostgresSession
         super().__init__(url)
 
-    def is_url_valid(self):
+    @classmethod
+    def is_url_valid(cls, url: str) -> bool:
         pattern = r"^postgresql(?:ql)?:\/\/"  # Protocol
         pattern += r"(?:(?:[^:@\/]+)(?::([^@\/]+))?@)?"  # User and password
         pattern += r"[^:@\/]+(?::\d+)?"  # Host and port
         pattern += r"\/[^?\/]+"  # Database name
         pattern += r"(?:\?[^#\/]+)?$"  # Query parameters (optional)
 
-        return bool(re.match(pattern, self.url))
+        return bool(re.match(pattern, url))
 
     @cached_property
     def engine(self) -> Engine:
-        if not self.is_url_valid():
+        if not self.__class__.is_url_valid(self.url):
             raise ValueError(f"Invalid database URL: {self.url}")
 
         return create_engine(self.url, poolclass=NullPool)

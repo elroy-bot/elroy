@@ -1,6 +1,6 @@
-import html
 import logging
 import traceback
+from bdb import BdbQuit
 from datetime import datetime, timedelta
 from functools import partial
 from operator import add
@@ -144,15 +144,19 @@ async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_
                 io.print_stream(result)
             else:
                 io.info(result)
+        except BdbQuit:
+            ctx.db.rollback()
+            io.print("Cancelled")
+        except KeyboardInterrupt:
+            ctx.db.rollback()
         except Exception as e:
             pipe(
                 traceback.format_exception(type(e), e, e.__traceback__),
                 "".join,
-                html.escape,
-                lambda x: x.replace("\n", "<br/>"),
                 partial(add, "Error invoking system command: "),
                 io.info,
             )
+            ctx.db.rollback()
     else:
         io.print_stream(process_message(role, ctx, user_input))
 

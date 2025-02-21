@@ -34,7 +34,8 @@ class SqliteManager(DbManager):
                 logging.error(f"Database connectivity check failed: {e}")
                 raise Exception(f"Could not connect to database {self.engine.url.render_as_string(hide_password=True)}: {e}")
 
-    def is_url_valid(self):
+    @classmethod
+    def is_url_valid(cls, url: str) -> bool:
         pattern = r"^sqlite:\/\/"  # Protocol
         pattern += r"(?:\/)?"  # Optional extra slash for Windows absolute paths
         pattern += r"(?:"  # Start of non-capturing group for alternatives
@@ -42,7 +43,7 @@ class SqliteManager(DbManager):
         pattern += r"\/[^?]+"  # Path to database file
         pattern += r")"  # End of alternatives group
         pattern += r"(?:\?[^#]+)?$"  # Query parameters (optional)
-        return bool(re.match(pattern, self.url))
+        return bool(re.match(pattern, url))
 
     @cached_property
     def engine(self) -> Engine:
@@ -69,7 +70,7 @@ class SqliteManager(DbManager):
             logging.debug("Connection vec extension enabled and verified")
             return conn
 
-        if not self.is_url_valid():
+        if not self.__class__.is_url_valid(self.url):
             raise ValueError(f"Invalid database URL: {self.url}")
 
         return create_engine(
