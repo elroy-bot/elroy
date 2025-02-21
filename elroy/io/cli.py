@@ -4,7 +4,7 @@ from itertools import product
 from typing import Iterator, List, Union
 
 from prompt_toolkit import HTML, PromptSession
-from prompt_toolkit.completion import Completion, WordCompleter
+from prompt_toolkit.completion import Completion, PathCompleter, WordCompleter
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style as PTKStyle
@@ -31,6 +31,30 @@ class SlashCompleter(WordCompleter):
             return
 
         words = text.split()
+
+        # Handle file path completion for /ingest_doc
+        # Handle file path completion for /ingest_doc
+        if len(words) > 0 and words[0] == "/ingest_doc":
+            if len(words) == 1:
+                # If just the command, add a space
+                yield Completion(" ", start_position=0)
+            else:
+                # Use PathCompleter for file paths
+                path_completer = PathCompleter()
+                # Get the text after the command
+                path_text = document.text[len(words[0]) + 1 :]
+                # Get cursor position relative to the path
+                path_cursor_position = document.cursor_position - (len(words[0]) + 1)
+
+                # Create a new document for the path part only
+                from prompt_toolkit.document import Document
+
+                path_document = Document(path_text, cursor_position=path_cursor_position)
+
+                # Get completions for the path
+                for completion in path_completer.get_completions(path_document, complete_event):
+                    yield completion
+                return
 
         exact_cmd_prefix = False
         # If we just have "/" or are typing the command part

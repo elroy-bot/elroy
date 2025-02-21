@@ -149,6 +149,7 @@ async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_
             io.print("Cancelled")
         except KeyboardInterrupt:
             ctx.db.rollback()
+            io.print("Cancelled")
         except Exception as e:
             pipe(
                 traceback.format_exception(type(e), e, e.__traceback__),

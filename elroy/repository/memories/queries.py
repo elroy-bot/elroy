@@ -1,5 +1,6 @@
+import json
 from functools import partial
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, List, Optional, Sequence, Union
 
 from rich.table import Table
 from sqlmodel import desc, select
@@ -8,7 +9,7 @@ from toolz.curried import filter, map, remove, tail
 
 from ...config.constants import SYSTEM, tool
 from ...config.ctx import ElroyContext
-from ...db.db_models import Goal, Memory
+from ...db.db_models import MEMORY_SOURCE_CLASSES, Goal, Memory, MemorySourceSqlModel
 from ...llm.client import get_embedding, query_llm
 from ...utils.clock import db_time_to_local
 from ...utils.utils import logged_exec_time
@@ -18,6 +19,53 @@ from ..recall.queries import (
     get_most_relevant_memory,
     is_in_context,
 )
+
+
+@tool
+def get_memory_sources(ctx: ElroyContext, memory_name: str) -> str:
+    """Get the source of a memory by its name.
+
+    Args:
+        memory_name (str): Name of the memory to retrieve the source for
+
+    Returns:
+        str: The source information for the memory, in the form {type}: {name}
+    """
+
+    memory = get_memory_by_name(ctx, memory_name)
+
+    if not memory:
+        return f"Memory not found with name: {memory_name}"
+    else:
+        sources = do_get_memory_sources(ctx, memory)
+
+        if not sources:
+            return f"Source information unavailable for memory: {memory_name}"
+        else:
+            return pipe(
+                sources,
+                map(lambda x: f"{x.source_type}: {x.get_name()}"),
+                list,
+                "\n".join,
+            )  # type: ignore
+
+
+def do_get_memory_sources(ctx: ElroyContext, memory: Memory) -> Sequence[MemorySourceSqlModel]:
+    if not memory.source_metadata:
+        return []
+    else:
+        return pipe(
+            memory.source_metadata,
+            json.loads,
+            map(lambda x: get_memory_source(ctx, x["source_type"], x["id"])),
+            remove(lambda x: x is None),
+            list,
+        )  # type: ignore
+
+
+def get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> Optional[MemorySourceSqlModel]:
+    source_class = next(c for c in MEMORY_SOURCE_CLASSES if c.__name__ == source_type)
+    return source_class.get_source_content_by_name(ctx.db.session, ctx.user_id)
 
 
 def get_active_memories(ctx: ElroyContext) -> List[Memory]:
@@ -98,6 +146,16 @@ Answer the question directly, short and concise. Do not say things like "based o
     )
 
 
+def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Optional[Memory]:
+    return ctx.db.exec(
+        select(Memory).where(
+            Memory.user_id == ctx.user_id,
+            Memory.name == memory_name,
+            Memory.is_active == True,
+        )
+    ).first()
+
+
 @tool
 def print_memory(ctx: ElroyContext, memory_name: str) -> str:
     """Retrieve and return a memory by its exact name.
@@ -108,13 +166,7 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
     Returns:
         str: The memory's content if found, or an error message if not found
     """
-    memory = ctx.db.exec(
-        select(Memory).where(
-            Memory.user_id == ctx.user_id,
-            Memory.name == memory_name,
-            Memory.is_active == True,
-        )
-    ).first()
+    memory = get_memory_by_name(ctx, memory_name)
     if memory:
         return memory.to_fact()
     else:
@@ -178,7 +230,10 @@ def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, s
         str: A formatted string containing all memories.
     """
     memories = ctx.db.exec(
-        select(Memory).where(Memory.user_id == ctx.user_id).order_by(desc(Memory.created_at)).limit(n if n else 1000)
+        select(Memory)
+        .where(Memory.user_id == ctx.user_id, Memory.is_active == True)
+        .order_by(desc(Memory.created_at))
+        .limit(n if n else 1000)
     ).all()
 
     if not memories:

@@ -18,6 +18,7 @@ from ..repository.context_messages.operations import (
     rewrite,
     save,
 )
+from ..repository.documents.operations import ingest_doc, reingest_doc
 from ..repository.goals.operations import (
     add_goal_status_update,
     create_goal,
@@ -33,6 +34,7 @@ from ..repository.goals.queries import (
 from ..repository.memories.operations import create_memory, remember_convo
 from ..repository.memories.queries import (
     examine_memories,
+    get_memory_sources,
     print_memories,
     print_memory,
     search_memories,
@@ -71,6 +73,7 @@ NON_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
 }
 ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
+    get_memory_sources,
 }
 NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     create_goal,
@@ -85,6 +88,8 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     make_coding_edit,
 }
 USER_ONLY_COMMANDS = {
+    ingest_doc,
+    reingest_doc,
     print_config,
     add_internal_thought,
     reset_messages,

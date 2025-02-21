@@ -162,7 +162,14 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
 def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> Tuple[Memory, Optional[Thread]]:
     """Creates a memory with the current context message set designated as source."""
     msg_set = get_or_create_context_message_set(ctx)
-    return do_create_memory(ctx, name, text, [msg_set], True)
+    return do_create_memory(
+        ctx,
+        name,
+        text,
+        [msg_set],
+        True,
+        True,
+    )
 
 
 def do_create_memory(
@@ -171,6 +178,7 @@ def do_create_memory(
     text: str,
     source_metadata: Sequence[MemorySourceSqlModel],
     check_consolidation: bool,
+    add_mem_to_context: bool,
 ) -> Tuple[Memory, Optional[Thread]]:
     from ..recall.operations import add_to_context, upsert_embedding_if_needed
 
@@ -182,7 +190,8 @@ def do_create_memory(
     ctx.db.commit()
     ctx.db.refresh(memory)
     upsert_embedding_if_needed(ctx, memory)
-    add_to_context(ctx, memory)
+    if add_mem_to_context:
+        add_to_context(ctx, memory)
 
     if check_consolidation:
         return (memory, do_memory_consolidation_check(ctx))

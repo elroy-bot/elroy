@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Text, UniqueConstraint
-from sqlmodel import Column, Field, SQLModel
+from sqlmodel import Column, Field, Session, SQLModel, select
 from toolz import pipe
 from toolz.curried import filter
 
@@ -64,6 +64,15 @@ class MemorySourceSqlModel(ABC, SQLModel):
     """Abstract base class for memory sources"""
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(..., description="Elroy user for context")
+
+    @abstractmethod
+    def get_name(self) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    def get_source_content_by_name(cls, session: Session, user_id: int, name: str) -> str:
+        raise NotImplementedError
 
     @property
     def source_type(self) -> str:
@@ -108,11 +117,60 @@ class Memory(EmbeddableSqlModel, MemorySourceSqlModel, SQLModel, table=True):
     source_metadata: str = Field(sa_column=Column(Text), default="[]", description="Metadata for the memory as JSON string")
     is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
 
+    @classmethod
+    def get_source_content_by_name(cls, session: Session, user_id: int, name: str) -> str:
+        db_row = session.exec(select(Memory).where(Memory.name == name, Memory.user_id == user_id)).first()
+        if db_row:
+            return db_row.text
+        else:
+            return f"Memory not found for name {name}"
+
     def get_name(self) -> str:
         return self.name
 
     def to_fact(self) -> str:
         return f"#{self.name}\n{self.text}"
+
+
+class SourceDocument(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "address"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    user_id: int = Field(..., description="Elroy user for context")
+    address: str = Field(..., description="The address of the document")
+    name: str = Field(..., description="The name of the document")
+    content: Optional[str] = Field(..., description="The extracted content of the document")
+    extracted_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    content_md5: Optional[str] = Field(..., description="The MD5 hash of the extracted content")
+
+
+class DocumentExcerpt(EmbeddableSqlModel, MemorySourceSqlModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "source_document_id", "chunk_index", "is_active"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    user_id: int = Field(..., description="Elroy user for context")
+    name: str = Field(..., description="The name of the document")
+    content: str = Field(..., description="The text of the document")
+    source_document_id: int = Field(..., description="The source document ID")
+    chunk_index: int = Field(..., description="The index of the chunk in the source document")
+    content_md5: str = Field(..., description="The MD5 hash of the text")
+    is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
+
+    @classmethod
+    def get_source_content_by_name(cls, session: Session, user_id: int, name: str) -> str:
+        db_row = session.exec(select(DocumentExcerpt).where(DocumentExcerpt.name == name, DocumentExcerpt.user_id == user_id)).first()
+        if db_row:
+            return db_row.to_fact()
+        else:
+            return f"Document excerpt not found for name {name}"
+
+    def get_name(self) -> str:
+        return self.name
+
+    def to_fact(self) -> str:
+        return f"#{self.name}\n{self.content}"
 
 
 class Goal(EmbeddableSqlModel, MemorySourceSqlModel, SQLModel, table=True):
@@ -127,6 +185,14 @@ class Goal(EmbeddableSqlModel, MemorySourceSqlModel, SQLModel, table=True):
         default="[]",
         description="Status update reports from the goal as JSON string",
     )
+
+    @classmethod
+    def get_source_content_by_name(cls, session: Session, user_id: int, name: str) -> str:
+        db_row = session.exec(select(Goal).where(Goal.name == name, Goal.user_id == user_id)).first()
+        if db_row:
+            return db_row.to_fact()
+        else:
+            return f"Goal not found for name {name}"
 
     def to_fact(self) -> str:
         from ..repository.goals.operations import (
@@ -216,3 +282,28 @@ class ContextMessageSet(MemorySourceSqlModel, SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
+
+    def get_name(self) -> str:
+        return f"{self.id}"
+
+    @classmethod
+    def get_source_content_by_name(cls, session: Session, user_id: int, name: str) -> str:
+        from ..repository.context_messages.queries import (
+            get_context_messages_iter_from_ctx_msg_set,
+        )
+        from ..repository.context_messages.transforms import format_context_messages
+        from ..repository.user.queries import do_get_user_preferred_name
+
+        db_row = session.exec(
+            select(ContextMessageSet).where(ContextMessageSet.id == int(name), ContextMessageSet.user_id == user_id)
+        ).first()
+        if db_row:
+            return format_context_messages(
+                list(get_context_messages_iter_from_ctx_msg_set(session, user_id, db_row)), do_get_user_preferred_name(session, user_id)
+            )
+        else:
+            return f"Context message set not found for ID {name}"
+
+
+# Note, this is brittle! Should be replaced in the future with a registration process.
+MEMORY_SOURCE_CLASSES = MemorySourceSqlModel.__subclasses__()

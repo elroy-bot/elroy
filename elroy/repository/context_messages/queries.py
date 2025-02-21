@@ -1,7 +1,7 @@
 import json
 from typing import Iterable, List, Optional
 
-from sqlmodel import select
+from sqlmodel import Session, select
 from toolz import first, pipe
 from toolz.curried import map, pipe
 
@@ -38,16 +38,25 @@ def get_context_messages_iter(ctx: ElroyContext) -> Iterable[ContextMessage]:
     Gets context messages from db, in order of their position in ContextMessageSet
     """
 
-    message_ids = pipe(
-        get_current_context_message_set_db(ctx),
-        lambda x: x.message_ids if x else "[]",
-        json.loads,
+    message_set = get_current_context_message_set_db(ctx)
+    return (
+        []
+        if not message_set
+        else get_context_messages_iter_from_ctx_msg_set(
+            ctx.db.session,
+            ctx.user_id,
+            message_set,
+        )
     )
+
+
+def get_context_messages_iter_from_ctx_msg_set(session: Session, user_id: int, message_set: ContextMessageSet) -> Iterable[ContextMessage]:
+    message_ids = json.loads(message_set.message_ids)
 
     assert isinstance(message_ids, list)
 
     return pipe(
-        ctx.db.exec(select(Message).where(Message.id.in_(message_ids))),  # type: ignore
+        session.exec(select(Message).where(Message.id.in_(message_ids), Message.user_id == user_id)),  # type: ignore
         lambda messages: sorted(messages, key=lambda m: message_ids.index(m.id)),
         map(db_message_to_context_message),
     )  # type: ignore
