@@ -173,6 +173,7 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
     from .operations import do_create_memory, mark_inactive
 
     logging.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
+    logging.info(f"source memories are: {', '.join([m.name for m in sources])}")
 
     memory = do_create_memory(
         ctx,

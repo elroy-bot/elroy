@@ -5,6 +5,7 @@ from typing import Any, Generator
 
 import pytest
 from sqlmodel import delete
+from tests import fixtures
 from tests.utils import MockCliIO
 from toolz import pipe
 from toolz.curried import do
@@ -231,6 +232,7 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
         user_token=user_token,
         database_url=db_manager.url,
         chat_model=chat_model_name,
+        use_background_threads=True,
     )
 
     # Create new context with all parameters
@@ -242,6 +244,16 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
     ctx.unset_db_session()
 
 
+@pytest.fixture(scope="session")
+def fixtures_dir() -> str:
+    return os.path.dirname(fixtures.__file__)
+
+
+@pytest.fixture(scope="session")
+def midnight_garden_md_path(fixtures_dir: str) -> str:
+    return os.path.join(fixtures_dir, "the_midnight_garden.md")
+
+
 def is_docker_running():
     """Checks if docker daemon is running by trying to execute docker info"""
     try:
@@ -249,3 +261,47 @@ def is_docker_running():
         return result.returncode == 0
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
+
+
+@pytest.fixture(scope="session")
+def tmpdir(tmp_path_factory) -> str:
+    return str(tmp_path_factory.mktemp("elroy"))
+
+
+@pytest.fixture(scope="session")
+def very_large_document_path(tmpdir: str) -> str:
+    # Create a temporary directory for our large document
+    file_path = os.path.join(tmpdir, "large_document.txt")
+
+    # Create content that will exceed 8k tokens
+    paragraphs = []
+    topics = ["AI", "Machine Learning", "Data Science", "Programming", "Software Engineering"]
+
+    for i in range(100):  # Generate 100 variations of paragraphs
+        for topic in topics:
+            paragraph = f"""
+            Chapter {i+1}: Advanced {topic} Concepts
+
+            In the evolving landscape of {topic.lower()}, practitioners must constantly adapt to new methodologies
+            and frameworks. The fundamental principles of {topic.lower()} remain consistent, yet their applications
+            continue to expand in unexpected ways. Recent developments in {topic.lower()} have shown promising
+            results in various domains, from healthcare to finance.
+
+            Key considerations for {topic.lower()} implementation include:
+            1. Scalability and performance optimization
+            2. Robust error handling mechanisms
+            3. Comprehensive testing strategies
+            4. Documentation and knowledge sharing
+            5. Security and privacy concerns
+
+            The integration of {topic.lower()} with existing systems presents unique challenges that require
+            careful planning and execution. Success in {topic.lower()} projects often depends on finding the
+            right balance between innovation and stability.
+            """
+            paragraphs.append(paragraph)
+
+    # Write content to file
+    with open(file_path, "w") as f:
+        f.write("\n".join(paragraphs))
+
+    return str(file_path)

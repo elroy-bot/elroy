@@ -40,7 +40,7 @@ from ..repository.user.queries import (
     is_user_exists,
 )
 from ..repository.user.tools import set_user_preferred_name
-from ..utils.utils import datetime_to_string, do_asyncio_run, run_in_background_thread
+from ..utils.utils import datetime_to_string, do_asyncio_run, run_in_background
 
 
 def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
@@ -133,7 +133,7 @@ async def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
 
         io.rule()
         print_memory_panel(io, ctx)
-        run_in_background_thread(refresh_context_if_needed, ctx)
+        run_in_background(refresh_context_if_needed, ctx)
 
 
 async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str):

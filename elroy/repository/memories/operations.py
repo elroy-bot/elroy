@@ -15,7 +15,7 @@ from ...db.db_models import (
     MemorySource,
 )
 from ...llm.client import query_llm
-from ...utils.utils import run_in_background_thread
+from ...utils.utils import run_in_background
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.queries import (
     get_context_messages,
@@ -48,8 +48,7 @@ def do_memory_consolidation_check(ctx: ElroyContext) -> Optional[Thread]:
         # Note: this will reset the tracker, whether or not the background task completes.
         # This prevents infinite retries if consolidation is failing, but it might be better to fail fast here
         logging.info("Running memory consolidation")
-        thread = run_in_background_thread(consolidate_memories, ctx)
-        logging.info("Memory consolidation started in background thread")
+        thread = run_in_background(consolidate_memories, ctx)
         tracker.memories_since_consolidation = 0
     else:
         logging.info("Not running memory consolidation")
@@ -70,7 +69,7 @@ def remember_convo(ctx: ElroyContext):
         ctx=ctx,
         msg="The use has triggered a remember_convo command. Through goals in context or via a new memory, capture information about the current converstaion",
     )
-    run_in_background_thread(context_refresh_sync, ctx, get_context_messages(ctx))
+    run_in_background(context_refresh_sync, ctx, get_context_messages(ctx))
 
 
 def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:

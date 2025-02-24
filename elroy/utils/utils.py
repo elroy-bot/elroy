@@ -93,11 +93,14 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def run_in_background_thread(fn: Callable, ctx: ElroyContext, *args) -> threading.Thread:
+def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> Optional[threading.Thread]:
     from ..config.ctx import ElroyContext
 
-    # hack to get a new session for the thread
+    if not ctx.use_background_threads:
+        logging.debug("Background threads are disabled. Running function in the main thread.")
+        fn(ctx, *args)
 
+    # hack to get a new session for the thread
     def wrapped_fn():
         # Create completely new connection in the new thread
         new_ctx = ElroyContext(**vars(ctx.params))

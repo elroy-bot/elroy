@@ -80,7 +80,7 @@ def test_cli_params_match_defaults():
 
     # Find any mismatches
     missing_from_defaults = cli_params - default_keys - DEPRECATED_KEYS - CLI_ONLY_PARAMS
-    missing_from_cli = default_keys - cli_params - {"default_persona"}
+    missing_from_cli = default_keys - cli_params - {"default_persona", "max_ingested_doc_lines"}
 
     # Build error message if there are mismatches
     error_msg = []
