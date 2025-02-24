@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.75] - 2025-02-23
+
+### Added
+- Document ingestion support for markdown files!
+- New tools for examining memory sources and origins
+
+![file_ingestion_demo](images/file_ingestion_demo.gif)
+
+### Improved
+- Add --first flag to disable assistant greeting
+- Enhanced memory retrieval with source tracking
+
 ## [0.0.74] - 2025-02-18
 
 ### Added
