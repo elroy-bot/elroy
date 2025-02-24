@@ -29,7 +29,6 @@ def get_source_doc_metadata(ctx: ElroyContext, address: str) -> str:
     """Gets metadata about a source document including extraction time and available chunks.
 
     Args:
-        ctx: ElroyContext containing the database session
         address: The address/path of the document
 
     Returns:
@@ -63,7 +62,6 @@ def get_document_excerpt(ctx: ElroyContext, address: str, chunk_index: int) -> s
     """Gets text of document excerpt by address and chunk index (0-indexed). Use get_source_doc_metadata to get available chunk indices.
 
     Args:
-        ctx: ElroyContext containing the database session
         address: The address/path of the document
         chunk_index: The 0-based index of the chunk to retrieve
 
