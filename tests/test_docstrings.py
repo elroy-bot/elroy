@@ -6,7 +6,7 @@ from elroy.api import Elroy
 from elroy.config.ctx import ElroyContext
 
 
-def test_api(ctx: ElroyContext):
+def test_api_docstrings(ctx: ElroyContext):
     """Test that all methods on Elroy class have complete parameter documentation."""
     elroy = Elroy(database_url=ctx.db.url)
 
@@ -38,7 +38,7 @@ def test_api(ctx: ElroyContext):
             raise AssertionError(f"Function {name} has documentation for non-existent parameters: {extra_docs}")
 
 
-def test_tools(ctx: ElroyContext):
+def test_tool_docstrings(ctx: ElroyContext):
     """Test that all tools have complete parameter documentation."""
     for name, tool in ctx.tool_registry.tools.items():
         # Get the function's parameters

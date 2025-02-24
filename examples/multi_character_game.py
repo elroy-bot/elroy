@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 An interactive D&D-style game where players can interact with multiple AI characters.
 Each character maintains their own memories and personality while sharing a common narrative.

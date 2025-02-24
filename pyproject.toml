@@ -51,6 +51,7 @@ dev = [
     "pytest-mock>=3.14.0",
     "langchain-core>=0.3.31",
     "discord-py",
+    "pytest-cov>=6.0.0",
 ]
 
 [project.scripts]
@@ -93,6 +94,25 @@ asyncio_default_fixture_loop_scope = "function"
 profile = "black"
 src_paths = ["elroy"]
 
+[tool.coverage.run]
+source = ["elroy"]
+omit = [
+    "tests/*",
+    "examples/*",
+    "scripts/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass"
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+
