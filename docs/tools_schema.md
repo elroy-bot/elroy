@@ -251,6 +251,99 @@ BETTER:
   {
     "type": "function",
     "function": {
+      "name": "get_document_excerpt",
+      "description": "Gets text of document excerpt by address and chunk index (0-indexed). Use get_source_doc_metadata to get available chunk indices.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The address/path of the document"
+          },
+          "chunk_index": {
+            "type": "integer",
+            "description": "The 0-based index of the chunk to retrieve"
+          }
+        },
+        "required": [
+          "address",
+          "chunk_index"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_source_content",
+      "description": "Retrieves content of the source for a memory, by source type and name.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "description": "Type of the source"
+          },
+          "source_name": {
+            "type": "string",
+            "description": "Name of the source"
+          }
+        },
+        "required": [
+          "source_type",
+          "source_name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_source_doc_metadata",
+      "description": "Gets metadata about a source document including extraction time and available chunks.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The address/path of the document"
+          }
+        },
+        "required": [
+          "address"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_source_documents",
+      "description": "Gets the list of ingested source documents."
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_source_list_for_memory",
+      "description": "Get a list of the sources of a memory by its name.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "memory_name": {
+            "type": "string",
+            "description": "Name of the memory to retrieve the source for"
+          }
+        },
+        "required": [
+          "memory_name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "get_user_full_name",
       "description": "Returns the user's full name."
     }
@@ -372,6 +465,25 @@ BETTER:
         "required": [
           "old_goal_name",
           "new_goal_name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "search_documents",
+      "description": "Search through document excerpts using semantic similarity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query string"
+          }
+        },
+        "required": [
+          "query"
         ]
       }
     }

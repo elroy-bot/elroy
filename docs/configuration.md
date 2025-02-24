@@ -7,7 +7,7 @@ Elroy's configuration can be specified in three ways, in order of precedence:
    elroy --chat-model gpt-4o --debug
    ```
 
-2. Environment Variables: Second priority, overridden by CLI flags
+2. Environment Variables: Second priority, overridden by CLI flags. All environment variables are prefixed with `ELROY_` and use uppercase with underscores:
    ```bash
    export ELROY_CHAT_MODEL=gpt-4o
    export ELROY_DEBUG=1
@@ -37,21 +37,21 @@ For default config values, see [defaults.yml](../elroy/defaults.yml)
 
 ### Model Selection and Configuration
 Elroy will automatically select appropriate models based on available API keys:
-- With ANTHROPIC_API_KEY: Uses Claude 3 Sonnet (claude-3-5-sonnet-20241022)
-- With OPENAI_API_KEY: Uses GPT-4o (gpt-4o) and text-embedding-3-small
-- With GEMINI_API_KEY: Uses Gemini 2.0 Flash (gemini/gemini-2.0-flash)
+- With ANTHROPIC_API_KEY: Uses Claude 3 Sonnet
+- With OPENAI_API_KEY: Uses GPT-4o and text-embedding-3-small
+- With GEMINI_API_KEY: Uses Gemini 2.0 Flash
 
 Model configuration options:
-* `--chat-model TEXT`: The model to use for chat completions. [env var: ELROY_CHAT_MODEL]
+* `--chat-model TEXT`: The model to use for chat completions. If not provided, inferred from available API keys. [env var: ELROY_CHAT_MODEL]
 * `--chat-model-api-base TEXT`: Base URL for OpenAI compatible chat model API. Litellm will recognize vars too. [env var: ELROY_CHAT_MODEL_API_BASE]
 * `--chat-model-api-key TEXT`: API key for OpenAI compatible chat model API. [env var: ELROY_CHAT_MODEL_API_KEY]
 * `--embedding-model TEXT`: The model to use for text embeddings. [env var: ELROY_EMBEDDING_MODEL] [default: text-embedding-3-small]
 * `--embedding-model-size INTEGER`: The size of the embedding model. [env var: ELROY_EMBEDDING_MODEL_SIZE] [default: 1536]
 * `--embedding-model-api-base TEXT`: Base URL for OpenAI compatible embedding model API. [env var: ELROY_EMBEDDING_MODEL_API_BASE]
 * `--embedding-model-api-key TEXT`: API key for OpenAI compatible embedding model API. [env var: ELROY_EMBEDDING_MODEL_API_KEY]
-* `--enable-caching / --no-enable-caching`: Whether to enable caching for the LLM. [env var: ELROY_ENABLE_CACHING] [default: true]
+* `--enable-caching / --no-enable-caching`: Whether to enable caching for the LLM, both for embeddings and completions. [env var: ELROY_ENABLE_CACHING] [default: true]
 
-Model Aliases:
+Model Aliases (shortcuts for common models):
 * `--sonnet`: Use Anthropic's Claude 3 Sonnet model
 * `--opus`: Use Anthropic's Claude 3 Opus model
 * `--4o`: Use OpenAI's GPT-4o model
@@ -60,22 +60,23 @@ Model Aliases:
 * `--o1-mini`: Use OpenAI's o1-mini model
 
 ### Context Management
-* `--max-assistant-loops INTEGER`: Maximum number of loops the assistant can run before tools are temporarily made unvailable. [env var: ELROY_MAX_ASSISTANT_LOOPS] [default: 4]
-* `--max-tokens INTEGER`: Number of tokens that triggers a context refresh and compresion of messages in the context window. [env var: ELROY_MAX_TOKENS] [default: 10000]
+* `--max-assistant-loops INTEGER`: Maximum number of loops the assistant can run before tools are temporarily made unavailable (returning for the next user message). [env var: ELROY_MAX_ASSISTANT_LOOPS] [default: 4]
+* `--max-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages in the context window. [env var: ELROY_MAX_TOKENS] [default: 10000]
 * `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages in context. [env var: ELROY_MAX_CONTEXT_AGE_MINUTES] [default: 720.0]
-* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set --first=True. [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 10.0]
+* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 120.0]
+* `--first`: Disable assistant's initial greeting message. Overrides min_convo_age_for_greeting_minutes setting.
 
 ### Memory Consolidation
-* `--memories-between-consolidation INTEGER`: Memories before consolidation. [env var: ELROY_MEMORIES_BETWEEN_CONSOLIDATION] [default: 4]
-* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD] [default: 1.24]
-* `--memory-cluster-similarity-threshold FLOAT`: Cluster similarity threshold. The lower the parameter is, the less likely memories are to be consolidated. [env var: ELROY_MEMORY_CLUSTER_SIMILARITY_THRESHOLD] [default: 0.21125]
-* `--max-memory-cluster-size INTEGER`: Maximum memories per consolidation. [env var: ELROY_MAX_MEMORY_CLUSTER_SIZE] [default: 5]
-* `--min-memory-cluster-size INTEGER`: Minimum memories per consolidation. [env var: ELROY_MIN_MEMORY_CLUSTER_SIZE] [default: 3]
+* `--memories-between-consolidation INTEGER`: How many memories to create before triggering a memory consolidation operation. [env var: ELROY_MEMORIES_BETWEEN_CONSOLIDATION] [default: 4]
+* `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [env var: ELROY_L2_MEMORY_RELEVANCE_DISTANCE_THRESHOLD] [default: 1.24]
+* `--memory-cluster-similarity-threshold FLOAT`: Threshold for memory cluster similarity. The lower the parameter is, the less likely memories are to be consolidated. [env var: ELROY_MEMORY_CLUSTER_SIMILARITY_THRESHOLD] [default: 0.21125]
+* `--max-memory-cluster-size INTEGER`: The maximum number of memories that can be consolidated into a single memory at once. [env var: ELROY_MAX_MEMORY_CLUSTER_SIZE] [default: 5]
+* `--min-memory-cluster-size INTEGER`: The minimum number of memories that can be consolidated into a single memory at once. [env var: ELROY_MIN_MEMORY_CLUSTER_SIZE] [default: 3]
 
 ### UI Configuration
-* `--show-internal-thought / --no-show-internal-thought`: Show internal thought monologue. [env var: ELROY_SHOW_INTERNAL_THOUGHT] [default: true]
-* `--system-message-color TEXT`: System message color. [env var: ELROY_SYSTEM_MESSAGE_COLOR] [default: #9ACD32]
-* `--user-input-color TEXT`: User input color. [env var: ELROY_USER_INPUT_COLOR] [default: #FFE377]
-* `--assistant-color TEXT`: Assistant output color. [env var: ELROY_ASSISTANT_COLOR] [default: #77DFD8]
-* `--warning-color TEXT`: Warning message color. [env var: ELROY_WARNING_COLOR] [default: yellow]
-* `--internal-thought-color TEXT`: Internal thought color. [env var: ELROY_INTERNAL_THOUGHT_COLOR] [default: #708090]
+* `--show-internal-thought / --no-show-internal-thought`: Show the assistant's internal thought monologue. [env var: ELROY_SHOW_INTERNAL_THOUGHT] [default: true]
+* `--system-message-color TEXT`: Color for system messages. [env var: ELROY_SYSTEM_MESSAGE_COLOR] [default: #9ACD32]
+* `--user-input-color TEXT`: Color for user input. [env var: ELROY_USER_INPUT_COLOR] [default: #FFE377]
+* `--assistant-color TEXT`: Color for assistant output. [env var: ELROY_ASSISTANT_COLOR] [default: #77DFD8]
+* `--warning-color TEXT`: Color for warning messages. [env var: ELROY_WARNING_COLOR] [default: yellow]
+* `--internal-thought-color TEXT`: Color for internal thought messages. [env var: ELROY_INTERNAL_THOUGHT_COLOR] [default: #708090]

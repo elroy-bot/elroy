@@ -19,6 +19,14 @@ Elroy provides a set of tools that can be used by typing a forward slash (/) fol
 - `/drop_memory_from_current_context` - Drops the memory with the given name from current context. Does NOT delete the memory.
 - `/examine_memories` - Search through memories and goals using semantic search and return a synthesized response.
 
+### Document Management
+- `/get_source_content` - Retrieves content of the source for a memory, by source type and name.
+- `/get_source_documents` - Gets the list of ingested source documents.
+- `/get_source_list_for_memory` - Get a list of the sources of a memory by its name.
+- `/get_source_doc_metadata` - Gets metadata about a source document including extraction time and available chunks.
+- `/get_document_excerpt` - Gets text of document excerpt by address and chunk index (0-indexed).
+- `/search_documents` - Search through document excerpts using semantic similarity.
+
 ### User Preferences
 - `/get_user_full_name` - Returns the user's full name.
 - `/set_user_full_name` - Sets the user's full name.
