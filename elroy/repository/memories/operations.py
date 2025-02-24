@@ -17,10 +17,7 @@ from ...db.db_models import (
 from ...llm.client import query_llm
 from ...utils.utils import run_in_background
 from ..context_messages.data_models import ContextMessage
-from ..context_messages.queries import (
-    get_context_messages,
-    get_or_create_context_message_set,
-)
+from ..context_messages.queries import get_or_create_context_message_set
 from .consolidation import consolidate_memories
 
 
@@ -42,6 +39,7 @@ def do_memory_consolidation_check(ctx: ElroyContext) -> Optional[Thread]:
 
     tracker.memories_since_consolidation += 1
     logging.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
+    thread = None
 
     if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
         # Run consolidate_memories in a background thread.
@@ -52,7 +50,6 @@ def do_memory_consolidation_check(ctx: ElroyContext) -> Optional[Thread]:
         tracker.memories_since_consolidation = 0
     else:
         logging.info("Not running memory consolidation")
-        thread = None
     ctx.db.add(tracker)
     ctx.db.commit()
     return thread
@@ -62,14 +59,14 @@ def do_memory_consolidation_check(ctx: ElroyContext) -> Optional[Thread]:
 def remember_convo(ctx: ElroyContext):
     """Creates a memory of the current conversation, and refreshes the context. Good for topic changes."""
     from ...messenger import process_message
-    from ..context_messages.operations import context_refresh_sync
+    from .tools import create_memory
 
     yield from process_message(
         role=SYSTEM,
         ctx=ctx,
         msg="The use has triggered a remember_convo command. Through goals in context or via a new memory, capture information about the current converstaion",
+        force_tool=create_memory.__name__,
     )
-    run_in_background(context_refresh_sync, ctx, get_context_messages(ctx))
 
 
 def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:
@@ -98,13 +95,11 @@ def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str
     do_create_memory_from_ctx_msgs(ctx, name, text)
 
 
-async def formulate_memory(
-    chat_model: ChatModel, user_preferred_name: Optional[str], context_messages: List[ContextMessage]
-) -> Tuple[str, str]:
+def formulate_memory(chat_model: ChatModel, user_preferred_name: Optional[str], context_messages: List[ContextMessage]) -> Tuple[str, str]:
     from ...llm.prompts import summarize_for_memory
     from ..context_messages.transforms import format_context_messages
 
-    return await summarize_for_memory(
+    return summarize_for_memory(
         chat_model,
         format_context_messages(context_messages, user_preferred_name),
         user_preferred_name,

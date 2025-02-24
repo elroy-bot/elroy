@@ -1,4 +1,5 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from functools import cached_property
 from pathlib import Path
@@ -119,6 +120,10 @@ class ElroyContext:
             return Path(self.params.config_path)
         else:
             return get_default_config_path()
+
+    @cached_property
+    def thread_pool(self) -> ThreadPoolExecutor:
+        return ThreadPoolExecutor()
 
     @property
     def max_in_context_message_age(self) -> timedelta:

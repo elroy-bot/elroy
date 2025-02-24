@@ -33,7 +33,7 @@ Only output the summary, do NOT include anything else in your output.
 )
 
 
-async def summarize_for_memory(model: ChatModel, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
+def summarize_for_memory(model: ChatModel, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
     user_noun = user_preferred_name or "the user"
 
     response = query_llm(

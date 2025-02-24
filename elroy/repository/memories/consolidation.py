@@ -12,7 +12,6 @@ from toolz.curried import map, take
 from ...config.ctx import ElroyContext
 from ...db.db_models import Memory
 from ...llm.client import query_llm
-from ...utils.utils import do_asyncio_run
 from .prompts import MEMORY_CONSOLIDATION
 
 
@@ -118,8 +117,9 @@ def consolidate_memories(ctx: ElroyContext):
     logging.info(f"Found {len(clusters)} memory clusters to consolidate")
 
     for cluster in clusters:
+        # TODO: parallelize this
         assert isinstance(cluster, MemoryCluster)
-        do_asyncio_run(consolidate_memory_cluster(ctx, cluster))
+        consolidate_memory_cluster(ctx, cluster)
 
 
 def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryCluster]:
@@ -191,7 +191,7 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
     return memory_id
 
 
-async def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_on_failure: bool = False):
+def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_on_failure: bool = False):
 
     logging.info(f"Consolidating memories {len(cluster)} memories in cluster.")
     response = query_llm(

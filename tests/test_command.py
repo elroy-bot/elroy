@@ -1,7 +1,5 @@
 import re
 
-import pytest
-
 from elroy.cli.chat import process_and_deliver_msg
 from elroy.config.constants import USER
 from elroy.config.ctx import ElroyContext
@@ -10,11 +8,10 @@ from elroy.repository.goals.queries import get_active_goal_names
 from .utils import MockCliIO
 
 
-@pytest.mark.asyncio
-async def test_create_and_mark_goal_complete(io: MockCliIO, ctx: ElroyContext):
+def test_create_and_mark_goal_complete(io: MockCliIO, ctx: ElroyContext):
     io.add_user_responses("Test Goal", "", "", "", "", "")
 
-    await process_and_deliver_msg(io, USER, ctx, "/create_goal Test Goal")
+    process_and_deliver_msg(io, USER, ctx, "/create_goal Test Goal")
 
     assert "Test Goal" in get_active_goal_names(ctx)
 
@@ -22,17 +19,16 @@ async def test_create_and_mark_goal_complete(io: MockCliIO, ctx: ElroyContext):
 
     io.add_user_responses("Test Goal", "The test was completed!")
 
-    await process_and_deliver_msg(io, USER, ctx, "/mark_goal_completed Test Goal")
+    process_and_deliver_msg(io, USER, ctx, "/mark_goal_completed Test Goal")
 
     assert "Test Goal" not in get_active_goal_names(ctx)
 
     assert re.search(r"Test Goal.*completed", io.get_sys_messages()) is not None
 
 
-@pytest.mark.asyncio
-async def test_invalid_update(io: MockCliIO, ctx: ElroyContext):
+def test_invalid_update(io: MockCliIO, ctx: ElroyContext):
     io.add_user_responses("Nonexistent goal", "Foo")
-    await process_and_deliver_msg(
+    process_and_deliver_msg(
         io,
         USER,
         ctx,
@@ -43,9 +39,8 @@ async def test_invalid_update(io: MockCliIO, ctx: ElroyContext):
     assert re.search(r"Error.*.*not exist", response) is not None
 
 
-@pytest.mark.asyncio
-async def test_invalid_cmd(io: MockCliIO, ctx: ElroyContext):
-    await process_and_deliver_msg(
+def test_invalid_cmd(io: MockCliIO, ctx: ElroyContext):
+    process_and_deliver_msg(
         io,
         USER,
         ctx,
