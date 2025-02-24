@@ -2,6 +2,7 @@ import asyncio
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import partial, wraps
 from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
@@ -12,9 +13,9 @@ from ..config.initializer import dbsession
 T = TypeVar("T")
 
 
-def do_asyncio_run(coro):
+def run_async(thread_pool: ThreadPoolExecutor, coro):
     """
-    Safely run an async coroutine, whether or not there's an existing event loop.
+    Runs a coroutine in a separate thread and returns the result (synchronously).
 
     Args:
         coro: The coroutine to run
@@ -22,11 +23,8 @@ def do_asyncio_run(coro):
     Returns:
         The result of the coroutine
     """
-    loop = asyncio._get_running_loop()
-    if loop is not None:
-        return loop.run_until_complete(coro)
-    else:
-        return asyncio.run(coro)
+
+    return thread_pool.submit(asyncio.run, coro).result()
 
 
 def is_blank(input: Optional[str]) -> bool:
@@ -112,4 +110,5 @@ def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> Optional[thread
         daemon=True,
     )
     thread.start()
+    logging.info("Running background thread")
     return thread

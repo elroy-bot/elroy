@@ -1,10 +1,9 @@
-import asyncio
 import logging
+import time
 from functools import partial
 from typing import List
 from unittest.mock import AsyncMock
 
-import pytest
 from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter, map
@@ -18,8 +17,7 @@ from elroy.repository.memories.operations import do_create_memory_from_ctx_msgs
 from elroy.repository.memories.queries import get_active_memories
 
 
-@pytest.mark.asyncio
-async def test_identical_memories(ctx):
+def test_identical_memories(ctx):
     """Test consolidation of identical memories marks one inactive"""
     memory1 = do_create_memory_from_ctx_msgs(
         ctx, "User's Hiking Habits", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
@@ -30,7 +28,7 @@ async def test_identical_memories(ctx):
 
     assert memory1 and memory2
 
-    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
+    consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
 
     ctx.db.refresh(memory1)
     ctx.db.refresh(memory2)
@@ -38,8 +36,7 @@ async def test_identical_memories(ctx):
     assert not memory2.is_active
 
 
-@pytest.mark.asyncio
-async def test_well_formatted_consolidation(ctx):
+def test_well_formatted_consolidation(ctx):
     """Test consolidation with well-formatted LLM response combining related hiking memories"""
     ctx.query_llm = AsyncMock(
         return_value="""# Memory Consolidation Reasoning
@@ -58,14 +55,13 @@ The user is an avid hiker who enjoys both day hikes and overnight camping. They 
 
     assert memory1 and memory2
 
-    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
+    consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
 
     assert not memory1.is_active
     assert not memory2.is_active
 
 
-@pytest.mark.asyncio
-async def test_malformed_response_still_creates_memory(ctx):
+def test_malformed_response_still_creates_memory(ctx):
     """Test consolidation still works with malformed response that has minimal structure"""
     ctx.query_llm = AsyncMock(
         return_value="""Here's my thoughts on combining these memories:
@@ -91,14 +87,13 @@ They enjoy lighter roasts in the afternoon, sometimes with a splash of oat milk.
 
     assert memory1 and memory2
 
-    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
+    consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
 
     assert not memory1.is_active
     assert not memory2.is_active
 
 
-@pytest.mark.asyncio
-async def test_split_unrelated_memories(ctx):
+def test_split_unrelated_memories(ctx):
     """Test consolidation that correctly splits unrelated topics"""
     ctx.query_llm = AsyncMock(
         return_value="""# Consolidation Reasoning
@@ -120,14 +115,13 @@ The user played piano for 10 years during their childhood and recently started t
 
     assert memory1 and memory2
 
-    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
+    consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
 
     assert not memory1.is_active
     assert not memory2.is_active
 
 
-@pytest.mark.asyncio
-async def test_missing_reasoning_section(ctx):
+def test_missing_reasoning_section(ctx):
     """Test consolidation without reasoning section but with clear memory structure"""
     ctx.query_llm = AsyncMock(
         return_value="""## User's Tea Preferences
@@ -146,14 +140,13 @@ They have a precise brewing routine, using water at exactly 175°F for green tea
 
     assert memory1 and memory2
 
-    await consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
+    consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]), True)
 
     assert not memory1.is_active
     assert not memory2.is_active
 
 
-@pytest.mark.asyncio
-async def test_trigger(ctx):
+def test_trigger(ctx):
     assert ctx.memories_between_consolidation == 4
 
     threads = pipe(
@@ -180,7 +173,7 @@ async def test_trigger(ctx):
             break
         else:
             logging.info(f"Waiting for {live_thread_count} consolidation threads to complete...")
-            await asyncio.sleep(0.5)
+            time.sleep(0.5)
 
     assert live_thread_count == 0, "Consolidation threads did not complete in time"
 

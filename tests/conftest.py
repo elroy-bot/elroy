@@ -31,7 +31,6 @@ from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.goals.operations import do_create_goal
 from elroy.repository.user.operations import create_user_id
-from elroy.utils.utils import do_asyncio_run
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
@@ -239,7 +238,7 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
     ctx = ElroyContext(**params)
     ctx.set_db_session(db_session)
 
-    do_asyncio_run(onboard_non_interactive(ctx))
+    onboard_non_interactive(ctx)
     yield ctx
     ctx.unset_db_session()
 

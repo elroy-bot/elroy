@@ -1,5 +1,6 @@
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Any, List, Optional, Type, Union
 
@@ -59,7 +60,9 @@ class MockCliIO(CliIO):
         self._warnings.append(message)
         super().warning(message)
 
-    async def prompt_user(self, retries: int, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0) -> str:
+    def prompt_user(
+        self, thread_pool: ThreadPoolExecutor, retries: int, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0
+    ) -> str:
         """Override prompt_user to return queued responses"""
         if not self._user_responses:
             raise ValueError(f"No more responses queued for prompt: {prompt}")

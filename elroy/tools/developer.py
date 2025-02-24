@@ -168,7 +168,7 @@ def create_bug_report(
 
     report.append(f"\n## Recent Logs (last {BUG_REPORT_LOG_LINES} lines)")
     try:
-        logs = tail_elroy_logs(ctx, BUG_REPORT_LOG_LINES)
+        logs = tail_elroy_logs(BUG_REPORT_LOG_LINES)
         report.append("```")
         report.append(logs)
         report.append("```")

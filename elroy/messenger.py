@@ -121,7 +121,7 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> Assist
         )
 
 
-async def invoke_slash_command(
+def invoke_slash_command(
     io: CliIO, ctx: ElroyContext, msg: str
 ) -> Union[str, Iterator[Union[AssistantResponse, AssistantInternalThought, AssistantToolResult]]]:
     """
@@ -167,11 +167,11 @@ async def invoke_slash_command(
             if param.annotation == ElroyContext:
                 func_args[param.name] = ctx
             elif input_arg and not input_used:
-                argument = await io.prompt_user(0, get_prompt_for_param(param), prefill=input_arg)
+                argument = io.prompt_user(ctx.thread_pool, 0, get_prompt_for_param(param), prefill=input_arg)
                 func_args[param.name] = get_casted_value(param, argument)
                 input_used = True
             elif input_used or not input_arg:
-                argument = await io.prompt_user(0, get_prompt_for_param(param))
+                argument = io.prompt_user(ctx.thread_pool, 0, get_prompt_for_param(param))
                 func_args[param.name] = get_casted_value(param, argument)
 
         return pipe(

@@ -1,9 +1,9 @@
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 from ..config.ctx import ElroyContext
 from ..io.cli import CliIO
 from ..tools.developer import create_bug_report
-from ..utils.utils import do_asyncio_run
 
 
 def create_bug_report_from_exception_if_confirmed(
@@ -15,7 +15,7 @@ def create_bug_report_from_exception_if_confirmed(
     Args:
         error: The exception that triggered this prompt
     """
-    if do_asyncio_run(get_confirm(io, f"{error_explanation} Would you like to create a bug report? (y/n)")):
+    if get_confirm(ctx.thread_pool, io, f"{error_explanation} Would you like to create a bug report? (y/n)"):
         create_bug_report(
             ctx,
             f"Error: {error.__class__.__name__}",
@@ -24,10 +24,10 @@ def create_bug_report_from_exception_if_confirmed(
     raise error
 
 
-async def get_confirm(io: CliIO, prompt: str) -> bool:
+def get_confirm(thread_pool: ThreadPoolExecutor, io: CliIO, prompt: str) -> bool:
     """Prompt the user to confirm an action"""
     try:
-        response = await io.prompt_user(0, prompt)
+        response = io.prompt_user(thread_pool, 0, prompt)
         return response.lower().startswith("y")
     except EOFError:
         return False

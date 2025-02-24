@@ -40,12 +40,12 @@ from ..repository.user.queries import (
     is_user_exists,
 )
 from ..repository.user.tools import set_user_preferred_name
-from ..utils.utils import datetime_to_string, do_asyncio_run, run_in_background
+from ..utils.utils import datetime_to_string, run_in_background
 
 
 def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
     try:
-        message = do_asyncio_run(io.prompt_user(0, "Enter your message"))
+        message = io.prompt_user(ctx.thread_pool, 0, "Enter your message")
         io.print_stream(process_message(USER, ctx, message, tool))
     except EOFError:
         io.info("Cancelled.")
@@ -54,7 +54,7 @@ def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]
 
 def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
     if not is_user_exists(ctx.db.session, ctx.user_token):
-        do_asyncio_run(onboard_non_interactive(ctx))
+        onboard_non_interactive(ctx)
     io.print_stream(process_message(USER, ctx, message, tool))
 
 
@@ -91,7 +91,7 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
 
 
-async def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
+def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
     init(autoreset=True)
 
     print_title_ruler(io, get_assistant_name(ctx))
@@ -105,7 +105,7 @@ async def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
     else:
         print_model_selection(io, ctx)
         do_get_user_preferred_name(ctx.db.session, ctx.user_id)
-        await process_and_deliver_msg(
+        process_and_deliver_msg(
             io,
             SYSTEM,
             ctx,
@@ -120,11 +120,11 @@ async def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
             list(get_context_messages(ctx)),
         )
 
-        user_input = await io.prompt_user(3)
+        user_input = io.prompt_user(ctx.thread_pool, 3)
         if user_input.lower().startswith(f"/{EXIT}") or user_input == EXIT:
             break
         elif user_input:
-            await process_and_deliver_msg(
+            process_and_deliver_msg(
                 io,
                 USER,
                 ctx,
@@ -136,10 +136,10 @@ async def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
         run_in_background(refresh_context_if_needed, ctx)
 
 
-async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str):
+def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str):
     if user_input.startswith("/") and role == USER:
         try:
-            result = await invoke_slash_command(io, ctx, user_input)
+            result = invoke_slash_command(io, ctx, user_input)
             if isinstance(result, (Iterator, AsyncIterator)):
                 io.print_stream(result)
             else:
@@ -165,10 +165,11 @@ async def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_
             ctx.db.rollback()
 
 
-async def onboard_interactive(io: CliIO, ctx: ElroyContext):
+def onboard_interactive(io: CliIO, ctx: ElroyContext):
     from .chat import process_and_deliver_msg
 
-    preferred_name = await io.prompt_user(
+    preferred_name = io.prompt_user(
+        ctx.thread_pool,
         3,
         f"Welcome! I'm assistant named {get_assistant_name(ctx)}. What should I call you?",
     )
@@ -189,7 +190,7 @@ async def onboard_interactive(io: CliIO, ctx: ElroyContext):
         ],
     )
 
-    await process_and_deliver_msg(
+    process_and_deliver_msg(
         io,
         SYSTEM,
         ctx,
@@ -197,5 +198,5 @@ async def onboard_interactive(io: CliIO, ctx: ElroyContext):
     )
 
 
-async def onboard_non_interactive(ctx: ElroyContext) -> None:
+def onboard_non_interactive(ctx: ElroyContext) -> None:
     replace_context_messages(ctx, [get_refreshed_system_message(ctx, [])])

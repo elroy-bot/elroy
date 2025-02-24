@@ -24,7 +24,7 @@ from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
 from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
-from ..utils.utils import datetime_to_string, do_asyncio_run
+from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import handle_chat, handle_message_interactive, handle_message_stdio
 from .options import ElroyOption, get_resolved_params, resolve_model_alias
@@ -340,7 +340,7 @@ def chat(typer_ctx: typer.Context):
 
         with init_elroy_session(ctx, io, True):
             try:
-                do_asyncio_run(handle_chat(io, params["disable_assistant_greeting"], ctx))
+                handle_chat(io, params["disable_assistant_greeting"], ctx)
             except BdbQuit:
                 logging.info("Exiting...")
             except EOFError:
@@ -418,10 +418,10 @@ def cli_remember(
 
         elif sys.stdin.isatty():
             assert isinstance(io, CliIO)
-            memory_text = do_asyncio_run(io.prompt_user(0, "Enter the memory text:"))
+            memory_text = io.prompt_user(ctx.thread_pool, 0, "Enter the memory text:")
             memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
             # Optionally get memory name
-            memory_name = do_asyncio_run(io.prompt_user(0, "Enter memory name (optional, press enter to skip):"))
+            memory_name = io.prompt_user(ctx.thread_pool, 0, "Enter memory name (optional, press enter to skip):")
             try:
                 manually_record_user_memory(ctx, memory_text, memory_name)
                 io.info(f"Memory created: {memory_name}")
