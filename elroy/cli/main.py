@@ -2,7 +2,6 @@ import json
 import logging
 import sys
 from bdb import BdbQuit
-from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from typing import List, Optional
@@ -19,6 +18,7 @@ from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
 from ..io.formatters.rich_formatter import RichFormatter
+from ..repository.documents.operations import do_ingest_doc
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
@@ -33,12 +33,6 @@ from .updater import check_latest_version, check_updates
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
 CLI_ONLY_PARAMS = {"disable_assistant_greeting"}
-
-
-@dataclass
-class CliContextObj:
-    ctx: ElroyContext
-    io: ElroyIO
 
 
 app = typer.Typer(
@@ -322,39 +316,6 @@ def common(
 
     setup_logging()
 
-    for m in MODEL_ALIASES:
-        if typer_ctx.params.get(m):
-            logging.info(f"Model alias {m} selected")
-            resolved = resolve_model_alias(m)
-            if not resolved:
-                logging.warning("Model alias not found")
-            else:
-                typer_ctx.params["chat_model"] = resolved
-        del typer_ctx.params[m]
-
-    params = pipe(
-        typer_ctx.params,
-        lambda x: dissoc(x, *CLI_ONLY_PARAMS),
-        lambda x: get_resolved_params(**x),
-    )
-
-    elroy_ctx = ElroyContext.init(**params)
-    if sys.stdin.isatty():
-        io = CliIO(
-            RichFormatter(
-                system_message_color=params["system_message_color"],
-                assistant_message_color=params["assistant_color"],
-                user_input_color=params["user_input_color"],
-                warning_color=params["warning_color"],
-                internal_thought_color=params["internal_thought_color"],
-            ),
-            show_internal_thought=params["show_internal_thought"],
-        )
-    else:
-        io = PlainIO()
-
-    typer_ctx.obj = CliContextObj(ctx=elroy_ctx, io=io)
-
     if typer_ctx.invoked_subcommand is None:
         chat(typer_ctx)
 
@@ -362,17 +323,24 @@ def common(
 @app.command(name="chat")
 def chat(typer_ctx: typer.Context):
     """Opens an interactive chat session. (default command)"""
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+
+    # extra check needed since chat is the default command
+    if not typer_ctx.params and typer_ctx.parent:
+        params = typer_ctx.parent.params
+    else:
+        params = typer_ctx.params
+
+    io = get_io(**params)
 
     if sys.stdin.isatty():
+        ctx = get_ctx(use_background_threads=True, **params)
         assert isinstance(io, CliIO)
 
         check_updates(io)
 
         with init_elroy_session(ctx, io, True):
             try:
-                do_asyncio_run(handle_chat(io, typer_ctx.params["disable_assistant_greeting"], ctx))
+                do_asyncio_run(handle_chat(io, params["disable_assistant_greeting"], ctx))
             except BdbQuit:
                 logging.info("Exiting...")
             except EOFError:
@@ -385,6 +353,7 @@ def chat(typer_ctx: typer.Context):
                 else:
                     create_bug_report_from_exception_if_confirmed(io, ctx, e)
     else:
+        ctx = get_ctx(use_background_threads=False, **params)
         message = sys.stdin.read()
         assert isinstance(io, PlainIO)
         with init_elroy_session(ctx, io, True):
@@ -403,8 +372,9 @@ def message(
     ),
 ):
     """Process a single message and exit."""
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True):
         if sys.stdin.isatty() and not message:
             assert isinstance(io, CliIO)
@@ -421,8 +391,9 @@ def print_tools(
     tool: Optional[str] = typer.Argument(None, help="Tool to print schema for"),
 ):
     """Prints the schema for a tool and exits."""
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
     io.print(ctx.tool_registry.get_schemas())  # type: ignore
 
 
@@ -435,8 +406,9 @@ def cli_remember(
     ),
 ):
     """Create a new memory from text or interactively."""
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True):
         if text:
             memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
@@ -489,8 +461,9 @@ def list_models():
 def list_tools(
     typer_ctx: typer.Context,
 ):
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
     tools = ctx.tool_registry.get_schemas()
 
     table = Table(title="Available Tools")
@@ -517,8 +490,9 @@ def print_config(
     ),
 ):
     """Shows current configuration and exits."""
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
     io.print(do_print_config(ctx, show_secrets))
 
 
@@ -542,8 +516,9 @@ def cli_set_persona(
     persona: str = typer.Argument(..., help="Persona text to set"),
 ):
     """Set a custom persona for the assistant."""
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True):
         if get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.info(f"No user found for token {ctx.user_token}, creating one")
@@ -554,8 +529,9 @@ def cli_set_persona(
 @app.command(name="reset-persona")
 def reset_persona(typer_ctx: typer.Context):
     """Removes any custom persona, reverting to the default."""
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True):
         if not get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
@@ -568,11 +544,32 @@ def reset_persona(typer_ctx: typer.Context):
 @app.command(name="show-persona")
 def show_persona(typer_ctx: typer.Context):
     """Print the system persona and exit."""
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True):
         print(get_persona(ctx))
         raise typer.Exit()
+
+
+@app.command(name="ingest")
+def ingest_doc(
+    typer_ctx: typer.Context,
+    path: str = typer.Argument(..., help="Path to document to ingest"),
+    force_refresh: bool = typer.Option(
+        False,
+        "--force-refresh",
+        "-f",
+        help="If true, any existing ingested document at the given path will be discarded, and the document will be re-ingested.",
+    ),
+):
+    """Ingests document at the given path into memory."""
+
+    assert typer_ctx.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
+    with init_elroy_session(ctx, io, True):
+        do_ingest_doc(ctx, path, force_refresh)
 
 
 mcp_app = typer.Typer(help="MCP server commands")
@@ -591,8 +588,9 @@ def mcp_print_config(
     """Print MCP server configuration to stdout"""
     from ..mcp.config import get_mcp_config, is_uv_installed
 
-    ctx = get_ctx(typer_ctx)
-    io = get_io(typer_ctx)
+    assert typer_ctx.parent and typer_ctx.parent.parent
+    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.parent.params)
+    io = get_io(**typer_ctx.parent.parent.params)
 
     if not is_uv_installed():
         io.warning("uv not detected. uv is required to run Elroy MCP server")
@@ -605,16 +603,42 @@ def mcp_print_config(
     )
 
 
-def get_ctx(typer_ctx: typer.Context) -> ElroyContext:
-    ctx = typer_ctx.obj.ctx
-    assert isinstance(ctx, ElroyContext), f"Context must be ElroyContext, got {type(ctx)}"
-    return ctx
+def get_ctx(use_background_threads: bool, **kwargs) -> ElroyContext:
+    for m in MODEL_ALIASES:
+        if kwargs.get(m):
+            logging.info(f"Model alias {m} selected")
+            resolved = resolve_model_alias(m)
+            if not resolved:
+                logging.warning("Model alias not found")
+            else:
+                kwargs["chat_model"] = resolved
+        del kwargs[m]
+
+    params = pipe(
+        kwargs,
+        lambda x: dissoc(x, *CLI_ONLY_PARAMS),
+        lambda x: get_resolved_params(**x),
+    )
+
+    return ElroyContext.init(use_background_threads=use_background_threads, **params)
 
 
-def get_io(typer_ctx: typer.Context) -> ElroyIO:
-    io = typer_ctx.obj.io
-    assert isinstance(io, ElroyIO), f"IO must be ElroyIO, got {type(io)}"
-    return io
+def get_io(**kwargs) -> ElroyIO:
+    params = get_resolved_params(**kwargs)
+
+    if sys.stdin.isatty():
+        return CliIO(
+            RichFormatter(
+                system_message_color=params["system_message_color"],
+                assistant_message_color=params["assistant_color"],
+                user_input_color=params["user_input_color"],
+                warning_color=params["warning_color"],
+                internal_thought_color=params["internal_thought_color"],
+            ),
+            show_internal_thought=params["show_internal_thought"],
+        )
+    else:
+        return PlainIO()
 
 
 if __name__ == "__main__":

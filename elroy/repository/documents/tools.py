@@ -1,11 +1,11 @@
 from ...config.constants import RecoverableToolError, tool
 from ...config.ctx import ElroyContext
-from .operations import do_ingest_doc
+from .operations import DocIngestResult, do_ingest_doc
 from .queries import get_source_doc_by_address, get_source_doc_excerpts, get_source_docs
 
 
 @tool
-def reingest_doc(ctx: ElroyContext, address: str):
+def reingest_doc(ctx: ElroyContext, address: str) -> str:
     """Downloads the document at the given address, and extracts content into memory.
 
     Args:
@@ -15,7 +15,8 @@ def reingest_doc(ctx: ElroyContext, address: str):
         str: The content of the document.
     """
 
-    return do_ingest_doc(ctx, address, True)
+    do_ingest_doc(ctx, address, True)
+    return f"Document {address} has been re-ingested."
 
 
 @tool
@@ -91,7 +92,7 @@ def get_document_excerpt(ctx: ElroyContext, address: str, chunk_index: int) -> s
 
 
 @tool
-def ingest_doc(ctx: ElroyContext, address: str):
+def ingest_doc(ctx: ElroyContext, address: str) -> str:
     """Downloads the document at the given address, and extracts content into memory.
 
     Args:
@@ -101,4 +102,6 @@ def ingest_doc(ctx: ElroyContext, address: str):
         str: The content of the document.
     """
 
-    return do_ingest_doc(ctx, address, False)
+    result = do_ingest_doc(ctx, address, False)
+
+    return f"Document {address} has been ingested." if DocIngestResult.SUCCESS == result else f"Document {address} has been updated."

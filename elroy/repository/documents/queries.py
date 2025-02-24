@@ -11,7 +11,12 @@ def get_source_docs(ctx: ElroyContext) -> Iterator[SourceDocument]:
 
 
 def get_source_doc_by_address(ctx: ElroyContext, address: str) -> Optional[SourceDocument]:
-    return ctx.db.exec(select(SourceDocument).where(SourceDocument.address == address)).one_or_none()
+    return ctx.db.exec(
+        select(SourceDocument).where(
+            SourceDocument.address == address,
+            SourceDocument.user_id == ctx.user_id,
+        )
+    ).one_or_none()
 
 
 def get_source_doc_excerpts(ctx: ElroyContext, source_doc: SourceDocument) -> List[DocumentExcerpt]:

@@ -17,6 +17,7 @@ from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
 from .repository.context_messages.queries import get_context_messages
+from .repository.documents.operations import do_ingest_doc
 from .repository.goals.operations import do_create_goal
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
@@ -61,6 +62,7 @@ class Elroy:
                 user_token=token,
                 config_path=config_path,
                 database_url=database_url,
+                use_background_threads=False,
                 **kwargs,
             ),
         )
@@ -283,3 +285,15 @@ class Elroy:
                 chat_model=None,
             ),
         )
+
+    @db
+    def ingest_doc(self, address: str, force_refresh=False) -> None:
+        """Ingest a document into the assistant's memory
+
+        Args:
+            address (str): The address of the document to ingest
+            force_refresh (bool): Whether to force a context refresh after ingestion -
+                if False, the hash of the document content will be checked before ingestion into memory.
+        """
+
+        do_ingest_doc(self.ctx, address, force_refresh)
