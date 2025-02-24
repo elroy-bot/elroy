@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 A toy example backfilling chat logs into Elroy.
 """
