@@ -3,6 +3,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any, Generator, Iterator
 
@@ -34,17 +35,14 @@ def convert_to_text(chat_model: ChatModel, content: str) -> str:
     )
 
 
-def get_title(chat_model: ChatModel, content: str) -> str:
-    return query_llm(
-        system="Given a text excerpt from a document, your task is to come up with a title for the document."
-        "If the title mentions dates, it should be specific dates rather than relative ones."
-        "The title should be in plain text, without any Markdown or HTML formatting.",
-        model=chat_model,
-        prompt=content,
-    )
+class DocIngestResult(Enum):
+    SUCCESS = "Document has been ingested successfully."
+    UPDATED = "Document has been re-ingested successfully."
+    SKIPPED = "Document not ingested as it has not changed."
+    TOO_LONG = "Document exceeds the configured max_ingested_doc_lines, and was not ingested."
 
 
-def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> str:
+def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> DocIngestResult:
     """Downloads the document at the given address, and extracts content into memory.
 
     Args:
@@ -60,7 +58,7 @@ def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> str:
         raise RecoverableToolError(f"Invalid path: {address}")
 
     if not is_markdown(address):
-        raise NotImplementedError("Only markdown documents are supported at the moment.")
+        logging.info("non-markdown files may not have optimal results")
 
     if not os.path.isfile(address):
         raise NotImplementedError("Only local files are supported at the moment.")
@@ -70,25 +68,36 @@ def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> str:
             logging.info(f"Converting relative path {address} to absolute path.")
             address = os.path.abspath(address)
 
+    with open(address, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    if len(lines) > ctx.max_ingested_doc_lines:
+        logging.info(f"Document {address} exceeds max_ingested_doc_lines ({ctx.max_ingested_doc_lines}), skipping")
+        return DocIngestResult.TOO_LONG
+
+    content = "\n".join(lines)
+
     source_doc = get_source_doc_by_address(ctx, address)
 
-    with open(address, "r", encoding="utf-8") as f:
-        content = f.read()
-
     content_md5 = hashlib.md5(content.encode()).hexdigest()
-    if source_doc and source_doc.content_md5 == content_md5:
-        if force_refresh:
-            logging.info(f"Force flag set, re-ingesting document {address} even though it has not changed.")
-        else:
-            return "Document has already been ingested, and has not changed."
+
+    doc_was_updated = False
 
     if source_doc:
+        if source_doc.content_md5 != content_md5:
+            logging.info("Source doc contents changed, re-ingesting")
+        elif force_refresh:
+            logging.info(f"Force flag set, re-ingesting doc {address}")
+        else:
+            logging.info(f"Source doc {address} not changed and no force flag set, skipping")
+            return DocIngestResult.SKIPPED
         logging.info(f"Refreshing source doc {address}")
 
         source_doc.content = content
         source_doc.extracted_at = get_utc_now()  # noqa F841
         source_doc.content_md5 = content_md5
         mark_source_document_excerpts_inactive(ctx, source_doc)
+        doc_was_updated = True
 
     else:
         logging.info(f"Persisting source document {address}")
@@ -109,7 +118,7 @@ def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> str:
 
     logging.info(f"Breaking source document into chunks for storage: {address}")
     for chunk in excerpts_from_doc(address, content):
-        title = get_title(ctx.chat_model, chunk.content)
+        title = f"Excerpt {chunk.chunk_index} from doc {address}"
         doc_excerpt = DocumentExcerpt(
             source_document_id=source_doc_id,
             chunk_index=chunk.chunk_index,
@@ -135,7 +144,7 @@ def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> str:
             True,
             False,
         )
-    return f"Document at {address} ingested successfully."
+    return DocIngestResult.SUCCESS if not doc_was_updated else DocIngestResult.UPDATED
 
 
 def excerpts_from_doc(address: str, content: str) -> Generator[DocumentChunk, Any, None]:

@@ -5,6 +5,7 @@ debug: false  # Enable fail-fast error handling and verbose logging output
 default_assistant_name: "Elroy"  # Default name for the assistant
 custom_tools_path: null  # Path to custom functions to load
 inline_tool_calls: false  # Whether to enable inline tool calls in the assistant (better for some open source models)
+max_ingested_doc_lines: 1000 # Maximum number of lines to ingest from a document. If a document has more lines, it will be ignored.
 default_persona: |  # Default system persona for the assistant
   I am $ASSISTANT_ALIAS.
 

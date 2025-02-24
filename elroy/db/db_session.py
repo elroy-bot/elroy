@@ -49,7 +49,8 @@ class DbSession(ABC):
     def get_embedding_text_md5(self, row: EmbeddableSqlModel) -> Optional[str]:
         return self.session.exec(
             select(VectorStorage.embedding_text_md5).where(
-                VectorStorage.source_id == row.id, VectorStorage.source_type == row.__class__.__name__
+                VectorStorage.source_id == row.id,
+                VectorStorage.source_type == row.__class__.__name__,
             )
         ).first()
 

@@ -67,6 +67,8 @@ class ElroyContext:
         debug: bool,
         default_persona: str,  # The generic persona to use if no persona is specified
         default_assistant_name: str,  # The generic assistant name to use if no assistant name is specified
+        use_background_threads: bool,  # Whether to use background threads for certain operations
+        max_ingested_doc_lines: int,  # The maximum number of lines to ingest from a document
     ):
 
         self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
@@ -86,6 +88,8 @@ class ElroyContext:
         self.max_memory_cluster_size = max_memory_cluster_size
         self.memories_between_consolidation = memories_between_consolidation
         self.inline_tool_calls = inline_tool_calls
+        self.use_background_threads = use_background_threads
+        self.max_ingested_doc_lines = max_ingested_doc_lines
 
     from ..tools.registry import ToolRegistry
 
