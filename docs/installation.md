@@ -96,7 +96,7 @@ The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 
 ```bash
 # Clone the repository
-git clone https://github.com/elroy-bot/elroy.git
+git clone --single-branch --branch stable https://github.com/elroy-bot/elroy.git
 cd elroy
 
 # Create virtual environment and install dependencies
