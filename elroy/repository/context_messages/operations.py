@@ -1,9 +1,11 @@
 import json
 import logging
+import time
 import traceback
-from functools import partial
-from typing import Iterable, Iterator, List, Optional
+from functools import partial, wraps
+from typing import Any, Callable, Iterable, Iterator, List, Optional, TypeVar
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from toolz import concatv, pipe
 from toolz.curried import tail
@@ -78,11 +80,34 @@ def replace_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessag
     ctx.db.commit()
 
 
+T = TypeVar("T")
+
+
+def retry_on_integrity_error(fn: Callable[..., T]) -> Callable[..., T]:
+    @wraps(fn)
+    def wrapper(ctx: ElroyContext, *args: Any, **kwargs: Any) -> T:
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                return fn(ctx, *args, **kwargs)
+            except IntegrityError:
+                if attempt == max_retries - 1:  # Last attempt
+                    ctx.db.rollback()
+                    raise
+                else:
+                    ctx.db.rollback()
+                    time.sleep(0.1 * 2**attempt)
+                    logging.info(f"Retrying on integrity error (attempt {attempt + 1}/{max_retries})")
+        return fn(ctx, *args, **kwargs)
+
+    return wrapper
+
+
+@retry_on_integrity_error
 def remove_context_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> None:
     assert all(m.id is not None for m in messages), "All messages must have an id to be removed"
 
     msg_ids = [m.id for m in messages]
-
     replace_context_messages(ctx, [m for m in get_context_messages(ctx) if m.id not in msg_ids])
 
 
