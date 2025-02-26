@@ -2,17 +2,38 @@ import asyncio
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import partial, wraps
-from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
+from typing import Any, Callable, Coroutine, Dict, Iterator, Optional, TypeVar
 
 from ..config.ctx import ElroyContext
 from ..config.initializer import dbsession
 
 T = TypeVar("T")
 
+_executor = ThreadPoolExecutor(thread_name_prefix="elroy_worker")
 
-def do_asyncio_run(coro):
+
+def run_in_executor(_executor: ThreadPoolExecutor, fn: Callable[..., T], *args, **kwargs) -> T:
+    """
+    Run a function in the thread pool executor and wait for its result.
+
+    Args:
+        fn: Function to run
+        *args: Positional arguments for the function
+        **kwargs: Keyword arguments for the function
+
+    Returns:
+        The result of the function
+
+    Raises:
+        Any exception that occurred while executing the function
+    """
+    return _executor.submit(fn, *args, **kwargs).result()
+
+
+def do_asyncio_run(coro: Coroutine[Any, Any, T]) -> T:
     """
     Safely run an async coroutine, whether or not there's an existing event loop.
 
@@ -22,11 +43,8 @@ def do_asyncio_run(coro):
     Returns:
         The result of the coroutine
     """
-    loop = asyncio._get_running_loop()
-    if loop is not None:
-        return loop.run_until_complete(coro)
-    else:
-        return asyncio.run(coro)
+
+    return run_in_executor(_executor, asyncio.run, coro)
 
 
 def is_blank(input: Optional[str]) -> bool:
