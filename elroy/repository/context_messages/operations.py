@@ -24,7 +24,7 @@ from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
 from ...utils.clock import db_time_to_local
-from ...utils.utils import logged_exec_time, run_async
+from ...utils.utils import logged_exec_time
 from ..memories.operations import formulate_memory
 from ..memories.tools import create_memory
 from ..user.operations import get_or_create_user_preference
@@ -186,10 +186,7 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
 def refresh_context_if_needed(ctx: ElroyContext):
     context_messages = list(get_context_messages(ctx))
     if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.max_tokens):
-        run_async(
-            ctx.thread_pool,
-            context_refresh(ctx, context_messages),
-        )
+        context_refresh(ctx, context_messages)
 
 
 @user_only_tool
