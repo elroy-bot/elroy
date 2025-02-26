@@ -1,6 +1,8 @@
 import logging
 import time
 
+import pytest
+
 from elroy.config.constants import USER
 from elroy.config.ctx import ElroyContext
 from elroy.repository.context_messages.data_models import ContextMessage
@@ -12,6 +14,7 @@ from elroy.repository.context_messages.queries import get_context_messages
 from elroy.utils.utils import run_in_background
 
 
+@pytest.mark.filterwarnings("error")
 def test_rm_context_messages(george_ctx: ElroyContext):
     msgs = list(get_context_messages(george_ctx))
 
@@ -34,6 +37,7 @@ def test_rm_context_messages(george_ctx: ElroyContext):
             time.sleep(1)
 
 
+@pytest.mark.filterwarnings("error")
 def test_add_context_messages(george_ctx: ElroyContext):
     msgs = list(get_context_messages(george_ctx))
 
