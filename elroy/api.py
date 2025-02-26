@@ -1,6 +1,8 @@
 from functools import wraps
 from typing import Callable, Generator, List, Optional
 
+import trio
+
 from .cli.chat import onboard_non_interactive
 from .cli.options import get_resolved_params
 from .config.constants import USER
@@ -28,7 +30,6 @@ from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 from .repository.user.queries import is_user_exists
-from .utils.utils import do_asyncio_run
 
 
 def db(f: Callable) -> Callable:
@@ -75,7 +76,7 @@ class Elroy:
                 set_assistant_name(self.ctx, assistant_name)
 
             if not is_user_exists(self.ctx.db.session, self.ctx.user_token):
-                do_asyncio_run(onboard_non_interactive(self.ctx))
+                trio.run(onboard_non_interactive, self.ctx)
 
     @db
     def create_goal(

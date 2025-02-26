@@ -40,21 +40,21 @@ from ..repository.user.queries import (
     is_user_exists,
 )
 from ..repository.user.tools import set_user_preferred_name
-from ..utils.utils import datetime_to_string, do_asyncio_run, run_in_background
+from ..utils.utils import datetime_to_string, run_in_background
 
 
-def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
+async def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
     try:
-        message = do_asyncio_run(io.prompt_user(0, "Enter your message"))
+        message = await io.prompt_user(0, "Enter your message")
         io.print_stream(process_message(USER, ctx, message, tool))
     except EOFError:
         io.info("Cancelled.")
         raise typer.Exit()
 
 
-def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
+async def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
     if not is_user_exists(ctx.db.session, ctx.user_token):
-        do_asyncio_run(onboard_non_interactive(ctx))
+        await onboard_non_interactive(ctx)
     io.print_stream(process_message(USER, ctx, message, tool))
 
 

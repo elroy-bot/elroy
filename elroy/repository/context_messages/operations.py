@@ -4,6 +4,7 @@ import traceback
 from functools import partial
 from typing import Iterable, Iterator, List, Optional
 
+import trio
 from sqlmodel import select
 from toolz import concatv, pipe
 from toolz.curried import tail
@@ -23,7 +24,7 @@ from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
 from ...utils.clock import db_time_to_local
-from ...utils.utils import do_asyncio_run, logged_exec_time
+from ...utils.utils import logged_exec_time
 from ..memories.operations import formulate_memory
 from ..memories.tools import create_memory
 from ..user.operations import get_or_create_user_preference
@@ -136,7 +137,7 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
 
 
 def context_refresh_sync(ctx: ElroyContext, context_messages: Iterable[ContextMessage]):
-    do_asyncio_run(context_refresh(ctx, context_messages))
+    trio.run(context_refresh, ctx, context_messages)
 
 
 @logged_exec_time
@@ -165,7 +166,7 @@ async def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextM
 def refresh_context_if_needed(ctx: ElroyContext):
     context_messages = list(get_context_messages(ctx))
     if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.max_tokens):
-        do_asyncio_run(context_refresh(ctx, context_messages))
+        trio.run(context_refresh, ctx, context_messages)
 
 
 @user_only_tool

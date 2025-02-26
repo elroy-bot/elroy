@@ -3,10 +3,9 @@ import traceback
 from ..config.ctx import ElroyContext
 from ..io.cli import CliIO
 from ..tools.developer import create_bug_report
-from ..utils.utils import do_asyncio_run
 
 
-def create_bug_report_from_exception_if_confirmed(
+async def create_bug_report_from_exception_if_confirmed(
     io: CliIO, ctx: ElroyContext, error: Exception, error_explanation: str = "An error occured."
 ) -> None:
     """
@@ -15,7 +14,7 @@ def create_bug_report_from_exception_if_confirmed(
     Args:
         error: The exception that triggered this prompt
     """
-    if do_asyncio_run(get_confirm(io, f"{error_explanation} Would you like to create a bug report? (y/n)")):
+    if await get_confirm(io, f"{error_explanation} Would you like to create a bug report? (y/n)"):
         create_bug_report(
             ctx,
             f"Error: {error.__class__.__name__}",

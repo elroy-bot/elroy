@@ -4,6 +4,7 @@ from functools import cached_property, partial
 from typing import List
 
 import numpy as np
+import trio
 from scipy.spatial.distance import cosine
 from sklearn.cluster import DBSCAN
 from toolz import pipe
@@ -12,7 +13,6 @@ from toolz.curried import map, take
 from ...config.ctx import ElroyContext
 from ...db.db_models import Memory
 from ...llm.client import query_llm
-from ...utils.utils import do_asyncio_run
 from .prompts import MEMORY_CONSOLIDATION
 
 
@@ -106,20 +106,24 @@ class MemoryCluster:
 
 def consolidate_memories(ctx: ElroyContext):
     """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
-    from .queries import get_active_memories
 
-    clusters = pipe(
-        get_active_memories(ctx),
-        partial(_find_clusters, ctx),
-        take(3),
-        list,
-    )
+    async def consolidate_memories_task(ctx: ElroyContext):
+        from .queries import get_active_memories
 
-    logging.info(f"Found {len(clusters)} memory clusters to consolidate")
+        clusters: List[MemoryCluster] = pipe(
+            get_active_memories(ctx),
+            partial(_find_clusters, ctx),
+            take(3),
+            list,
+        )  # type: ignore
 
-    for cluster in clusters:
-        assert isinstance(cluster, MemoryCluster)
-        do_asyncio_run(consolidate_memory_cluster(ctx, cluster))
+        logging.info(f"Found {len(clusters)} memory clusters to consolidate")
+
+        async with trio.open_nursery() as nursery:
+            for cluster in clusters:
+                nursery.start_soon(consolidate_memory_cluster, ctx, cluster)
+
+    trio.run(consolidate_memories_task, ctx)
 
 
 def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryCluster]:

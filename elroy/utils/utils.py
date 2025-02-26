@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import threading
 import time
@@ -10,23 +9,6 @@ from ..config.ctx import ElroyContext
 from ..config.initializer import dbsession
 
 T = TypeVar("T")
-
-
-def do_asyncio_run(coro):
-    """
-    Safely run an async coroutine, whether or not there's an existing event loop.
-
-    Args:
-        coro: The coroutine to run
-
-    Returns:
-        The result of the coroutine
-    """
-    loop = asyncio._get_running_loop()
-    if loop is not None:
-        return loop.run_until_complete(coro)
-    else:
-        return asyncio.run(coro)
 
 
 def is_blank(input: Optional[str]) -> bool:

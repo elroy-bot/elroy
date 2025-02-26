@@ -6,6 +6,7 @@ from datetime import datetime
 from functools import partial
 from typing import List, Optional
 
+import trio
 import typer
 from rich.table import Table
 from toolz import dissoc, pipe
@@ -24,7 +25,7 @@ from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
 from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
-from ..utils.utils import datetime_to_string, do_asyncio_run
+from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import handle_chat, handle_message_interactive, handle_message_stdio
 from .options import ElroyOption, get_resolved_params, resolve_model_alias
@@ -324,40 +325,45 @@ def common(
 def chat(typer_ctx: typer.Context):
     """Opens an interactive chat session. (default command)"""
 
-    # extra check needed since chat is the default command
-    if not typer_ctx.params and typer_ctx.parent:
-        params = typer_ctx.parent.params
-    else:
-        params = typer_ctx.params
+    async def chat_async(typer_ctx: typer.Context):
+        # extra check needed since chat is the default command
+        if not typer_ctx.params and typer_ctx.parent:
+            params = typer_ctx.parent.params
+        else:
+            params = typer_ctx.params
 
-    io = get_io(**params)
+        io = get_io(**params)
 
-    if sys.stdin.isatty():
-        ctx = get_ctx(use_background_threads=True, **params)
-        assert isinstance(io, CliIO)
+        if sys.stdin.isatty():
+            ctx = get_ctx(use_background_threads=True, **params)
+            assert isinstance(io, CliIO)
 
-        check_updates(io)
+            check_updates(io)
 
-        with init_elroy_session(ctx, io, True):
-            try:
-                do_asyncio_run(handle_chat(io, params["disable_assistant_greeting"], ctx))
-            except BdbQuit:
-                logging.info("Exiting...")
-            except EOFError:
-                logging.info("Exiting...")
-            except Exception as e:
-                if "Unsupported param: tools" in str(e):
-                    raise typer.BadParameter(
-                        f"Tool use not supported by model {ctx.chat_model.name}. Try starting with --inline-tool-calls"
-                    )
-                else:
-                    create_bug_report_from_exception_if_confirmed(io, ctx, e)
-    else:
-        ctx = get_ctx(use_background_threads=False, **params)
-        message = sys.stdin.read()
-        assert isinstance(io, PlainIO)
-        with init_elroy_session(ctx, io, True):
-            handle_message_stdio(ctx, io, message, None)
+            with init_elroy_session(ctx, io, True):
+                try:
+                    await handle_chat(io, params["disable_assistant_greeting"], ctx)
+
+                except BdbQuit:
+                    logging.info("Exiting...")
+                except EOFError:
+                    logging.info("Exiting...")
+                except Exception as e:
+                    if "Unsupported param: tools" in str(e):
+                        raise typer.BadParameter(
+                            f"Tool use not supported by model {ctx.chat_model.name}. Try starting with --inline-tool-calls"
+                        )
+                    else:
+                        await create_bug_report_from_exception_if_confirmed(io, ctx, e)
+
+        else:
+            ctx = get_ctx(use_background_threads=False, **params)
+            message = sys.stdin.read()
+            assert isinstance(io, PlainIO)
+            with init_elroy_session(ctx, io, True):
+                await handle_message_stdio(ctx, io, message, None)
+
+    trio.run(chat_async, typer_ctx)
 
 
 @app.command(name="message")
@@ -378,11 +384,11 @@ def message(
     with init_elroy_session(ctx, io, True):
         if sys.stdin.isatty() and not message:
             assert isinstance(io, CliIO)
-            handle_message_interactive(ctx, io, tool)
+            trio.run(handle_message_interactive, ctx, io, tool)
         else:
             assert message
             assert isinstance(io, PlainIO)
-            handle_message_stdio(ctx, io, message, tool)
+            trio.run(handle_message_stdio, ctx, io, message, tool)
 
 
 @app.command(name="print-tool-schemas")
@@ -418,10 +424,10 @@ def cli_remember(
 
         elif sys.stdin.isatty():
             assert isinstance(io, CliIO)
-            memory_text = do_asyncio_run(io.prompt_user(0, "Enter the memory text:"))
+            memory_text = trio.run(io.prompt_user, 0, "Enter the memory text:")
             memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
             # Optionally get memory name
-            memory_name = do_asyncio_run(io.prompt_user(0, "Enter memory name (optional, press enter to skip):"))
+            memory_name = trio.run(io.prompt_user, 0, "Enter memory name (optional, press enter to skip):")
             try:
                 manually_record_user_memory(ctx, memory_text, memory_name)
                 io.info(f"Memory created: {memory_name}")
