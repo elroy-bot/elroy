@@ -5,7 +5,6 @@ import traceback
 from functools import partial, wraps
 from typing import Any, Callable, Iterable, Iterator, List, Optional, TypeVar
 
-from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from toolz import concatv, pipe
 from toolz.curried import tail
@@ -90,7 +89,7 @@ def retry_on_integrity_error(fn: Callable[..., T]) -> Callable[..., T]:
         for attempt in range(max_retries):
             try:
                 return fn(ctx, *args, **kwargs)
-            except IntegrityError:
+            except Exception:
                 if attempt == max_retries - 1:  # Last attempt
                     ctx.db.rollback()
                     raise
@@ -115,6 +114,7 @@ def add_context_message(ctx: ElroyContext, message: ContextMessage) -> None:
     add_context_messages(ctx, [message])
 
 
+@retry_on_integrity_error
 def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> None:
     pipe(
         concatv(get_context_messages(ctx), messages),
