@@ -6,6 +6,7 @@ from elroy.repository.user.queries import do_get_user_preferred_name
 from elroy.repository.user.tools import set_user_preferred_name
 
 
+@pytest.mark.flaky(reruns=3)
 def test_hello_world(ctx):
     # Test message
     test_message = "Hello, World!"

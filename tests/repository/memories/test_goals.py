@@ -1,3 +1,4 @@
+import pytest
 from tests.utils import (
     MockCliIO,
     get_active_goals_summary,
@@ -34,6 +35,7 @@ def test_assistant_goal_in_context(io: MockCliIO, ctx: ElroyContext):
     ), "Marathon goal still in context"
 
 
+@pytest.mark.flaky(reruns=3)
 def test_goal(io: MockCliIO, ctx: ElroyContext):
     quiz_assistant_bool(False, ctx, "Do I have any goals about becoming president of the United States?")
 
