@@ -108,14 +108,12 @@ def get_embedding_model(
     openai_api_key: Optional[str],  # supported for backwards compatibility
     openai_api_base: Optional[str],  # supported for backwards compatibility
     openai_embedding_api_base: Optional[str],  # supported for backwards compatibility
-    chat_api_key: Optional[str],  # supported in case embedding model is from same provider as chat model
-    chat_api_base: Optional[str],  # supported in case embedding model is from same provider as chat model
     enable_caching: bool,
 ) -> EmbeddingModel:
     return EmbeddingModel(
         name=model_name,
         embedding_size=embedding_size,
-        api_key=api_key or chat_api_key or openai_api_key,
-        api_base=api_base or openai_embedding_api_base or chat_api_base or openai_api_base,
+        api_key=api_key or openai_api_key,
+        api_base=api_base or openai_embedding_api_base or openai_api_base,
         enable_caching=enable_caching,
     )
