@@ -1,5 +1,4 @@
 import traceback
-from functools import partial
 from inspect import signature
 from typing import Iterator, List, Optional, Union
 
@@ -21,7 +20,7 @@ from .llm.stream_parser import (
 from .repository.context_messages.data_models import ContextMessage
 from .repository.context_messages.operations import add_context_messages
 from .repository.context_messages.queries import get_context_messages
-from .repository.context_messages.validations import validate
+from .repository.context_messages.validations import Validator
 from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
@@ -33,7 +32,7 @@ def process_message(
 
     context_messages: List[ContextMessage] = pipe(
         get_context_messages(ctx),
-        partial(validate, ctx),
+        lambda msgs: Validator(ctx, msgs).validated_msgs(),
         list,
     )  # type: ignore
 
