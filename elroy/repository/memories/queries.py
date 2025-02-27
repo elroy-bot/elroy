@@ -16,6 +16,7 @@ from ...db.db_models import (
     get_memory_source_class,
 )
 from ...llm.client import generate_chat_completion_message, get_embedding
+from ...llm.stream_parser import StreamParser
 from ...utils.utils import logged_exec_time
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
 from ..context_messages.transforms import ContextMessageSetWithMessages
@@ -139,21 +140,22 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return [new_memory_message] if new_memory_message else []
 
 
-def get_memory_summary(ctx: ElroyContext, context_messages: Iterable[ContextMessage], memory: EmbeddableSqlModel) -> str:
-
-    stream = generate_chat_completion_message(
-        ctx.chat_model,
-        [
-            ContextMessage(
-                role=SYSTEM,
-                content=f"You are an internal thought process of an AI assistant. Consider the following content recalled from memory. Return an internal thought monologue for what is signficant about the recalled content, and how it might related to the conversation. The content is as follows: {memory.to_fact()}",
-                chat_model=None,
-            )
-        ]
-        + list(context_messages)[1:],
-        [],
-        False,
+def get_memory_summary(ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]) -> str:
+    stream: StreamParser = pipe(
+        memories,
+        map(lambda x: x.to_fact()),
+        "\n\n".join,
+        lambda x: f"You are an internal thought process of an AI assistant. Consider the following content recalled from memory. Return an internal thought monologue for what is signficant about the recalled content, and how it might related to the conversation. The content is as follows:\n"
+        + x,
+        lambda x: ContextMessage(
+            role=SYSTEM,
+            content=x,
+            chat_model=None,
+        ),
+        lambda x: [x] + list(context_messages)[1:],
+        lambda x: generate_chat_completion_message(ctx.chat_model, x, [], False),
     )
+
     for stream_chunk in stream.process_stream():
         pass
     return stream.get_full_text()
