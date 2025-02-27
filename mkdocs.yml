@@ -1,0 +1,73 @@
+site_name: Elroy
+site_url: https://elroy.bot
+site_description: An AI assistant that remembers and sets goals
+site_author: Elroy Team
+
+# Repository
+repo_name: elroy-bot/elroy
+repo_url: https://github.com/elroy-bot/elroy
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2025 Elroy Team
+
+# Theme configuration
+theme:
+  name: material
+  logo: images/logo.jpeg
+  favicon: images/logo.jpeg
+  palette:
+    primary: "#C8C7E8"
+    accent: "#C8C7E8"
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - codehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+
+# Navigation structure
+nav:
+  - Home: index.md
+  - How It Works: how_it_works.md
+  - Installation: installation.md
+  - CLI: cli.md
+  - Configuration: configuration.md
+  - Model Context Protocol: model_context_protocol.md
+  - Scripting: scripting.md
+  - Tools:
+    - Tools Guide: tools_guide.md
+    - Tools Schema: tools_schema.md
+
+# Extra CSS
+extra_css:
+  - stylesheets/extra.css
+
+# Extra settings
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/elroy-bot/elroy
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/5PJUY4eMce
