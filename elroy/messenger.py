@@ -60,6 +60,9 @@ def process_message(
                 yield stream_chunk  # yield the call
 
                 function_calls.append(stream_chunk)
+                # Note: there's some slightly weird behavior here if the tool call results in context messages being added.
+                # Since we're not persisting new context messages until the end of this loop, context messages from within
+                # tool call executions will show up before the user message it's responding to.
                 tool_call_result = exec_function_call(ctx, stream_chunk)
                 tool_context_messages.append(
                     ContextMessage(

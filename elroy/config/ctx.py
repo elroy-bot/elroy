@@ -72,9 +72,12 @@ class ElroyContext:
         use_background_threads: bool,  # Whether to use background threads for certain operations
         max_ingested_doc_lines: int,  # The maximum number of lines to ingest from a document
         exclude_tools: List[str] = [],  # Tools to exclude from the tool registry
+        reflect: bool,
     ):
 
         self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
+
+        self.reflect = reflect
 
         self.user_token = user_token
         self.show_internal_thought = show_internal_thought

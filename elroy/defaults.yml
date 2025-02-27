@@ -7,6 +7,7 @@ custom_tools_path: null  # Path to custom functions to load
 inline_tool_calls: false  # Whether to enable inline tool calls in the assistant (better for some open source models)
 max_ingested_doc_lines: 1000 # Maximum number of lines to ingest from a document. If a document has more lines, it will be ignored.
 default_persona: null # Default system persona for the assistant. See personas.py
+reflect: false # Whether to reflect on recalled memory content. True leads to richer responses, False leads to faster responses
 
 ### Model Selection & Configuration ###
 chat_model: null  # The model to use for chat completions, if not provided, inferred from env variables
