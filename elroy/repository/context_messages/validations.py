@@ -8,6 +8,7 @@ from ...config.ctx import ElroyContext
 from .data_models import ContextMessage
 from .inspect import has_assistant_tool_call
 from .operations import get_refreshed_system_message, replace_context_messages
+from .queries import get_context_messages
 from .transforms import is_system_instruction
 
 
@@ -31,6 +32,8 @@ class Validator:
                     f"Assistant message with tool_calls not followed by tool message: ID = {message.id}, repairing by removing tool_calls"
                 )
                 message.tool_calls = None
+                message.id = None  # unsetting ID so that a new message gets persisted
+                yield message
             else:
                 yield message
 
@@ -94,5 +97,6 @@ class Validator:
             for error in self.errors:
                 logging.info(error)
             replace_context_messages(self.ctx, messages)
-
-        yield from messages
+            yield from get_context_messages(self.ctx)
+        else:
+            yield from messages
