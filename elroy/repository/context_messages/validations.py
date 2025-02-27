@@ -72,9 +72,6 @@ def validate_system_instruction_correctly_placed(ctx: ElroyContext, context_mess
             continue
         else:
             validated_messages.append(message)
-    import pdb
-
-    pdb.set_trace()
     return validated_messages
 
 
