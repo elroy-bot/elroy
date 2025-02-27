@@ -8,8 +8,14 @@ from toolz.curried import filter, map, remove, tail
 
 from ...config.constants import SYSTEM
 from ...config.ctx import ElroyContext
-from ...db.db_models import Goal, Memory, MemorySource, get_memory_source_class
-from ...llm.client import get_embedding
+from ...db.db_models import (
+    EmbeddableSqlModel,
+    Goal,
+    Memory,
+    MemorySource,
+    get_memory_source_class,
+)
+from ...llm.client import generate_chat_completion_message, get_embedding
 from ...utils.utils import logged_exec_time
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
 from ..context_messages.transforms import ContextMessageSetWithMessages
@@ -110,24 +116,47 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
 
     assert isinstance(message_content, str)
 
-    new_memory_messages = pipe(
+    new_memory_message: Optional[ContextMessage] = pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
         lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(ctx, x),
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
-        map(
-            lambda x: ContextMessage(
+        list,
+        lambda mem_list: (
+            ContextMessage(
                 role=SYSTEM,
-                memory_metadata=[RecalledMemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
-                content="Information recalled from assistant memory: " + x.to_fact(),
+                memory_metadata=[RecalledMemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name()) for x in mem_list],
+                # content="Information recalled from assistant memory: " + x.to_fact(),
+                content=get_memory_summary(ctx, context_messages, mem_list),
                 chat_model=None,
             )
+            if mem_list
+            else None
         ),
-        list,
     )
 
-    return new_memory_messages
+    return [new_memory_message] if new_memory_message else []
+
+
+def get_memory_summary(ctx: ElroyContext, context_messages: Iterable[ContextMessage], memory: EmbeddableSqlModel) -> str:
+
+    stream = generate_chat_completion_message(
+        ctx.chat_model,
+        [
+            ContextMessage(
+                role=SYSTEM,
+                content=f"You are an internal thought process of an AI assistant. Consider the following content recalled from memory. Return an internal thought monologue for what is signficant about the recalled content, and how it might related to the conversation. The content is as follows: {memory.to_fact()}",
+                chat_model=None,
+            )
+        ]
+        + list(context_messages)[1:],
+        [],
+        False,
+    )
+    for stream_chunk in stream.process_stream():
+        pass
+    return stream.get_full_text()
 
 
 def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> List[str]:
