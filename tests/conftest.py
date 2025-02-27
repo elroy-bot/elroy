@@ -12,7 +12,13 @@ from toolz.curried import do
 
 from elroy.cli.chat import onboard_non_interactive
 from elroy.cli.options import get_resolved_params, resolve_model_alias
-from elroy.config.constants import ASSISTANT, USER, allow_unused
+from elroy.config.constants import (
+    ASSISTANT,
+    SYSTEM,
+    SYSTEM_INSTRUCTION_LABEL,
+    USER,
+    allow_unused,
+)
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
@@ -20,6 +26,7 @@ from elroy.db.db_models import (
     Goal,
     Memory,
     Message,
+    ToolCall,
     User,
     UserPreference,
 )
@@ -29,6 +36,7 @@ from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
+from elroy.repository.context_messages.transforms import is_system_instruction
 from elroy.repository.goals.operations import do_create_goal
 from elroy.repository.user.operations import create_user_id
 
@@ -304,3 +312,15 @@ def very_large_document_path(tmpdir: str) -> str:
         f.write("\n".join(paragraphs))
 
     return str(file_path)
+
+
+@pytest.fixture(scope="function")
+def tool_call():
+    return ToolCall(id="123", function={"name": "test_tool", "arguments": '{"arg": "value"}'})
+
+
+@pytest.fixture(scope="function")
+def system_instruct():
+    msg = ContextMessage(role=SYSTEM, content=SYSTEM_INSTRUCTION_LABEL + "system message", chat_model=None)
+    assert is_system_instruction(msg)
+    return msg
