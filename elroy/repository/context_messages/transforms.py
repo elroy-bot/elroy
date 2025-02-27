@@ -35,7 +35,7 @@ def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMe
         context_messages,
         filter(lambda x: x.role == USER),
         last_or_none,
-        lambda x: (get_utc_now() - x.created_at) if x else None,
+        lambda x: (get_utc_now() - x.created_at) if x and x.created_at else None,
     )  # type: ignore
 
 
