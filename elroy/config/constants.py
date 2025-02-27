@@ -56,10 +56,6 @@ def allow_unused(func: Callable) -> Callable:
     return func
 
 
-class MissingAssistantToolCallError(Exception):
-    pass
-
-
 class MissingToolCallMessageError(Exception):
     pass
 

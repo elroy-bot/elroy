@@ -1,7 +1,6 @@
 import json
 from typing import List
 
-import pytest
 from tests.fixtures.custom_tools import (
     get_game_info,
     get_user_token_first_letter,
@@ -11,15 +10,7 @@ from tests.utils import process_test_message
 from toolz import pipe
 from toolz.curried import map
 
-from elroy.config.constants import (
-    ASSISTANT,
-    SYSTEM,
-    TOOL,
-    USER,
-    MissingAssistantToolCallError,
-    MissingToolCallMessageError,
-    tool,
-)
+from elroy.config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
@@ -64,19 +55,6 @@ def test_missing_tool_message_recovers(ctx: ElroyContext):
     assert True  # ie, no error is raised
 
 
-def test_missing_tool_message_throws(ctx: ElroyContext):
-    """
-    Tests that an error is raised when an assistant message is included without the corresponding subsequent tool message.
-    """
-
-    ctx.debug = True
-
-    add_context_messages(ctx, _missing_tool_message(ctx))
-
-    with pytest.raises(MissingToolCallMessageError):
-        process_test_message(ctx, "Tell me more!")
-
-
 def test_missing_tool_call_recovers(ctx: ElroyContext):
     """
     Tests recovery when a tool message is included without the corresponding assistant message with tool_calls.
@@ -88,19 +66,6 @@ def test_missing_tool_call_recovers(ctx: ElroyContext):
 
     process_test_message(ctx, "Tell me more!")
     assert True  # ie, no error is raised
-
-
-def test_missing_tool_call_throws(ctx: ElroyContext):
-    """
-    Tests that an error is raised when a tool message is included without the corresponding assistant message with tool_calls.
-    """
-
-    ctx.debug = True
-
-    add_context_messages(ctx, _missing_tool_call(ctx))
-
-    with pytest.raises(MissingAssistantToolCallError):
-        process_test_message(ctx, "Tell me more!")
 
 
 def test_tool_schema_does_not_have_elroy_ctx():

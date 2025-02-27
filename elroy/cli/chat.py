@@ -30,7 +30,7 @@ from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.transforms import (
     get_time_since_most_recent_user_message,
 )
-from ..repository.context_messages.validations import validate
+from ..repository.context_messages.validations import Validator
 from ..repository.goals.operations import create_onboarding_goal
 from ..repository.goals.queries import get_active_goals
 from ..repository.memories.queries import get_active_memories
@@ -96,7 +96,7 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
 
     print_title_ruler(io, get_assistant_name(ctx))
 
-    context_messages = validate(ctx, get_context_messages(ctx))
+    context_messages = Validator(ctx, get_context_messages(ctx)).validated_msgs()
 
     if disable_greeting:
         logging.info("assistant greeting disabled")
