@@ -1,6 +1,6 @@
 # Tools Schema Reference
 
-Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are listed below. Note that any argument `context` refers to the `ElroyContext` instance for the user. Where relevant, it is add to tool calls invisibly to the assistant.
+Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are listed below. Note that any argument `context` refers to the `ElroyContext` instance for the user. Where relevant, it is added to tool calls invisibly to the assistant.
 
 ## Tool schemas
 ```json

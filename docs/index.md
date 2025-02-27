@@ -1,0 +1,127 @@
+<div align="center">
+  <img src="images/logo.jpeg" alt="Elroy Logo" width="200"/>
+</div>
+
+# Elroy: An AI assistant that remembers and sets goals
+
+[![Discord](https://img.shields.io/discord/1200684659277832293?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/5PJUY4eMce)
+[![GitHub](https://img.shields.io/github/stars/elroy-bot/elroy?style=social)](https://github.com/elroy-bot/elroy)
+
+Elroy is an AI assistant that runs in your terminal, with memory and powerful goal tracking. It remembers everything you tell it, can learn from your documents, and helps you stay organized.
+
+![Goals Demo](images/goals_demo.gif)
+
+## Features
+
+- **Memory**: Elroy automatically recalls relevant information from past conversations
+- **Goal Tracking System**: Create, update, and track personal and professional goals
+- **Codebase Understanding**: Ingest your repositories to give Elroy context about your projects
+- **Simple Scripting**: Automate tasks with minimal configuration overhead
+- **CLI Tool Interface**: Quickly review memories or jot notes for Elroy to remember
+- **MCP Server**: Surface conversation memories to other tools via Model Context Protocol
+
+The fastest way to get started is using the install script:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/elroy-bot/elroy/main/scripts/install.sh | sh
+```
+
+Or install manually with UV:
+
+```bash
+# Install UV first
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Then install Elroy
+uv pip install elroy
+```
+
+For detailed installation instructions including Docker and source installation options, see our [Installation Guide](installation.md).
+
+## Elroy from your terminal
+
+![Remember Command](images/remember_command.gif)
+
+Elroy runs in your terminal helps you with goals while maintaining memory of your interactions. As you chat with Elroy, it automatically:
+
+1. **Creates memories** of important information
+2. **Recalls relevant context** when needed
+3. **Tracks goals** you set together
+4. **Consolidates redundant information** to keep context clean
+
+## Basic Usage
+
+Once installed, you can start using Elroy immediately:
+
+```bash
+# Start the chat interface
+elroy chat
+
+# Or just 'elroy' which defaults to chat mode
+elroy
+```
+
+### Slash Commands
+
+![Slash Commands](images/slash_commands.gif)
+
+Elroy supports powerful slash commands for quick actions:
+
+```bash
+# Create a memory
+/create_memory This is important information I want to save
+
+# Create a goal
+/create_goal Learn how to use Elroy effectively
+
+# Process a single message and exit
+elroy message "Say hello world"
+
+# Force use of a specific tool
+elroy message "Create a goal" --tool create_goal
+```
+
+### Scripting with Elroy
+
+Elroy can be used in scripts and automated workflows:
+
+```python
+from elroy import Elroy
+
+ai = Elroy()
+
+# Create a memory
+ai.remember("Important project context")
+
+# Process a message with memory augmentation
+response = ai.message("What should I do next on the project?")
+print(response)
+```
+
+## Supported Models
+
+Elroy works with:
+
+- **OpenAI**: GPT-4o, GPT-4o-mini, o1, o1-mini
+- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus
+- **Google**: Gemini
+- Any OpenAI-compatible API
+
+## Documentation
+
+- [Installation Guide](installation.md): Detailed installation instructions
+- [Configuration](configuration.md): Configure Elroy to your needs
+- [CLI Reference](cli_reference.md): Command-line interface reference
+- [Tools Guide](tools_guide.md): Guide to Elroy's tools
+- [Tools Schema](tools_schema.md): Technical reference for tool schemas
+
+## Community
+
+Join our community to get help, share your experiences, and contribute to Elroy's development:
+
+- [Discord](https://discord.gg/5PJUY4eMce)
+- [GitHub](https://github.com/elroy-bot/elroy)
+
+## License
+
+Distributed under the Apache 2.0 license. See [LICENSE](https://github.com/elroy-bot/elroy/blob/main/LICENSE) for more information.

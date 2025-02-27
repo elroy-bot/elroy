@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
+- Relevant API keys (for simplest setup, set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
 - Database, either:
     - SQLite (sqlite-vec will be installed)
     - PostgreSQL with pgvector extension
@@ -28,7 +28,7 @@ This install script is based on [Aider's installation script](https://aider.chat
 ### Prerequisites
 - Python 3.10 or higher
 - Database (SQLite or PostgreSQL with pgvector extension)
-- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
+- Relevant API keys (for simplest setup, set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
 
 1. Install UV:
 ```bash
@@ -91,7 +91,7 @@ The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 ### Prerequisites
 - Python 3.10 or higher
 - uv package manager (install with `curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- Relevant API keys (for simplest setup, set OPENAI_API_KEY)
+- Relevant API keys (for simplest setup, set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
 - PostgreSQL database with pgvector extension
 
 ```bash

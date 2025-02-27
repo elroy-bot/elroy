@@ -19,3 +19,4 @@ uv.lock
 .aider.chat.history.md
 benchmarking_data
 .coverage
+site/

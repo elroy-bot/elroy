@@ -10,9 +10,6 @@
 - `elroy print-config` - Shows current configuration and exits
 - `elroy version` - Show version and exit
 - `elroy print-tool-schemas` - Prints the schema for a tool and exits
-- `elroy set-persona TEXT` - Set a custom persona for the assistant
-- `elroy reset-persona` - Removes any custom persona, reverting to the default
-- `elroy show-persona` - Print the system persona and exit
 - `elroy mcp` - MCP server commands
 
 Note: Running just `elroy` without any command will default to `elroy chat`.
@@ -68,4 +65,4 @@ Quick Model Selection:
 - `--show-completion` - Show completion for current shell
 - `--help` - Show help message and exit
 
-Note: All configuration options can be set via environment variables with the prefix `ELROY_` (e.g., `ELROY_DEBUG`, `ELROY_CHAT_MODEL`).
+Note: All configuration options can be set via environment variables with the prefix `ELROY_` (e.g., `ELROY_CHAT_MODEL`).
