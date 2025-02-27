@@ -8,6 +8,7 @@ from elroy.config.ctx import ElroyContext
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import (
     add_context_messages,
+    pop,
     remove_context_messages,
 )
 from elroy.repository.context_messages.queries import get_context_messages
@@ -58,3 +59,11 @@ def test_add_context_messages(george_ctx: ElroyContext):
             logging.info("Msgs not yet removed, retrying...")
             attempts += 1
             time.sleep(1)
+
+
+def test_pop(george_ctx: ElroyContext):
+    original_len = len(list(get_context_messages(george_ctx)))
+
+    pop(george_ctx, 2)
+
+    assert len(list(get_context_messages(george_ctx))) == original_len - 2
