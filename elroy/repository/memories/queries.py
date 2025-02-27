@@ -8,8 +8,15 @@ from toolz.curried import filter, map, remove, tail
 
 from ...config.constants import SYSTEM
 from ...config.ctx import ElroyContext
-from ...db.db_models import Goal, Memory, MemorySource, get_memory_source_class
-from ...llm.client import get_embedding
+from ...db.db_models import (
+    EmbeddableSqlModel,
+    Goal,
+    Memory,
+    MemorySource,
+    get_memory_source_class,
+)
+from ...llm.client import generate_chat_completion_message, get_embedding
+from ...llm.stream_parser import StreamParser, collect
 from ...utils.utils import logged_exec_time
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
 from ..context_messages.transforms import ContextMessageSetWithMessages
@@ -18,6 +25,7 @@ from ..recall.queries import (
     get_most_relevant_memory,
     is_in_context,
 )
+from ..recall.transforms import to_recalled_memory_metadata
 
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> Optional[MemorySource]:
@@ -110,12 +118,27 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
 
     assert isinstance(message_content, str)
 
-    new_memory_messages = pipe(
+    new_recalled_memories: List[EmbeddableSqlModel] = pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
         lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(ctx, x),
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
+        list,
+    )  # type: ignore
+
+    if not new_recalled_memories:
+        return []
+    elif ctx.reflect:
+        return get_reflective_recall(ctx, context_messages, new_recalled_memories)
+    else:
+        return get_fast_recall(new_recalled_memories)
+
+
+def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessage]:
+    """Add recalled content to context, unprocessed."""
+    return pipe(
+        memories,
         map(
             lambda x: ContextMessage(
                 role=SYSTEM,
@@ -125,9 +148,44 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
             )
         ),
         list,
+    )  # type: ignore
+
+
+@logged_exec_time
+def get_reflective_recall(
+    ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]
+) -> List[ContextMessage]:
+    """More process memory into more reflective recall message"""
+    stream: StreamParser = pipe(
+        memories,
+        map(lambda x: x.to_fact()),
+        "\n\n".join,
+        lambda x: f"You are an internal thought process of an AI assistant. Consider the following content recalled from memory. "
+        "Return an internal thought monologue for what is signficant about the recalled content, and how it might related to the conversation. "
+        "Your response should be in the voice of the internal reflections of the AI assistant, do not address the user."
+        "The content of the recalled memories are as follows:\n" + x,
+        lambda x: ContextMessage(
+            role=SYSTEM,
+            content=x,
+            chat_model=None,
+        ),
+        lambda x: [x] + list(context_messages)[1:],
+        lambda x: generate_chat_completion_message(ctx.chat_model, x, [], False),
     )
 
-    return new_memory_messages
+    collect(stream.process_stream())
+
+    return [
+        ContextMessage(
+            role=SYSTEM,
+            content="\n".join(
+                [stream.get_full_text(), "\nThis recollection was based on the following Goals and Memories:"]
+                + [x.__class__.__name__ + ": " + x.get_name() for x in memories]
+            ),
+            chat_model=None,
+            memory_metadata=[to_recalled_memory_metadata(x) for x in memories],
+        )
+    ]
 
 
 def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> List[str]:

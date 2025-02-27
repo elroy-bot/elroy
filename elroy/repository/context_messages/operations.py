@@ -162,6 +162,7 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
 
 @logged_exec_time
 def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
+    logging.info("Refreshing context")
     context_message_list = list(context_messages)
 
     user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)

@@ -63,6 +63,7 @@ def common(
         "debug",
         help="Enable fail-fast error handling and verbose logging output.",
         rich_help_panel="Basic Configuration",
+        hidden=True,
     ),
     user_token: str = ElroyOption(
         "user_token",
@@ -135,6 +136,7 @@ def common(
         "max_assistant_loops",
         help="Maximum number of loops the assistant can run before tools are temporarily made unvailable (returning for the next user message).",
         rich_help_panel="Context Management",
+        hidden=True,
     ),
     max_tokens: int = ElroyOption(
         "max_tokens",
@@ -145,11 +147,13 @@ def common(
         "max_context_age_minutes",
         help="Maximum age in minutes to keep. Messages older tha this will be dropped from context, regardless of token limits",
         rich_help_panel="Context Management",
+        hidden=True,
     ),
     min_convo_age_for_greeting_minutes: Optional[float] = ElroyOption(
         "min_convo_age_for_greeting_minutes",
         help="Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set --first=True (This will override any value for min_convo_age_for_greeting_minutes)",
         rich_help_panel="Context Management",
+        hidden=True,
     ),
     disable_assistant_greeting: bool = typer.Option(  # noqa F841
         False,
@@ -163,32 +167,42 @@ def common(
         "memories_between_consolidation",
         help="How many memories to create before triggering a memory consolidation operation.",
         rich_help_panel="Memory Consolidation",
+        hidden=True,
     ),
     l2_memory_relevance_distance_threshold: float = ElroyOption(
         "l2_memory_relevance_distance_threshold",
         help="L2 distance threshold for memory relevance.",
         rich_help_panel="Memory Consolidation",
+        hidden=True,
     ),
     memory_cluster_similarity_threshold: float = ElroyOption(
         "memory_cluster_similarity_threshold",
         help="Threshold for memory cluster similarity.",
         rich_help_panel="Memory Consolidation",
+        hidden=True,
     ),
     max_memory_cluster_size: int = ElroyOption(
         "max_memory_cluster_size",
         help="The maximum number of memories that can be consolidated into a single memory at once.",
         rich_help_panel="Memory Consolidation",
+        hidden=True,
     ),
     min_memory_cluster_size: int = ElroyOption(
         "min_memory_cluster_size",
         help="The minimum number of memories that can be consolidated into a single memory at once.",
         rich_help_panel="Memory Consolidation",
+        hidden=True,
     ),
     # UI Configuration
     show_internal_thought: bool = ElroyOption(
         "show_internal_thought",
         help="Show the assistant's internal thought monologue like memory consolidation and internal reflection.",
-        rich_help_panel="UI Configuration",
+        rich_help_panel="Basic Configuration",
+    ),
+    reflect: bool = ElroyOption(
+        "reflect",
+        help="If true, the assistant will reflect on memories it recalls. This will lead to slower but richer responses. If false, memories will be less processed when recalled into memory.",
+        rich_help_panel="Basic Configuration",
     ),
     system_message_color: str = ElroyOption(
         "system_message_color",
