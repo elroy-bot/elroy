@@ -129,7 +129,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
                 role=SYSTEM,
                 memory_metadata=[RecalledMemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name()) for x in mem_list],
                 # content="Information recalled from assistant memory: " + x.to_fact(),
-                content=get_memory_summary(ctx, context_messages, mem_list),
+                content=summarize_recall(ctx, context_messages, mem_list),
                 chat_model=None,
             )
             if mem_list
@@ -140,13 +140,15 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return [new_memory_message] if new_memory_message else []
 
 
-def get_memory_summary(ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]) -> str:
+def summarize_recall(ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]) -> str:
     stream: StreamParser = pipe(
         memories,
         map(lambda x: x.to_fact()),
         "\n\n".join,
-        lambda x: f"You are an internal thought process of an AI assistant. Consider the following content recalled from memory. Return an internal thought monologue for what is signficant about the recalled content, and how it might related to the conversation. The content is as follows:\n"
-        + x,
+        lambda x: f"You are an internal thought process of an AI assistant. Consider the following content recalled from memory. "
+        "Return an internal thought monologue for what is signficant about the recalled content, and how it might related to the conversation. "
+        "Your response should be in the voice of the internal reflections of the AI assistant, do not address the user."
+        "The content of the recalled memories are as follows:\n" + x,
         lambda x: ContextMessage(
             role=SYSTEM,
             content=x,
@@ -158,7 +160,11 @@ def get_memory_summary(ctx: ElroyContext, context_messages: Iterable[ContextMess
 
     for stream_chunk in stream.process_stream():
         pass
-    return stream.get_full_text()
+
+    return "\n".join(
+        [stream.get_full_text(), "\nThis recollection was based on the following Goals and Memories:"]
+        + [x.__class__.__name__ + ": " + x.get_name() for x in memories]
+    )
 
 
 def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> List[str]:
