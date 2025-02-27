@@ -140,6 +140,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return [new_memory_message] if new_memory_message else []
 
 
+@logged_exec_time
 def summarize_recall(ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]) -> str:
     stream: StreamParser = pipe(
         memories,
