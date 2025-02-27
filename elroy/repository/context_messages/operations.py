@@ -232,7 +232,7 @@ def pop(ctx: ElroyContext, n: int) -> str:
         return f"Popping {n} message would separate an assistant message with a tool call from the tool result. Please pop fewer or more messages."
 
     else:
-        replace_context_messages(ctx, context_messages[:-n])
+        replace_context_messages(ctx, context_messages)
         return f"Popped {n} messages from context, new context has {len(list(get_context_messages(ctx)))} messages"
 
 
