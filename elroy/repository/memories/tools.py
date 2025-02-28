@@ -10,7 +10,7 @@ from ...config.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 from ...llm.client import query_llm
 from ...utils.clock import db_time_to_local
-from .operations import do_create_memory_from_ctx_msgs
+from .operations import do_create_memory, do_create_memory_from_ctx_msgs
 from .queries import (
     db_get_memory_source_by_name,
     db_get_source_list_for_memory,
@@ -188,8 +188,10 @@ def search_memories(ctx: ElroyContext, query: str) -> Union[str, Table]:
 
 
 @tool
-def update_memory(ctx: ElroyContext, memory_name: str, update_text: str) -> str:
+def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, update_text: str) -> str:
     """Updates an existing memory with new information.
+    In general, when new information arises, new memories should be created rather than updating.
+    Reserve use of this tool for cases in which the information in a memory changes or becomes out of date.
 
     Args:
         memory_name (str): Name of the existing memory to update
@@ -198,24 +200,32 @@ def update_memory(ctx: ElroyContext, memory_name: str, update_text: str) -> str:
     Returns:
         str: Confirmation message that the memory was updated
     """
-    memory = get_memory_by_name(ctx, memory_name)
-    if not memory:
+    original_memory = get_memory_by_name(ctx, memory_name)
+    if not original_memory:
         return f"Memory '{memory_name}' not found"
 
     # Mark existing memory as inactive
-    memory.is_active = False
-    ctx.db.add(memory)
+    original_memory.is_active = False
+    ctx.db.add(original_memory)
 
     # Create new memory with updated text
-    update_time = db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
-    updated_text = f"{memory.text}\n\nUpdate ({update_time}):\n{update_text}"
-
-    do_create_memory_from_ctx_msgs(ctx, memory_name, updated_text)
+    update_time = db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
+    updated_text = f"{original_memory.text}\n\nUpdate ({update_time}):\n{update_text}"
     ctx.db.commit()
+
+    do_create_memory(
+        ctx,
+        memory_name,
+        updated_text,
+        [original_memory],
+        True,
+        True,
+    )
 
     return f"Memory '{memory_name}' has been updated"
 
 
+@tool
 def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     """Creates a new memory for the assistant.
 

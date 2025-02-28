@@ -50,7 +50,7 @@ from ..repository.memories.tools import (
     print_memories,
     print_memory,
     search_memories,
-    update_memory,
+    update_outdated_or_incorrect_memory,
 )
 from ..repository.recall.queries import search_documents
 from ..repository.user.operations import set_assistant_name
@@ -89,7 +89,7 @@ NON_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
 ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
     get_source_list_for_memory,
-    update_memory,
+    update_outdated_or_incorrect_memory,
 }
 NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_source_content,
