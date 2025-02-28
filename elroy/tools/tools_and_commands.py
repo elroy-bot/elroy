@@ -50,6 +50,7 @@ from ..repository.memories.tools import (
     print_memories,
     print_memory,
     search_memories,
+    update_memory,
 )
 from ..repository.recall.queries import search_documents
 from ..repository.user.operations import set_assistant_name

@@ -205,11 +205,11 @@ def update_memory(ctx: ElroyContext, memory_name: str, update_text: str) -> str:
     # Mark existing memory as inactive
     memory.is_active = False
     ctx.db.add(memory)
-    
+
     # Create new memory with updated text
     update_time = db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
     updated_text = f"{memory.text}\n\nUpdate ({update_time}):\n{update_text}"
-    
+
     do_create_memory_from_ctx_msgs(ctx, memory_name, updated_text)
     ctx.db.commit()
 
