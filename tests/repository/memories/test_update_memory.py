@@ -1,47 +1,31 @@
-from datetime import datetime, timezone
-
 import pytest
-from sqlmodel import select
+from tests.utils import process_test_message, quiz_assistant_bool
 
-from elroy.db.db_models import Memory
-from elroy.utils.clock import db_time_to_local
+from elroy.config.ctx import ElroyContext
+from elroy.repository.context_messages.operations import reset_messages
+from elroy.repository.memories.operations import do_create_memory_from_ctx_msgs
+from elroy.repository.memories.queries import get_memory_by_name
 
 
-def test_update_memory_relationship_status(test_ctx):
-    # Create initial memory about engagement
-    memory_name = "Tom's relationship status"
-    initial_text = "Tom is engaged to be married to Sarah"
-    test_ctx.tools.create_memory(memory_name, initial_text)
+@pytest.mark.flaky(reruns=3)
+def test_update_memory_relationship_status(george_ctx: ElroyContext):
+    original_mem = do_create_memory_from_ctx_msgs(george_ctx, "George's relationship status", "George got engaged to Sarah on 2025-01-01")[
+        0
+    ]
+    reset_messages(george_ctx)
 
-    # Verify initial memory was created
-    memory = test_ctx.db.exec(
-        select(Memory)
-        .where(Memory.user_id == test_ctx.user_id, Memory.name == memory_name)
-    ).first()
-    assert memory is not None
-    assert memory.text == initial_text
-    assert memory.is_active
+    process_test_message(george_ctx, "I have an exciting update about my relationship status. I got married to Sarah!")
 
-    # Update the memory to reflect marriage
-    update_text = "Tom and Sarah got married"
-    test_ctx.tools.update_memory(memory_name, update_text)
+    memory = get_memory_by_name(george_ctx, "George's relationship status")
+    assert memory
+    assert memory.id != original_mem.id
 
-    # Get all memories with this name
-    memories = test_ctx.db.exec(
-        select(Memory)
-        .where(Memory.user_id == test_ctx.user_id, Memory.name == memory_name)
-        .order_by(Memory.created_at)
-    ).all()
+    george_ctx.db.refresh(original_mem)
 
-    # Should be 2 memories - original (inactive) and updated (active)
-    assert len(memories) == 2
-    
-    # Original memory should be inactive
-    assert not memories[0].is_active
-    assert memories[0].text == initial_text
+    assert not original_mem.is_active
 
-    # Updated memory should be active and contain both pieces of info
-    assert memories[1].is_active
-    update_time = db_time_to_local(memories[0].created_at).strftime("%Y-%m-%d %H:%M:%S")
-    expected_text = f"{initial_text}\n\nUpdate ({update_time}):\n{update_text}"
-    assert memories[1].text == expected_text
+    reset_messages(george_ctx)
+
+    process_test_message(george_ctx, "Today I went to the store with Sarah")  # this should bring the memory back into context
+
+    quiz_assistant_bool(True, george_ctx, "Am I married")
