@@ -1,7 +1,6 @@
 from functools import wraps
 from typing import Callable, Generator, List, Optional
 
-from .cli.chat import onboard_non_interactive
 from .cli.options import get_resolved_params
 from .config.constants import USER
 from .config.ctx import ElroyContext
@@ -27,7 +26,6 @@ from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
-from .repository.user.queries import is_user_exists
 
 
 def db(f: Callable) -> Callable:
@@ -66,15 +64,12 @@ class Elroy:
             ),
         )
 
-        with init_elroy_session(self.ctx, PlainIO(), check_db_migration):
+        with init_elroy_session(self.ctx, PlainIO(), check_db_migration, False):
             if persona:
                 set_persona(self.ctx, persona)
 
             if assistant_name:
                 set_assistant_name(self.ctx, assistant_name)
-
-            if not is_user_exists(self.ctx.db.session, self.ctx.user_token):
-                onboard_non_interactive(self.ctx)
 
     @db
     def create_goal(

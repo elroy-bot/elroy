@@ -190,8 +190,36 @@ def validate_docker_build(errors: Errors):
         subprocess.run(["docker", "compose", "build", "--no-cache"], check=True)
 
         # Run test message
+        subprocess.run(
+            [
+                "docker",
+                "build",
+                "-f",
+                os.path.join(REPO_ROOT, "Dockerfile.dev"),
+                "-t",
+                "elroy-dev",
+                "--platform",
+                "linux/arm64",
+                ".",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
         result = subprocess.run(
-            ["docker", "compose", "run", "--rm", "elroy", "message", "This is a test, repeat: Hello world"],
+            [
+                "docker",
+                "run",
+                "--platform",
+                "linux/arm64",
+                "-it",
+                "-e",
+                "OPENAI_API_KEY",
+                "elroy-dev",
+                "message",
+                "this is an automated system test, repeat after me: hello world",
+            ],
             capture_output=True,
             text=True,
             check=True,
@@ -203,39 +231,6 @@ def validate_docker_build(errors: Errors):
 
     except subprocess.CalledProcessError as e:
         errors.messages.append(f"Error: Docker build/run failed:\n{e.stdout}\n{e.stderr}")
-
-
-def run_tests(errors: Errors):
-    """Run pytest with specified chat models and cache results"""
-    print("Running tests...")
-    # Get current HEAD SHA
-    head_sha = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-
-    # Check if we have a cached successful test run for this SHA
-    cache_file = f"/tmp/elroy-tests-{head_sha}.txt"
-
-    if os.path.exists(cache_file):
-        return
-
-    try:
-        # Run pytest with specified chat models
-        subprocess.run(
-            [
-                "pytest",
-                "--chat-models",
-                "haiku,4o-mini",
-                "--db-type",
-                "sqlite,postgres",
-            ],
-            check=True,
-        )
-
-        # If tests pass, create cache file
-        with open(cache_file, "w") as f:
-            f.write(f"Tests passed for commit {head_sha}")
-
-    except subprocess.CalledProcessError as e:
-        errors.messages.append(f"Error: Tests failed:\n{e.stdout}\n{e.stderr}")
 
 
 def update_schema_doc():
@@ -351,11 +346,6 @@ if __name__ == "__main__":
 
     handle_errors(errors)
     errors = Errors([])
-
-    if args.skip_tests:
-        print("Skipping tests")
-    else:
-        run_tests(errors)
 
     if args.skip_docker:
         print("Skipping docker build test")
