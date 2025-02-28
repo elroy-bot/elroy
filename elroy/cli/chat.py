@@ -16,7 +16,7 @@ from ..cli.ui import print_memory_panel, print_model_selection, print_title_rule
 from ..config.constants import EXIT, SYSTEM, USER
 from ..config.ctx import ElroyContext
 from ..db.db_models import Message
-from ..io.base import PlainIO
+from ..io.base import ElroyIO
 from ..io.cli import CliIO
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from ..messenger import invoke_slash_command, process_message
@@ -52,7 +52,7 @@ def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]
         raise typer.Exit()
 
 
-def handle_message_stdio(ctx: ElroyContext, io: PlainIO, message: str, tool: Optional[str]):
+def handle_message_stdio(ctx: ElroyContext, io: ElroyIO, message: str, tool: Optional[str]):
     if not is_user_exists(ctx.db.session, ctx.user_token):
         onboard_non_interactive(ctx)
     io.print_stream(process_message(USER, ctx, message, tool))

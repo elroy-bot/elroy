@@ -338,7 +338,7 @@ def chat(typer_ctx: typer.Context):
 
         check_updates(io)
 
-        with init_elroy_session(ctx, io, True):
+        with init_elroy_session(ctx, io, True, True):
             try:
                 handle_chat(io, params["disable_assistant_greeting"], ctx)
             except BdbQuit:
@@ -356,7 +356,7 @@ def chat(typer_ctx: typer.Context):
         ctx = get_ctx(use_background_threads=False, **params)
         message = sys.stdin.read()
         assert isinstance(io, PlainIO)
-        with init_elroy_session(ctx, io, True):
+        with init_elroy_session(ctx, io, True, False):
             handle_message_stdio(ctx, io, message, None)
 
 
@@ -375,13 +375,12 @@ def message(
     assert typer_ctx.parent
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
-    with init_elroy_session(ctx, io, True):
+    with init_elroy_session(ctx, io, True, False):
         if sys.stdin.isatty() and not message:
             assert isinstance(io, CliIO)
             handle_message_interactive(ctx, io, tool)
         else:
             assert message
-            assert isinstance(io, PlainIO)
             handle_message_stdio(ctx, io, message, tool)
 
 
@@ -409,7 +408,7 @@ def cli_remember(
     assert typer_ctx.parent
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
-    with init_elroy_session(ctx, io, True):
+    with init_elroy_session(ctx, io, True, False):
         if text:
             memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
             manually_record_user_memory(ctx, text, memory_name)
@@ -519,7 +518,7 @@ def cli_set_persona(
     assert typer_ctx.parent
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
-    with init_elroy_session(ctx, io, True):
+    with init_elroy_session(ctx, io, True, False):
         if get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.info(f"No user found for token {ctx.user_token}, creating one")
         do_set_persona(ctx, persona)
@@ -532,7 +531,7 @@ def reset_persona(typer_ctx: typer.Context):
     assert typer_ctx.parent
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
-    with init_elroy_session(ctx, io, True):
+    with init_elroy_session(ctx, io, True, False):
         if not get_user_id_if_exists(ctx.db, ctx.user_token):
             logging.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
             return typer.Exit()
@@ -547,7 +546,7 @@ def show_persona(typer_ctx: typer.Context):
     assert typer_ctx.parent
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
-    with init_elroy_session(ctx, io, True):
+    with init_elroy_session(ctx, io, True, False):
         print(get_persona(ctx))
         raise typer.Exit()
 
@@ -568,7 +567,7 @@ def ingest_doc(
     assert typer_ctx.parent
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
-    with init_elroy_session(ctx, io, True):
+    with init_elroy_session(ctx, io, True, False):
         do_ingest_doc(ctx, path, force_refresh)
 
 
