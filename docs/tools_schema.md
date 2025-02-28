@@ -555,6 +555,32 @@ Useful for troubleshooting in cases where errors occur (especially with tool cal
         "required": []
       }
     }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "update_outdated_or_incorrect_memory",
+      "description": "Updates an existing memory with new information.
+In general, when new information arises, new memories should be created rather than updating.
+Reserve use of this tool for cases in which the information in a memory changes or becomes out of date.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "memory_name": {
+            "type": "string",
+            "description": "Name of the existing memory to update"
+          },
+          "update_text": {
+            "type": "string",
+            "description": "The new information to append to the memory"
+          }
+        },
+        "required": [
+          "memory_name",
+          "update_text"
+        ]
+      }
+    }
   }
 ]
 ```

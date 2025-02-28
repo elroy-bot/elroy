@@ -32,6 +32,7 @@ For default config values, see [defaults.yml](../elroy/defaults.yml)
 * `--debug / --no-debug`: Enable fail-fast error handling and verbose logging output. [env var: ELROY_DEBUG] [default: false]
 * `--user-token TEXT`: User token to use for Elroy. [env var: ELROY_USER_TOKEN] [default: DEFAULT]
 * `--custom-tools-path TEXT`: Path to custom functions to load (can be specified multiple times)
+* `--max-ingested-doc-lines INTEGER`: Maximum number of lines to ingest from a document. If a document has more lines, it will be ignored. [env var: ELROY_MAX_INGESTED_DOC_LINES]
 * `--database-url TEXT`: Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed. [env var: ELROY_DATABASE_URL]
 * `--inline-tool-calls / --no-inline-tool-calls`: Whether to enable inline tool calls in the assistant (better for some open source models). [env var: ELROY_INLINE_TOOL_CALLS] [default: false]
 
@@ -62,9 +63,9 @@ Model Aliases (shortcuts for common models):
 ### Context Management
 * `--max-assistant-loops INTEGER`: Maximum number of loops the assistant can run before tools are temporarily made unavailable (returning for the next user message). [env var: ELROY_MAX_ASSISTANT_LOOPS] [default: 4]
 * `--max-tokens INTEGER`: Number of tokens that triggers a context refresh and compression of messages in the context window. [env var: ELROY_MAX_TOKENS] [default: 10000]
-* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep messages in context. [env var: ELROY_MAX_CONTEXT_AGE_MINUTES] [default: 720.0]
-* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 120.0]
-* `--first`: Disable assistant's initial greeting message. Overrides min_convo_age_for_greeting_minutes setting.
+* `--max-context-age-minutes FLOAT`: Maximum age in minutes to keep. Messages older than this will be dropped from context, regardless of token limits. [env var: ELROY_MAX_CONTEXT_AGE_MINUTES] [default: 720]
+* `--min-convo-age-for-greeting-minutes FLOAT`: Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set --first=True (This will override any value for min_convo_age_for_greeting_minutes). [env var: ELROY_MIN_CONVO_AGE_FOR_GREETING_MINUTES] [default: 120]
+* `--first`: If true, assistant will not send the first message. [env var: ELROY_DISABLE_ASSISTANT_GREETING]
 
 ### Memory Consolidation
 * `--memories-between-consolidation INTEGER`: How many memories to create before triggering a memory consolidation operation. [env var: ELROY_MEMORIES_BETWEEN_CONSOLIDATION] [default: 4]

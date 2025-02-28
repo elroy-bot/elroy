@@ -1,5 +1,21 @@
 # Changelog
 
+# 0.0.76 (2025-02-28)
+
+### Added
+- Added ingest_doc API function
+- Memory update functionality with timestamp tracking
+- Example notebook for repository document ingestion
+
+### Fixed
+- Context message concurrent operations handling
+- Missing timestamp in context messages
+- Bug where /pop function ejected too many messages operation
+
+### Improved
+- Installation documentation updates for stable branch
+
+
 ## [0.0.75] - 2025-02-23
 
 ### Added
