@@ -188,6 +188,34 @@ def search_memories(ctx: ElroyContext, query: str) -> Union[str, Table]:
 
 
 @tool
+def update_memory(ctx: ElroyContext, memory_name: str, update_text: str) -> str:
+    """Updates an existing memory with new information.
+
+    Args:
+        memory_name (str): Name of the existing memory to update
+        update_text (str): The new information to append to the memory
+
+    Returns:
+        str: Confirmation message that the memory was updated
+    """
+    memory = get_memory_by_name(ctx, memory_name)
+    if not memory:
+        return f"Memory '{memory_name}' not found"
+
+    # Mark existing memory as inactive
+    memory.is_active = False
+    ctx.db.add(memory)
+    
+    # Create new memory with updated text
+    update_time = db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
+    updated_text = f"{memory.text}\n\nUpdate ({update_time}):\n{update_text}"
+    
+    do_create_memory_from_ctx_msgs(ctx, memory_name, updated_text)
+    ctx.db.commit()
+
+    return f"Memory '{memory_name}' has been updated"
+
+
 def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     """Creates a new memory for the assistant.
 
