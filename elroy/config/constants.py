@@ -88,10 +88,12 @@ class Provider(enum.Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+    AZURE = "azure"
     OTHER = "other"
 
 
 GEMINI_PREFIX = "gemini"
+AZURE_PREFIX = "azure"
 
 CLAUDE_3_5_SONNET = "claude-3-5-sonnet-20241022"
 GPT_4O = "gpt-4o"
