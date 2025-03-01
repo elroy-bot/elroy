@@ -67,6 +67,7 @@ Elroy will automatically select appropriate models based on available API keys:
 | `ANTHROPIC_API_KEY` | Claude 3 Sonnet | text-embedding-3-small |
 | `OPENAI_API_KEY` | GPT-4o | text-embedding-3-small |
 | `GEMINI_API_KEY` | Gemini 2.0 Flash | text-embedding-3-small |
+| `AZURE_API_KEY` | *Specified by model name* | *Specified by model name* |
 
 #### Model Configuration Options
 

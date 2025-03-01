@@ -6,6 +6,7 @@ from typing import Optional
 import yaml
 
 from .constants import (
+    AZURE_PREFIX,
     CLAUDE_3_5_SONNET,
     GEMINI_2_0_FLASH,
     GEMINI_PREFIX,
@@ -42,6 +43,8 @@ def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
         return Provider.GEMINI
     elif model_name.startswith("openai"):
         return Provider.OPENAI
+    elif model_name.startswith(AZURE_PREFIX):
+        return Provider.AZURE
     else:
         return Provider.OTHER
 
@@ -62,6 +65,12 @@ def infer_chat_model_name() -> str:
         return GPT_4O
     elif os.environ.get("GEMINI_API_KEY"):
         return GEMINI_2_0_FLASH
+    elif os.environ.get("AZURE_API_KEY"):
+        # For Azure, we can't infer the model name since it depends on the deployment
+        # The user must specify the model name explicitly
+        raise ValueError(
+            "Azure API key detected, but no model name specified. For Azure OpenAI, you must specify the model name with the 'azure/' prefix. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
+        )
     else:
         raise ValueError(
             "Could not infer chat model. Please set chat model, or provide API keys. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
@@ -82,7 +91,7 @@ def get_chat_model(
 
     if provider == Provider.ANTHROPIC:
         ensure_alternating_roles = True
-    elif provider == Provider.OTHER:
+    elif provider == Provider.OPENAI:
         ensure_alternating_roles = False
         api_key = api_key or openai_api_key
         api_base = api_base or openai_api_base
@@ -110,10 +119,17 @@ def get_embedding_model(
     openai_embedding_api_base: Optional[str],  # supported for backwards compatibility
     enable_caching: bool,
 ) -> EmbeddingModel:
+
+    provider = get_provider(model_name, api_base)
+
+    if provider == Provider.OPENAI:
+        api_key = api_key or openai_api_key
+        api_base = api_base or openai_embedding_api_base or openai_api_base
+
     return EmbeddingModel(
         name=model_name,
         embedding_size=embedding_size,
-        api_key=api_key or openai_api_key,
-        api_base=api_base or openai_embedding_api_base or openai_api_base,
+        api_key=api_key,
+        api_base=api_base,
         enable_caching=enable_caching,
     )
