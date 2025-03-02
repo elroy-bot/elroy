@@ -1,6 +1,9 @@
 from functools import wraps
 from typing import Callable, Generator, List, Optional
 
+from toolz import concat, pipe
+from toolz.curried import map
+
 from .cli.options import get_resolved_params
 from .config.constants import USER
 from .config.ctx import ElroyContext
@@ -8,7 +11,7 @@ from .config.initializer import dbsession, init_elroy_session
 from .io.base import PlainIO
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
-from .llm.stream_parser import AssistantInternalThought, AssistantResponse
+from .llm.stream_parser import AssistantInternalThought, AssistantResponse, collect
 from .messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
 from .repository.context_messages.operations import add_context_message
@@ -16,6 +19,7 @@ from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
 from .repository.context_messages.queries import get_context_messages
+from .repository.context_messages.transforms import is_context_refresh_needed
 from .repository.documents.operations import do_ingest_doc
 from .repository.goals.operations import do_create_goal
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
@@ -50,6 +54,7 @@ class Elroy:
         assistant_name: Optional[str] = None,
         database_url: Optional[str] = None,
         check_db_migration: bool = True,
+        exclude_tools: List[str] = [],  # any tools which should not be loaded
         **kwargs,
     ):
         self.formatter = formatter
@@ -60,6 +65,7 @@ class Elroy:
                 config_path=config_path,
                 database_url=database_url,
                 use_background_threads=False,
+                exclude_tools=exclude_tools,
                 **kwargs,
             ),
         )
@@ -232,25 +238,33 @@ class Elroy:
         Returns:
             str: The response from the assistant
         """
-        return "".join(list(self._message_stream(input)))
 
-    def _message_stream(self, input: str) -> Generator[str, None, None]:
-        """Process a message to the assistant and yield response chunks
-
-        Args:
-            input (str): The message to process
-
-        Returns:
-            Generator[str, None, None]: Generator yielding response chunks
-        """
-        for chunk in process_message(USER, self.ctx, input):
-            if isinstance(chunk, AssistantResponse) or (isinstance(chunk, AssistantInternalThought) and self.ctx.show_internal_thought):
-                yield from self.formatter.format(chunk)
+        return pipe(
+            process_message(USER, self.ctx, input),
+            collect,
+            map(self.formatter.format),
+            concat,
+            list,
+            "\n\n".join,
+        )  # type: ignore
 
     @db
     def context_refresh(self) -> None:
         """Compresses context messages and records a memory."""
         return do_context_refresh(self.ctx, get_context_messages(self.ctx))
+
+    @db
+    def refresh_context_if_needed(self) -> bool:
+        """Checks whether the context window needs to be compressed, and refreshes it if needed."""
+        if is_context_refresh_needed(
+            get_context_messages(self.ctx),
+            self.ctx.chat_model.name,
+            self.ctx.max_tokens,
+        ):
+            self.context_refresh()
+            return True
+        else:
+            return False
 
     @db
     def get_persona(self) -> str:
@@ -291,3 +305,20 @@ class Elroy:
         """
 
         do_ingest_doc(self.ctx, address, force_refresh)
+
+    def message_stream(self, input: str) -> Generator[str, None, None]:
+        """Process a message to the assistant and yield response chunks
+
+        Args:
+            input (str): The message to process
+
+        Returns:
+            Generator[str, None, None]: Generator yielding response chunks
+        """
+        for chunk in process_message(USER, self.ctx, input):
+            if isinstance(chunk, AssistantResponse) or (isinstance(chunk, AssistantInternalThought) and self.ctx.show_internal_thought):
+                yield from self.formatter.format(chunk)
+
+    def _message_stream(self, input: str) -> Generator[str, None, None]:
+        """Deprecated, use message_stream"""
+        yield from self.message_stream(input)

@@ -20,6 +20,7 @@ from .llm import (
     infer_chat_model_name,
 )
 from .paths import get_default_config_path
+from .personas import PERSONA
 
 
 class ElroyContext:
@@ -66,10 +67,11 @@ class ElroyContext:
         l2_memory_relevance_distance_threshold: float,
         # Basic Configuration
         debug: bool,
-        default_persona: str,  # The generic persona to use if no persona is specified
+        default_persona: Optional[str] = None,  # The generic persona to use if no persona is specified
         default_assistant_name: str,  # The generic assistant name to use if no assistant name is specified
         use_background_threads: bool,  # Whether to use background threads for certain operations
         max_ingested_doc_lines: int,  # The maximum number of lines to ingest from a document
+        exclude_tools: List[str] = [],  # Tools to exclude from the tool registry
     ):
 
         self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
@@ -77,7 +79,7 @@ class ElroyContext:
         self.user_token = user_token
         self.show_internal_thought = show_internal_thought
         self.default_assistant_name = default_assistant_name
-        self.default_persona = default_persona
+        self.default_persona = default_persona or PERSONA
         self.debug = debug
         self.max_tokens = max_tokens
         self.max_assistant_loops = max_assistant_loops
@@ -110,7 +112,10 @@ class ElroyContext:
     def tool_registry(self) -> ToolRegistry:
         from ..tools.registry import ToolRegistry
 
-        registry = ToolRegistry(self.params.custom_tools_path)
+        registry = ToolRegistry(
+            self.params.custom_tools_path,
+            exclude_tools=self.params.exclude_tools,
+        )
         registry.register_all()
         return registry
 

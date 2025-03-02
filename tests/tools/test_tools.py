@@ -84,6 +84,15 @@ def test_tool_schema_does_not_have_elroy_ctx():
     assert not any("ctx" in vals for key, vals in argument_names.items())  # type: ignore
 
 
+def test_exclude_tools(ctx: ElroyContext):
+    params = vars(ctx.params)
+    params["exclude_tools"] = ["get_user_preferred_name"]
+
+    new_ctx = ElroyContext(**params)
+
+    assert new_ctx.tool_registry.get("get_user_preferred_name") is None
+
+
 def test_custom_tool(ctx: ElroyContext):
     ctx.tool_registry.register(netflix_show_fetcher)
     response = process_test_message(ctx, "Please use your function to fetch the specified netflix show.")

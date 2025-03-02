@@ -28,12 +28,13 @@ class MarkdownFormatter(StringFormatter):
         elif isinstance(message, CodeBlock):
             yield f"```{message.language}\n{message.content}\n```"
         elif isinstance(message, FunctionCall):
-            yield f"Executing function call: {message.function_name}"
+            yield f"```Executing function call: {message.function_name}"
             if message.arguments:
                 yield f"Arguments: {json.dumps(message.arguments, indent=2)}"
+            yield "```"
         elif isinstance(message, (SystemInfo, SystemWarning)):
             yield f"`{message.content}`"
         elif isinstance(message, AssistantToolResult):
-            yield f"```{message.content}```"
+            yield f"```TOOL CALL RESULT: {message.content}```"
         else:
             raise Exception(f"Unrecognized type: {type(message)}")
