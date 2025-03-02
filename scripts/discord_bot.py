@@ -1,5 +1,7 @@
 import os
-from typing import Optional
+from abc import ABC, abstractmethod
+from functools import cached_property
+from typing import Optional, Union
 
 import discord
 from discord import app_commands
@@ -7,12 +9,17 @@ from discord.app_commands import CommandTree
 
 from elroy.api import Elroy
 from elroy.config.constants import USER
+from elroy.config.personas import DISCORD_GROUP_CHAT_PERSONA
 from elroy.io.formatters.markdown_formatter import MarkdownFormatter
+from elroy.repository.user.tools import get_user_preferred_name, set_user_preferred_name
+
+# TODO:
+# - limit responses to 2000 characters
+# - adjust system instruct to let elroy know when it's a dm or group dm
 
 # Initialize Elroy
 # Bot configuration
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-REFRESH_AFTER_MESSAGES = 10  # Number of messages before context compression
 
 
 # Initialize Discord client
@@ -23,8 +30,170 @@ client = discord.Client(intents=intents)
 tree = CommandTree(client)
 
 
+class DiscordResponder(ABC):
+    @abstractmethod
+    def format_user_message(self, msg: discord.Message) -> str:
+        """How the message should be represented in chat logs"""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def user_token(self) -> str:
+        raise NotImplementedError
+
+    @cached_property
+    @abstractmethod
+    def ai(self) -> Elroy:
+        raise NotImplementedError
+
+
+class DMResponder(DiscordResponder):
+    """Each channel gets its own instance"""
+
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+
+    @property
+    def user_token(self) -> str:
+        return f"discord-user-{self.user_id}"
+
+    def format_user_message(self, msg: discord.Message) -> str:
+        return msg.content
+
+    @cached_property
+    def ai(self) -> Elroy:
+        return Elroy(
+            token=self.user_token,
+            show_internal_thought=True,
+            formatter=MarkdownFormatter(),
+        )
+
+
+class GroupDMResponder(DiscordResponder):
+    def __init__(self, channel_id: str, author_name: str):
+        self.channel_id = channel_id
+        self.author_name = author_name
+
+    @property
+    def user_token(self) -> str:
+        return f"discord-private-{self.channel_id}"
+
+    def format_user_message(self, msg: discord.Message) -> str:
+        return f"{msg.author.name}: {msg.content}"
+
+    @cached_property
+    def ai(self) -> Elroy:
+        return Elroy(
+            token=self.user_token,
+            show_internal_thought=True,
+            formatter=MarkdownFormatter(),
+            exclude_tools=[get_user_preferred_name.__name__, set_user_preferred_name.__name__],
+            persona=DISCORD_GROUP_CHAT_PERSONA,
+        )
+
+
+class PublicChannelResponder(DiscordResponder):
+    """Responder for public channels: One instance per guild"""
+
+    def __init__(self, guild_id: str):
+        self.guild_id = guild_id
+
+    @property
+    def user_token(self) -> str:
+        return f"discord-guild-{self.guild_id}"
+
+    def format_user_message(self, msg: discord.Message) -> str:
+        # include both author and channel
+        channel_name = getattr(msg.channel, "name", None)
+        assert channel_name
+        return f"{msg.author.name} in #{channel_name}: {msg.content}"
+
+    @cached_property
+    def ai(self) -> Elroy:
+        return Elroy(
+            token=self.user_token,
+            show_internal_thought=True,
+            formatter=MarkdownFormatter(),
+            exclude_tools=[get_user_preferred_name.__name__, set_user_preferred_name.__name__],
+            persona=DISCORD_GROUP_CHAT_PERSONA,
+        )
+
+
+class PrivateChannelResponder(DiscordResponder):
+    """Each channel gets its own instance"""
+
+    def __init__(self, channel_id: str, guild_id: str):
+        self.channel_id = channel_id
+        self.guild_id = guild_id
+
+    @property
+    def user_token(self) -> str:
+        return f"discord-private-{self.channel_id}"
+
+    def format_user_message(self, msg: discord.Message) -> str:
+        return f"{msg.author.name}: {msg.content}"
+
+    @cached_property
+    def ai(self) -> Elroy:
+        return Elroy(
+            token=self.user_token,
+            show_internal_thought=True,
+            formatter=MarkdownFormatter(),
+            exclude_tools=[get_user_preferred_name.__name__, set_user_preferred_name.__name__],
+        )
+
+
+def get_discord_responder(input: Union[discord.Interaction, discord.Message]) -> DiscordResponder:
+    if isinstance(input, discord.Interaction):
+        if input.guild_id is None:
+            # DM with bot
+            return DMResponder(str(input.user.id))
+
+        if input.channel is None:
+            # Fallback to guild-wide responder if no channel context
+            return PublicChannelResponder(str(input.guild_id))
+
+        # Check if it's a public channel in guild
+        if input.channel.type in (
+            discord.ChannelType.text,  # 0
+            discord.ChannelType.news,  # 5 (announcement)
+            discord.ChannelType.news_thread,  # 10
+            discord.ChannelType.public_thread,  # 11
+            discord.ChannelType.forum,  # 15
+            discord.ChannelType.media,  # 16
+        ):
+            return PublicChannelResponder(str(input.guild_id))
+        else:
+            # Private channel in guild
+            return PrivateChannelResponder(str(input.channel_id), str(input.guild_id))
+    else:
+        # Handle regular messages
+        if isinstance(input.channel, discord.DMChannel):
+            return DMResponder(str(input.author.id))
+        elif isinstance(input.channel, discord.GroupChannel):
+            return GroupDMResponder(str(input.channel.id), input.author.name)
+        elif input.guild is not None:
+            # Check if public channel in guild
+            if input.channel.type in (
+                discord.ChannelType.text,  # 0
+                discord.ChannelType.news,  # 5 (announcement)
+                discord.ChannelType.news_thread,  # 10
+                discord.ChannelType.public_thread,  # 11
+                discord.ChannelType.forum,  # 15
+                discord.ChannelType.media,  # 16
+            ):
+                return PublicChannelResponder(str(input.guild.id))
+            else:
+                return PrivateChannelResponder(str(input.channel.id), str(input.guild.id))
+        else:
+            # Fallback for unexpected cases
+            return DMResponder(str(input.author.id))
+
+    ...
+
+
 def get_elroy(interaction: discord.Interaction):
-    return Elroy(token=f"discord-{interaction.channel_id}", show_internal_thought=True, formatter=MarkdownFormatter())
+    return get_discord_responder(interaction).ai
 
 
 @tree.command(description="Creates a specific and measurable goal")
@@ -121,47 +290,32 @@ async def on_ready():
         print(f"Error syncing commands: {str(e)}")
 
 
-# Message counter for each channel
-channel_message_counts = {}
-
-
 @client.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     # Ignore messages from the bot itself
     if message.author == client.user:
         return
 
-    # Initialize channel counter if it doesn't exist
-    if message.channel.id not in channel_message_counts:
-        channel_message_counts[message.channel.id] = 0
-    elroy = Elroy(token=f"discord-{message.channel.id}", show_internal_thought=True, formatter=MarkdownFormatter())
+    responder = get_discord_responder(message)
 
     # Format message with user prefix
-    formatted_message = f"{message.author.name}: {message.content}"
+    formatted_message = responder.format_user_message(message)
 
     # Check if bot was mentioned
     was_mentioned = client.user in message.mentions
+    is_dm = type(responder) == DMResponder
 
-    if was_mentioned:
-        print("Was mentioned, responding")
+    if was_mentioned or is_dm:
+        print(f"responding: was_mentioned={was_mentioned}, is_dm={is_dm}")
         # Process message through Elroy and get response
-        response = elroy.message(formatted_message)
+        response = responder.ai.message(formatted_message)
         print(response)
         await message.channel.send(response)
-        channel_message_counts[message.channel.id] += 2  # Increment by 2 since bot was mentioned
     else:
         # Record the message without generating a response
-        elroy.record_message(USER, formatted_message)
+        responder.ai.record_message(USER, formatted_message)
 
-        # Increment message counter for this channel
-        channel_message_counts[message.channel.id] += 1
-
-        # Check if we should refresh context
-    if channel_message_counts[message.channel.id] >= REFRESH_AFTER_MESSAGES:
-        elroy.context_refresh()
-
-        # Reset counter
-        channel_message_counts[message.channel.id] = 0
+    responder.ai.refresh_context_if_needed()
 
 
 def main():

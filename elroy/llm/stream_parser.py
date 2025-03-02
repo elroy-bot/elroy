@@ -348,17 +348,18 @@ class StreamParser:
                 yield from self.stream_text_processor.process(text)
         yield from self.stream_text_processor.flush()
 
-    def collect(self) -> List[Union[TextOutput, FunctionCall]]:
-        response = []
-        for processed_chunk in self.process_stream():
-            if isinstance(processed_chunk, TextOutput):
-                if len(response) == 0 or not type(response[-1]) == type(processed_chunk):
-                    response.append(processed_chunk)
-                else:
-                    response[-1].content += processed_chunk.content
-            else:
-                response.append(processed_chunk)
-        return response
-
-    def get_full_text(self):
+    def get_full_text(self) -> str:
         return self.raw_text
+
+
+def collect(input_stream: Iterator[Union[TextOutput, FunctionCall]]) -> List[Union[TextOutput, FunctionCall]]:
+    response = []
+    for processed_chunk in input_stream:
+        if isinstance(processed_chunk, TextOutput):
+            if len(response) == 0 or not type(response[-1]) == type(processed_chunk):
+                response.append(processed_chunk)
+            else:
+                response[-1].content += processed_chunk.content
+        else:
+            response.append(processed_chunk)
+    return response
