@@ -11,6 +11,7 @@ from elroy.llm.stream_parser import (
     CodeBlock,
     StreamParser,
     TextOutput,
+    collect,
 )
 
 CHAT_MODEL = ChatModel(
@@ -32,7 +33,7 @@ def parse(chunks: List[str]) -> List[Union[TextOutput, FunctionCall]]:
         CHAT_MODEL,
         iter([text_to_model_response(chunk) for chunk in chunks]),
     )
-    return parser.collect()
+    return collect(parser.process_stream())
 
 
 def test_complete_tag_in_single_chunk():

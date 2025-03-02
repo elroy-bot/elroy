@@ -22,7 +22,8 @@ def is_tool(func: Callable) -> bool:
 
 
 class ToolRegistry:
-    def __init__(self, custom_paths: List[str] = []):
+    def __init__(self, custom_paths: List[str] = [], exclude_tools: List[str] = []):
+        self.exclude_tools = exclude_tools
         self.custom_paths = custom_paths
         self.tools = {}
         self._schemas = []
@@ -84,6 +85,10 @@ class ToolRegistry:
             func = func.func  # type: ignore
         elif not is_tool(func):
             raise ValueError(f"Function {func.__name__} is not marked as a tool with @tool decorator")
+
+        if func.__name__ in self.exclude_tools:
+            logging.info("Excluding tool: " + func.__name__)
+            return
 
         if func.__name__ in self.tools:
             raise ValueError(f"Function {func.__name__} already registered")

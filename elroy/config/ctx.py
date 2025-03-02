@@ -70,6 +70,7 @@ class ElroyContext:
         default_assistant_name: str,  # The generic assistant name to use if no assistant name is specified
         use_background_threads: bool,  # Whether to use background threads for certain operations
         max_ingested_doc_lines: int,  # The maximum number of lines to ingest from a document
+        exclude_tools: List[str] = [],  # Tools to exclude from the tool registry
     ):
 
         self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
@@ -110,7 +111,10 @@ class ElroyContext:
     def tool_registry(self) -> ToolRegistry:
         from ..tools.registry import ToolRegistry
 
-        registry = ToolRegistry(self.params.custom_tools_path)
+        registry = ToolRegistry(
+            self.params.custom_tools_path,
+            exclude_tools=self.params.exclude_tools,
+        )
         registry.register_all()
         return registry
 
