@@ -65,12 +65,6 @@ def infer_chat_model_name() -> str:
         return GPT_4O
     elif os.environ.get("GEMINI_API_KEY"):
         return GEMINI_2_0_FLASH
-    elif os.environ.get("AZURE_API_KEY"):
-        # For Azure, we can't infer the model name since it depends on the deployment
-        # The user must specify the model name explicitly
-        raise ValueError(
-            "Azure API key detected, but no model name specified. For Azure OpenAI, you must specify the model name with the 'azure/' prefix. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
-        )
     else:
         raise ValueError(
             "Could not infer chat model. Please set chat model, or provide API keys. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
@@ -120,9 +114,7 @@ def get_embedding_model(
     enable_caching: bool,
 ) -> EmbeddingModel:
 
-    provider = get_provider(model_name, api_base)
-
-    if provider == Provider.OPENAI:
+    if get_provider(model_name, api_base) == Provider.OPENAI:
         api_key = api_key or openai_api_key
         api_base = api_base or openai_embedding_api_base or openai_api_base
 
