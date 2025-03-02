@@ -5,6 +5,7 @@ from collections import deque
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from functools import partial, reduce
+from sqlalchemy import case
 from operator import add
 from typing import Iterable, Iterator, List, Optional
 
@@ -261,7 +262,10 @@ class ContextMessageSetWithMessages(MemorySource):
             return iter(self._messages)
         else:
             msgs = self.session.exec(
-                select(Message).where(col(Message.id).in_(json.loads(self.context_message_set.message_ids))).order_by(col(Message.id))
+                select(Message).where(col(Message.id).in_(json.loads(self.context_message_set.message_ids))).order_by(                 case(
+                     {id: pos for pos, id in enumerate(message_ids)},
+                     value=Message.id
+                 ))
             )
             full_list = []
             for msg in msgs:
