@@ -52,10 +52,14 @@ def test_tool_messages_have_assistant_tool_call(ctx, system_instruct):
 
 def test_system_instruction_correctly_placed(ctx):
     """Test that system message must be first and only first"""
-    messages = [
+    raw_messages = [
         ContextMessage(role=USER, content="user message", chat_model=None),
         ContextMessage(role=SYSTEM, content="system message", chat_model=None),
     ]
+
+    replace_context_messages(ctx, raw_messages)
+
+    messages = get_context_messages(ctx)
 
     validator = Validator(ctx, messages)
     validated = list(validator.validated_msgs())

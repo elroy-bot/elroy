@@ -16,7 +16,7 @@ class Validator:
     def __init__(self, ctx: ElroyContext, context_messages: Iterable[ContextMessage]):
         self.ctx = ctx
         self.errors = []
-        self.original_context_messages = context_messages
+        self.original_context_messages: List[ContextMessage] = list(context_messages)
 
     def assistant_tool_calls_followed_by_tool(self, context_messages: Iterable[ContextMessage]) -> Iterable[ContextMessage]:
         """
@@ -54,10 +54,12 @@ class Validator:
                 yield message
 
     def system_instruction_correctly_placed(self, context_messages: Iterable[ContextMessage]) -> Iterable[ContextMessage]:
-        for idx, message in enumerate(context_messages):
+        ctx_msg_list = list(context_messages)
+
+        for idx, message in enumerate(ctx_msg_list):
             if idx == 0 and not is_system_instruction(message):
                 self.errors.append(f"First message is not system instruction, repairing by inserting system instruction")
-                yield get_refreshed_system_message(self.ctx, context_messages)
+                yield get_refreshed_system_message(self.ctx, ctx_msg_list)
                 yield message
             elif idx != 0 and is_system_instruction(message):
                 self.errors.append("Found system message in non-first position, repairing by dropping message")
