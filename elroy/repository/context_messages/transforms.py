@@ -261,18 +261,25 @@ class ContextMessageSetWithMessages(MemorySource):
         if self._messages:
             return iter(self._messages)
         else:
+            message_ids = json.loads(self.context_message_set.message_ids)
             msgs = self.session.exec(
-                select(Message).where(col(Message.id).in_(json.loads(self.context_message_set.message_ids))).order_by(                 case(
-                     {id: pos for pos, id in enumerate(message_ids)},
-                     value=Message.id
-                 ))
+                select(Message).where(col(Message.id).in_(message_ids))
             )
+            
+            # Create a mapping of id to position
+            id_to_pos = {id: pos for pos, id in enumerate(message_ids)}
+            
+            # Convert to list and sort by original position
             full_list = []
             for msg in msgs:
                 ctx_msg = db_message_to_context_message(msg)
-                full_list.append(msg)
-                yield ctx_msg
+                full_list.append(ctx_msg)
+                
+            # Sort based on position in message_ids
+            full_list.sort(key=lambda msg: id_to_pos[msg.id])
+            
             self._messages = full_list
+            yield from full_list
 
     @property
     def messages_list(self) -> List[ContextMessage]:
