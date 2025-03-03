@@ -3,7 +3,7 @@ import json
 import logging
 from collections import deque
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import partial, reduce
 from operator import add
 from typing import Iterable, Iterator, List, Optional
@@ -142,8 +142,9 @@ def format_message(message: ContextMessage, user_preferred_name: Optional[str]) 
 def format_context_messages(context_messages: Iterable[ContextMessage], user_preferred_name: Optional[str]) -> str:
     convo_range = pipe(
         context_messages,
-        filter(lambda _: _.role == USER),
-        map(lambda _: _.created_at),
+        filter(lambda x: x.role == USER),
+        map(lambda x: x.created_at),
+        filter(lambda x: x is not None),
         list,
         lambda l: f"Messages from {datetime_to_string(min(l))} to {datetime_to_string(max(l))}" if l else "No messages in context",
     )
@@ -186,7 +187,6 @@ def compress_context_messages(
     # we keep the most current messages that are fresh enough to be relevant
     for msg in reversed(prev_messages):  # iterate in reverse order
         msg_created_at = msg.created_at
-        assert isinstance(msg_created_at, datetime)
 
         candidate_message_count = count_tokens(chat_model_name, msg)
 
@@ -198,7 +198,7 @@ def compress_context_messages(
 
         if current_token_count > context_refresh_target_tokens:
             break
-        elif msg_created_at < get_utc_now() - max_in_context_message_age:
+        elif msg_created_at is not None and msg_created_at < get_utc_now() - max_in_context_message_age:
             logging.info(f"Dropping old message {msg.id}")
             continue
         else:
