@@ -6,6 +6,7 @@
 
 [![Discord](https://img.shields.io/discord/1200684659277832293?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/5PJUY4eMce)
 [![GitHub](https://img.shields.io/github/stars/elroy-bot/elroy?style=social)](https://github.com/elroy-bot/elroy)
+[![PyPI](https://img.shields.io/pypi/v/elroy)](https://pypi.org/project/elroy/)
 
 Elroy is an AI assistant that runs in your terminal, with memory and powerful goal tracking. It remembers everything you tell it, can learn from your documents, and helps you stay organized.
 
@@ -49,23 +50,31 @@ Elroy runs in your terminal helps you with goals while maintaining memory of you
 3. **Tracks goals** you set together
 4. **Consolidates redundant information** to keep context clean
 
-## Basic Usage
+## Quickstart
 
-Once installed, you can start using Elroy immediately:
+Run the install script:
+```
+curl -LsSf https://raw.githubusercontent.com/elroy-bot/elroy/main/scripts/uv-installer.sh | sh
+```
+
+Ensure your env has `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or whatever model provider token you wish to use is set.
 
 ```bash
 # Start the chat interface
-elroy chat
-
-# Or just 'elroy' which defaults to chat mode
 elroy
+
+# Run with a specific model
+elroy --chat-model "gemini/gemini-2.0-flash"
+
+# To see more detailed CLI options
+elroy --help
 ```
 
-### Slash Commands
+## Slash Commands
 
 ![Slash Commands](images/slash_commands.gif)
 
-Elroy supports powerful slash commands for quick actions:
+Elroy's CLI supports slash commands for quick actions. Some examples (run `/help` to see the full list):
 
 ```bash
 # Create a memory
@@ -81,7 +90,7 @@ elroy message "Say hello world"
 elroy message "Create a goal" --tool create_goal
 ```
 
-### Scripting with Elroy
+## Scripting with Elroy
 
 Elroy can be used in scripts and automated workflows:
 
@@ -107,17 +116,12 @@ Elroy works with:
 - **Google**: Gemini
 - Any OpenAI-compatible API
 
-## Documentation
+Under the hood, Elroy uses [LiteLLM](https://www.litellm.ai/) to interface with model providers.
 
-- [Installation Guide](installation.md): Detailed installation instructions
-- [Configuration](configuration.md): Configure Elroy to your needs
-- [CLI Reference](cli_reference.md): Command-line interface reference
-- [Tools Guide](tools_guide.md): Guide to Elroy's tools
-- [Tools Schema](tools_schema.md): Technical reference for tool schemas
 
 ## Community
 
-Join our community to get help, share your experiences, and contribute to Elroy's development:
+Come say hello!
 
 - [Discord](https://discord.gg/5PJUY4eMce)
 - [GitHub](https://github.com/elroy-bot/elroy)

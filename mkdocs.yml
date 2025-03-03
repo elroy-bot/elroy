@@ -31,6 +31,13 @@ theme:
   icon:
     repo: fontawesome/brands/github
 
+# Plugins
+plugins:
+  - search
+  - git-revision-date-localized:
+      type: date
+      fallback_to_build_date: true
+
 # Extensions
 markdown_extensions:
   - admonition

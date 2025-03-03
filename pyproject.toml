@@ -31,6 +31,7 @@ dependencies = [
     "scikit-learn>=1.6.0",
     "lock>=2018.3.25.2110",
     "mcp",
+    "mkdocs-git-revision-date-localized-plugin",
 ]
 
 [project.optional-dependencies]
