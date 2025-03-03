@@ -173,7 +173,7 @@ jobs:
           ghcr.io/elroy-bot/elroy:latest
           ghcr.io/elroy-bot/elroy:${{ steps.version.outputs.version }}
 
-  update-stable-branch:
+  update-stable-and-deploy-branch:
     environment:
       name: release
     needs: [publish-docker]
@@ -189,11 +189,14 @@ jobs:
         git checkout stable || git checkout -b stable
         git reset --hard ${GITHUB_REF}
         git push -f origin stable
+        git checkout deploy || git checkout -b deploy
+        git reset --hard ${GITHUB_REF}
+        git push -f origin deploy
 
   announce-discord:
     environment:
       name: release
-    needs: [publish-docker, update-stable-branch, wait-five-minutes]
+    needs: [publish-docker, update-stable-and-deploy-branch, wait-five-minutes]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
