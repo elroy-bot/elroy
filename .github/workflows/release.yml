@@ -214,5 +214,5 @@ jobs:
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
         source .venv/bin/activate
-        python scripts/announce_release_on_discord.py $VERSION
+        python scripts/discord/announce_release.py $VERSION
 
