@@ -1,9 +1,12 @@
 import logging
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
+import click
+import typer
 import yaml
 from toolz import assoc, merge, pipe
 from toolz.curried import map, valfilter
@@ -127,3 +130,12 @@ def load_config_if_exists(user_config_path: Optional[str]) -> dict:
         except Exception as e:
             logging.error(f"Failed to load user config file {user_config_path}: {e}")
             return {}
+
+
+def get_str_from_stdin_or_arg(ctx: typer.Context, param: click.Parameter, value: Optional[str]) -> str:
+    """Callback to get message from stdin if no argument is provided and stdin is not a terminal."""
+    if value:
+        return value
+    if not sys.stdin.isatty():
+        return sys.stdin.read()
+    raise typer.BadParameter("Must be a valid string")

@@ -6,7 +6,6 @@ from functools import partial
 from operator import add
 from typing import AsyncIterator, Iterator, Optional
 
-import typer
 from colorama import init
 from pytz import UTC
 from sqlmodel import select
@@ -41,15 +40,6 @@ from ..repository.user.queries import (
 )
 from ..repository.user.tools import set_user_preferred_name
 from ..utils.utils import datetime_to_string, run_in_background
-
-
-def handle_message_interactive(ctx: ElroyContext, io: CliIO, tool: Optional[str]):
-    try:
-        message = io.prompt_user(ctx.thread_pool, 0, "Enter your message")
-        io.print_stream(process_message(USER, ctx, message, tool))
-    except EOFError:
-        io.info("Cancelled.")
-        raise typer.Exit()
 
 
 def handle_message_stdio(ctx: ElroyContext, io: ElroyIO, message: str, tool: Optional[str]):
