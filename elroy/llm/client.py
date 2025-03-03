@@ -178,6 +178,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
         List[float]: The generated embedding as a list of floats.
     """
     from litellm import embedding
+    from litellm.exceptions import ContextWindowExceededError
 
     if not text:
         raise ValueError("Text cannot be empty")
@@ -191,8 +192,17 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     if model.api_base:
         embedding_kwargs["api_base"] = model.api_base
 
-    response = embedding(**embedding_kwargs)
-    return response.data[0]["embedding"]
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        try:
+            response = embedding(**embedding_kwargs)
+            return response.data[0]["embedding"]
+        except ContextWindowExceededError:
+            new_length = int(len(text) / 2)
+            text = text[-new_length:]
+            embedding_kwargs["input"] = [text]
+            logging.info(f"Context window exceeded, retrying with shorter message of length {new_length}")
+    raise RuntimeError(f"Context window exceeded despite {max_attempts} attempt to shorten input")
 
 
 def _build_completion_kwargs(
