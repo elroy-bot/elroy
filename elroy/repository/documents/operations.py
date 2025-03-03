@@ -1,3 +1,4 @@
+import fnmatch
 import hashlib
 import logging
 import os
@@ -5,7 +6,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Generator, Iterator
+from typing import Any, Dict, Generator, Iterator, List
 
 from ...config.constants import RecoverableToolError, allow_unused
 from ...config.ctx import ElroyContext
@@ -38,11 +39,90 @@ def convert_to_text(chat_model: ChatModel, content: str) -> str:
 class DocIngestResult(Enum):
     SUCCESS = "Document has been ingested successfully."
     UPDATED = "Document has been re-ingested successfully."
-    SKIPPED = "Document not ingested as it has not changed."
+    UNCHANGED = "Document not ingested as it has not changed."
     TOO_LONG = "Document exceeds the configured max_ingested_doc_lines, and was not ingested."
+    FAILED = "Document ingestion failed."
 
 
-def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> DocIngestResult:
+def should_process_file(path: Path, include: List[str], exclude: List[str]) -> bool:
+    """
+    Determine if a file or directory should be processed based on include and exclude glob patterns.
+
+    Args:
+        path (Path): The path to the file or directory to check
+        include (str, optional): Comma-separated glob patterns to include. If specified, path must match at least one pattern.
+        exclude (list[str], optional): List of glob patterns to exclude. If specified, path must not match any pattern.
+
+    Returns:
+        bool: True if the path should be processed, False otherwise
+    """
+    path_str = str(path)
+
+    # First check exclude patterns against full path
+    if any(fnmatch.fnmatch(path_str, pattern) for pattern in exclude):
+        return False
+
+    # Then check include patterns against just filename if includes specified
+    if include:
+        return any(fnmatch.fnmatch(path.name, pattern) for pattern in include)
+
+    return True
+
+
+def recursive_file_walk(directory: Path, include: List[str], exclude: List[str]) -> Generator[Path, Any, None]:
+    for root, dirnames, files in os.walk(directory):
+        root_path = Path(root)
+
+        dirnames[:] = [d for d in dirnames if not any(fnmatch.fnmatch(str(root_path / d / "**"), pattern) for pattern in exclude)]
+        for file in files:
+            file_path = Path(os.path.join(root, file))
+            if should_process_file(file_path, include, exclude):
+                yield file_path
+
+
+def do_ingest_dir(
+    ctx: ElroyContext,
+    directory: Path,
+    force_refresh: bool,
+    recursive: bool,
+    include: List[str],
+    exclude: List[str],
+) -> Dict[DocIngestResult, int]:
+    """
+    Recursively ingest all files in a directory that match the include/exclude patterns.
+
+    Args:
+        ctx (ElroyContext): The Elroy context
+        directory (str): The directory to recursively ingest
+        force_refresh (bool, optional): If True, will re-ingest documents even if they seem unchanged. Defaults to False.
+        include (str, optional): Comma-separated glob patterns to include. If specified, files must match at least one pattern.
+        exclude (list[str], optional): List of glob patterns to exclude. If specified, files and directories must not match any pattern.
+
+    Returns:
+        int: Number of files successfully processed
+    """
+    if not os.path.isdir(directory):
+        raise RecoverableToolError(f"{directory} is not a directory.")
+
+    if recursive:
+        file_paths = recursive_file_walk(directory, include, exclude)
+    else:
+        file_paths = (Path(os.path.join(directory, f)) for f in os.listdir(directory) if should_process_file(Path(f), include, exclude))
+
+    results = {}
+
+    for file_path in file_paths:
+        try:
+            result = do_ingest(ctx, file_path, force_refresh)
+            results[result] = results.get(result, 0) + 1
+        except Exception as e:
+            results[DocIngestResult.FAILED] = results.get(DocIngestResult.FAILED, 0) + 1
+            logging.warning(f"Failed to ingest {file_path}: {str(e)}")
+
+    return results
+
+
+def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocIngestResult:
     """Downloads the document at the given address, and extracts content into memory.
 
     Args:
@@ -66,7 +146,7 @@ def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> DocIn
     if os.path.isfile(address):
         if not Path(address).is_absolute():
             logging.info(f"Converting relative path {address} to absolute path.")
-            address = os.path.abspath(address)
+            address = address.resolve()
 
     with open(address, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -90,7 +170,7 @@ def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> DocIn
             logging.info(f"Force flag set, re-ingesting doc {address}")
         else:
             logging.info(f"Source doc {address} not changed and no force flag set, skipping")
-            return DocIngestResult.SKIPPED
+            return DocIngestResult.UNCHANGED
         logging.info(f"Refreshing source doc {address}")
 
         source_doc.content = content
@@ -103,8 +183,8 @@ def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> DocIn
         logging.info(f"Persisting source document {address}")
         source_doc = SourceDocument(
             user_id=ctx.user_id,
-            address=address,
-            name=address,
+            address=str(address),
+            name=str(address),
             content=content,
             content_md5=content_md5,
             extracted_at=get_utc_now(),
@@ -147,7 +227,7 @@ def do_ingest_doc(ctx: ElroyContext, address: str, force_refresh: bool) -> DocIn
     return DocIngestResult.SUCCESS if not doc_was_updated else DocIngestResult.UPDATED
 
 
-def excerpts_from_doc(address: str, content: str) -> Generator[DocumentChunk, Any, None]:
+def excerpts_from_doc(address: Path, content: str) -> Generator[DocumentChunk, Any, None]:
     if is_markdown(address):
         yield from chunk_markdown(address, content)
     else:
@@ -161,7 +241,7 @@ def mark_source_document_excerpts_inactive(ctx: ElroyContext, source_document: S
     ctx.db.commit()
 
 
-def chunk_generic(address: str, content: str, max_chars: int = 3000, overlap: int = 200) -> Iterator[DocumentChunk]:
+def chunk_generic(address: Path, content: str, max_chars: int = 3000, overlap: int = 200) -> Iterator[DocumentChunk]:
     """Chunk any text file into overlapping segments of roughly max_chars length.
 
     Args:
@@ -189,7 +269,7 @@ def chunk_generic(address: str, content: str, max_chars: int = 3000, overlap: in
             if last_emitted_chunk and overlap:
                 current_chunk = last_emitted_chunk.content[:-overlap] + current_chunk
             last_emitted_chunk = DocumentChunk(
-                address,
+                str(address),
                 current_chunk,
                 last_emitted_chunk.chunk_index + 1 if last_emitted_chunk else 0,
             )
@@ -200,13 +280,13 @@ def chunk_generic(address: str, content: str, max_chars: int = 3000, overlap: in
         if last_emitted_chunk and overlap:
             current_chunk = last_emitted_chunk.content[-overlap:] + current_chunk
         yield DocumentChunk(
-            address,
+            str(address),
             current_chunk,
             last_emitted_chunk.chunk_index + 1 if last_emitted_chunk else 0,
         )
 
 
-def chunk_markdown(address: str, content: str, max_chars: int = 3000, overlap: int = 200) -> Iterator[DocumentChunk]:
+def chunk_markdown(address: Path, content: str, max_chars: int = 3000, overlap: int = 200) -> Iterator[DocumentChunk]:
     # Split on markdown headers or double newlines
     splits = re.split(r"(#{1,6}\s.*?\n|(?:\n\n))", content)
 
@@ -220,7 +300,7 @@ def chunk_markdown(address: str, content: str, max_chars: int = 3000, overlap: i
             if last_emitted_chunk and overlap:
                 current_chunk = last_emitted_chunk.content[:-overlap] + current_chunk
             last_emitted_chunk = DocumentChunk(
-                address,
+                str(address),
                 current_chunk,
                 last_emitted_chunk.chunk_index + 1 if last_emitted_chunk else 0,
             )
@@ -229,11 +309,11 @@ def chunk_markdown(address: str, content: str, max_chars: int = 3000, overlap: i
     if current_chunk and overlap and last_emitted_chunk:
         current_chunk = last_emitted_chunk.content[-overlap:] + current_chunk
     yield DocumentChunk(
-        address,
+        str(address),
         current_chunk,
         last_emitted_chunk.chunk_index + 1 if last_emitted_chunk else 0,
     )
 
 
-def is_markdown(address: str) -> bool:
-    return address.endswith(".md") or address.endswith(".markdown")
+def is_markdown(address: Path) -> bool:
+    return str(address).endswith(".md") or str(address).endswith(".markdown")

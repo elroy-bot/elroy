@@ -2,14 +2,14 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from itertools import product
-from typing import Iterable, List, Union
+from typing import Iterable, List
 
 from prompt_toolkit import HTML, PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style as PTKStyle
 from pygments.lexers.special import TextLexer
-from rich.console import Console, RenderableType
+from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from toolz import concatv, pipe
@@ -19,10 +19,11 @@ from elroy.io.completer import SlashCompleter
 
 from ..config.constants import EXIT
 from ..config.paths import get_prompt_history_path
-from ..db.db_models import FunctionCall, Goal, Memory
+from ..db.db_models import Goal, Memory
 from ..io.base import ElroyIO
 from ..llm.stream_parser import AssistantInternalThought, TextOutput
 from ..repository.context_messages.data_models import ContextMessage
+from .formatters.base import ElroyPrintable
 from .formatters.rich_formatter import RichFormatter
 
 
@@ -63,7 +64,7 @@ class CliIO(ElroyIO):
         ):
             yield
 
-    def print_stream(self, messages: Iterable[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
+    def print_stream(self, messages: Iterable[ElroyPrintable]) -> None:
         try:
             with self.status():
                 first_msg = next(iter(messages), None)
@@ -76,7 +77,7 @@ class CliIO(ElroyIO):
         finally:
             self.console.print()
 
-    def print(self, message: Union[TextOutput, RenderableType, FunctionCall], end: str = "\n") -> None:
+    def print(self, message: ElroyPrintable, end: str = "\n") -> None:
         if isinstance(message, AssistantInternalThought) and not self.show_internal_thought:
             logging.debug(f"Internal thought: {message.content}")
             return

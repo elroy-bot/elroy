@@ -5,20 +5,13 @@ from typing import Any, Generator
 
 import pytest
 from sqlmodel import delete
-from tests import fixtures
 from tests.utils import MockCliIO
 from toolz import pipe
 from toolz.curried import do
 
 from elroy.cli.chat import onboard_non_interactive
 from elroy.cli.options import get_resolved_params, resolve_model_alias
-from elroy.config.constants import (
-    ASSISTANT,
-    SYSTEM,
-    SYSTEM_INSTRUCTION_LABEL,
-    USER,
-    allow_unused,
-)
+from elroy.config.constants import ASSISTANT, USER, allow_unused
 from elroy.config.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
@@ -26,7 +19,6 @@ from elroy.db.db_models import (
     Goal,
     Memory,
     Message,
-    ToolCall,
     User,
     UserPreference,
 )
@@ -36,7 +28,6 @@ from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
-from elroy.repository.context_messages.transforms import is_system_instruction
 from elroy.repository.goals.operations import do_create_goal
 from elroy.repository.user.operations import create_user_id
 
@@ -134,17 +125,6 @@ def user_id(db_session, user_token) -> Generator[int, Any, None]:
 @pytest.fixture(scope="function")
 def io(rich_formatter: RichFormatter) -> Generator[MockCliIO, Any, None]:
     yield MockCliIO(rich_formatter)
-
-
-@pytest.fixture(scope="session")
-def rich_formatter():
-    return RichFormatter(
-        system_message_color="blue",
-        assistant_message_color="green",
-        user_input_color="red",
-        warning_color="yellow",
-        internal_thought_color="magenta",
-    )
 
 
 @pytest.fixture(scope="function")
@@ -252,13 +232,14 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
 
 
 @pytest.fixture(scope="session")
-def fixtures_dir() -> str:
-    return os.path.dirname(fixtures.__file__)
-
-
-@pytest.fixture(scope="session")
-def midnight_garden_md_path(fixtures_dir: str) -> str:
-    return os.path.join(fixtures_dir, "the_midnight_garden.md")
+def rich_formatter():
+    return RichFormatter(
+        system_message_color="blue",
+        assistant_message_color="green",
+        user_input_color="red",
+        warning_color="yellow",
+        internal_thought_color="magenta",
+    )
 
 
 def is_docker_running():
@@ -268,59 +249,3 @@ def is_docker_running():
         return result.returncode == 0
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
-
-
-@pytest.fixture(scope="session")
-def tmpdir(tmp_path_factory) -> str:
-    return str(tmp_path_factory.mktemp("elroy"))
-
-
-@pytest.fixture(scope="session")
-def very_large_document_path(tmpdir: str) -> str:
-    # Create a temporary directory for our large document
-    file_path = os.path.join(tmpdir, "large_document.txt")
-
-    # Create content that will exceed 8k tokens
-    paragraphs = []
-    topics = ["AI", "Machine Learning", "Data Science", "Programming", "Software Engineering"]
-
-    for i in range(100):  # Generate 100 variations of paragraphs
-        for topic in topics:
-            paragraph = f"""
-            Chapter {i+1}: Advanced {topic} Concepts
-
-            In the evolving landscape of {topic.lower()}, practitioners must constantly adapt to new methodologies
-            and frameworks. The fundamental principles of {topic.lower()} remain consistent, yet their applications
-            continue to expand in unexpected ways. Recent developments in {topic.lower()} have shown promising
-            results in various domains, from healthcare to finance.
-
-            Key considerations for {topic.lower()} implementation include:
-            1. Scalability and performance optimization
-            2. Robust error handling mechanisms
-            3. Comprehensive testing strategies
-            4. Documentation and knowledge sharing
-            5. Security and privacy concerns
-
-            The integration of {topic.lower()} with existing systems presents unique challenges that require
-            careful planning and execution. Success in {topic.lower()} projects often depends on finding the
-            right balance between innovation and stability.
-            """
-            paragraphs.append(paragraph)
-
-    # Write content to file
-    with open(file_path, "w") as f:
-        f.write("\n".join(paragraphs))
-
-    return str(file_path)
-
-
-@pytest.fixture(scope="function")
-def tool_call():
-    return ToolCall(id="123", function={"name": "test_tool", "arguments": '{"arg": "value"}'})
-
-
-@pytest.fixture(scope="function")
-def system_instruct():
-    msg = ContextMessage(role=SYSTEM, content=SYSTEM_INSTRUCTION_LABEL + "system message", chat_model=None)
-    assert is_system_instruction(msg)
-    return msg

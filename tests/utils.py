@@ -10,11 +10,12 @@ from toolz.curried import do, map
 
 from elroy.config.constants import USER, RecoverableToolError
 from elroy.config.ctx import ElroyContext
-from elroy.db.db_models import EmbeddableSqlModel, FunctionCall
+from elroy.db.db_models import EmbeddableSqlModel
 from elroy.io.cli import CliIO
+from elroy.io.formatters.base import ElroyPrintable
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.llm.client import get_embedding, query_llm
-from elroy.llm.stream_parser import SystemInfo, TextOutput
+from elroy.llm.stream_parser import SystemInfo
 from elroy.messenger import process_message
 from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
@@ -34,7 +35,7 @@ class MockCliIO(CliIO):
         self._sys_messages: List[str] = []
         self._warnings: List[Any] = []
 
-    def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
+    def print(self, message: ElroyPrintable, end: str = "\n") -> None:
         if isinstance(message, SystemInfo):
             self._sys_messages.append(message.content)
         super().print(message, end)

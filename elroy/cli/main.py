@@ -4,11 +4,12 @@ import sys
 from bdb import BdbQuit
 from datetime import datetime
 from functools import partial
+from pathlib import Path
 from typing import List, Optional
 
 import typer
 from rich.table import Table
-from toolz import dissoc, pipe
+from toolz import dissoc, keymap, pipe
 
 from elroy.cli.options import get_str_from_stdin_or_arg
 
@@ -20,7 +21,7 @@ from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
 from ..io.formatters.rich_formatter import RichFormatter
-from ..repository.documents.operations import do_ingest_doc
+from ..repository.documents.operations import do_ingest, do_ingest_dir
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
@@ -538,24 +539,63 @@ def show_persona(typer_ctx: typer.Context):
         raise typer.Exit()
 
 
+# TODO: better duplicate detection:
+# - docs that have the same content
+# - if the location is different, take the one with the more recent timestamp
+# - need a mark_source_doc_inactive function
+
+
 @app.command(name="ingest")
 def ingest_doc(
     typer_ctx: typer.Context,
-    path: str = typer.Argument(..., help="Path to document to ingest"),
+    path: Path = typer.Argument(
+        ...,
+        help="Path to document or directory to ingest",
+        exists=True,
+        file_okay=True,
+        dir_okay=True,
+        resolve_path=True,
+    ),
     force_refresh: bool = typer.Option(
         False,
         "--force-refresh",
         "-f",
-        help="If true, any existing ingested document at the given path will be discarded, and the document will be re-ingested.",
+        help="If true, any existing ingested documents will be discarded and re-ingested.",
+    ),
+    recursive: bool = typer.Option(
+        False,
+        "--recursive",
+        "-r",
+        help="If path is a directory, recursively ingest all documents within it.",
+    ),
+    include: List[str] = typer.Option(
+        [],
+        "--include",
+        "-i",
+        help="Glob pattern for files to include (e.g. '*.txt,*.md'). Multiple patterns can be comma-separated.",
+    ),
+    exclude: List[str] = typer.Option(
+        [],
+        "--exclude",
+        "-e",
+        help="Glob pattern for files to exclude (e.g. '*.log'). Can also be used to exclude directories.",
     ),
 ):
-    """Ingests document at the given path into memory."""
+    """Ingests document(s) at the given path into memory. Can process single files or directories."""
 
     assert typer_ctx.parent
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
+
     with init_elroy_session(ctx, io, True, False):
-        do_ingest_doc(ctx, path, force_refresh)
+        if path.is_file():
+            results = {do_ingest(ctx, path, force_refresh): 1}
+        elif path.is_dir():
+            results = do_ingest_dir(ctx, path, force_refresh, recursive, include, exclude)
+            io.info(f"Doc results:")
+            io.print(keymap(lambda x: x.name, results))
+        else:
+            io.warning(f"Path {path} is neither a file nor a directory")
 
 
 mcp_app = typer.Typer(help="MCP server commands")

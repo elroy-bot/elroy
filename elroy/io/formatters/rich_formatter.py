@@ -15,7 +15,7 @@ from ...llm.stream_parser import (
     SystemWarning,
     TextOutput,
 )
-from .base import Formatter
+from .base import ElroyPrintable, Formatter
 
 
 class RichFormatter(Formatter):
@@ -33,7 +33,7 @@ class RichFormatter(Formatter):
         self.user_input_color = user_input_color
         self.internal_thought_color = internal_thought_color
 
-    def format(self, message: Union[TextOutput, RenderableType, FunctionCall]) -> Generator[Union[str, RenderableType], None, None]:
+    def format(self, message: ElroyPrintable) -> Generator[Union[str, RenderableType], None, None]:
         if isinstance(message, RenderableType):
             yield message
         elif isinstance(message, CodeBlock):
@@ -65,5 +65,7 @@ class RichFormatter(Formatter):
                 SystemInfo: self.system_message_color,
             }
             yield Text(message.content, style=styles.get(type(message), self.system_message_color))
+        elif isinstance(message, Dict):
+            yield Pretty(message)
         else:
             raise Exception(f"Unrecognized type: {type(message)}")

@@ -1,7 +1,5 @@
 import json
-from typing import Generator, Union
-
-from rich.console import RenderableType
+from typing import Generator
 
 from ...db.db_models import FunctionCall
 from ...llm.stream_parser import (
@@ -11,13 +9,12 @@ from ...llm.stream_parser import (
     CodeBlock,
     SystemInfo,
     SystemWarning,
-    TextOutput,
 )
-from .base import StringFormatter
+from .base import ElroyPrintable, StringFormatter
 
 
 class MarkdownFormatter(StringFormatter):
-    def format(self, message: Union[TextOutput, RenderableType, FunctionCall]) -> Generator[str, None, None]:
+    def format(self, message: ElroyPrintable) -> Generator[str, None, None]:
 
         if isinstance(message, str):
             yield message
