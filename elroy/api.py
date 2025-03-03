@@ -1,5 +1,6 @@
 from functools import wraps
-from typing import Callable, Generator, List, Optional
+from pathlib import Path
+from typing import Callable, Generator, List, Optional, Union
 
 from toolz import concat, pipe
 from toolz.curried import map
@@ -20,7 +21,7 @@ from .repository.context_messages.operations import (
 )
 from .repository.context_messages.queries import get_context_messages
 from .repository.context_messages.transforms import is_context_refresh_needed
-from .repository.documents.operations import do_ingest_doc
+from .repository.documents.operations import do_ingest
 from .repository.goals.operations import do_create_goal
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
@@ -295,7 +296,7 @@ class Elroy:
         )
 
     @db
-    def ingest_doc(self, address: str, force_refresh=False) -> None:
+    def ingest_doc(self, address: Union[str, Path], force_refresh=False) -> None:
         """Ingest a document into the assistant's memory
 
         Args:
@@ -304,7 +305,11 @@ class Elroy:
                 if False, the hash of the document content will be checked before ingestion into memory.
         """
 
-        do_ingest_doc(self.ctx, address, force_refresh)
+        do_ingest(
+            self.ctx,
+            address if isinstance(address, Path) else Path(address),
+            force_refresh,
+        )
 
     def message_stream(self, input: str) -> Generator[str, None, None]:
         """Process a message to the assistant and yield response chunks

@@ -9,8 +9,8 @@ from ..llm.stream_parser import (
     AssistantResponse,
     SystemInfo,
     SystemWarning,
-    TextOutput,
 )
+from .formatters.base import ElroyPrintable
 from .formatters.plain_formatter import PlainFormatter
 
 
@@ -21,12 +21,12 @@ def is_rich_printable(obj: Any) -> bool:
 class ElroyIO:
     console: Console
 
-    def print_stream(self, messages: Iterator[Union[TextOutput, RenderableType, FunctionCall]]) -> None:
+    def print_stream(self, messages: Iterator[ElroyPrintable]) -> None:
         for message in messages:
             self.print(message, end="")
         self.console.print("")
 
-    def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
+    def print(self, message: ElroyPrintable, end: str = "\n") -> None:
         if is_rich_printable(message):
             self.console.print(message, end)
         else:
@@ -54,7 +54,7 @@ class PlainIO(ElroyIO):
         self.console = Console(force_terminal=False, no_color=True)
         self.formatter = PlainFormatter()
 
-    def print(self, message: Union[TextOutput, RenderableType, str, FunctionCall], end: str = "\n") -> None:
+    def print(self, message: ElroyPrintable, end: str = "\n") -> None:
         if is_rich_printable(message):
             self.console.print(message, end)
         elif isinstance(message, AssistantResponse):

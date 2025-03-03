@@ -1,4 +1,5 @@
-from typing import Iterator, List, Optional
+from pathlib import Path
+from typing import Iterator, List, Optional, Union
 
 from sqlmodel import select
 
@@ -10,10 +11,10 @@ def get_source_docs(ctx: ElroyContext) -> Iterator[SourceDocument]:
     return ctx.db.exec(select(SourceDocument).where(SourceDocument.user_id == ctx.user_id))
 
 
-def get_source_doc_by_address(ctx: ElroyContext, address: str) -> Optional[SourceDocument]:
+def get_source_doc_by_address(ctx: ElroyContext, address: Union[Path, str]) -> Optional[SourceDocument]:
     return ctx.db.exec(
         select(SourceDocument).where(
-            SourceDocument.address == address,
+            SourceDocument.address == str(address),
             SourceDocument.user_id == ctx.user_id,
         )
     ).one_or_none()

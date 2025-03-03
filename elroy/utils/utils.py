@@ -97,6 +97,7 @@ def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> Optional[thread
     if not ctx.use_background_threads:
         logging.debug("Background threads are disabled. Running function in the main thread.")
         fn(ctx, *args)
+        return
 
     # hack to get a new session for the thread
     def wrapped_fn():

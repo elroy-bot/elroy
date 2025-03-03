@@ -1,7 +1,17 @@
-from elroy.config.constants import ASSISTANT, SYSTEM, TOOL, USER
+import pytest
+
+from elroy.config.constants import (
+    ASSISTANT,
+    SYSTEM,
+    SYSTEM_INSTRUCTION_LABEL,
+    TOOL,
+    USER,
+)
+from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
+from elroy.repository.context_messages.transforms import is_system_instruction
 from elroy.repository.context_messages.validations import Validator
 
 
@@ -129,3 +139,15 @@ def test_valid_message_sequence(ctx, system_instruct, tool_call):
     assert len(validated) == len(messages)
     assert len(validator.errors) == 0
     assert [m.role for m in validated] == [m.role for m in messages]
+
+
+@pytest.fixture(scope="function")
+def tool_call():
+    return ToolCall(id="123", function={"name": "test_tool", "arguments": '{"arg": "value"}'})
+
+
+@pytest.fixture(scope="function")
+def system_instruct():
+    msg = ContextMessage(role=SYSTEM, content=SYSTEM_INSTRUCTION_LABEL + "system message", chat_model=None)
+    assert is_system_instruction(msg)
+    return msg

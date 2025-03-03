@@ -1,15 +1,14 @@
-from typing import Generator, Union
-
-from rich.console import RenderableType
+import json
+from typing import Dict, Generator
 
 from ...db.db_models import FunctionCall
 from ...llm.stream_parser import AssistantInternalThought, AssistantResponse, TextOutput
-from .base import StringFormatter
+from .base import ElroyPrintable, StringFormatter
 
 
 class PlainFormatter(StringFormatter):
 
-    def format(self, message: Union[TextOutput, RenderableType, FunctionCall]) -> Generator[str, None, None]:
+    def format(self, message: ElroyPrintable) -> Generator[str, None, None]:
         if isinstance(message, str):
             yield message
         elif isinstance(message, AssistantResponse):
@@ -20,5 +19,7 @@ class PlainFormatter(StringFormatter):
             yield f"{type(message)}: {message}"
         elif isinstance(message, FunctionCall):
             yield f"FUNCTION CALL: {message.function_name}({message.arguments})"
+        elif isinstance(message, Dict):
+            yield "\n".join(["```json", json.dumps(message, indent=2), "```"])
         else:
             raise Exception(f"Unrecognized type: {type(message)}")
