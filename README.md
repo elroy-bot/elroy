@@ -1,6 +1,8 @@
 # Elroy
 
 [![Discord](https://img.shields.io/discord/1200684659277832293?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/5PJUY4eMce)
+[![Documentation](https://img.shields.io/badge/docs-elroy.bot-C8C7E8)](https://elroy.bot)
+[![PyPI](https://img.shields.io/pypi/v/elroy)](https://pypi.org/project/elroy/)
 
 Elroy is a scriptable, memory augmented AI personal assistant, accessible from the command line. It features:
 
