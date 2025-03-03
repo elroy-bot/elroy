@@ -22,10 +22,10 @@ RUN cd /app/elroy-src && uv pip install --system -e .
 RUN uv pip install --system discord.py
 
 # Copy just the discord bot script
-COPY scripts/discord_bot.py /app/scripts/
+COPY scripts/discord/bot.py /app/scripts/
 
 ENV ELROY_HOME=/app/data
 RUN mkdir -p /app/data && \
     chmod -R 777 /app/data
 
-CMD ["python", "scripts/discord_bot.py"]
+CMD ["python", "scripts/bot.py"]
