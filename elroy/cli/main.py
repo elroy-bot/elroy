@@ -10,7 +10,9 @@ import typer
 from rich.table import Table
 from toolz import dissoc, pipe
 
-from ..config.constants import MODEL_SELECTION_CONFIG_PANEL
+from elroy.cli.options import get_str_from_stdin_or_arg
+
+from ..config.constants import KNOWN_MODELS, MODEL_SELECTION_CONFIG_PANEL
 from ..config.ctx import ElroyContext
 from ..config.initializer import init_elroy_session
 from ..config.logging import setup_logging
@@ -26,7 +28,7 @@ from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
-from .chat import handle_chat, handle_message_interactive, handle_message_stdio
+from .chat import handle_chat, handle_message_stdio
 from .options import ElroyOption, get_resolved_params, resolve_model_alias
 from .updater import check_latest_version, check_updates
 
@@ -377,7 +379,11 @@ def chat(typer_ctx: typer.Context):
 @app.command(name="message")
 def message(
     typer_ctx: typer.Context,
-    message: Optional[str] = typer.Argument(..., help="The message to process"),
+    message: str = typer.Argument(
+        None,
+        callback=get_str_from_stdin_or_arg,
+        help="The message to process.",
+    ),
     tool: str = typer.Option(
         None,
         "--tool",
@@ -390,12 +396,7 @@ def message(
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
-        if sys.stdin.isatty() and not message:
-            assert isinstance(io, CliIO)
-            handle_message_interactive(ctx, io, tool)
-        else:
-            assert message
-            handle_message_stdio(ctx, io, message, tool)
+        handle_message_stdio(ctx, io, message, tool)
 
 
 @app.command(name="print-tool-schemas")
@@ -413,9 +414,10 @@ def print_tools(
 @app.command(name="remember")
 def cli_remember(
     typer_ctx: typer.Context,
-    text: Optional[str] = typer.Argument(
+    text: str = typer.Argument(
         None,
-        help="Text to remember. If not provided, will prompt interactively",
+        callback=get_str_from_stdin_or_arg,
+        help="Text to remember. If not provided, will read from stdin or prompt interactively",
     ),
 ):
     """Create a new memory from text or interactively."""
@@ -423,50 +425,21 @@ def cli_remember(
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
-        if text:
-            memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
-            manually_record_user_memory(ctx, text, memory_name)
-            io.info(f"Memory created: {memory_name}")
-            raise typer.Exit()
-
-        elif sys.stdin.isatty():
-            assert isinstance(io, CliIO)
-            memory_text = io.prompt_user(ctx.thread_pool, 0, "Enter the memory text:")
-            memory_text += f"\nManually entered memory, at: {datetime_to_string(datetime.now())}"
-            # Optionally get memory name
-            memory_name = io.prompt_user(ctx.thread_pool, 0, "Enter memory name (optional, press enter to skip):")
-            try:
-                manually_record_user_memory(ctx, memory_text, memory_name)
-                io.info(f"Memory created: {memory_name}")
-                raise typer.Exit()
-            except ValueError as e:
-                io.warning(f"Error creating memory: {e}")
-                raise typer.Exit(1)
-            except EOFError:
-                io.info("Cancelled.")
-                raise typer.Exit()
-        else:
-            memory_text = sys.stdin.read()
-            metadata = "Memory ingested from stdin\n" f"Ingested at: {datetime_to_string(datetime.now())}\n"
-            memory_text = f"{metadata}\n{memory_text}"
-            memory_name = f"Memory from stdin, ingested {datetime_to_string(datetime.now())}"
-            manually_record_user_memory(ctx, memory_text, memory_name)
-            io.info(f"Memory created: {memory_name}")
-            raise typer.Exit()
+        memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
+        manually_record_user_memory(ctx, text, memory_name)
+        io.info(f"Memory created: {memory_name}")
+        raise typer.Exit()
 
 
 @app.command(name="list-models")
 def list_models():
     """Lists supported chat models and exits."""
-    from ..config.models_aliases import (
-        get_supported_anthropic_models,
-        get_supported_openai_models,
-    )
 
-    for m in get_supported_openai_models():
-        print(f"{m} (OpenAI)")
-    for m in get_supported_anthropic_models():
-        print(f"{m} (Anthropic)")
+    for provider, models in KNOWN_MODELS.items():
+        print(f"{provider.value} models:")
+        for m in models:
+            print(f"    {m}")
+
     raise typer.Exit()
 
 
