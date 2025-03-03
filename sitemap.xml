@@ -2,46 +2,38 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://elroy.bot/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
     <url>
          <loc>https://elroy.bot/cli/</loc>
-         <lastmod>2025-03-01</lastmod>
-    </url>
-    <url>
-         <loc>https://elroy.bot/cli_and_configuration/</loc>
-         <lastmod>2025-03-01</lastmod>
-    </url>
-    <url>
-         <loc>https://elroy.bot/cli_reference/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
     <url>
          <loc>https://elroy.bot/configuration/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
     <url>
          <loc>https://elroy.bot/how_it_works/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
     <url>
          <loc>https://elroy.bot/installation/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
     <url>
          <loc>https://elroy.bot/model_context_protocol/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
     <url>
          <loc>https://elroy.bot/scripting/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
     <url>
          <loc>https://elroy.bot/tools_guide/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
     <url>
          <loc>https://elroy.bot/tools_schema/</loc>
-         <lastmod>2025-03-01</lastmod>
+         <lastmod>2025-03-03</lastmod>
     </url>
 </urlset>

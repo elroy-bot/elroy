@@ -298,16 +298,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
+  <a href="#quickstart" class="md-nav__link">
     <span class="md-ellipsis">
-      Basic Usage
+      Quickstart
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Basic Usage">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
+</li>
+      
+        <li class="md-nav__item">
   <a href="#slash-commands" class="md-nav__link">
     <span class="md-ellipsis">
       Slash Commands
@@ -315,8 +314,8 @@
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
+      
+        <li class="md-nav__item">
   <a href="#scripting-with-elroy" class="md-nav__link">
     <span class="md-ellipsis">
       Scripting with Elroy
@@ -324,25 +323,11 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#supported-models" class="md-nav__link">
     <span class="md-ellipsis">
       Supported Models
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Documentation
     </span>
   </a>
   
@@ -640,16 +625,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
+  <a href="#quickstart" class="md-nav__link">
     <span class="md-ellipsis">
-      Basic Usage
+      Quickstart
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Basic Usage">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
+</li>
+      
+        <li class="md-nav__item">
   <a href="#slash-commands" class="md-nav__link">
     <span class="md-ellipsis">
       Slash Commands
@@ -657,8 +641,8 @@
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
+      
+        <li class="md-nav__item">
   <a href="#scripting-with-elroy" class="md-nav__link">
     <span class="md-ellipsis">
       Scripting with Elroy
@@ -666,25 +650,11 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
-  
-</li>
       
         <li class="md-nav__item">
   <a href="#supported-models" class="md-nav__link">
     <span class="md-ellipsis">
       Supported Models
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Documentation
     </span>
   </a>
   
@@ -733,7 +703,8 @@
 
 <h1 id="elroy-an-ai-assistant-that-remembers-and-sets-goals">Elroy: An AI assistant that remembers and sets goals<a class="headerlink" href="#elroy-an-ai-assistant-that-remembers-and-sets-goals" title="Permanent link">&para;</a></h1>
 <p><a href="https://discord.gg/5PJUY4eMce"><img alt="Discord" src="https://img.shields.io/discord/1200684659277832293?color=7289DA&amp;label=Discord&amp;logo=discord&amp;logoColor=white" /></a>
-<a href="https://github.com/elroy-bot/elroy"><img alt="GitHub" src="https://img.shields.io/github/stars/elroy-bot/elroy?style=social" /></a></p>
+<a href="https://github.com/elroy-bot/elroy"><img alt="GitHub" src="https://img.shields.io/github/stars/elroy-bot/elroy?style=social" /></a>
+<a href="https://pypi.org/project/elroy/"><img alt="PyPI" src="https://img.shields.io/pypi/v/elroy" /></a></p>
 <p>Elroy is an AI assistant that runs in your terminal, with memory and powerful goal tracking. It remembers everything you tell it, can learn from your documents, and helps you stay organized.</p>
 <p><img alt="Goals Demo" src="images/goals_demo.gif" /></p>
 <h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
@@ -765,41 +736,47 @@
 <li><strong>Tracks goals</strong> you set together</li>
 <li><strong>Consolidates redundant information</strong> to keep context clean</li>
 </ol>
-<h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
-<p>Once installed, you can start using Elroy immediately:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Start the chat interface</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>elroy<span class="w"> </span>chat
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Or just &#39;elroy&#39; which defaults to chat mode</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>elroy
-</code></pre></div>
-<h3 id="slash-commands">Slash Commands<a class="headerlink" href="#slash-commands" title="Permanent link">&para;</a></h3>
-<p><img alt="Slash Commands" src="images/slash_commands.gif" /></p>
-<p>Elroy supports powerful slash commands for quick actions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Create a memory</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>/create_memory<span class="w"> </span>This<span class="w"> </span>is<span class="w"> </span>important<span class="w"> </span>information<span class="w"> </span>I<span class="w"> </span>want<span class="w"> </span>to<span class="w"> </span>save
+<h2 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h2>
+<p>Run the install script:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl -LsSf https://raw.githubusercontent.com/elroy-bot/elroy/main/scripts/uv-installer.sh | sh
+</code></pre></div></p>
+<p>Ensure your env has <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code> or whatever model provider token you wish to use is set.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Start the chat interface</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>elroy
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Create a goal</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>/create_goal<span class="w"> </span>Learn<span class="w"> </span>how<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span>Elroy<span class="w"> </span>effectively
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Run with a specific model</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>elroy<span class="w"> </span>--chat-model<span class="w"> </span><span class="s2">&quot;gemini/gemini-2.0-flash&quot;</span>
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Process a single message and exit</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>elroy<span class="w"> </span>message<span class="w"> </span><span class="s2">&quot;Say hello world&quot;</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Force use of a specific tool</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>elroy<span class="w"> </span>message<span class="w"> </span><span class="s2">&quot;Create a goal&quot;</span><span class="w"> </span>--tool<span class="w"> </span>create_goal
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># To see more detailed CLI options</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>elroy<span class="w"> </span>--help
 </code></pre></div>
-<h3 id="scripting-with-elroy">Scripting with Elroy<a class="headerlink" href="#scripting-with-elroy" title="Permanent link">&para;</a></h3>
+<h2 id="slash-commands">Slash Commands<a class="headerlink" href="#slash-commands" title="Permanent link">&para;</a></h2>
+<p><img alt="Slash Commands" src="images/slash_commands.gif" /></p>
+<p>Elroy's CLI supports slash commands for quick actions. Some examples (run <code>/help</code> to see the full list):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Create a memory</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>/create_memory<span class="w"> </span>This<span class="w"> </span>is<span class="w"> </span>important<span class="w"> </span>information<span class="w"> </span>I<span class="w"> </span>want<span class="w"> </span>to<span class="w"> </span>save
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Create a goal</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>/create_goal<span class="w"> </span>Learn<span class="w"> </span>how<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span>Elroy<span class="w"> </span>effectively
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Process a single message and exit</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>elroy<span class="w"> </span>message<span class="w"> </span><span class="s2">&quot;Say hello world&quot;</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Force use of a specific tool</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>elroy<span class="w"> </span>message<span class="w"> </span><span class="s2">&quot;Create a goal&quot;</span><span class="w"> </span>--tool<span class="w"> </span>create_goal
+</code></pre></div>
+<h2 id="scripting-with-elroy">Scripting with Elroy<a class="headerlink" href="#scripting-with-elroy" title="Permanent link">&para;</a></h2>
 <p>Elroy can be used in scripts and automated workflows:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">elroy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Elroy</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">ai</span> <span class="o">=</span> <span class="n">Elroy</span><span class="p">()</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Create a memory</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">ai</span><span class="o">.</span><span class="n">remember</span><span class="p">(</span><span class="s2">&quot;Important project context&quot;</span><span class="p">)</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Process a message with memory augmentation</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">response</span> <span class="o">=</span> <span class="n">ai</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s2">&quot;What should I do next on the project?&quot;</span><span class="p">)</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">elroy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Elroy</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">ai</span> <span class="o">=</span> <span class="n">Elroy</span><span class="p">()</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Create a memory</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">ai</span><span class="o">.</span><span class="n">remember</span><span class="p">(</span><span class="s2">&quot;Important project context&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># Process a message with memory augmentation</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">response</span> <span class="o">=</span> <span class="n">ai</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s2">&quot;What should I do next on the project?&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="supported-models">Supported Models<a class="headerlink" href="#supported-models" title="Permanent link">&para;</a></h2>
 <p>Elroy works with:</p>
@@ -809,16 +786,9 @@
 <li><strong>Google</strong>: Gemini</li>
 <li>Any OpenAI-compatible API</li>
 </ul>
-<h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="installation/">Installation Guide</a>: Detailed installation instructions</li>
-<li><a href="configuration/">Configuration</a>: Configure Elroy to your needs</li>
-<li><a href="cli_reference/">CLI Reference</a>: Command-line interface reference</li>
-<li><a href="tools_guide/">Tools Guide</a>: Guide to Elroy's tools</li>
-<li><a href="tools_schema/">Tools Schema</a>: Technical reference for tool schemas</li>
-</ul>
+<p>Under the hood, Elroy uses <a href="https://www.litellm.ai/">LiteLLM</a> to interface with model providers.</p>
 <h2 id="community">Community<a class="headerlink" href="#community" title="Permanent link">&para;</a></h2>
-<p>Join our community to get help, share your experiences, and contribute to Elroy's development:</p>
+<p>Come say hello!</p>
 <ul>
 <li><a href="https://discord.gg/5PJUY4eMce">Discord</a></li>
 <li><a href="https://github.com/elroy-bot/elroy">GitHub</a></li>
@@ -832,6 +802,27 @@
 
 
 
+  
+    
+  
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">March 3, 2025</span>
+  </span>
+
+    
+    
+    
+    
+  </aside>
 
 
 
