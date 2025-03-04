@@ -36,7 +36,7 @@ def test_assistant_goal_in_context(io: MockCliIO, ctx: ElroyContext):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_goal(io: MockCliIO, ctx: ElroyContext):
+def test_goal(ctx: ElroyContext):
     quiz_assistant_bool(False, ctx, "Do I have any goals about becoming president of the United States?")
 
     # Simulate user asking elroy to create a new goal
@@ -54,7 +54,7 @@ def test_goal(io: MockCliIO, ctx: ElroyContext):
     quiz_assistant_bool(
         True,
         ctx,
-        "Do I have any goals about going to running for a political office?",
+        "Do I have any goals about running for a political office?",
     )
 
     # Test updating a goal.
