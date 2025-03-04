@@ -202,3 +202,7 @@ def get_boolean(response: str, attempt: int = 1) -> bool:
 		attempt + 1,
 	)
 ```
+
+## Conclusion: LLM Applications need tests
+
+I've found tests to be *really* helpful in writing Elroy. LLM's present a lot of new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.
