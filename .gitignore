@@ -7,7 +7,7 @@
 logs/
 scratch/
 *pkl
-*log
+*\.log
 dump.rdb
 db.dump
 .vscode/
