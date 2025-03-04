@@ -73,6 +73,10 @@ nav:
 extra_css:
   - stylesheets/extra.css
 
+# Extra files to include
+extra_files:
+    - CNAME
+
 # Extra settings
 extra:
   social:
