@@ -1,6 +1,6 @@
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Generator, List, Optional, Union
+from typing import Callable, Dict, Generator, List, Optional, Union
 
 from toolz import concat, pipe
 from toolz.curried import map
@@ -21,7 +21,7 @@ from .repository.context_messages.operations import (
 )
 from .repository.context_messages.queries import get_context_messages
 from .repository.context_messages.transforms import is_context_refresh_needed
-from .repository.documents.operations import do_ingest
+from .repository.documents.operations import DocIngestResult, do_ingest, do_ingest_dir
 from .repository.goals.operations import do_create_goal
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
@@ -296,7 +296,7 @@ class Elroy:
         )
 
     @db
-    def ingest_doc(self, address: Union[str, Path], force_refresh=False) -> None:
+    def ingest_doc(self, address: Union[str, Path], force_refresh=False) -> DocIngestResult:
         """Ingest a document into the assistant's memory
 
         Args:
@@ -305,11 +305,28 @@ class Elroy:
                 if False, the hash of the document content will be checked before ingestion into memory.
         """
 
-        do_ingest(
+        return do_ingest(
             self.ctx,
             address if isinstance(address, Path) else Path(address),
             force_refresh,
         )
+
+    @db
+    def ingest_dir(
+        self, address: Union[str, Path], include: List[str], exclude: List[str], recursive: bool, force_refresh=False
+    ) -> Dict[DocIngestResult, int]:
+        """Ingest a directory of documents into the assistant's memory
+
+        Args:
+            address (str): The address of the directory to ingest
+            include (List[str]): List of glob patterns to include
+            exclude (List[str]): List of glob patterns to exclude
+            recursive (bool): Whether to ingest the directory recursively
+            force_refresh (bool): Whether to force a re-ingestion of the document, even if it hasn't changed since last ingestion.
+
+        """
+
+        return do_ingest_dir(self.ctx, address if isinstance(address, Path) else Path(address), force_refresh, recursive, include, exclude)
 
     def message_stream(self, input: str) -> Generator[str, None, None]:
         """Process a message to the assistant and yield response chunks
