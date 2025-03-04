@@ -168,41 +168,8 @@ To me, an ideal LLM test is probably a little flaky. I want to test how the mode
 
 [^1]: Structured outputs is a possible solution here, though I have not adopted them in order to be compatible with the more model providers.
 
-[^2]: `get_bool` is a function that distills a textual question into a boolean. It checks for some hard coded words, then kicks the question of interpretation back to the LLM:
+[^2]: `get_bool` is a function that distills a textual question into a boolean. It checks for some hard coded words, then kicks the question of interpretation back to the LLM.
 
-```python
-def get_boolean(response: str, attempt: int = 1) -> bool:
-	if attempt > 3:
-		raise ValueError("Too many attempts")
+## Conclusion: Tests still help
 
-	for line in response.split("\n"):
-		first_word = pipe(
-			line,
-			lambda _: re.match(r"\w+", _),
-			lambda _: _.group(0).lower() if _ else None,
-		)
-
-		if first_word in ["true", "yes"]:
-			return True
-		elif first_word in ["false", "no"]:
-			return False
-	logging.info("Retrying boolean answer parsing")
-	return get_boolean(
-		query_llm(
-			model=ctx.chat_model,
-			system="You are an AI assistant, who converts text responses to boolean. "
-			"Given a piece of text, respond with TRUE if intention of the answer is to be affirmative, "
-			"and FALSE if the intention of the answer is to be in the negative."
-			"The first word of you response MUST be TRUE or FALSE."
-			"Your should follow this with an explanation of your reasoning."
-			"For example, if the question is, is the 1 greater than 0, your answer could be:"
-			"TRUE: 1 is greater than 0 as per basic math.",
-			prompt=response,
-		),  # type: ignore
-		attempt + 1,
-	)
-```
-
-## Conclusion: LLM Applications need tests
-
-I've found tests to be *really* helpful in writing Elroy. LLM's present a lot of new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.
+It sounds a little obvious, but I've found tests to be *really* helpful in writing Elroy. LLM's present a lot of new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.
