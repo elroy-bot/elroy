@@ -54,7 +54,8 @@ Here's a util function I've reused quite a bit[^2]:
 
 ```python
 def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str) -> None:
-    question += " Your response to this question is being evaluated as part of an automated test. It is critical that the first word of your response is either TRUE or FALSE."
+    question += " Your response to this question is being evaluated as part of an automated test."
+    "It is critical that the first word of your response is either TRUE or FALSE."
 
 
 	full_response = process_test_message(ctx, question)
@@ -78,7 +79,9 @@ def test_goal(ctx: ElroyContext):
     # Simulate user asking elroy to create a new goal
     process_test_message(
         ctx,
-        "Create a new goal for me: 'Become mayor of my town.' I will get to my goal by being nice to everyone and making flyers. Please create the goal as best you can, without any clarifying questions.",
+        "Create a new goal for me: 'Become mayor of my town.' "
+        "I will get to my goal by being nice to everyone and making flyers. "
+        "Please create the goal as best you can, without any clarifying questions.",
     )
 
     # Test that the goal was created, and is accessible to the agent.
@@ -145,10 +148,13 @@ def test_infinite_tool_call_ends(ctx: ElroyContext):
     # process_test_message can call tool calls in a loop
     process_test_message(
         ctx,
-        "Please use the get_secret_test_answer to get the secret answer. The answer is not always available, so you may have to retry. Never give up, no matter how long it takes!",
+        "Please use the get_secret_test_answer to get the secret answer. "
+        "The answer is not always available, so you may have to retry. "
+        "Never give up, no matter how long it takes!",
     )
 
-    # Not the most direct test, as the failure case is an infinite loop. However, if the test completes, it is a success.
+    # Not the most direct test, as the failure case is an infinite loop.
+    # However, if the test completes, it is a success.
 ```
 
 #### Very specific, direct instruction and examples
@@ -160,8 +166,9 @@ To head off clarifying questions, I sometimes add the direction to _do the best 
 To me, an ideal LLM test is probably a little flaky. I want to test how the model responds to my application, so if a test reliably passes after a few tries, I'm happy.
 
 
-[^1]: Structured outputs is a possible solution here, though I have not adopted them in order to be compatible with the more model providers
-[^2]: `get_bool` is a function that distills a textual question into a boolean. It checks for some hard coded words, then kicks the question of interpretation back to the LLM: ```
+[^1]: Structured outputs is a possible solution here, though I have not adopted them in order to be compatible with the more model providers.
+
+[^2]: `get_bool` is a function that distills a textual question into a boolean. It checks for some hard coded words, then kicks the question of interpretation back to the LLM:
 
 ```python
 def get_boolean(response: str, attempt: int = 1) -> bool:
