@@ -66,6 +66,9 @@ nav:
   - Tools:
     - Tools Guide: tools_guide.md
     - Tools Schema: tools_schema.md
+  - Blog:
+    - Overview: blog/index.md
+    - Drafts: blog/drafts/index.md
 
 # Extra CSS
 extra_css:
