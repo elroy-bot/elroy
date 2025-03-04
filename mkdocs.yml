@@ -73,9 +73,7 @@ nav:
 extra_css:
   - stylesheets/extra.css
 
-# Extra files to include
-extra_files:
-    - CNAME
+use_directory_urls: false
 
 # Extra settings
 extra:
