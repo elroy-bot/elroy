@@ -14,8 +14,8 @@ copyright: Copyright &copy; 2025 Elroy Team
 # Theme configuration
 theme:
   name: material
-  logo: images/logo.jpeg
-  favicon: images/logo.jpeg
+  logo: images/logo_circle.png
+  favicon: images/logo_circle.png
   palette:
     primary: "#C8C7E8"
     accent: "#C8C7E8"
