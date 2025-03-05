@@ -5,18 +5,14 @@ date: 2025-03-04
 
 # Yes or No, Please: Building Reliable Tests for Unreliable LLMs
 
-My experience building with LLM's started with watching in amazement as two [Autogen](https://github.com/microsoft/autogen) agents made small talk with each other on my computer. Then I quickly realized that making a cool demo was a lot easier than building a useful application.
+For LLM-based applications to be truly useful, they need **predictability**: While the free-text nature of LLMs means the range of acceptable outcomes is wider than with traditional programs, I still need consistent behavior: if I ask an AI personal assistant to create a calendar entry, I don't want it to order me a pizza instead.
 
-For LLM-based tools to be truly useful in daily workflows, they need **predictability**. Given specific inputs, I want a reasonable expectation of what outputs will be produced. While the free-text nature of LLMs means the range of acceptable outcomes is wider than with traditional programs, I still need consistent behavior: if I ask a personal assistant to create a calendar entry, I don't want it to order me a pizza instead.
+While AI has changed a lot about how I develop software, one crusty old technique still helps me: **tests**.
 
-Getting predictable behavior out of one model is hard enough, but things get even trickier when I began trying out different models. I don't want application behavior to change dramatically between model releases or when switching between providers.
+Here's what's worked well for me (and not!):
 
 ### Elroy
 [Elroy](https://elroy.bot) is an open-source memory assistant I've been developing. It creates memories and goals from your conversations and documents. The examples in this post are drawn from this work.
-
-## The challenge of testing with LLM's
-
-The biggest obstacle in writing good tests for LLM applications mirrors the challenge of creating reliable application behavior: handling unpredictability. Here's what's worked well for me (and not!):
 
 ### What has worked well
 #### Integration tests
@@ -52,15 +48,22 @@ Here's a util function I've reused quite a bit[^2]:
 
 
 ```python
-def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str) -> None:
-    question += " Your response to this question is being evaluated as part of an automated test."
-    "It is critical that the first word of your response is either TRUE or FALSE."
+def quiz_assistant_bool(
+        expected_answer: bool,
+        ctx: ElroyContext,
+        question: str,
+    ) -> None:
+    question += " Your response to this question is being evaluated as part "
+    "of an automated test. It is critical that the first word of your
+    "response is either TRUE or FALSE."
 
 
 	full_response = process_test_message(ctx, question)
 
     bool_answer = get_boolean(full_response)
-    assert bool_answer == expected_answer, f"Expected {expected_answer}, got {bool_answer}. Full response: {full_response}"
+    assert bool_answer == expected_answer,
+        f"Expected {expected_answer}, got {bool_answer}."
+        f"Full response: {full_response}"
 
 
 ```
@@ -73,7 +76,11 @@ Here's a test of Elroy's ability to create goals based on conversation content:
 @pytest.mark.flaky(reruns=3) # Important!!!
 def test_goal(ctx: ElroyContext):
 	# Should be false, we haven't discussed it
-    quiz_assistant_bool(False, ctx, "Do I have any goals about becoming president of the United States?")
+    quiz_assistant_bool(
+        False,
+        ctx,
+        "Do I have any goals about becoming president of the United States?"
+    )
 
     # Simulate user asking elroy to create a new goal
     process_test_message(
@@ -84,7 +91,8 @@ def test_goal(ctx: ElroyContext):
     )
 
     # Test that the goal was created, and is accessible to the agent.
-    assert "mayor" in get_active_goals_summary(ctx).lower(), "Goal not found in active goals."
+    assert "mayor" in get_active_goals_summary(ctx).lower(),
+        "Goal not found in active goals."
 
     # Verify Elroy's knowledge about the new goal
     quiz_assistant_bool(
@@ -109,7 +117,7 @@ for i in range(5):
 	ai_1_reply = ai1.message(ai_2_reply)
 ```
 
-The primary issue was consistency. Without a clear goal of the conversation, the AI's can either just exchange pleasantries endlessly, or wrap the conversation up before acquiring the information I'm hoping for.
+The primary issue was **consistency**. Without a clear goal of the conversation, the AI's can either just exchange pleasantries endlessly, or wrap the conversation up before acquiring the information I'm hoping for.
 ## Recurring Challenges
 Along the way I've run into a few recurring problems:
 
@@ -122,12 +130,12 @@ The end result of all these issues is test flakiness.
 #### [KISS!](https://en.wikipedia.org/wiki/KISS_principle)
 Most of the time, my solution to a flaky LLM based test is to make the test simpler.
 
-In particular, I now only ask the assistant yes or no questions in tests. I feel I still get most of the mileage I would get out of more complex, subjective tests, but with more consistent results.
+I now only ask the assistant yes or no questions in tests. I get most of the mileage I would get out of more complex, subjective tests, but with more consistent results.
 
 #### Telling the assistant it is in a test
-This has been better at getting consistent answers than strict instructions on output [^1]. Luckily I've not encountered any [existential angst](https://www.youtube.com/watch?v=X7HmltUWXgs&t=32s) from the model (so far).
+Simply being upfront about the assistant being in a test has worked wonders, moreso even than giving strict instructions on output format [^1]. Luckily, the assistant's knowledge of it's narrow existence has not triggered noticeable [existential angst](https://www.youtube.com/watch?v=X7HmltUWXgs&t=32s) (so far).
 
-As a side note, testing LLM's feels pretty _weird_ sometimes. I felt a little guilt writing this test, which tested a failsafe that prevents the assistant from calling tools in an infinite loop:
+As a side note, testing LLM's feels _weird_ sometimes. I felt guilty writing this test, which verified a failsafe that prevents the assistant from calling tools in an infinite loop:
 
 ```python
 
@@ -158,9 +166,17 @@ def test_infinite_tool_call_ends(ctx: ElroyContext):
 ```
 
 #### Very specific, direct instruction and examples
-My test goal about running for office became a test goal to run for *political* office. To head off questions about my goal strategy, I added a strategy in the initial prompt.
+In my test around creating and recognizing goals, the original text was:
 
-To head off clarifying questions, I sometimes add the direction to _do the best you can with the information available, even if it is incomplete_.
+*My goal is to become class president at school*
+
+Does running for class president count mean that I'm running for office? Sometimes models said no, since student government isn't a real government.
+
+So to be less subjective, I updated it to running for mayor. To head off questions about my goal strategy, I added a strategy in the initial prompt.
+
+One general technique for heading off follow up questions is adding:
+
+ _do the best you can with the information available, even if it is incomplete_.
 
 #### Tolerate a little flakiness
 To me, an ideal LLM test is probably a little flaky. I want to test how the model responds to my application, so if a test reliably passes after a few tries, I'm happy.
@@ -170,6 +186,6 @@ To me, an ideal LLM test is probably a little flaky. I want to test how the mode
 
 [^2]: `get_bool` is a function that distills a textual question into a boolean. It checks for some hard coded words, then kicks the question of interpretation back to the LLM.
 
-## Conclusion: Tests still help!
+## Tests still help!
 
-It sounds a little obvious, but I've found tests to be *really* helpful in writing Elroy. LLM's present a lot of new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.
+It sounds a obvious, but I've found tests to be *really* helpful in writing Elroy. LLM's present new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.
