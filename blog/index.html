@@ -22,7 +22,7 @@
         <link rel="alternate" type="application/rss+xml" title="RSS feed" href="../feed_rss_created.xml">
         <link rel="alternate" type="application/rss+xml" title="RSS feed of updated content" href="../feed_rss_updated.xml">
       
-      <link rel="icon" href="../images/logo.jpeg">
+      <link rel="icon" href="../images/logo_circle.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.5">
     
     
@@ -70,7 +70,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="#C8C7E8" data-md-color-accent="#C8C7E8">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="#B4B0CC" data-md-color-accent="#B4B0CC">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -97,7 +97,7 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../index.html" title="Elroy" class="md-header__button md-logo" aria-label="Elroy" data-md-component="logo">
       
-  <img src="../images/logo.jpeg" alt="logo">
+  <img src="../images/logo_circle.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -208,7 +208,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="Elroy" class="md-nav__button md-logo" aria-label="Elroy" data-md-component="logo">
       
-  <img src="../images/logo.jpeg" alt="logo">
+  <img src="../images/logo_circle.png" alt="logo">
 
     </a>
     Elroy
@@ -561,9 +561,7 @@
     <a href="/feed_rss_created.xml" target="_blank">
         <img src="https://www.mozilla.org/media/img/trademarks/feed-icon-28x28.png" alt="RSS Feed" style="width: 28px; height: 28px;">
     </a>
-    <a href="https://feedly.com/i/subscription/feed/https://elroy.bot/feed_rss_created.xml" target="_blank">
-        <img src="https://s3.feedly.com/img/follows/feedly-follow-rectangle-flat-medium_2x.png" alt="Follow on Feedly" style="height: 28px;">
-    </a>
+<a href='https://feedly.com/i/subscription/feed%2Fhttps%3A%2F%2Felroy.bot%2Ffeed_rss_created.xml'  target='blank'><img id='feedlyFollow' src='https://s1.feedly.com/legacy/feedly-follow-rectangle-volume-medium_2x.png' alt='follow us in feedly' width='71' height='28'></a>
 </div>
       </header>
       
@@ -589,13 +587,11 @@
   </header>
   <div class="md-post__content md-typeset">
     <h2 id="yes-or-no-please-building-reliable-tests-for-unreliable-llms"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html">Yes or No, Please: Building Reliable Tests for Unreliable LLMs</a></h2>
-<p>My experience building with LLM's started with watching in amazement as two <a href="https://github.com/microsoft/autogen">Autogen</a> agents made small talk with each other on my computer. Then I quickly realized that making a cool demo was a lot easier than building a useful application.</p>
-<p>For LLM-based tools to be truly useful in daily workflows, they need <strong>predictability</strong>. Given specific inputs, I want a reasonable expectation of what outputs will be produced. While the free-text nature of LLMs means the range of acceptable outcomes is wider than with traditional programs, I still need consistent behavior: if I ask a personal assistant to create a calendar entry, I don't want it to order me a pizza instead.</p>
-<p>Getting predictable behavior out of one model is hard enough, but things get even trickier when I began trying out different models. I don't want application behavior to change dramatically between model releases or when switching between providers.</p>
+<p>For LLM-based applications to be truly useful, they need <strong>predictability</strong>: While the free-text nature of LLMs means the range of acceptable outcomes is wider than with traditional programs, I still need consistent behavior: if I ask an AI personal assistant to create a calendar entry, I don't want it to order me a pizza instead.</p>
+<p>While AI has changed a lot about how I develop software, one crusty old technique still helps me: <strong>tests</strong>.</p>
+<p>Here's what's worked well for me (and not!):</p>
 <h4 id="elroy"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#elroy">Elroy</a></h4>
 <p><a href="https://elroy.bot">Elroy</a> is an open-source memory assistant I've been developing. It creates memories and goals from your conversations and documents. The examples in this post are drawn from this work.</p>
-<h3 id="the-challenge-of-testing-with-llms"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#the-challenge-of-testing-with-llms">The challenge of testing with LLM's</a></h3>
-<p>The biggest obstacle in writing good tests for LLM applications mirrors the challenge of creating reliable application behavior: handling unpredictability. Here's what's worked well for me (and not!):</p>
 <h4 id="what-has-worked-well"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#what-has-worked-well">What has worked well</a></h4>
 <h5 id="integration-tests"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#integration-tests">Integration tests</a></h5>
 <p>The chat interface for LLM applications make it a nice fit for integration tests: I simulate a few messages in an exchange, and see if the LLM performed actions or retained information as expected.</p>
@@ -623,39 +619,51 @@
 <h5 id="quizzing-the-assistant"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#quizzing-the-assistant">Quizzing the Assistant</a></h5>
 <p><a href="https://github.com/elroy-bot/elroy">Elroy</a> is a memory specialist, so lots of my tests involve asking if the assistant has retained information I've given it.</p>
 <p>Here's a util function I've reused quite a bit<sup id="fnref:2"><a class="footnote-ref" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#fn:2">2</a></sup>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">quiz_assistant_bool</span><span class="p">(</span><span class="n">expected_answer</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">ElroyContext</span><span class="p">,</span> <span class="n">question</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">question</span> <span class="o">+=</span> <span class="s2">&quot; Your response to this question is being evaluated as part of an automated test.&quot;</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">&quot;It is critical that the first word of your response is either TRUE or FALSE.&quot;</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">full_response</span> <span class="o">=</span> <span class="n">process_test_message</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">question</span><span class="p">)</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">bool_answer</span> <span class="o">=</span> <span class="n">get_boolean</span><span class="p">(</span><span class="n">full_response</span><span class="p">)</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="k">assert</span> <span class="n">bool_answer</span> <span class="o">==</span> <span class="n">expected_answer</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Expected </span><span class="si">{</span><span class="n">expected_answer</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">bool_answer</span><span class="si">}</span><span class="s2">. Full response: </span><span class="si">{</span><span class="n">full_response</span><span class="si">}</span><span class="s2">&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">quiz_assistant_bool</span><span class="p">(</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>        <span class="n">expected_answer</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>        <span class="n">ctx</span><span class="p">:</span> <span class="n">ElroyContext</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        <span class="n">question</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">question</span> <span class="o">+=</span> <span class="s2">&quot; Your response to this question is being evaluated as part &quot;</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;of an automated test. It is critical that the first word of your</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="s2">&quot;response is either TRUE or FALSE.&quot;</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">full_response</span> <span class="o">=</span> <span class="n">process_test_message</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">question</span><span class="p">)</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="n">bool_answer</span> <span class="o">=</span> <span class="n">get_boolean</span><span class="p">(</span><span class="n">full_response</span><span class="p">)</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="k">assert</span> <span class="n">bool_answer</span> <span class="o">==</span> <span class="n">expected_answer</span><span class="p">,</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="sa">f</span><span class="s2">&quot;Expected </span><span class="si">{</span><span class="n">expected_answer</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">bool_answer</span><span class="si">}</span><span class="s2">.&quot;</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>        <span class="sa">f</span><span class="s2">&quot;Full response: </span><span class="si">{</span><span class="n">full_response</span><span class="si">}</span><span class="s2">&quot;</span>
 </code></pre></div>
 <p>Here's a test of Elroy's ability to create goals based on conversation content:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">flaky</span><span class="p">(</span><span class="n">reruns</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># Important!!!</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_goal</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ElroyContext</span><span class="p">):</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="c1"># Should be false, we haven&#39;t discussed it</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">quiz_assistant_bool</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="s2">&quot;Do I have any goals about becoming president of the United States?&quot;</span><span class="p">)</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="c1"># Simulate user asking elroy to create a new goal</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">process_test_message</span><span class="p">(</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>        <span class="n">ctx</span><span class="p">,</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>        <span class="s2">&quot;Create a new goal for me: &#39;Become mayor of my town.&#39; &quot;</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>        <span class="s2">&quot;I will get to my goal by being nice to everyone and making flyers. &quot;</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>        <span class="s2">&quot;Please create the goal as best you can, without any clarifying questions.&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="p">)</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="c1"># Test that the goal was created, and is accessible to the agent.</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="k">assert</span> <span class="s2">&quot;mayor&quot;</span> <span class="ow">in</span> <span class="n">get_active_goals_summary</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="s2">&quot;Goal not found in active goals.&quot;</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    <span class="c1"># Verify Elroy&#39;s knowledge about the new goal</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="n">quiz_assistant_bool</span><span class="p">(</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>        <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        <span class="n">ctx</span><span class="p">,</span>
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>        <span class="s2">&quot;Do I have any goals about running for a political office?&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    <span class="p">)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">quiz_assistant_bool</span><span class="p">(</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>        <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>        <span class="n">ctx</span><span class="p">,</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        <span class="s2">&quot;Do I have any goals about becoming president of the United States?&quot;</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="p">)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="c1"># Simulate user asking elroy to create a new goal</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="n">process_test_message</span><span class="p">(</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>        <span class="n">ctx</span><span class="p">,</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>        <span class="s2">&quot;Create a new goal for me: &#39;Become mayor of my town.&#39; &quot;</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>        <span class="s2">&quot;I will get to my goal by being nice to everyone and making flyers. &quot;</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>        <span class="s2">&quot;Please create the goal as best you can, without any clarifying questions.&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>    <span class="p">)</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="c1"># Test that the goal was created, and is accessible to the agent.</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="k">assert</span> <span class="s2">&quot;mayor&quot;</span> <span class="ow">in</span> <span class="n">get_active_goals_summary</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        <span class="s2">&quot;Goal not found in active goals.&quot;</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    <span class="c1"># Verify Elroy&#39;s knowledge about the new goal</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>    <span class="n">quiz_assistant_bool</span><span class="p">(</span>
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>        <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>        <span class="n">ctx</span><span class="p">,</span>
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>        <span class="s2">&quot;Do I have any goals about running for a political office?&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>    <span class="p">)</span>
 </code></pre></div>
 <h4 id="what-sadly-hasnt-worked-llms-talking-to-llms"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#what-sadly-hasnt-worked-llms-talking-to-llms">What (sadly) hasn't worked: LLM's talking to LLM's</a></h4>
 <p>Elroy has onboarding functionality, in which it's encouraged to use a few specific functions early on.</p>
@@ -668,7 +676,7 @@
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">ai_2_reply</span> <span class="o">=</span> <span class="n">ai2</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="n">ai_1_reply</span><span class="p">)</span>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">ai_1_reply</span> <span class="o">=</span> <span class="n">ai1</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="n">ai_2_reply</span><span class="p">)</span>
 </code></pre></div>
-<p>The primary issue was consistency. Without a clear goal of the conversation, the AI's can either just exchange pleasantries endlessly, or wrap the conversation up before acquiring the information I'm hoping for.</p>
+<p>The primary issue was <strong>consistency</strong>. Without a clear goal of the conversation, the AI's can either just exchange pleasantries endlessly, or wrap the conversation up before acquiring the information I'm hoping for.</p>
 <h3 id="recurring-challenges"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#recurring-challenges">Recurring Challenges</a></h3>
 <p>Along the way I've run into a few recurring problems:</p>
 <ul>
@@ -680,10 +688,10 @@
 <h3 id="solutions"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#solutions">Solutions</a></h3>
 <h5 id="kiss"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#kiss"><a href="https://en.wikipedia.org/wiki/KISS_principle">KISS!</a></a></h5>
 <p>Most of the time, my solution to a flaky LLM based test is to make the test simpler.</p>
-<p>In particular, I now only ask the assistant yes or no questions in tests. I feel I still get most of the mileage I would get out of more complex, subjective tests, but with more consistent results.</p>
+<p>I now only ask the assistant yes or no questions in tests. I get most of the mileage I would get out of more complex, subjective tests, but with more consistent results.</p>
 <h5 id="telling-the-assistant-it-is-in-a-test"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#telling-the-assistant-it-is-in-a-test">Telling the assistant it is in a test</a></h5>
-<p>This has been better at getting consistent answers than strict instructions on output <sup id="fnref:1"><a class="footnote-ref" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#fn:1">1</a></sup>. Luckily I've not encountered any <a href="https://www.youtube.com/watch?v=X7HmltUWXgs&amp;t=32s">existential angst</a> from the model (so far).</p>
-<p>As a side note, testing LLM's feels pretty <em>weird</em> sometimes. I felt a little guilt writing this test, which tested a failsafe that prevents the assistant from calling tools in an infinite loop:</p>
+<p>Simply being upfront about the assistant being in a test has worked wonders, moreso even than giving strict instructions on output format <sup id="fnref:1"><a class="footnote-ref" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#fn:1">1</a></sup>. Luckily, the assistant's knowledge of it's narrow existence has not triggered noticeable <a href="https://www.youtube.com/watch?v=X7HmltUWXgs&amp;t=32s">existential angst</a> (so far).</p>
+<p>As a side note, testing LLM's feels <em>weird</em> sometimes. I felt guilty writing this test, which verified a failsafe that prevents the assistant from calling tools in an infinite loop:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nd">@tool</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_secret_test_answer</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the secret test answer</span>
@@ -710,12 +718,16 @@
 <a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>    <span class="c1"># However, if the test completes, it is a success.</span>
 </code></pre></div>
 <h5 id="very-specific-direct-instruction-and-examples"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#very-specific-direct-instruction-and-examples">Very specific, direct instruction and examples</a></h5>
-<p>My test goal about running for office became a test goal to run for <em>political</em> office. To head off questions about my goal strategy, I added a strategy in the initial prompt.</p>
-<p>To head off clarifying questions, I sometimes add the direction to <em>do the best you can with the information available, even if it is incomplete</em>.</p>
+<p>In my test around creating and recognizing goals, the original text was:</p>
+<p><em>My goal is to become class president at school</em></p>
+<p>Does running for class president count mean that I'm running for office? Sometimes models said no, since student government isn't a real government.</p>
+<p>So to be less subjective, I updated it to running for mayor. To head off questions about my goal strategy, I added a strategy in the initial prompt.</p>
+<p>One general technique for heading off follow up questions is adding:</p>
+<p><em>do the best you can with the information available, even if it is incomplete</em>.</p>
 <h5 id="tolerate-a-little-flakiness"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#tolerate-a-little-flakiness">Tolerate a little flakiness</a></h5>
 <p>To me, an ideal LLM test is probably a little flaky. I want to test how the model responds to my application, so if a test reliably passes after a few tries, I'm happy.</p>
-<h3 id="conclusion-tests-still-help"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#conclusion-tests-still-help">Conclusion: Tests still help!</a></h3>
-<p>It sounds a little obvious, but I've found tests to be <em>really</em> helpful in writing Elroy. LLM's present a lot of new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.</p>
+<h3 id="tests-still-help"><a class="toclink" href="2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html#tests-still-help">Tests still help!</a></h3>
+<p>It sounds a obvious, but I've found tests to be <em>really</em> helpful in writing Elroy. LLM's present new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.</p>
 <div class="footnote">
 <hr />
 <ol>
