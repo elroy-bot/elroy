@@ -17,8 +17,8 @@ theme:
   logo: images/logo_circle.png
   favicon: images/logo_circle.png
   palette:
-    primary: "#C8C7E8"
-    accent: "#C8C7E8"
+    primary: "#B4B0CC"
+    accent: "#B4B0CC"
   features:
     - navigation.instant
     - navigation.tracking
@@ -43,6 +43,7 @@ plugins:
       categories:
         - categories
         - tags
+      image: 'images/logo_circle.png'
 
 
   - git-revision-date-localized:
