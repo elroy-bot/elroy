@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="images/logo.jpeg" alt="Elroy Logo" width="200"/>
+  <img src="images/logo_circle.png" alt="Elroy Logo" width="200"/>
 </div>
 
 # Elroy: An AI assistant that remembers and sets goals
