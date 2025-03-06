@@ -20,6 +20,7 @@ from ..core.constants import (
 )
 from ..core.logging import get_logger
 from ..core.tracing import tracer
+from ..messenger.error_recovery import retry_completion_api_return
 from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
@@ -238,6 +239,7 @@ def _build_completion_kwargs(
     return kwargs
 
 
+@retry_completion_api_return
 def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
     from litellm import completion
 
