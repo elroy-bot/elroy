@@ -30,10 +30,15 @@ from .repository.goals.queries import get_active_goal_names as do_get_active_goa
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
 from .repository.goals.tools import add_goal_status_update as do_add_goal_status_update
 from .repository.goals.tools import mark_goal_completed as do_mark_goal_completed
+from .repository.memories.operations import (
+    do_create_memory_from_ctx_msgs,
+    formulate_memory,
+)
 from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
+from .repository.user.tools import get_user_preferred_name
 
 
 def db(f: Callable) -> Callable:
@@ -151,6 +156,20 @@ class Elroy:
             GoalDoesNotExistError: If the goal doesn't exist
         """
         return do_mark_goal_completed(self.ctx, goal_name, closing_comments)
+
+    @db
+    def create_memory_from_current_context(self) -> None:
+        """Creates a memory from the current context messages
+
+        Returns:
+            str: Confirmation message that the memory was created
+        """
+        memory_title, memory_text = formulate_memory(
+            self.ctx.chat_model,
+            get_user_preferred_name(self.ctx),
+            list(get_context_messages(self.ctx)),
+        )
+        do_create_memory_from_ctx_msgs(self.ctx, memory_title, memory_text)
 
     @db
     def get_active_goal_names(self) -> List[str]:
