@@ -1,0 +1,193 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    ports:
+      - "4000:4000"
+    environment:
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - PHOENIX_COLLECTOR_ENDPOINT=phoenix:4317
+      - PHOENIX_COLLECTOR_HTTP_ENDPOINT=http://phoenix:6006
+    depends_on:
+      - redis
+    command: ["--config", "/app/config.yaml"]
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    restart: unless-stopped
+  phoenix:
+    image: arizephoenix/phoenix
+    ports:
+      - "6006:6006"  # Phoenix UI port
+      - "4317:4317"  # OpenTelemetry gRPC port
+    environment:
+      - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@phoenixdb:5432/postgres
+    depends_on:
+      - phoenixdb
+    restart: unless-stopped
+
+  benchmark-1:
+    # restart: unless-stopped
+    build:
+      context: ../../..
+      dockerfile: Dockerfile.local
+    environment:
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
+      - PHOENIX_COLLECTOR_HTTP_ENDPOINT=http://phoenix:6006
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELROY_CHAT_MODEL=gpt-4o-mini
+      - ELROY_BENCHMARK_JUDGE_MODEL=gpt-4o
+      - ELROY_EMBEDDING_MODEL=text-embedding-3-small
+      - OPENAI_API_KEY=sk-123
+      - ELROY_ENABLE_TRACING=1
+      - ELROY_LOG_LEVEL=info
+      - ELROY_TRACING_APP_NAME=elroy-benchmark
+      - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_CHAT_MODEL_API_BASE=http://litellm:4000
+      - ELROY_EMBEDDING_MODEL_API_BASE=http://litellm:4000
+      - OPENAI_API_BASE=http://litellm:4000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/scripts/benchmarking/longmemeval/data
+      - ./:/app/scripts/benchmarking/longmemeval
+    depends_on:
+      - postgres
+      - litellm
+      - phoenix
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "--token", "2024_04_07-2", "--message_func", "ai_assistant_response_to_chat"]
+
+  benchmark-2:
+    # restart: unless-stopped
+    build:
+      context: ../../..
+      dockerfile: Dockerfile.local
+    environment:
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
+      - PHOENIX_COLLECTOR_HTTP_ENDPOINT=http://phoenix:6006
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELROY_CHAT_MODEL=gpt-4o-mini
+      - ELROY_BENCHMARK_JUDGE_MODEL=gpt-4o
+      - ELROY_EMBEDDING_MODEL=text-embedding-3-small
+      - OPENAI_API_KEY=sk-123
+      - ELROY_ENABLE_TRACING=1
+      - ELROY_LOG_LEVEL=info
+      - ELROY_TRACING_APP_NAME=elroy-benchmark
+      - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_CHAT_MODEL_API_BASE=http://litellm:4000
+      - ELROY_EMBEDDING_MODEL_API_BASE=http://litellm:4000
+      - OPENAI_API_BASE=http://litellm:4000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/scripts/benchmarking/longmemeval/data
+      - ./:/app/scripts/benchmarking/longmemeval
+    depends_on:
+      - postgres
+      - litellm
+      - phoenix
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "--token", "2024_04_07-2", "--message_func", "harcoded_assistant_response_to_chat"]
+
+  benchmark-3:
+    # restart: unless-stopped
+    build:
+      context: ../../..
+      dockerfile: Dockerfile.local
+    environment:
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
+      - PHOENIX_COLLECTOR_HTTP_ENDPOINT=http://phoenix:6006
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELROY_CHAT_MODEL=gpt-4o-mini
+      - ELROY_BENCHMARK_JUDGE_MODEL=gpt-4o
+      - ELROY_EMBEDDING_MODEL=text-embedding-3-small
+      - OPENAI_API_KEY=sk-123
+      - ELROY_ENABLE_TRACING=1
+      - ELROY_LOG_LEVEL=info
+      - ELROY_TRACING_APP_NAME=elroy-benchmark
+      - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_CHAT_MODEL_API_BASE=http://litellm:4000
+      - ELROY_EMBEDDING_MODEL_API_BASE=http://litellm:4000
+      - OPENAI_API_BASE=http://litellm:4000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/scripts/benchmarking/longmemeval/data
+      - ./:/app/scripts/benchmarking/longmemeval
+    depends_on:
+      - postgres
+      - litellm
+      - phoenix
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "--token", "2024_04_07-2", "--message_func", "harcoded_assistant_response_to_chat_10"]
+
+  benchmark-4:
+    # restart: unless-stopped
+    build:
+      context: ../../..
+      dockerfile: Dockerfile.local
+    environment:
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
+      - PHOENIX_COLLECTOR_HTTP_ENDPOINT=http://phoenix:6006
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELROY_CHAT_MODEL=gpt-4o-mini
+      - ELROY_BENCHMARK_JUDGE_MODEL=gpt-4o
+      - ELROY_EMBEDDING_MODEL=text-embedding-3-small
+      - OPENAI_API_KEY=sk-123
+      - ELROY_ENABLE_TRACING=1
+      - ELROY_LOG_LEVEL=info
+      - ELROY_TRACING_APP_NAME=elroy-benchmark
+      - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_CHAT_MODEL_API_BASE=http://litellm:4000
+      - ELROY_EMBEDDING_MODEL_API_BASE=http://litellm:4000
+      - OPENAI_API_BASE=http://litellm:4000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/scripts/benchmarking/longmemeval/data
+      - ./:/app/scripts/benchmarking/longmemeval
+    depends_on:
+      - postgres
+      - litellm
+      - phoenix
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "--token", "2024_04_07-2", "--message_func", "harcoded_assistant_response_to_chat_05"]
+
+
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=benchmarking
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=benchmarking
+    volumes:
+      - benchmarking_postgres-data:/var/lib/postgresql/data
+    command: postgres -c shared_preload_libraries=vector
+    restart: unless-stopped
+
+  phoenixdb:
+    image: postgres:16
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - phoenixdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass password --appendonly yes --save 900 1 --save 300 10 --save 60 10000
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  benchmarking_postgres-data:
+  phoenixdata:

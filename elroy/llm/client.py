@@ -203,7 +203,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     for attempt in range(max_attempts):
         try:
             response = embedding(**embedding_kwargs)
-            return response.data[0]["embedding"]
+            return response.data[0]["embedding"]  # type: ignore
         except ContextWindowExceededError:
             new_length = int(len(text) / 2)
             text = text[-new_length:]
@@ -240,13 +240,30 @@ def _build_completion_kwargs(
 
 def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
     from litellm import completion
+    from litellm.exceptions import ContextWindowExceededError
 
-    messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
-    completion_kwargs = _build_completion_kwargs(
-        model=model,
-        messages=messages,
-        stream=False,
-        tool_choice=None,
-        tools=None,
-    )
-    return completion(**completion_kwargs).choices[0].message.content.strip()  # type: ignore
+    def _inner(model: ChatModel, prompt: str, system: str) -> str:
+        messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
+        completion_kwargs = _build_completion_kwargs(
+            model=model,
+            messages=messages,
+            stream=False,
+            tool_choice=None,
+            tools=None,
+        )
+        return completion(**completion_kwargs).choices[0].message.content.strip()  # type: ignore
+
+    attempt = 0
+    while True:
+        try:
+            return _inner(model, prompt, system)
+        except ContextWindowExceededError:
+            if attempt >= 5:
+                raise
+            else:
+                old_len = len(prompt)
+                prompt = prompt[-int(len(prompt) / 2) :]
+                logger.warning(
+                    f"Context window exceeded. Reducing size of content from {old_len} to {len(prompt)}. System message length: {len(system)}"
+                )
+                attempt += 1
