@@ -76,7 +76,6 @@ class Elroy:
         setup_core_logging()
         self.formatter = formatter
         self.show_tool_calls = show_tool_calls
-
         self.ctx = ElroyContext(
             **get_resolved_params(
                 user_token=token,
@@ -87,6 +86,8 @@ class Elroy:
                 **kwargs,
             ),
         )
+
+        self.token = self.ctx.user_token
 
         with init_elroy_session(self.ctx, PlainIO(), check_db_migration, False):
             if persona:
@@ -247,8 +248,8 @@ class Elroy:
         return do_create_memory(self.ctx, name, text)
 
     @db
-    @tracer.agent
-    def message(self, input: str, enable_tools=True) -> str:
+    @tracer.chain
+    def message(self, input: str, enable_tools: bool = True, force_tool: Optional[str] = None) -> str:
         """Process a message to the assistant and return the response
 
         Args:
@@ -260,7 +261,7 @@ class Elroy:
         """
 
         return pipe(
-            process_message(USER, self.ctx, input, enable_tools),
+            process_message(USER, self.ctx, input, enable_tools, force_tool),
             collect,
             filter(self._should_return_chunk),
             map(self.formatter.format),

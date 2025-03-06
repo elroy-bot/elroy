@@ -32,10 +32,13 @@ dependencies = [
     "lock>=2018.3.25.2110",
     "mcp",
     "openinference-instrumentation",
+    "smolagents",
+    "celery[redis]",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "freezegun",
     "bumpversion>=0.6.0",
     "pydantic>=2.10.3",
     "black>=24.4.2",
