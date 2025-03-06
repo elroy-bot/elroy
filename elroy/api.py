@@ -1,3 +1,4 @@
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Union
@@ -303,7 +304,7 @@ class Elroy:
         return do_get_persona(self.ctx)
 
     @db
-    def record_message(self, role: str, message: str) -> None:
+    def record_message(self, role: str, message: str, created_at: Optional[datetime]) -> None:
         """Records a message into context, without generating a reply
 
         Args:
@@ -314,6 +315,7 @@ class Elroy:
         add_context_message(
             self.ctx,
             ContextMessage(
+                created_at=created_at,
                 content=message,
                 role=role,
                 chat_model=None,
