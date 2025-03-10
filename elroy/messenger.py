@@ -44,8 +44,14 @@ def process_message(
         list,
     )  # type: ignore
 
-    new_msgs = [ContextMessage(role=role, content=msg, chat_model=None)]
+    new_msgs: List[ContextMessage] = [ContextMessage(role=role, content=msg, chat_model=None)]
     new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
+
+    if ctx.show_internal_thought:
+        for new_msg in new_msgs[1:]:
+            if new_msg.content:
+                yield AssistantInternalThought(new_msg.content)
+        yield AssistantInternalThought("")  # empty line to separate internal thoughts from assistant responses
 
     loops = 0
     while True:

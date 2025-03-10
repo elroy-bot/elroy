@@ -94,7 +94,7 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
 def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> Optional[threading.Thread]:
     from ..config.ctx import ElroyContext
 
-    if not ctx.use_background_threads:
+    if not ctx.use_background_threads or ctx.debug:
         logging.debug("Background threads are disabled. Running function in the main thread.")
         fn(ctx, *args)
         return
