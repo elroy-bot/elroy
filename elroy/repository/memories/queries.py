@@ -15,17 +15,21 @@ from ...db.db_models import (
     MemorySource,
     get_memory_source_class,
 )
-from ...llm.client import generate_chat_completion_message, get_embedding
-from ...llm.stream_parser import StreamParser, collect
+from ...llm.client import get_embedding, query_llm
 from ...utils.utils import logged_exec_time
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
-from ..context_messages.transforms import ContextMessageSetWithMessages
+from ..context_messages.transforms import (
+    ContextMessageSetWithMessages,
+    format_context_messages,
+)
 from ..recall.queries import (
     get_most_relevant_goal,
     get_most_relevant_memory,
     is_in_context,
 )
 from ..recall.transforms import to_recalled_memory_metadata
+from ..user.queries import get_assistant_name
+from ..user.tools import get_user_preferred_name
 
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> Optional[MemorySource]:
@@ -156,33 +160,51 @@ def get_reflective_recall(
     ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]
 ) -> List[ContextMessage]:
     """More process memory into more reflective recall message"""
-    stream: StreamParser = pipe(
+    output: str = pipe(
         memories,
         map(lambda x: x.to_fact()),
         "\n\n".join,
-        lambda x: f"You are an internal thought process of an AI assistant. Consider the following content recalled from memory. "
-        "Return an internal thought monologue for what is signficant about the recalled content, and how it might related to the conversation. "
-        "Your response should be in the voice of the internal reflections of the AI assistant, do not address the user."
-        "The content of the recalled memories are as follows:\n" + x,
-        lambda x: ContextMessage(
-            role=SYSTEM,
-            content=x,
-            chat_model=None,
-        ),
-        lambda x: [x] + list(context_messages)[1:],
-        lambda x: generate_chat_completion_message(ctx.chat_model, x, [], False),
-    )
+        lambda x: "Recalled Memory Content\n\n"
+        + x
+        + "#Converstaion Transcript:\n"
+        + format_context_messages(tail(3, list(context_messages)[1:]), get_user_preferred_name(ctx), get_assistant_name(ctx)),  # type: ignore
+        lambda x: query_llm(
+            ctx.chat_model,
+            x,
+            """#Identity and Purpose
 
-    collect(stream.process_stream())
+        I am the internal thoughts of an AI assistant. I am reflecting on memories that have entered my awareness.
+
+        I am considering recalled context, as well as the transcript of a recent conversation. I am:
+        - Re-stating the most relevant context from the recalled content
+        - Reflecting on how the recalled content relates to the conversation transcript
+
+        Specific examples are most helpful. For example, if the recalled content is:
+
+        "USER mentioned that when playing basketball, they struggle to remember to follow through on their shots."
+
+        and the conversation transcript includes:
+        "USER: I'm going to play basketball next week"
+
+        a good response would be:
+        "I remember that USER struggles to remember to follow through on their shots when playing basketball. I should remind USER about following through on their shots for next week's game."
+
+
+        My response will be in the first person, and will be transmitted to an AI assistant to inform their response. My response will NOT be transmitted to the user.
+
+        My response is brief and to the point, no more than 100 words.
+        """,
+        ),
+    )  # type: ignore
 
     return [
         ContextMessage(
             role=SYSTEM,
             content="\n".join(
-                [stream.get_full_text(), "\nThis recollection was based on the following Goals and Memories:"]
+                [output, "\nThis recollection was based on the following Goals and Memories:"]
                 + [x.__class__.__name__ + ": " + x.get_name() for x in memories]
             ),
-            chat_model=None,
+            chat_model=ctx.chat_model.name,
             memory_metadata=[to_recalled_memory_metadata(x) for x in memories],
         )
     ]

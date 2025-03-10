@@ -51,7 +51,7 @@ def process_message(
         for new_msg in new_msgs[1:]:
             if new_msg.content:
                 yield AssistantInternalThought(new_msg.content)
-        yield AssistantInternalThought("")  # empty line to separate internal thoughts from assistant responses
+        yield AssistantInternalThought("\n\n")  # empty line to separate internal thoughts from assistant responses
 
     loops = 0
     while True:
