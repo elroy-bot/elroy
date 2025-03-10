@@ -42,10 +42,22 @@ from ..repository.user.tools import set_user_preferred_name
 from ..utils.utils import datetime_to_string, run_in_background
 
 
-def handle_message_stdio(ctx: ElroyContext, io: ElroyIO, message: str, tool: Optional[str]):
+def handle_message_stdio(
+    ctx: ElroyContext,
+    io: ElroyIO,
+    message: str,
+    force_tool: Optional[str],
+):
     if not is_user_exists(ctx.db.session, ctx.user_token):
         onboard_non_interactive(ctx)
-    io.print_stream(process_message(USER, ctx, message, tool))
+    io.print_stream(
+        process_message(
+            USER,
+            ctx,
+            message,
+            force_tool=force_tool,
+        )
+    )
 
 
 def get_user_logged_in_message(ctx: ElroyContext) -> str:
@@ -100,6 +112,7 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
             SYSTEM,
             ctx,
             get_user_logged_in_message(ctx),
+            False,
         )
     print_memory_panel(io, ctx)
 
@@ -126,7 +139,7 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
         run_in_background(refresh_context_if_needed, ctx)
 
 
-def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str):
+def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
     if user_input.startswith("/") and role == USER:
         try:
             result = invoke_slash_command(io, ctx, user_input)
@@ -150,7 +163,7 @@ def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input:
             ctx.db.rollback()
     else:
         try:
-            io.print_stream(process_message(role, ctx, user_input))
+            io.print_stream(process_message(role, ctx, user_input, enable_tools))
         except KeyboardInterrupt:
             ctx.db.rollback()
 
@@ -185,6 +198,7 @@ def onboard_interactive(io: CliIO, ctx: ElroyContext):
         SYSTEM,
         ctx,
         f"User {preferred_name} has been onboarded. Say hello and introduce yourself.",
+        False,
     )
 
 

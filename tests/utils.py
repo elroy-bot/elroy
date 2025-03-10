@@ -74,7 +74,7 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] 
     logging.info(f"USER MESSAGE: {msg}")
 
     return pipe(
-        process_message(USER, ctx, msg, force_tool),
+        process_message(USER, ctx, msg, force_tool=force_tool),
         map(lambda _: _.content),
         list,
         "".join,

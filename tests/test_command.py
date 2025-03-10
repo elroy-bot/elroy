@@ -11,7 +11,12 @@ from .utils import MockCliIO
 def test_create_and_mark_goal_complete(io: MockCliIO, ctx: ElroyContext):
     io.add_user_responses("Test Goal", "", "", "", "", "")
 
-    process_and_deliver_msg(io, USER, ctx, "/create_goal Test Goal")
+    process_and_deliver_msg(
+        io,
+        USER,
+        ctx,
+        "/create_goal Test Goal",
+    )
 
     assert "Test Goal" in get_active_goal_names(ctx)
 
