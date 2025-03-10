@@ -63,10 +63,10 @@ class DMResponder(DiscordResponder):
 
     @cached_property
     def ai(self) -> Elroy:
+        from ...elroy.tools.developer import tail_elroy_logs
+
         return Elroy(
-            token=self.user_token,
-            show_internal_thought=True,
-            formatter=MarkdownFormatter(),
+            token=self.user_token, show_internal_thought=True, formatter=MarkdownFormatter(), exclude_tools=[tail_elroy_logs.__name__]
         )
 
 
@@ -329,4 +329,11 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,  # Default level for all loggers
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(),  # Logs to stderr
+        ],
+    )
     main()
