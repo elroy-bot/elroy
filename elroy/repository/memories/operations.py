@@ -96,13 +96,19 @@ def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str
     do_create_memory_from_ctx_msgs(ctx, name, text)
 
 
-def formulate_memory(chat_model: ChatModel, user_preferred_name: Optional[str], context_messages: List[ContextMessage]) -> Tuple[str, str]:
+def formulate_memory(
+    chat_model: ChatModel, user_preferred_name: str, assistant_name: str, context_messages: List[ContextMessage]
+) -> Tuple[str, str]:
     from ...llm.prompts import summarize_for_memory
     from ..context_messages.transforms import format_context_messages
 
     return summarize_for_memory(
         chat_model,
-        format_context_messages(context_messages, user_preferred_name),
+        format_context_messages(
+            context_messages,
+            user_preferred_name,
+            assistant_name,
+        ),
         user_preferred_name,
     )
 

@@ -20,6 +20,14 @@ def get_assistant_name(ctx: ElroyContext) -> str:
             return ctx.default_assistant_name
 
 
+def do_get_assistant_name(session: Session, user_id: int) -> str:
+    user_preference = do_get_or_create_user_preference(session, user_id)
+    if user_preference.assistant_name:
+        return user_preference.assistant_name
+    else:
+        return "ASSISTANT"  # TODO: this is inconsistent if there's a config value for default_assistant_name
+
+
 def get_persona(ctx: ElroyContext):
     """Get the persona for the user, or the default persona if the user has not set one.
 

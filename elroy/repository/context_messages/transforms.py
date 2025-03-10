@@ -17,7 +17,7 @@ from ...db.db_models import ContextMessageSet, MemorySource, Message, ToolCall
 from ...llm.utils import count_tokens
 from ...utils.clock import ensure_utc, get_utc_now
 from ...utils.utils import datetime_to_string, last_or_none
-from ..user.queries import do_get_user_preferred_name
+from ..user.queries import do_get_assistant_name, do_get_user_preferred_name
 from .data_models import ContextMessage, RecalledMemoryMetadata
 
 
@@ -108,7 +108,11 @@ def replace_system_instruction(context_messages: List[ContextMessage], new_syste
     )
 
 
-def format_message(message: ContextMessage, user_preferred_name: Optional[str]) -> List[str]:
+def format_message(
+    message: ContextMessage,
+    user_preferred_name: Optional[str],
+    assistant_name: Optional[str],
+) -> List[str]:
     datetime_str = datetime_to_string(message.created_at)
     if message.role == SYSTEM:
         return [f"SYSTEM ({datetime_str}): {message.content}"]
@@ -120,12 +124,14 @@ def format_message(message: ContextMessage, user_preferred_name: Optional[str]) 
         msgs = []
 
         if message.content:
-            msgs.append(f"ELROY ({datetime_str}): {message.content}")
+            msgs.append(f"{assistant_name} ({datetime_str}): {message.content}")
         if message.tool_calls:
             pipe(
                 message.tool_calls,
                 map(lambda x: x.function),
-                map(lambda x: f"ELROY TOOL CALL REQUEST ({datetime_str}): function name: {x['name']}, arguments: {x['arguments']}"),
+                map(
+                    lambda x: f"{assistant_name} TOOL CALL REQUEST ({datetime_str}): function name: {x['name']}, arguments: {x['arguments']}"
+                ),
                 list,
                 msgs.extend,
             )
@@ -139,7 +145,11 @@ def format_message(message: ContextMessage, user_preferred_name: Optional[str]) 
         return []
 
 
-def format_context_messages(context_messages: Iterable[ContextMessage], user_preferred_name: Optional[str]) -> str:
+def format_context_messages(
+    context_messages: Iterable[ContextMessage],
+    user_preferred_name: str,
+    assistant_name: str,
+) -> str:
     convo_range = pipe(
         context_messages,
         filter(lambda x: x.role == USER),
@@ -155,7 +165,7 @@ def format_context_messages(context_messages: Iterable[ContextMessage], user_pre
             filter(
                 lambda _: _.content or _.tool_calls or _.role != ASSISTANT
             ),  # TODO: Determine why these messages are making it into context
-            map(lambda msg: format_message(msg, user_preferred_name)),
+            map(lambda msg: format_message(msg, user_preferred_name, assistant_name)),
             concat,
             list,
             "\n".join,
@@ -253,6 +263,7 @@ class ContextMessageSetWithMessages(MemorySource):
         return format_context_messages(
             self.messages_list,
             do_get_user_preferred_name(self.session, self.user_id),
+            do_get_assistant_name(self.session, self.user_id),
         )
 
     @property
