@@ -1,3 +1,4 @@
+import logging
 import os
 from abc import ABC, abstractmethod
 from functools import cached_property
@@ -298,6 +299,8 @@ async def on_message(message: discord.Message):
 
     responder = get_discord_responder(message)
 
+    logging.info(f"Determined responder: {responder.__class__.__name__}")
+
     # Format message with user prefix
     formatted_message = responder.format_user_message(message)
 
@@ -306,12 +309,13 @@ async def on_message(message: discord.Message):
     is_dm = type(responder) == DMResponder
 
     if was_mentioned or is_dm:
-        print(f"responding: was_mentioned={was_mentioned}, is_dm={is_dm}")
+        logging.info(f"responding: was_mentioned={was_mentioned}, is_dm={is_dm}")
         # Process message through Elroy and get response
         response = responder.ai.message(formatted_message)
-        print(response)
+        logging.info(response)
         await message.channel.send(response)
     else:
+        logging.info("Not a dm and wasn't mentioned, recording")
         # Record the message without generating a response
         responder.ai.record_message(USER, formatted_message)
 
