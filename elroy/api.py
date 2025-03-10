@@ -230,18 +230,19 @@ class Elroy:
         return do_create_memory(self.ctx, name, text)
 
     @db
-    def message(self, input: str) -> str:
+    def message(self, input: str, enable_tools=True) -> str:
         """Process a message to the assistant and return the response
 
         Args:
             input (str): The message to process
+            enable_tools (bool): Whether to enable tools for this message
 
         Returns:
             str: The response from the assistant
         """
 
         return pipe(
-            process_message(USER, self.ctx, input),
+            process_message(USER, self.ctx, input, enable_tools),
             collect,
             map(self.formatter.format),
             concat,
@@ -328,7 +329,7 @@ class Elroy:
 
         return do_ingest_dir(self.ctx, address if isinstance(address, Path) else Path(address), force_refresh, recursive, include, exclude)
 
-    def message_stream(self, input: str) -> Generator[str, None, None]:
+    def message_stream(self, input: str, enable_tools: bool = True) -> Generator[str, None, None]:
         """Process a message to the assistant and yield response chunks
 
         Args:
@@ -337,7 +338,7 @@ class Elroy:
         Returns:
             Generator[str, None, None]: Generator yielding response chunks
         """
-        for chunk in process_message(USER, self.ctx, input):
+        for chunk in process_message(USER, self.ctx, input, enable_tools):
             if isinstance(chunk, AssistantResponse) or (isinstance(chunk, AssistantInternalThought) and self.ctx.show_internal_thought):
                 yield from self.formatter.format(chunk)
 

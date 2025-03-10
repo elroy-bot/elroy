@@ -1,3 +1,4 @@
+import logging
 import traceback
 from inspect import signature
 from typing import Iterator, List, Optional, Union
@@ -26,9 +27,16 @@ from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
 
 def process_message(
-    role: str, ctx: ElroyContext, msg: str, force_tool: Optional[str] = None
+    role: str,
+    ctx: ElroyContext,
+    msg: str,
+    enable_tools: bool = True,
+    force_tool: Optional[str] = None,
 ) -> Iterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult, FunctionCall]]:
     assert role in [USER, ASSISTANT, SYSTEM]
+
+    if force_tool and not enable_tools:
+        logging.warning("force_tool set, but enable_tools is False. Ignoring force_tool.")
 
     context_messages: List[ContextMessage] = pipe(
         get_context_messages(ctx),
@@ -50,7 +58,7 @@ def process_message(
             chat_model=ctx.chat_model,
             context_messages=context_messages + new_msgs,
             tool_schemas=ctx.tool_registry.get_schemas(),
-            enable_tools=(not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,
+            enable_tools=enable_tools and (not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,
             force_tool=force_tool,
         )
         for stream_chunk in stream.process_stream():
