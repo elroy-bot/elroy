@@ -3,7 +3,7 @@ import logging
 import time
 import traceback
 from functools import partial, wraps
-from typing import Any, Callable, Iterable, Iterator, List, Optional, TypeVar
+from typing import Any, Callable, Iterable, Iterator, List, TypeVar
 
 from sqlmodel import select
 from toolz import concatv, pipe
@@ -191,14 +191,14 @@ def refresh_context_if_needed(ctx: ElroyContext):
 
 
 @user_only_tool
-def save(ctx: ElroyContext, n: Optional[int]) -> str:
+def save(ctx: ElroyContext, n: int = 1000) -> str:
     """
-    Saves the last n message from context. If n is None, saves all messages in context.
+    Saves the last n message from context.
     """
 
     msgs = pipe(
         get_context_messages(ctx),
-        tail(n or 1000),
+        tail(n),
         list,
     )
 
