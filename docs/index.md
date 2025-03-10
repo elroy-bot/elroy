@@ -14,9 +14,9 @@ Elroy is an AI assistant that runs in your terminal, with memory and powerful go
 
 ## Features
 
-- **Memory**: Elroy automatically recalls relevant information from past conversations
 - **Goal Tracking System**: Create, update, and track personal and professional goals
-- **Codebase Understanding**: Ingest your repositories to give Elroy context about your projects
+- **Memory**: Elroy automatically recalls relevant information from past conversations
+- **Document Understanding**: Ingest your docs to give Elroy context about your projects
 - **Simple Scripting**: Automate tasks with minimal configuration overhead
 - **CLI Tool Interface**: Quickly review memories or jot notes for Elroy to remember
 - **MCP Server**: Surface conversation memories to other tools via Model Context Protocol
