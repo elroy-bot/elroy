@@ -63,10 +63,13 @@ class DMResponder(DiscordResponder):
 
     @cached_property
     def ai(self) -> Elroy:
-        from ...elroy.tools.developer import tail_elroy_logs
+        from elroy.tools.developer import tail_elroy_logs
 
         return Elroy(
-            token=self.user_token, show_internal_thought=True, formatter=MarkdownFormatter(), exclude_tools=[tail_elroy_logs.__name__]
+            token=self.user_token,
+            show_internal_thought=True,
+            formatter=MarkdownFormatter(),
+            exclude_tools=[tail_elroy_logs.__name__],
         )
 
 
