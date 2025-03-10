@@ -27,8 +27,7 @@ from ...utils.clock import db_time_to_local
 from ...utils.utils import logged_exec_time
 from ..memories.operations import formulate_memory
 from ..memories.tools import create_memory
-from ..user.operations import get_or_create_user_preference
-from ..user.queries import do_get_user_preferred_name, get_persona
+from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
 from .data_models import ContextMessage
 from .queries import get_context_messages
 from .transforms import (
@@ -123,7 +122,6 @@ def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) 
 
 
 def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Iterable[ContextMessage]) -> ContextMessage:
-    user_preference = get_or_create_user_preference(ctx)
 
     context_messages = list(context_messages_iter)
 
@@ -135,10 +133,16 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
     if len([msg for msg in context_messages if msg.role == USER]) == 0:
         conversation_summary = None
     else:
+        assistant_name = get_assistant_name(ctx)
+
         conversation_summary = pipe(
             context_messages,
-            lambda msgs: format_context_messages(msgs, user_preference.preferred_name),
-            partial(summarize_conversation, ctx.chat_model),
+            lambda msgs: format_context_messages(
+                msgs,
+                do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+                assistant_name,
+            ),
+            partial(summarize_conversation, ctx.chat_model, assistant_name),
             lambda _: f"<conversational_summary>{_}</conversational_summary>",
             str,
         )
@@ -165,10 +169,13 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
     logging.info("Refreshing context")
     context_message_list = list(context_messages)
 
-    user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
-
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
-    memory_title, memory_text = formulate_memory(ctx.chat_model, user_preferred_name, context_message_list)
+    memory_title, memory_text = formulate_memory(
+        ctx.chat_model,
+        do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+        get_assistant_name(ctx),
+        context_message_list,
+    )
     create_memory(ctx, memory_title, memory_text)
 
     pipe(

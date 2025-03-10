@@ -334,6 +334,7 @@ class Elroy:
 
         Args:
             input (str): The message to process
+            enable_tools (str): Whether to allow tool calls for the message
 
         Returns:
             Generator[str, None, None]: Generator yielding response chunks

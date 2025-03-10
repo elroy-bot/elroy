@@ -7,7 +7,7 @@ MEMORY_WORD_COUNT_LIMIT = 300
 # In system persona, the string to replace with the actual user alias
 USER_ALIAS_STRING = "$USER_ALIAS"
 
-ASSISTANT_ALIAS_STRING = "$ASSISTANT_ALIAS"
+ASSISTANT_ALIAS_STRING = "$ASSISTANT_ALIAS"  # String to replace in system instructions
 
 SYSTEM_INSTRUCTION_LABEL = "<system_instruction>"
 SYSTEM_INSTRUCTION_LABEL_END = "</system_instruction>"
