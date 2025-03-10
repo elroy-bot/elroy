@@ -54,7 +54,7 @@ class Elroy:
         persona: Optional[str] = None,
         assistant_name: Optional[str] = None,
         database_url: Optional[str] = None,
-        check_db_migration: bool = True,
+        check_db_migration: bool = False,
         exclude_tools: List[str] = [],  # any tools which should not be loaded
         **kwargs,
     ):
