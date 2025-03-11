@@ -59,9 +59,19 @@ docs = [
     "mkdocs-rss-plugin",
 ]
 
+web-api = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.23.2",
+    "python-jose>=3.3.0",
+    "passlib>=1.7.4",
+    "python-multipart>=0.0.6",
+    "bcrypt>=4.0.1",
+]
+
 [project.scripts]
 elroy = "elroy.cli.main:app"
 elroy_mcp = "elroy.mcp.server:main"
+elroy_web_api = "elroy.web_api.run:main"
 
 [tool.pyright]
 include = [

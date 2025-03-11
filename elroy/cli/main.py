@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import sys
 from bdb import BdbQuit
 from datetime import datetime
@@ -600,6 +601,29 @@ def ingest_doc(
 
 mcp_app = typer.Typer(help="MCP server commands")
 app.add_typer(mcp_app, name="mcp")
+
+# Web API commands
+web_api_app = typer.Typer(help="Web API server commands")
+app.add_typer(web_api_app, name="web-api")
+
+
+@web_api_app.command(name="run")
+def web_api_run(
+    host: str = typer.Option("127.0.0.1", "--host", help="Host to bind the server to (default: 127.0.0.1)"),
+    port: int = typer.Option(8000, "--port", help="Port to bind the server to (default: 8000)"),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload on code changes"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug mode"),
+    workers: int = typer.Option(1, "--workers", help="Number of worker processes (default: 1)"),
+):
+    """Run the Elroy Web API server."""
+    import uvicorn
+
+    # Set environment variables for configuration
+    if debug:
+        os.environ["ELROY_API_DEBUG"] = "1"
+
+    # Run the server
+    uvicorn.run("elroy.web_api.main:app", host=host, port=port, reload=reload, workers=workers, log_level="debug" if debug else "info")
 
 
 @mcp_app.command(name="print-config")
