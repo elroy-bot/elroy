@@ -23,7 +23,7 @@ dependencies = [
     "sqlmodel>=0.0.21",
     "docstring-parser>=0.16",
     "pygments>=2.18.0",
-    "litellm>=1.60",
+    "litellm[proxy]>=1.60",
     "typer>=0.12.5",
     "semantic-version>=2.10.0",
     "aider-chat>=0.74.2",
@@ -31,6 +31,10 @@ dependencies = [
     "scikit-learn>=1.6.0",
     "lock>=2018.3.25.2110",
     "mcp",
+    "arize-phoenix-otel",
+    "openinference-semantic-conventions",
+    "openinference-instrumentation",
+    "openinference-instrumentation-litellm",
 ]
 
 [project.optional-dependencies]

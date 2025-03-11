@@ -668,4 +668,6 @@ def get_io(**kwargs) -> ElroyIO:
 
 
 if __name__ == "__main__":
+    # Get telemetry parameters from environment variables if available
+
     app()

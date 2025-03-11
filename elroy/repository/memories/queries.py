@@ -6,6 +6,7 @@ from sqlmodel import select
 from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
+from ... import tracer_provider
 from ...config.constants import SYSTEM
 from ...config.ctx import ElroyContext
 from ...db.db_models import (
@@ -16,7 +17,6 @@ from ...db.db_models import (
     get_memory_source_class,
 )
 from ...llm.client import get_embedding, query_llm
-from ...utils.utils import logged_exec_time
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
 from ..context_messages.transforms import (
     ContextMessageSetWithMessages,
@@ -30,6 +30,8 @@ from ..recall.queries import (
 from ..recall.transforms import to_recalled_memory_metadata
 from ..user.queries import get_assistant_name
 from ..user.tools import get_user_preferred_name
+
+tracer = tracer_provider.get_tracer(__name__)
 
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> Optional[MemorySource]:
@@ -77,6 +79,7 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
     )
 
 
+@tracer.chain
 def get_relevant_memories(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
     query_embedding = get_embedding(ctx.embedding_model, query)
 
@@ -105,7 +108,7 @@ def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Optional[Memory]:
     ).first()
 
 
-@logged_exec_time
+@tracer.chain
 def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     message_content = pipe(
         context_messages,
@@ -139,6 +142,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
         return get_fast_recall(new_recalled_memories)
 
 
+@tracer.chain
 def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessage]:
     """Add recalled content to context, unprocessed."""
     return pipe(
@@ -155,7 +159,7 @@ def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessa
     )  # type: ignore
 
 
-@logged_exec_time
+@tracer.chain
 def get_reflective_recall(
     ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]
 ) -> List[ContextMessage]:

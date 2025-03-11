@@ -7,10 +7,13 @@ from operator import add
 from typing import AsyncIterator, Iterator, Optional
 
 from colorama import init
+from openinference.semconv.trace import SpanAttributes
+from opentelemetry import trace
 from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
+from .. import tracer_provider
 from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
 from ..config.constants import EXIT, SYSTEM, USER
 from ..config.ctx import ElroyContext
@@ -40,6 +43,10 @@ from ..repository.user.queries import (
 )
 from ..repository.user.tools import set_user_preferred_name
 from ..utils.utils import datetime_to_string, run_in_background
+
+tracer = tracer_provider.get_tracer(__name__)
+
+tracer = trace.get_tracer(__name__)
 
 
 def handle_message_stdio(
@@ -93,6 +100,7 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
 
 
+@tracer.start_as_current_span(name="agent", attributes={SpanAttributes.OPENINFERENCE_SPAN_KIND: "agent"})
 def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
     init(autoreset=True)
 
