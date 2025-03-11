@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
+from .. import tracer_provider
 from ..config.constants import (
     ASSISTANT,
     MAX_CHAT_COMPLETION_RETRY_COUNT,
@@ -21,7 +22,10 @@ from ..config.models_aliases import get_fallback_model
 from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
+tracer = tracer_provider.get_tracer(__name__)
 
+
+@tracer.chain
 def generate_chat_completion_message(
     chat_model: ChatModel,
     context_messages: List[ContextMessage],
@@ -145,12 +149,14 @@ def generate_chat_completion_message(
             raise e
 
 
+@tracer.chain
 def query_llm(model: ChatModel, prompt: str, system: str) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return _query_llm(model=model, prompt=prompt, system=system)
 
 
+@tracer.chain
 def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")

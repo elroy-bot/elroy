@@ -6,6 +6,7 @@ from typing import Iterator, List, Optional, Union
 from toolz import merge, pipe
 from toolz.curried import valfilter
 
+from . import tracer_provider
 from .cli.slash_commands import get_casted_value, get_prompt_for_param
 from .config.constants import ASSISTANT, SYSTEM, TOOL, USER, RecoverableToolError
 from .config.ctx import ElroyContext
@@ -25,7 +26,10 @@ from .repository.context_messages.validations import Validator
 from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
+tracer = tracer_provider.get_tracer(__name__)
 
+
+@tracer.chain
 def process_message(
     role: str,
     ctx: ElroyContext,
@@ -111,6 +115,7 @@ def process_message(
             break
 
 
+@tracer.chain
 def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> AssistantToolResult:
     function_to_call = ctx.tool_registry.get(function_call.function_name)
     if not function_to_call:
@@ -137,6 +142,7 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> Assist
         )
 
 
+@tracer.chain
 def invoke_slash_command(
     io: CliIO, ctx: ElroyContext, msg: str
 ) -> Union[str, Iterator[Union[AssistantResponse, AssistantInternalThought, AssistantToolResult]]]:

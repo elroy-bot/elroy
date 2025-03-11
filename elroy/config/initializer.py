@@ -1,3 +1,5 @@
+import logging
+import uuid
 from contextlib import contextmanager
 
 from ..io.base import ElroyIO
@@ -16,18 +18,27 @@ def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool,
             ctx.db_manager.check_connection()
             ctx.db_manager.migrate_if_needed()
 
-        with ctx.db_manager.open_session() as dbsession:
-            ctx.set_db_session(dbsession)
+        session_id = str(uuid.uuid4())
+        logging.info(f"OpenTelemetry instrumentation enabled with session ID: {session_id}")
+        from openinference.instrumentation import using_session
 
-            if not get_user_id_if_exists(dbsession, ctx.user_token):
-                if should_onboard_interactive and isinstance(io, CliIO):
-                    onboard_interactive(io, ctx)
-                else:
-                    onboard_non_interactive(ctx)
+        with using_session(session_id=session_id):
+            import litellm
 
-            verify_inline_tool_call_instruct_matches_ctx(ctx)
+            litellm.callbacks = ["otel"]
 
-            yield
+            with ctx.db_manager.open_session() as dbsession:
+                ctx.set_db_session(dbsession)
+
+                if not get_user_id_if_exists(dbsession, ctx.user_token):
+                    if should_onboard_interactive and isinstance(io, CliIO):
+                        onboard_interactive(io, ctx)
+                    else:
+                        onboard_non_interactive(ctx)
+
+                verify_inline_tool_call_instruct_matches_ctx(ctx)
+
+                yield
 
     finally:
         ctx.unset_db_session()

@@ -9,10 +9,13 @@ from sklearn.cluster import DBSCAN
 from toolz import pipe
 from toolz.curried import map, take
 
+from ... import tracer_provider
 from ...config.ctx import ElroyContext
 from ...db.db_models import Memory
 from ...llm.client import query_llm
 from .prompts import MEMORY_CONSOLIDATION
+
+tracer = tracer_provider.get_tracer(__name__)
 
 
 @dataclass
@@ -103,6 +106,7 @@ class MemoryCluster:
         return MemoryCluster(memories=[self.memories[i] for i in closest_indices], embeddings=self.embeddings[closest_indices])
 
 
+@tracer.chain
 def consolidate_memories(ctx: ElroyContext):
     """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
     from .queries import get_active_memories
@@ -169,6 +173,7 @@ def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClus
     return clusters
 
 
+@tracer.chain
 def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: List[Memory]):
     from .operations import do_create_memory, mark_inactive
 
