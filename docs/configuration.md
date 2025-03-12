@@ -10,7 +10,7 @@ Elroy's configuration can be specified in three ways, in order of precedence:
 
 The configuration file location can be specified with the `--config` flag or defaults to `~/.config/elroy/config.yaml`.
 
-For default config values, see [defaults.yml](https://github.com/elroy-bot/elroy/blob/main/elroy/defaults.yml)
+For default config values, see [defaults.yml](https://github.com/elroy-bot/elroy/blob/stable/elroy/defaults.yml)
 
 ## Parameter Naming Conventions
 
@@ -43,7 +43,7 @@ chat_model: gpt-4o
 debug: true
 ```
 
-## Commands
+## CLI Commands
 
 | Command | Description |
 |---------|-------------|
