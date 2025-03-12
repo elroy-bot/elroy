@@ -27,6 +27,8 @@ from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
 
+# something like:
+# @tracer.start_as_current_span(name="agent", attributes={SpanAttributes.OPENINFERENCE_SPAN_KIND: "agent"})
 @tracer.chain
 def process_message(
     role: str,
