@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Discord bot for announcing Elroy releases.
 """
