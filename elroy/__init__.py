@@ -34,5 +34,3 @@ tracer = register(
     verbose=False,
     set_global_tracer_provider=False,  # Prevent "Overriding of current TracerProvider is not allowed" error
 ).get_tracer(__name__)
-
-

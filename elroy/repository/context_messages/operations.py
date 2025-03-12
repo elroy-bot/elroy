@@ -40,8 +40,6 @@ from .transforms import (
 )
 
 
-
-
 def persist_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> Iterator[int]:
     for msg in messages:
         if not msg.content and not msg.tool_calls:

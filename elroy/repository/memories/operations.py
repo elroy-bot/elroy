@@ -22,8 +22,6 @@ from ..context_messages.queries import get_or_create_context_message_set
 from .consolidation import consolidate_memories
 
 
-
-
 def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker:
     tracker = ctx.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == ctx.user_id)).one_or_none()
 

@@ -1,10 +1,8 @@
 import asyncio
 import logging
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from functools import partial, wraps
 from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
 
 from ..config.ctx import ElroyContext
@@ -30,24 +28,6 @@ def run_async(thread_pool: ThreadPoolExecutor, coro):
 def is_blank(input: Optional[str]) -> bool:
     assert isinstance(input, (str, type(None)))
     return not input or not input.strip()
-
-
-def logged_exec_time(func, name: Optional[str] = None):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        elapsed_time = time.time() - start_time
-
-        if name:
-            func_name = name
-        else:
-            func_name = func.__name__ if not isinstance(func, partial) else func.func.__name__
-
-        logging.info(f"Function '{func_name}' executed in {elapsed_time:.4f} seconds")
-        return result
-
-    return wrapper
 
 
 def first_or_none(iterable: Iterator[T]) -> Optional[T]:

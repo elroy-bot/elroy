@@ -27,7 +27,6 @@ from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
 
-
 @tracer.chain
 def process_message(
     role: str,

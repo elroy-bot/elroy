@@ -32,8 +32,6 @@ from ..user.queries import get_assistant_name
 from ..user.tools import get_user_preferred_name
 
 
-
-
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> Optional[MemorySource]:
     source_class = get_memory_source_class(source_type)
 
