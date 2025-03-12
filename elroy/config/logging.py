@@ -1,6 +1,7 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
+import warnings
 
 import litellm
 
@@ -8,6 +9,10 @@ from .paths import get_log_file_path
 
 
 def setup_logging():
+    warnings.filterwarnings("ignore", message="Valid config keys have changed in V2")
+
+
+
     log_file_path = get_log_file_path()
     # Create the directory for the log file if it doesn't exist
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
@@ -25,7 +30,7 @@ def setup_logging():
     )
 
     # Silence some noisy loggers
-    for name in ["openai", "httpx", "litellm"]:
+    for name in ["openai", "httpx", "litellm", "opentelemetry", "phoenix", "openinference", "opentelemetry"]:
         logging.getLogger(name).setLevel(logging.WARNING)
 
     # Disable liteLLM's default logging
