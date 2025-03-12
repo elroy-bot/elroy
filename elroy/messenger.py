@@ -6,7 +6,7 @@ from typing import Iterator, List, Optional, Union
 from toolz import merge, pipe
 from toolz.curried import valfilter
 
-from . import tracer_provider
+from . import tracer
 from .cli.slash_commands import get_casted_value, get_prompt_for_param
 from .config.constants import ASSISTANT, SYSTEM, TOOL, USER, RecoverableToolError
 from .config.ctx import ElroyContext
@@ -26,7 +26,6 @@ from .repository.context_messages.validations import Validator
 from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
-tracer = tracer_provider.get_tracer(__name__)
 
 
 @tracer.chain

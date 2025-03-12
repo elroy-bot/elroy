@@ -1,7 +1,7 @@
 __version__ = "0.0.76"
 
-import os
 import logging
+import os
 
 from importlib_resources import files
 
@@ -28,8 +28,11 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 os.environ["PHOENIX_QUIET"] = "true"
 from phoenix.otel import register
 
-tracer_provider = register(
+tracer = register(
     project_name="elroy",
     auto_instrument=True,  # Default is 'default'  # See 'Trace all calls made to a library' below
     verbose=False,
-)
+    set_global_tracer_provider=False,  # Prevent "Overriding of current TracerProvider is not allowed" error
+).get_tracer(__name__)
+
+

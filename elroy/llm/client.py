@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
-from .. import tracer_provider
+from .. import tracer
 from ..config.constants import (
     ASSISTANT,
     MAX_CHAT_COMPLETION_RETRY_COUNT,
@@ -22,7 +22,7 @@ from ..config.models_aliases import get_fallback_model
 from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
-tracer = tracer_provider.get_tracer(__name__)
+
 
 
 @tracer.chain

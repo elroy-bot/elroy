@@ -9,13 +9,13 @@ from sklearn.cluster import DBSCAN
 from toolz import pipe
 from toolz.curried import map, take
 
-from ... import tracer_provider
+from ... import tracer
 from ...config.ctx import ElroyContext
 from ...db.db_models import Memory
 from ...llm.client import query_llm
 from .prompts import MEMORY_CONSOLIDATION
 
-tracer = tracer_provider.get_tracer(__name__)
+
 
 
 @dataclass

@@ -5,7 +5,7 @@ from typing import Iterable, List, Optional, Tuple
 
 from sqlmodel import select
 
-from ... import tracer_provider
+from ... import tracer
 from ...config.constants import MAX_MEMORY_LENGTH, SYSTEM, user_only_tool
 from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
@@ -21,7 +21,7 @@ from ..context_messages.data_models import ContextMessage
 from ..context_messages.queries import get_or_create_context_message_set
 from .consolidation import consolidate_memories
 
-tracer = tracer_provider.get_tracer(__name__)
+
 
 
 def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker:

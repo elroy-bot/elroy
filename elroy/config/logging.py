@@ -1,7 +1,7 @@
 import logging
 import os
-from logging.handlers import RotatingFileHandler
 import warnings
+from logging.handlers import RotatingFileHandler
 
 import litellm
 
@@ -10,8 +10,6 @@ from .paths import get_log_file_path
 
 def setup_logging():
     warnings.filterwarnings("ignore", message="Valid config keys have changed in V2")
-
-
 
     log_file_path = get_log_file_path()
     # Create the directory for the log file if it doesn't exist

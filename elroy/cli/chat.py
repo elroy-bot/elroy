@@ -13,7 +13,7 @@ from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
-from .. import tracer_provider
+from .. import tracer
 from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
 from ..config.constants import EXIT, SYSTEM, USER
 from ..config.ctx import ElroyContext
@@ -44,9 +44,8 @@ from ..repository.user.queries import (
 from ..repository.user.tools import set_user_preferred_name
 from ..utils.utils import datetime_to_string, run_in_background
 
-tracer = tracer_provider.get_tracer(__name__)
 
-tracer = trace.get_tracer(__name__)
+
 
 
 def handle_message_stdio(
