@@ -6,7 +6,7 @@ from sqlmodel import select
 from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
-from ... import tracer_provider
+from ... import tracer
 from ...config.constants import SYSTEM
 from ...config.ctx import ElroyContext
 from ...db.db_models import (
@@ -31,7 +31,7 @@ from ..recall.transforms import to_recalled_memory_metadata
 from ..user.queries import get_assistant_name
 from ..user.tools import get_user_preferred_name
 
-tracer = tracer_provider.get_tracer(__name__)
+
 
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> Optional[MemorySource]:

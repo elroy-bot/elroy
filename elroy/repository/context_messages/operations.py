@@ -9,7 +9,7 @@ from sqlmodel import select
 from toolz import concatv, pipe
 from toolz.curried import tail
 
-from ... import tracer_provider
+from ... import tracer
 from ...config.constants import (
     ASSISTANT,
     FORMATTING_INSTRUCT,
@@ -39,7 +39,7 @@ from .transforms import (
     replace_system_instruction,
 )
 
-tracer = tracer_provider.get_tracer(__name__)
+
 
 
 def persist_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> Iterator[int]:
