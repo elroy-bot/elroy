@@ -16,8 +16,6 @@ from ...llm.client import query_llm
 from .prompts import MEMORY_CONSOLIDATION
 
 
-
-
 @dataclass
 class MemoryCluster:
     memories: List[Memory]

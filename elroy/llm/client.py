@@ -23,8 +23,6 @@ from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
 
-
-
 @tracer.chain
 def generate_chat_completion_message(
     chat_model: ChatModel,

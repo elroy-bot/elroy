@@ -25,7 +25,7 @@ def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool,
         with using_session(session_id=session_id):
             import litellm
 
-            litellm.callbacks = ["otel"]
+            litellm.callbacks = ["otel"]  # noqa F841
 
             with ctx.db_manager.open_session() as dbsession:
                 ctx.set_db_session(dbsession)

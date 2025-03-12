@@ -8,7 +8,6 @@ from typing import AsyncIterator, Iterator, Optional
 
 from colorama import init
 from openinference.semconv.trace import SpanAttributes
-from opentelemetry import trace
 from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
@@ -43,9 +42,6 @@ from ..repository.user.queries import (
 )
 from ..repository.user.tools import set_user_preferred_name
 from ..utils.utils import datetime_to_string, run_in_background
-
-
-
 
 
 def handle_message_stdio(

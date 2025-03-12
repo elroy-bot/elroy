@@ -30,8 +30,14 @@ def setup_logging():
     )
 
     # Silence some noisy loggers
-    for name in ["openai", "httpx", "litellm", "opentelemetry", "phoenix", "openinference", "opentelemetry"]:
+    for name in ["openai", "httpx", "litellm", "phoenix", "openinference", "opentelemetry"]:
         logging.getLogger(name).setLevel(logging.WARNING)
+
+    logging.getLogger("opentelemetry").setLevel(logging.ERROR)
+    # logging.getLogger('opentelemetry').setLevel(logging.ERROR)
+    # logging.getLogger('opentelemetry.sdk').setLevel(logging.ERROR)
+    # logging.getLogger('opentelemetry.exporter').setLevel(logging.ERROR)
+    # logging.getLogger('opentelemetry.instrumentation').setLevel(logging.ERROR)
 
     # Disable liteLLM's default logging
     litellm.set_verbose = False  # type: ignore # noqa F841
