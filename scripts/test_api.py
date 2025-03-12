@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from elroy.api import Elroy
 
 if __name__ == "__main__":
