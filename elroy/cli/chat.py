@@ -137,9 +137,9 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
                 user_input,
             )
 
-        io.rule()
-        print_memory_panel(io, ctx)
-        run_in_background(refresh_context_if_needed, ctx)
+            io.rule()
+            print_memory_panel(io, ctx)
+            run_in_background(refresh_context_if_needed, ctx)
 
 
 def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
