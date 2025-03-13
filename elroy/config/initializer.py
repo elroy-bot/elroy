@@ -1,3 +1,5 @@
+import atexit
+import io
 import logging
 import sys
 import traceback
@@ -9,10 +11,14 @@ from ..io.cli import CliIO
 from .ctx import ElroyContext
 
 
-class StdoutTracer:
+class StdoutTracer(io.TextIOBase):
     def __init__(self, original, log_file_path):
+        super().__init__()
         self.original = original
         self.log_file = open(log_file_path, "a")  # Open your log file in append mode
+        
+        # Register cleanup function to ensure log file is closed on exit
+        atexit.register(self.close)
 
     def write(self, message):
         # Capture stack trace and get the latest frame where the print originated
@@ -33,16 +39,35 @@ class StdoutTracer:
 
         # Also write the message to the original stdout
         self.original.write(message)
+        
+        return len(message)
 
     def flush(self):
         self.original.flush()
         self.log_file.flush()
 
     def close(self):
-        self.log_file.close()
+        if not self.log_file.closed:
+            self.log_file.close()
 
     def isatty(self):
-        return True
+        return self.original.isatty()
+        
+    def fileno(self):
+        return self.original.fileno()
+        
+    def seekable(self):
+        return self.original.seekable()
+        
+    def readable(self):
+        return self.original.readable()
+        
+    def writable(self):
+        return self.original.writable()
+        
+    def __getattr__(self, name):
+        # Delegate any other methods to the original stdout
+        return getattr(self.original, name)
 
 
 # Set the tracer and specify your log file path
