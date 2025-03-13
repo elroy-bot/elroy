@@ -1,10 +1,52 @@
 import logging
+import sys
+import traceback
 import uuid
 from contextlib import contextmanager
 
 from ..io.base import ElroyIO
 from ..io.cli import CliIO
 from .ctx import ElroyContext
+
+
+class StdoutTracer:
+    def __init__(self, original, log_file_path):
+        self.original = original
+        self.log_file = open(log_file_path, "a")  # Open your log file in append mode
+
+    def write(self, message):
+        # Capture stack trace and get the latest frame where the print originated
+        stack = traceback.extract_stack()
+        # Adjust the index to get the correct frame (might be -3 or -4 based on the callstack)
+        log_frame = stack[-3]
+
+        # Get information from the frame
+        filename = log_frame.filename
+        lineno = log_frame.lineno
+        function_name = log_frame.name
+
+        # Format trace information
+        trace_info = f"Trace from {filename}, line {lineno}, in {function_name}:{message.strip()}\n"
+
+        # Write trace information to the log file
+        self.log_file.write(trace_info)
+
+        # Also write the message to the original stdout
+        self.original.write(message)
+
+    def flush(self):
+        self.original.flush()
+        self.log_file.flush()
+
+    def close(self):
+        self.log_file.close()
+
+    def isatty(self):
+        return True
+
+
+# Set the tracer and specify your log file path
+sys.stdout = StdoutTracer(sys.stdout, "stdout_trace.log")
 
 
 @contextmanager
