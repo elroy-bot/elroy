@@ -30,7 +30,7 @@ def setup_logging():
     )
 
     # Silence some noisy loggers
-    for name in ["openai", "httpx", "litellm", "phoenix", "openinference", "opentelemetry"]:
+    for name in ["openai", "httpx", "litellm", "phoenix", "openinference", "opentelemetry", "openinference", "openinference.instrumentation.logging"]:
         logging.getLogger(name).setLevel(logging.WARNING)
 
     logging.getLogger("opentelemetry").setLevel(logging.ERROR)
