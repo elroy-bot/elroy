@@ -12,6 +12,8 @@ from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
+from ..config.logging import setup_logging
+
 from .. import tracer
 from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
 from ..config.constants import EXIT, SYSTEM, USER
