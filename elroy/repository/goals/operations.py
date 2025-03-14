@@ -1,11 +1,11 @@
 # Should have param for checking if a similar goal already exists
-import logging
 from typing import Optional
 
 from sqlmodel import select
 
-from ...config.constants import SYSTEM, GoalAlreadyExistsError, GoalDoesNotExistError
-from ...config.ctx import ElroyContext
+from ...core.constants import SYSTEM, GoalAlreadyExistsError, GoalDoesNotExistError
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
 from ...db.db_models import Goal
 from ...utils.clock import get_utc_now, string_to_timedelta
 from ...utils.utils import is_blank
@@ -18,6 +18,8 @@ from ..recall.operations import (
 )
 from ..recall.transforms import to_recalled_memory_metadata
 from .queries import get_active_goals, get_db_goal_by_name
+
+logger = get_logger()
 
 
 def do_create_goal(
@@ -92,8 +94,8 @@ def update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, sta
         raise GoalDoesNotExistError(goal_name, [g.name for g in get_active_goals(ctx)])
     assert isinstance(goal, Goal)
 
-    logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
-    logging.info(f"Current status updates: {goal.status_updates}")
+    logger.info(f"Updating goal {goal_name} for user {ctx.user_id}")
+    logger.info(f"Current status updates: {goal.status_updates}")
 
     # Get current status updates and append new one
     status_updates = goal.get_status_updates()
@@ -115,7 +117,7 @@ def update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, sta
     else:
         add_to_context(ctx, goal)
 
-    logging.info(f"Updated status updates: {goal.status_updates}")
+    logger.info(f"Updated status updates: {goal.status_updates}")
 
     ctx.db.commit()
     ctx.db.refresh(goal)

@@ -1,7 +1,7 @@
 from typing import Optional
 
-from ...config.constants import UNKNOWN, tool
-from ...config.ctx import ElroyContext
+from ...core.constants import UNKNOWN, tool
+from ...core.ctx import ElroyContext
 from .operations import get_or_create_user_preference
 from .queries import do_get_user_preferred_name
 

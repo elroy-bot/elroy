@@ -5,7 +5,9 @@ from typing import Any, Dict, List, Optional, Union
 from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
-from ..config.constants import (
+from ..config.llm import ChatModel, EmbeddingModel
+from ..config.models_aliases import get_fallback_model
+from ..core.constants import (
     ASSISTANT,
     MAX_CHAT_COMPLETION_RETRY_COUNT,
     SYSTEM,
@@ -16,12 +18,15 @@ from ..config.constants import (
     MissingToolCallMessageError,
     Provider,
 )
-from ..config.llm import ChatModel, EmbeddingModel
-from ..config.models_aliases import get_fallback_model
+from ..core.logging import get_logger
+from ..core.tracing import tracer
 from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
+logger = get_logger()
 
+
+@tracer.chain
 def generate_chat_completion_message(
     chat_model: ChatModel,
     context_messages: List[ContextMessage],
@@ -127,7 +132,7 @@ def generate_chat_completion_message(
             else:
                 fallback_model = get_fallback_model(chat_model)
                 if fallback_model:
-                    logging.info(
+                    logger.info(
                         f"Rate limit or internal server error for model {chat_model.name}, falling back to model {fallback_model.name}"
                     )
                     return generate_chat_completion_message(
@@ -201,7 +206,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
             new_length = int(len(text) / 2)
             text = text[-new_length:]
             embedding_kwargs["input"] = [text]
-            logging.info(f"Context window exceeded, retrying with shorter message of length {new_length}")
+            logger.info(f"Context window exceeded, retrying with shorter message of length {new_length}")
     raise RuntimeError(f"Context window exceeded despite {max_attempts} attempt to shorten input")
 
 

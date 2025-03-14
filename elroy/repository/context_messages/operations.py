@@ -1,5 +1,4 @@
 import json
-import logging
 import time
 import traceback
 from functools import partial, wraps
@@ -9,7 +8,8 @@ from sqlmodel import select
 from toolz import concatv, pipe
 from toolz.curried import tail
 
-from ...config.constants import (
+from ...config.paths import get_save_dir
+from ...core.constants import (
     ASSISTANT,
     FORMATTING_INSTRUCT,
     SYSTEM,
@@ -18,13 +18,13 @@ from ...config.constants import (
     USER,
     user_only_tool,
 )
-from ...config.ctx import ElroyContext
-from ...config.paths import get_save_dir
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
+from ...core.tracing import tracer
 from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
 from ...utils.clock import db_time_to_local
-from ...utils.utils import logged_exec_time
 from ..memories.operations import formulate_memory
 from ..memories.tools import create_memory
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
@@ -39,11 +39,13 @@ from .transforms import (
     replace_system_instruction,
 )
 
+logger = get_logger()
+
 
 def persist_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> Iterator[int]:
     for msg in messages:
         if not msg.content and not msg.tool_calls:
-            logging.info(f"Skipping message with no content or tool calls: {msg}\n{traceback.format_exc()}")
+            logger.info(f"Skipping message with no content or tool calls: {msg}\n{traceback.format_exc()}")
         elif msg.id:
             yield msg.id
         else:
@@ -95,7 +97,7 @@ def retry_on_integrity_error(fn: Callable[..., T]) -> Callable[..., T]:
                 else:
                     ctx.db.rollback()
                     time.sleep(0.1 * 2**attempt)
-                    logging.info(f"Retrying on integrity error (attempt {attempt + 1}/{max_retries})")
+                    logger.info(f"Retrying on integrity error (attempt {attempt + 1}/{max_retries})")
         return fn(ctx, *args, **kwargs)
 
     return wrapper
@@ -164,9 +166,9 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
     )
 
 
-@logged_exec_time
+@tracer.chain
 def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
-    logging.info("Refreshing context")
+    logger.info("Refreshing context")
     context_message_list = list(context_messages)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
@@ -307,7 +309,7 @@ def reset_messages(ctx: ElroyContext) -> str:
     Returns:
         str: The result of the context reset
     """
-    logging.info("Resetting messages: Dropping all conversation messages and recalculating system message")
+    logger.info("Resetting messages: Dropping all conversation messages and recalculating system message")
 
     replace_context_messages(
         ctx,

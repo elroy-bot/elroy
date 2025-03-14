@@ -10,8 +10,8 @@ from toolz.curried import assoc, dissoc, itemfilter, keymap, valfilter, valmap
 
 from ..api import Elroy
 from ..cli.options import get_env_var_name
-from ..config.ctx import ElroyContext
 from ..config.paths import get_home_dir
+from ..core.ctx import ElroyContext
 
 
 def get_mcp_config(local: bool, ctx: ElroyContext) -> Dict[str, Any]:

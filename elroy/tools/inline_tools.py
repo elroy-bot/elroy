@@ -1,9 +1,11 @@
-import logging
 from typing import Any, Dict, List
 
-from ..config.ctx import ElroyContext
+from ..core.ctx import ElroyContext
+from ..core.logging import get_logger
 
 TOOL_CALL_INSTRUCTION_OPEN_TAG = "<tool_call_instructions>"
+
+logger = get_logger()
 
 
 def verify_inline_tool_call_instruct_matches_ctx(ctx: ElroyContext) -> None:
@@ -15,16 +17,16 @@ def verify_inline_tool_call_instruct_matches_ctx(ctx: ElroyContext) -> None:
     system_msg = get_current_system_instruct(ctx)
 
     if system_msg is None or system_msg.content is None:
-        logging.warning("System instruct message is missing, refreshing system instruct")
+        logger.warning("System instruct message is missing, refreshing system instruct")
         refresh_system_instructions(ctx)
     elif ctx.inline_tool_calls and not TOOL_CALL_INSTRUCTION_OPEN_TAG in system_msg.content:
-        logging.info("Inline tool calls enabled but instruction not present in system instruct, refreshing system instruct")
+        logger.info("Inline tool calls enabled but instruction not present in system instruct, refreshing system instruct")
         refresh_system_instructions(ctx)
     elif not ctx.inline_tool_calls and TOOL_CALL_INSTRUCTION_OPEN_TAG in system_msg.content:
-        logging.info("Inline tool calls disabled but instruction present in system instruct, refreshing system instruct")
+        logger.info("Inline tool calls disabled but instruction present in system instruct, refreshing system instruct")
         refresh_system_instructions(ctx)
     else:
-        logging.info("System instruct message matches startup settings")
+        logger.info("System instruct message matches startup settings")
 
 
 def inline_tool_instruct(schemas: List[Dict[str, Any]]) -> str:

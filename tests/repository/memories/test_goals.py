@@ -6,7 +6,7 @@ from tests.utils import (
     quiz_assistant_bool,
 )
 
-from elroy.config.ctx import ElroyContext
+from elroy.core.ctx import ElroyContext
 from elroy.db.db_models import Goal
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.context_messages.queries import get_context_messages

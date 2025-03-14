@@ -3,7 +3,7 @@ from typing import Iterator, List, Optional, Union
 
 from sqlmodel import select
 
-from ...config.ctx import ElroyContext
+from ...core.ctx import ElroyContext
 from ...db.db_models import DocumentExcerpt, SourceDocument
 
 

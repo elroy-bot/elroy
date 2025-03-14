@@ -1,8 +1,9 @@
-import logging
 import traceback
 from bdb import BdbQuit
 from datetime import datetime, timedelta
 from functools import partial
+from itertools import tee
+from multiprocessing import get_logger
 from operator import add
 from typing import AsyncIterator, Iterator, Optional
 
@@ -12,12 +13,14 @@ from sqlmodel import select
 from toolz import pipe
 
 from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
-from ..config.constants import EXIT, SYSTEM, USER
-from ..config.ctx import ElroyContext
+from ..core.constants import EXIT, SYSTEM, USER
+from ..core.ctx import ElroyContext
+from ..core.tracing import tracer
 from ..db.db_models import Message
 from ..io.base import ElroyIO
 from ..io.cli import CliIO
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
+from ..llm.stream_parser import collect
 from ..messenger import invoke_slash_command, process_message
 from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import (
@@ -40,6 +43,8 @@ from ..repository.user.queries import (
 )
 from ..repository.user.tools import set_user_preferred_name
 from ..utils.utils import datetime_to_string, run_in_background
+
+logger = get_logger()
 
 
 def handle_message_stdio(
@@ -88,7 +93,7 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
         local_time = earliest_today_msg.created_at.replace(tzinfo=UTC).astimezone(local_tz)
         today_summary = f"I first started chatting with {preferred_name} today at {local_time.strftime('%I:%M %p')}."
     else:
-        today_summary = f"I haven't chatted with {preferred_name} yet today. I should offer a brief greeting."
+        today_summary = f"I haven't chatted with {preferred_name} yet today. I should offer a brief greeting (less than 50 words)."
 
     return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
 
@@ -101,9 +106,9 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
     context_messages = Validator(ctx, get_context_messages(ctx)).validated_msgs()
 
     if disable_greeting:
-        logging.info("assistant greeting disabled")
+        logger.info("assistant greeting disabled")
     elif (get_time_since_most_recent_user_message(context_messages) or timedelta()) < ctx.min_convo_age_for_greeting:
-        logging.info(f"User has interacted within {ctx.min_convo_age_for_greeting}, skipping greeting.")
+        logger.info(f"User has interacted within {ctx.min_convo_age_for_greeting}, skipping greeting.")
     else:
         print_model_selection(io, ctx)
         do_get_user_preferred_name(ctx.db.session, ctx.user_id)
@@ -134,11 +139,12 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
                 user_input,
             )
 
-        io.rule()
-        print_memory_panel(io, ctx)
-        run_in_background(refresh_context_if_needed, ctx)
+            io.rule()
+            print_memory_panel(io, ctx)
+            run_in_background(refresh_context_if_needed, ctx)
 
 
+@tracer.chain
 def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
     if user_input.startswith("/") and role == USER:
         try:
@@ -163,7 +169,10 @@ def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input:
             ctx.db.rollback()
     else:
         try:
-            io.print_stream(process_message(role, ctx, user_input, enable_tools))
+            stream_to_print, stream_to_collect = tee(process_message(role, ctx, user_input, enable_tools))
+
+            io.print_stream(stream_to_print)
+            return collect(stream_to_collect)
         except KeyboardInterrupt:
             ctx.db.rollback()
 

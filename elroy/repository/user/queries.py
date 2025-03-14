@@ -2,8 +2,8 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from ...config.constants import ASSISTANT_ALIAS_STRING, UNKNOWN, USER_ALIAS_STRING
-from ...config.ctx import ElroyContext
+from ...core.constants import ASSISTANT_ALIAS_STRING, UNKNOWN, USER_ALIAS_STRING
+from ...core.ctx import ElroyContext
 from ...db.db_models import User
 from ...db.db_session import DbSession
 from .operations import do_get_or_create_user_preference, get_or_create_user_preference

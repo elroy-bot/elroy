@@ -1,13 +1,14 @@
 import json
-import logging
 from threading import Thread
 from typing import Iterable, List, Optional, Tuple
 
 from sqlmodel import select
 
-from ...config.constants import MAX_MEMORY_LENGTH, SYSTEM, user_only_tool
-from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
+from ...core.constants import MAX_MEMORY_LENGTH, SYSTEM, user_only_tool
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
+from ...core.tracing import tracer
 from ...db.db_models import (
     EmbeddableSqlModel,
     Memory,
@@ -19,6 +20,8 @@ from ...utils.utils import run_in_background
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.queries import get_or_create_context_message_set
 from .consolidation import consolidate_memories
+
+logger = get_logger()
 
 
 def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker:
@@ -33,23 +36,23 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
 
 
 def do_memory_consolidation_check(ctx: ElroyContext) -> Optional[Thread]:
-    logging.info("Checking memory consolidation")
+    logger.info("Checking memory consolidation")
 
     tracker = get_or_create_memory_op_tracker(ctx)
 
     tracker.memories_since_consolidation += 1
-    logging.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
+    logger.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
     thread = None
 
     if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
         # Run consolidate_memories in a background thread.
         # Note: this will reset the tracker, whether or not the background task completes.
         # This prevents infinite retries if consolidation is failing, but it might be better to fail fast here
-        logging.info("Running memory consolidation")
+        logger.info("Running memory consolidation")
         thread = run_in_background(consolidate_memories, ctx)
         tracker.memories_since_consolidation = 0
     else:
-        logging.info("Not running memory consolidation")
+        logger.info("Not running memory consolidation")
     ctx.db.add(tracker)
     ctx.db.commit()
     return thread
@@ -135,6 +138,7 @@ def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> T
     )
 
 
+@tracer.chain
 def do_create_memory(
     ctx: ElroyContext,
     name: str,

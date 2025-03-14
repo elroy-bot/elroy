@@ -1,7 +1,7 @@
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 
-from ..config.ctx import ElroyContext
+from ..core.ctx import ElroyContext
 from ..io.cli import CliIO
 from ..tools.developer import create_bug_report
 

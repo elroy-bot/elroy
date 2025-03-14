@@ -115,7 +115,7 @@ def get_function_schema(function: Callable) -> Dict:
 
     signature = inspect.signature(function)
 
-    from ..config.ctx import ElroyContext
+    from ..core.ctx import ElroyContext
 
     properties = pipe(
         signature.parameters.items(),

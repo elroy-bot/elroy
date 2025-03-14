@@ -1,4 +1,3 @@
-import logging
 import traceback
 from inspect import signature
 from typing import Iterator, List, Optional, Union
@@ -7,8 +6,10 @@ from toolz import merge, pipe
 from toolz.curried import valfilter
 
 from .cli.slash_commands import get_casted_value, get_prompt_for_param
-from .config.constants import ASSISTANT, SYSTEM, TOOL, USER, RecoverableToolError
-from .config.ctx import ElroyContext
+from .core.constants import ASSISTANT, SYSTEM, TOOL, USER, RecoverableToolError
+from .core.ctx import ElroyContext
+from .core.logging import get_logger
+from .core.tracing import tracer
 from .db.db_models import FunctionCall
 from .io.cli import CliIO
 from .llm.client import generate_chat_completion_message
@@ -25,7 +26,10 @@ from .repository.context_messages.validations import Validator
 from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
+logger = get_logger()
 
+
+@tracer.chain
 def process_message(
     role: str,
     ctx: ElroyContext,
@@ -36,7 +40,7 @@ def process_message(
     assert role in [USER, ASSISTANT, SYSTEM]
 
     if force_tool and not enable_tools:
-        logging.warning("force_tool set, but enable_tools is False. Ignoring force_tool.")
+        logger.warning("force_tool set, but enable_tools is False. Ignoring force_tool.")
 
     context_messages: List[ContextMessage] = pipe(
         get_context_messages(ctx),
@@ -137,6 +141,7 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> Assist
         )
 
 
+@tracer.chain
 def invoke_slash_command(
     io: CliIO, ctx: ElroyContext, msg: str
 ) -> Union[str, Iterator[Union[AssistantResponse, AssistantInternalThought, AssistantToolResult]]]:

@@ -1,15 +1,17 @@
-import logging
 from typing import Generator, Iterable, List
 
 from toolz import identity, pipe
 
-from ...config.constants import ASSISTANT, TOOL, USER
-from ...config.ctx import ElroyContext
+from ...core.constants import ASSISTANT, TOOL, USER
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
 from .data_models import ContextMessage
 from .inspect import has_assistant_tool_call
 from .operations import get_refreshed_system_message, replace_context_messages
 from .queries import get_context_messages
 from .transforms import is_system_instruction
+
+logger = get_logger()
 
 
 class Validator:
@@ -95,9 +97,9 @@ class Validator:
         )  # type: ignore
 
         if self.errors:
-            logging.info("Context messages have been repaired")
+            logger.info("Context messages have been repaired")
             for error in self.errors:
-                logging.info(error)
+                logger.info(error)
             replace_context_messages(self.ctx, messages)
             yield from get_context_messages(self.ctx)
         else:

@@ -1,6 +1,6 @@
 import json
-import logging
 from inspect import Parameter
+from multiprocessing import get_logger
 from typing import Any, Optional, Union, get_args, get_origin
 
 from rich.console import Group
@@ -9,8 +9,8 @@ from rich.table import Table
 from toolz import pipe
 from toolz.curried import map, tail
 
-from ..config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool, user_only_tool
-from ..config.ctx import ElroyContext
+from ..core.constants import ASSISTANT, SYSTEM, TOOL, USER, tool, user_only_tool
+from ..core.ctx import ElroyContext
 from ..llm.client import query_llm
 from ..llm.prompts import contemplate_prompt
 from ..repository.context_messages.data_models import ContextMessage
@@ -21,6 +21,8 @@ from ..repository.context_messages.queries import (
 )
 from ..repository.context_messages.transforms import format_context_messages
 from ..repository.user.queries import do_get_user_preferred_name, get_assistant_name
+
+logger = get_logger()
 
 
 @user_only_tool
@@ -59,7 +61,7 @@ def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
                 try:
                     tc.function["arguments"] = json.loads(tc.function["arguments"])
                 except json.JSONDecodeError:
-                    logging.info("Couldn't decode arguments for tool call")
+                    logger.info("Couldn't decode arguments for tool call")
                 details.append(Pretty(tc, expand_all=True))  # type: ignore
 
         table.add_row(
@@ -112,7 +114,7 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
         str: A thoughtful response analyzing the current context and any provided prompt.
     """
 
-    logging.info("Contemplating...")
+    logger.info("Contemplating...")
     user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
     assistant_name = get_assistant_name(ctx)
 

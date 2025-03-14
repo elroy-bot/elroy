@@ -1,8 +1,8 @@
 import re
 
 from elroy.cli.chat import process_and_deliver_msg
-from elroy.config.constants import USER
-from elroy.config.ctx import ElroyContext
+from elroy.core.constants import USER
+from elroy.core.ctx import ElroyContext
 from elroy.repository.goals.queries import get_active_goal_names
 
 from .utils import MockCliIO

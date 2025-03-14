@@ -1,12 +1,6 @@
 import pytest
 
-from elroy.config.constants import (
-    ASSISTANT,
-    SYSTEM,
-    SYSTEM_INSTRUCTION_LABEL,
-    TOOL,
-    USER,
-)
+from elroy.core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
 from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import replace_context_messages

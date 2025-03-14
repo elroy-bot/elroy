@@ -1,8 +1,8 @@
-import logging
 from typing import Any, Iterator, Union
 
 from rich.console import Console, RenderableType
 
+from ..core.logging import get_logger
 from ..db.db_models import FunctionCall
 from ..llm.stream_parser import (
     AssistantInternalThought,
@@ -12,6 +12,8 @@ from ..llm.stream_parser import (
 )
 from .formatters.base import ElroyPrintable
 from .formatters.plain_formatter import PlainFormatter
+
+logger = get_logger()
 
 
 def is_rich_printable(obj: Any) -> bool:
@@ -61,12 +63,12 @@ class PlainIO(ElroyIO):
             for output in self.formatter.format(message):
                 self.console.print(output, end=end)
         elif isinstance(message, AssistantInternalThought):
-            logging.info(f"{type(message)}: {message}")
+            logger.info(f"{type(message)}: {message}")
         elif isinstance(message, SystemWarning):
-            logging.warning(message)
+            logger.warning(message)
         elif isinstance(message, FunctionCall):
-            logging.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
+            logger.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
         elif isinstance(message, SystemInfo):
-            logging.info(message)
+            logger.info(message)
         else:
             raise NotImplementedError(f"Invalid message type: {type(message)}")

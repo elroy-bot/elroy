@@ -3,8 +3,8 @@ from typing import List, Optional, Union
 from rich.table import Table
 from sqlmodel import select
 
-from ...config.constants import RecoverableToolError, allow_unused, user_only_tool
-from ...config.ctx import ElroyContext
+from ...core.constants import RecoverableToolError, allow_unused, user_only_tool
+from ...core.ctx import ElroyContext
 from ...db.db_models import Goal
 from ...utils.clock import db_time_to_local
 

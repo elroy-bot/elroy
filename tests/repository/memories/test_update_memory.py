@@ -1,7 +1,7 @@
 import pytest
 from tests.utils import process_test_message, quiz_assistant_bool
 
-from elroy.config.ctx import ElroyContext
+from elroy.core.ctx import ElroyContext
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.memories.operations import do_create_memory_from_ctx_msgs
 from elroy.repository.memories.queries import get_memory_by_name

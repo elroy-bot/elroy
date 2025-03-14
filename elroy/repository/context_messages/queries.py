@@ -3,7 +3,7 @@ from typing import Iterable, Optional
 from sqlmodel import select
 from toolz import first
 
-from ...config.ctx import ElroyContext
+from ...core.ctx import ElroyContext
 from ...db.db_models import ContextMessageSet
 from .data_models import ContextMessage
 from .transforms import ContextMessageSetWithMessages

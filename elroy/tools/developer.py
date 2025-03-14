@@ -1,4 +1,3 @@
-import logging
 import os
 import platform
 import subprocess
@@ -12,14 +11,12 @@ from rich.table import Table
 from rich.text import Text
 
 from .. import __version__
-from ..config.constants import (
-    BUG_REPORT_LOG_LINES,
-    REPO_ISSUES_URL,
-    tool,
-    user_only_tool,
-)
-from ..config.ctx import ElroyContext
 from ..config.paths import get_home_dir, get_log_file_path
+from ..core.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, tool, user_only_tool
+from ..core.ctx import ElroyContext
+from ..core.logging import get_logger
+
+logger = get_logger()
 
 
 @tool
@@ -201,7 +198,7 @@ def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file
     from aider.io import InputOutput
     from aider.models import Model
 
-    logging.info(f"Instructions to aider: {instruction}")
+    logger.info(f"Instructions to aider: {instruction}")
 
     # Store current dir
     original_dir = os.getcwd()

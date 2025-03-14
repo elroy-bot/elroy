@@ -1,6 +1,5 @@
 # This is hacky, should add arbitrary metadata
 import json
-import logging
 from collections import deque
 from dataclasses import asdict
 from datetime import timedelta
@@ -12,13 +11,16 @@ from sqlmodel import Session, col, select
 from toolz import concat, pipe
 from toolz.curried import filter, map, pipe, remove
 
-from ...config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
+from ...core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
+from ...core.logging import get_logger
 from ...db.db_models import ContextMessageSet, MemorySource, Message, ToolCall
 from ...llm.utils import count_tokens
 from ...utils.clock import ensure_utc, get_utc_now
 from ...utils.utils import datetime_to_string, last_or_none
 from ..user.queries import do_get_assistant_name, do_get_user_preferred_name
 from .data_models import ContextMessage, RecalledMemoryMetadata
+
+logger = get_logger()
 
 
 def is_system_instruction(message: Optional[ContextMessage]) -> bool:
@@ -77,7 +79,7 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
 def is_context_refresh_needed(context_messages: Iterable[ContextMessage], chat_model_name: str, max_tokens: int) -> bool:
 
     if sum(1 for m in context_messages if m.role == USER) == 0:
-        logging.info("No user messages in context, no context refresh needed")
+        logger.info("No user messages in context, no context refresh needed")
         return False
 
     token_count = pipe(
@@ -89,10 +91,10 @@ def is_context_refresh_needed(context_messages: Iterable[ContextMessage], chat_m
     assert isinstance(token_count, int)
 
     if token_count > max_tokens:
-        logging.info(f"Token count {token_count} exceeds threshold {max_tokens}")
+        logger.info(f"Token count {token_count} exceeds threshold {max_tokens}")
         return True
     else:
-        logging.info(f"Token count {token_count} does not exceed threshold {max_tokens}")
+        logger.info(f"Token count {token_count} does not exceed threshold {max_tokens}")
         return False
 
 
@@ -141,7 +143,7 @@ def format_message(
     elif message.role == TOOL:
         return [f"TOOL CALL RESULT ({datetime_str}): {message.content}"]
     else:
-        logging.warning(f"Cannot format message: {message}")
+        logger.warning(f"Cannot format message: {message}")
         return []
 
 
@@ -209,7 +211,7 @@ def compress_context_messages(
         if current_token_count > context_refresh_target_tokens:
             break
         elif msg_created_at is not None and msg_created_at < get_utc_now() - max_in_context_message_age:
-            logging.info(f"Dropping old message {msg.id}")
+            logger.info(f"Dropping old message {msg.id}")
             continue
         else:
             kept_messages.appendleft(msg)

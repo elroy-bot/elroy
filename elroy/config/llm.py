@@ -5,7 +5,7 @@ from typing import Optional
 
 import yaml
 
-from .constants import (
+from ..core.constants import (
     AZURE_PREFIX,
     CLAUDE_3_5_SONNET,
     GEMINI_2_0_FLASH,

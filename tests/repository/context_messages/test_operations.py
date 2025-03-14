@@ -3,8 +3,8 @@ import time
 
 import pytest
 
-from elroy.config.constants import USER
-from elroy.config.ctx import ElroyContext
+from elroy.core.constants import USER
+from elroy.core.ctx import ElroyContext
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import (
     add_context_messages,

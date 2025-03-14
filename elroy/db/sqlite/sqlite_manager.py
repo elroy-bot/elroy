@@ -9,8 +9,11 @@ from sqlalchemy import Engine, create_engine, text
 from sqlmodel import Session
 
 from ... import PACKAGE_ROOT
+from ...core.logging import get_logger
 from ..db_manager import DbManager
 from .sqlite_session import SqliteSession
+
+logger = get_logger()
 
 
 class SqliteManager(DbManager):
@@ -51,13 +54,13 @@ class SqliteManager(DbManager):
             # Strip sqlite:/// prefix if present
             db_path = url.replace("sqlite:///", "")
             conn = sqlite3.connect(db_path)
-            logging.debug(f"SQLite version: {sqlite3.sqlite_version}")  # Shows SQLite version
+            logger.debug(f"SQLite version: {sqlite3.sqlite_version}")  # Shows SQLite version
 
-            logging.debug("Loading vec extension")
+            logger.debug("Loading vec extension")
             conn.enable_load_extension(True)
             sqlite_vec.load(conn)
             conn.enable_load_extension(False)
-            logging.debug("Vec extension loaded, verifying hello world vector query")
+            logger.debug("Vec extension loaded, verifying hello world vector query")
             # Let's verify the function exists after loading
             try:
                 conn.execute(
@@ -65,9 +68,9 @@ class SqliteManager(DbManager):
                     (sqlite_vec.serialize_float32([0.0]), sqlite_vec.serialize_float32([0.0])),
                 )
             except sqlite3.OperationalError as e:
-                logging.debug(f"Failed to verify vec_distance_L2 function: {e}")
+                logger.debug(f"Failed to verify vec_distance_L2 function: {e}")
                 raise
-            logging.debug("Connection vec extension enabled and verified")
+            logger.debug("Connection vec extension enabled and verified")
             return conn
 
         if not self.is_url_valid(self.url):

@@ -3,7 +3,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from elroy.cli.main import app
-from elroy.config.ctx import ElroyContext
+from elroy.core.ctx import ElroyContext
 from elroy.repository.user.operations import reset_system_persona, set_persona
 from elroy.repository.user.queries import get_persona
 

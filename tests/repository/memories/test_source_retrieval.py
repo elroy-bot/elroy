@@ -1,6 +1,6 @@
 from tests.utils import process_test_message
 
-from elroy.config.ctx import ElroyContext
+from elroy.core.ctx import ElroyContext
 from elroy.repository.goals.tools import create_goal, mark_goal_completed
 from elroy.repository.memories.consolidation import consolidate_memories
 from elroy.repository.memories.queries import get_active_memories

@@ -1,5 +1,5 @@
 from elroy.api import Elroy
-from elroy.config.ctx import ElroyContext
+from elroy.core.ctx import ElroyContext
 
 
 def test_message(ctx: ElroyContext):

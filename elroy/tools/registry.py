@@ -1,6 +1,5 @@
 import inspect
 import json
-import logging
 from functools import partial
 from pathlib import Path
 from types import FunctionType, ModuleType
@@ -9,7 +8,10 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
+from ..core.logging import get_logger
 from .schema import get_function_schema, validate_schema
+
+logger = get_logger()
 
 
 def is_langchain_tool(func: Callable) -> bool:
@@ -52,12 +54,12 @@ class ToolRegistry:
         """
         path = Path(custom_path)
         if not path.exists():
-            logging.warning(f"Custom tool path {path} does not exist")
+            logger.warning(f"Custom tool path {path} does not exist")
             return
 
         if path.is_file():
             if not path.suffix == ".py":
-                logging.warning(f"Custom tool path {path} is not a Python file")
+                logger.warning(f"Custom tool path {path} is not a Python file")
                 return
             else:
                 file_paths = [path]
@@ -75,7 +77,7 @@ class ToolRegistry:
         )
 
     def has_non_ctx_args(self, func: Callable) -> bool:
-        from ..config.ctx import ElroyContext
+        from ..core.ctx import ElroyContext
 
         inspect.signature(func)
         return any(param for param in inspect.signature(func).parameters.values() if param.annotation != ElroyContext)
@@ -87,7 +89,7 @@ class ToolRegistry:
             raise ValueError(f"Function {func.__name__} is not marked as a tool with @tool decorator")
 
         if func.__name__ in self.exclude_tools:
-            logging.info("Excluding tool: " + func.__name__)
+            logger.info("Excluding tool: " + func.__name__)
             return
 
         if func.__name__ in self.tools:
@@ -100,7 +102,7 @@ class ToolRegistry:
             if raise_on_error:
                 raise ValueError(f"Invalid schema for function {func.__name__}:\n{json.dumps(schema)}\n" + "\n".join(errors))
             else:
-                logging.warning(f"Invalid schema for function {func.__name__}:\n" + "\n".join(errors))
+                logger.warning(f"Invalid schema for function {func.__name__}:\n" + "\n".join(errors))
         self._schemas.append(schema)
         self.tools[func.__name__] = func
 

@@ -1,12 +1,12 @@
-import logging
 from typing import Optional
 
 from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from ...config.constants import SYSTEM, RecoverableToolError, tool
-from ...config.ctx import ElroyContext
+from ...core.constants import SYSTEM, RecoverableToolError, tool
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
 from ...db.db_models import Goal
 from ...utils.clock import get_utc_now
 from ...utils.utils import first_or_none
@@ -17,6 +17,8 @@ from ..recall.operations import upsert_embedding_if_needed
 from ..recall.transforms import to_recalled_memory_metadata
 from .operations import do_create_goal, update_goal_status
 from .queries import get_active_goal_names, get_active_goals
+
+logger = get_logger()
 
 
 @tool
@@ -134,7 +136,7 @@ def add_goal_status_update(ctx: ElroyContext, goal_name: str, status_update_or_n
     Returns:
         str: Confirmation message that the status update was added.
     """
-    logging.info(f"Updating goal {goal_name} for user {ctx.user_id}")
+    logger.info(f"Updating goal {goal_name} for user {ctx.user_id}")
     update_goal_status(ctx, goal_name, False, status_update_or_note)
 
     return f"Status update added to goal '{goal_name}'."

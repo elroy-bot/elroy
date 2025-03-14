@@ -1,6 +1,6 @@
 from tests.utils import process_test_message
 
-from elroy.config.ctx import ElroyContext
+from elroy.core.ctx import ElroyContext
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.user.operations import (
     reset_system_persona,
