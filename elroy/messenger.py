@@ -29,7 +29,7 @@ from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
 # something like:
 # @tracer.start_as_current_span(name="agent", attributes={SpanAttributes.OPENINFERENCE_SPAN_KIND: "agent"})
-@tracer.chain
+@tracer.agent
 def process_message(
     role: str,
     ctx: ElroyContext,

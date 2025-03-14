@@ -42,8 +42,10 @@ MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
 # Empty decorator just meaning to communicate a function should be a tool
 def tool(func: Callable) -> Callable:
+    from .. import tracer
+
     setattr(func, "_is_tool", True)
-    return func
+    return tracer.tool(func)
 
 
 def user_only_tool(func: Callable) -> Callable:
