@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from ...config.constants import RecoverableToolError, tool
-from ...config.ctx import ElroyContext
+from ...core.constants import RecoverableToolError, tool
+from ...core.ctx import ElroyContext
 from .operations import DocIngestResult, do_ingest
 from .queries import get_source_doc_by_address, get_source_doc_excerpts, get_source_docs
 

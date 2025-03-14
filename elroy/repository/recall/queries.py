@@ -3,8 +3,8 @@ from typing import Iterable, List, Type
 
 from toolz import compose
 
-from ...config.constants import tool
-from ...config.ctx import ElroyContext
+from ...core.constants import tool
+from ...core.ctx import ElroyContext
 from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Goal, Memory
 from ...llm.client import get_embedding
 from ...utils.utils import first_or_none

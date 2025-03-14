@@ -1,5 +1,4 @@
 import json
-import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -8,8 +7,11 @@ from typing import Generator, Generic, Iterator, List, Optional, TypeVar, Union
 from litellm.types.utils import Delta, ModelResponse
 
 from ..config.llm import ChatModel
+from ..core.logging import get_logger
 from ..db.db_models import FunctionCall
 from .tool_call_accumulator import OpenAIToolCallAccumulator
+
+logger = get_logger()
 
 
 @dataclass
@@ -217,7 +219,7 @@ class InlineToolCallProcessor(TextProcessor[FunctionCall]):
                 self.deactivate()
                 yield tool_call
             else:
-                logging.warning("Buffer not empty, but cannot be converted to tool call")
+                logger.warning("Buffer not empty, but cannot be converted to tool call")
                 self.deactivate()
                 self.buffer = ""
 

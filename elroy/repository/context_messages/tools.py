@@ -1,5 +1,5 @@
-from ...config.constants import tool
-from ...config.ctx import ElroyContext
+from ...core.constants import tool
+from ...core.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 
 

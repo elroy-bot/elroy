@@ -6,9 +6,10 @@ from toolz import concat, pipe
 from toolz.curried import map
 
 from .cli.options import get_resolved_params
-from .config.constants import USER
-from .config.ctx import ElroyContext
-from .config.initializer import dbsession, init_elroy_session
+from .core.constants import USER
+from .core.ctx import ElroyContext
+from .core.logging import setup_core_logging
+from .core.session import dbsession, init_elroy_session
 from .io.base import PlainIO
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
@@ -58,6 +59,8 @@ class Elroy:
         exclude_tools: List[str] = [],  # any tools which should not be loaded
         **kwargs,
     ):
+
+        setup_core_logging()
         self.formatter = formatter
 
         self.ctx = ElroyContext(

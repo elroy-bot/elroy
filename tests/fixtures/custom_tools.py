@@ -1,7 +1,7 @@
 from pydantic.main import BaseModel
 
-from elroy.config.constants import tool
-from elroy.config.ctx import ElroyContext
+from elroy.core.constants import tool
+from elroy.core.ctx import ElroyContext
 
 
 # To add a tool, annotate with @tool. A valid docstring is required.

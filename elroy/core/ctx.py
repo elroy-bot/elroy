@@ -1,4 +1,3 @@
-import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from functools import cached_property
@@ -9,18 +8,21 @@ from typing import Any, Callable, List, Optional, TypeVar
 from toolz.curried import dissoc
 
 from ..cli.options import DEPRECATED_KEYS
-from ..db.db_manager import DbManager, get_db_manager
-from ..db.db_session import DbSession
-from .constants import allow_unused
-from .llm import (
+from ..config.llm import (
     ChatModel,
     EmbeddingModel,
     get_chat_model,
     get_embedding_model,
     infer_chat_model_name,
 )
-from .paths import get_default_config_path
-from .personas import PERSONA
+from ..config.paths import get_default_config_path
+from ..config.personas import PERSONA
+from ..db.db_manager import DbManager, get_db_manager
+from ..db.db_session import DbSession
+from .constants import allow_unused
+from .logging import get_logger
+
+logger = get_logger()
 
 
 class ElroyContext:
@@ -105,9 +107,9 @@ class ElroyContext:
 
         for k in invalid_params:
             if k in DEPRECATED_KEYS:
-                logging.warning(f"Ignoring deprecated config (will be removed in future releases): '{k}'")
+                logger.warning(f"Ignoring deprecated config (will be removed in future releases): '{k}'")
             else:
-                logging.warning(f"Ignoring invalid parameter: {k}")
+                logger.warning(f"Ignoring invalid parameter: {k}")
 
         return cls(**dissoc(kwargs, *invalid_params))  # type: ignore
 

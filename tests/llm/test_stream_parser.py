@@ -2,8 +2,8 @@ from typing import List, Union
 
 from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
-from elroy.config.constants import Provider
 from elroy.config.llm import ChatModel
+from elroy.core.constants import Provider
 from elroy.db.db_models import FunctionCall
 from elroy.llm.stream_parser import (
     AssistantInternalThought,

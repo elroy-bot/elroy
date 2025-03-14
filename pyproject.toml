@@ -59,6 +59,14 @@ docs = [
     "mkdocs-rss-plugin",
 ]
 
+tracing = [
+    "arize-phoenix",
+    "arize-phoenix-otel",
+    "openinference-semantic-conventions",
+    "openinference-instrumentation",
+    "openinference-instrumentation-litellm",
+]
+
 [project.scripts]
 elroy = "elroy.cli.main:app"
 elroy_mcp = "elroy.mcp.server:main"

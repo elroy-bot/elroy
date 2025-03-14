@@ -6,7 +6,7 @@ from sqlalchemy import text
 from toolz import assoc, pipe
 from toolz.curried import map
 
-from ...config.constants import EMBEDDING_SIZE, RESULT_SET_LIMIT_COUNT
+from ...core.constants import EMBEDDING_SIZE, RESULT_SET_LIMIT_COUNT
 from ..db_models import EmbeddableSqlModel, VectorStorage
 from ..db_session import DbSession
 

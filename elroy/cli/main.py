@@ -1,5 +1,4 @@
 import json
-import logging
 import sys
 from bdb import BdbQuit
 from datetime import datetime
@@ -13,11 +12,11 @@ from toolz import dissoc, keymap, pipe
 
 from elroy.cli.options import get_str_from_stdin_or_arg
 
-from ..config.constants import KNOWN_MODELS, MODEL_SELECTION_CONFIG_PANEL
-from ..config.ctx import ElroyContext
-from ..config.initializer import init_elroy_session
-from ..config.logging import setup_logging
 from ..config.paths import get_default_config_path, get_default_sqlite_url
+from ..core.constants import KNOWN_MODELS, MODEL_SELECTION_CONFIG_PANEL
+from ..core.ctx import ElroyContext
+from ..core.logging import get_logger, setup_core_logging, setup_file_logging
+from ..core.session import init_elroy_session
 from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
 from ..io.formatters.rich_formatter import RichFormatter
@@ -37,6 +36,11 @@ MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
 CLI_ONLY_PARAMS = {"disable_assistant_greeting"}
 
+
+setup_core_logging()
+setup_file_logging()
+
+logger = get_logger()
 
 app = typer.Typer(
     help="Elroy CLI",
@@ -331,8 +335,6 @@ def common(
 ):
     """Common parameters."""
 
-    setup_logging()
-
     if typer_ctx.invoked_subcommand is None:
         chat(typer_ctx)
 
@@ -359,9 +361,9 @@ def chat(typer_ctx: typer.Context):
             try:
                 handle_chat(io, params["disable_assistant_greeting"], ctx)
             except BdbQuit:
-                logging.info("Exiting...")
+                logger.info("Exiting...")
             except EOFError:
-                logging.info("Exiting...")
+                logger.info("Exiting...")
             except Exception as e:
                 if "Unsupported param: tools" in str(e):
                     raise typer.BadParameter(
@@ -508,7 +510,7 @@ def cli_set_persona(
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
         if get_user_id_if_exists(ctx.db, ctx.user_token):
-            logging.info(f"No user found for token {ctx.user_token}, creating one")
+            logger.info(f"No user found for token {ctx.user_token}, creating one")
         do_set_persona(ctx, persona)
         raise typer.Exit()
 
@@ -521,7 +523,7 @@ def reset_persona(typer_ctx: typer.Context):
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
         if not get_user_id_if_exists(ctx.db, ctx.user_token):
-            logging.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
+            logger.warning(f"No user found for token {ctx.user_token}, so no persona to clear")
             return typer.Exit()
         else:
             reset_system_persona(ctx)
@@ -632,10 +634,10 @@ def mcp_print_config(
 def get_ctx(use_background_threads: bool, **kwargs) -> ElroyContext:
     for m in MODEL_ALIASES:
         if kwargs.get(m):
-            logging.info(f"Model alias {m} selected")
+            logger.info(f"Model alias {m} selected")
             resolved = resolve_model_alias(m)
             if not resolved:
-                logging.warning("Model alias not found")
+                logger.warning("Model alias not found")
             else:
                 kwargs["chat_model"] = resolved
         del kwargs[m]

@@ -1,7 +1,7 @@
 from rich.text import Text
 from toolz import pipe
 
-from ..config.ctx import ElroyContext
+from ..core.ctx import ElroyContext
 from ..io.cli import CliIO
 
 

@@ -1,15 +1,16 @@
-import logging
-
 import typer
 from sqlmodel import Session, select
 from toolz import do, pipe
 from toolz.curried import do
 
-from ...config.constants import user_only_tool
-from ...config.ctx import ElroyContext
+from ...core.constants import user_only_tool
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
 from ...db.db_models import User, UserPreference
 from ...db.db_session import DbSession
 from ...utils.utils import is_blank
+
+logger = get_logger()
 
 
 def create_user_id(db: DbSession, user_token: str) -> int:
@@ -66,7 +67,7 @@ def reset_system_persona(ctx: ElroyContext) -> str:
     user_preference = get_or_create_user_preference(ctx)
     if not user_preference.system_persona:
         # Re-clear the persona even if it was already blank, in case some malformed value has been set
-        logging.warning("System persona was already set to default")
+        logger.warning("System persona was already set to default")
 
     user_preference.system_persona = None
 
@@ -92,7 +93,7 @@ def set_persona(ctx: ElroyContext, system_persona: str) -> str:
 
     if user_preference.system_persona == system_persona:
         return do(
-            logging.info,
+            logger.info,
             "New system persona and old system persona are identical",
         )  # type: ignore
 

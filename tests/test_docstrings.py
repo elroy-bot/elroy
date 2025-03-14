@@ -3,7 +3,7 @@ import inspect
 from docstring_parser import parse
 
 from elroy.api import Elroy
-from elroy.config.ctx import ElroyContext
+from elroy.core.ctx import ElroyContext
 
 
 def test_api_docstrings(ctx: ElroyContext):

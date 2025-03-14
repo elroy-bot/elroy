@@ -5,8 +5,8 @@ from sqlmodel import desc, select
 from toolz import pipe
 from toolz.curried import map
 
-from ...config.constants import tool, user_only_tool
-from ...config.ctx import ElroyContext
+from ...core.constants import tool, user_only_tool
+from ...core.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 from ...llm.client import query_llm
 from ...utils.clock import db_time_to_local

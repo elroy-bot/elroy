@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 from toolz import assoc, pipe
 from toolz.curried import filter
 
-from .constants import KNOWN_MODELS, Provider
+from ..core.constants import KNOWN_MODELS, Provider
 from .llm import ChatModel
 
 

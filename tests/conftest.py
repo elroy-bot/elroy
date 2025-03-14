@@ -11,8 +11,8 @@ from toolz.curried import do
 
 from elroy.cli.chat import onboard_non_interactive
 from elroy.cli.options import get_resolved_params, resolve_model_alias
-from elroy.config.constants import ASSISTANT, USER, allow_unused
-from elroy.config.ctx import ElroyContext
+from elroy.core.constants import ASSISTANT, USER, allow_unused
+from elroy.core.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     ContextMessageSet,

@@ -2,7 +2,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
-from ...config.constants import ASSISTANT, TOOL
+from ...core.constants import ASSISTANT, TOOL
 from ...db.db_models import ToolCall
 
 

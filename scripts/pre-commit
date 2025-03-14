@@ -33,18 +33,18 @@ def run_command(command, print_stdout: bool = False):
 def run_black_formatting():
     """Run Black for code formatting and add changes to the commit."""
     print("Running black for code formatting...")
-    run_command('uv pip install black && uv run black .')
+    run_command('uv run black . --exclude ".venv/*"')
     run_command('git add .')
 
 def run_isort():
     """Run isort to sort and deduplicate imports."""
     print("Running isort for import sorting and deduplication...")
-    run_command('uv pip install isort && uv run isort .')
+    run_command('uv run isort .')
     run_command('git add .')
 
 def autoflake_files():
     print("Running autoflake...")
-    run_command('uv pip install autoflake && uv run find . -type f -name "*.py" ! -path "./.venv/*" -exec autoflake --ignore-init-module-imports --in-place --remove-unused-variables --remove-all-unused-imports {} +')
+    run_command('uv run find . -type f -name "*.py" ! -path "./.venv/*" -exec autoflake --ignore-init-module-imports --in-place --remove-unused-variables --remove-all-unused-imports {} +')
     run_command('git add .')
 
 def run_vulture():

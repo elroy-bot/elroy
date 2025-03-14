@@ -1,6 +1,5 @@
 import fnmatch
 import hashlib
-import logging
 import os
 import re
 from dataclasses import dataclass
@@ -8,15 +7,19 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Generator, Iterator, List
 
-from ...config.constants import RecoverableToolError, allow_unused
-from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
+from ...core.constants import RecoverableToolError, allow_unused
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
+from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, SourceDocument
 from ...llm.client import query_llm
 from ...utils.clock import get_utc_now
 from ..memories.operations import do_create_memory
 from ..recall.operations import upsert_embedding_if_needed
 from .queries import get_source_doc_by_address, get_source_doc_excerpts
+
+logger = get_logger()
 
 
 @dataclass
@@ -27,6 +30,7 @@ class DocumentChunk:
 
 
 @allow_unused
+@tracer.chain
 def convert_to_text(chat_model: ChatModel, content: str) -> str:
     return query_llm(
         system="Your task is to convert the following text into plain text. You should NOT summarize content, "
@@ -117,7 +121,7 @@ def do_ingest_dir(
             results[result] = results.get(result, 0) + 1
         except Exception as e:
             results[DocIngestResult.FAILED] = results.get(DocIngestResult.FAILED, 0) + 1
-            logging.warning(f"Failed to ingest {file_path}: {str(e)}")
+            logger.warning(f"Failed to ingest {file_path}: {str(e)}")
 
     return results
 
@@ -138,21 +142,21 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
         raise RecoverableToolError(f"Invalid path: {address}")
 
     if not is_markdown(address):
-        logging.info("non-markdown files may not have optimal results")
+        logger.info("non-markdown files may not have optimal results")
 
     if not os.path.isfile(address):
         raise NotImplementedError("Only local files are supported at the moment.")
 
     if os.path.isfile(address):
         if not Path(address).is_absolute():
-            logging.info(f"Converting relative path {address} to absolute path.")
+            logger.info(f"Converting relative path {address} to absolute path.")
             address = address.resolve()
 
     with open(address, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
     if len(lines) > ctx.max_ingested_doc_lines:
-        logging.info(f"Document {address} exceeds max_ingested_doc_lines ({ctx.max_ingested_doc_lines}), skipping")
+        logger.info(f"Document {address} exceeds max_ingested_doc_lines ({ctx.max_ingested_doc_lines}), skipping")
         return DocIngestResult.TOO_LONG
 
     content = "\n".join(lines)
@@ -165,13 +169,13 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
 
     if source_doc:
         if source_doc.content_md5 != content_md5:
-            logging.info("Source doc contents changed, re-ingesting")
+            logger.info("Source doc contents changed, re-ingesting")
         elif force_refresh:
-            logging.info(f"Force flag set, re-ingesting doc {address}")
+            logger.info(f"Force flag set, re-ingesting doc {address}")
         else:
-            logging.info(f"Source doc {address} not changed and no force flag set, skipping")
+            logger.info(f"Source doc {address} not changed and no force flag set, skipping")
             return DocIngestResult.UNCHANGED
-        logging.info(f"Refreshing source doc {address}")
+        logger.info(f"Refreshing source doc {address}")
 
         source_doc.content = content
         source_doc.extracted_at = get_utc_now()  # noqa F841
@@ -180,7 +184,7 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
         doc_was_updated = True
 
     else:
-        logging.info(f"Persisting source document {address}")
+        logger.info(f"Persisting source document {address}")
         source_doc = SourceDocument(
             user_id=ctx.user_id,
             address=str(address),
@@ -196,7 +200,7 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
     source_doc_id = source_doc.id
     assert source_doc_id
 
-    logging.info(f"Breaking source document into chunks for storage: {address}")
+    logger.info(f"Breaking source document into chunks for storage: {address}")
     for chunk in excerpts_from_doc(address, content):
         title = f"Excerpt {chunk.chunk_index} from doc {address}"
         doc_excerpt = DocumentExcerpt(
@@ -214,7 +218,7 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
         ctx.db.refresh(doc_excerpt)
         upsert_embedding_if_needed(ctx, doc_excerpt)
 
-        logging.info(f"Creating memory from excerpt of document {address} (chunk {chunk.chunk_index})")
+        logger.info(f"Creating memory from excerpt of document {address} (chunk {chunk.chunk_index})")
 
         do_create_memory(
             ctx,
@@ -254,7 +258,7 @@ def chunk_generic(address: Path, content: str, max_chars: int = 3000, overlap: i
         Iterator of DocumentChunk objects
     """
 
-    logging.info(f"Chunking file: {address}: Generic file chunker, performance might be suboptimal.")
+    logger.info(f"Chunking file: {address}: Generic file chunker, performance might be suboptimal.")
 
     # Split on paragraph breaks
     splits = re.split(r"(\n\s*\n)", content)

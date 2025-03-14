@@ -1,6 +1,9 @@
-import logging
 import re
 from typing import Tuple
+
+from ..core.logging import get_logger
+
+logger = get_logger()
 
 
 def extract_title_and_body(response: str) -> Tuple[str, str]:
@@ -34,7 +37,7 @@ def extract_title_and_body(response: str) -> Tuple[str, str]:
     title_match = re.match(r"^#+\s*(.+)$", title_line)
 
     if not title_match:
-        logging.info("No title Markdown formatting found for title, accepting first line as title.")
+        logger.info("No title Markdown formatting found for title, accepting first line as title.")
         title = title_line.strip()
 
     else:

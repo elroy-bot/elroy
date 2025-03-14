@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from functools import lru_cache
+from multiprocessing import get_logger
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
@@ -12,9 +13,11 @@ from toolz import assoc, merge, pipe
 from toolz.curried import map, valfilter
 from typer import Option
 
-from ..config.constants import CLAUDE_3_5_SONNET
 from ..config.llm import DEFAULTS_CONFIG
 from ..config.paths import get_default_sqlite_url
+from ..core.constants import CLAUDE_3_5_SONNET
+
+logger = get_logger()
 
 DEPRECATED_KEYS = {
     "initial_context_refresh_wait_seconds",
@@ -47,7 +50,7 @@ def load_config_file_params(config_path: Optional[str] = None) -> Dict:
     else:
 
         if user_config_path and not Path(user_config_path).is_absolute():
-            logging.info("Resolving relative user config path")
+            logger.info("Resolving relative user config path")
             # convert to absolute path if not already, relative to working dir
             user_config_path = Path(user_config_path).resolve()
         return load_config_if_exists(user_config_path)
@@ -118,7 +121,7 @@ def load_config_if_exists(user_config_path: Optional[str]) -> dict:
         return {}
 
     if not Path(user_config_path).exists():
-        logging.info(f"User config file {user_config_path} not found")
+        logger.info(f"User config file {user_config_path} not found")
         return {}
     elif not Path(user_config_path).is_file():
         logging.error(f"User config path {user_config_path} is not a file")

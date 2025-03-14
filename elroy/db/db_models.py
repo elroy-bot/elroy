@@ -10,7 +10,7 @@ from sqlmodel import Column, Field, SQLModel
 from toolz import pipe
 from toolz.curried import filter
 
-from ..config.constants import EMBEDDING_SIZE, RecoverableToolError
+from ..core.constants import EMBEDDING_SIZE, RecoverableToolError
 from ..utils.clock import get_utc_now
 
 

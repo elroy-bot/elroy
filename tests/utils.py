@@ -8,8 +8,9 @@ from rich.console import RenderableType
 from toolz import pipe
 from toolz.curried import do, map
 
-from elroy.config.constants import USER, RecoverableToolError
-from elroy.config.ctx import ElroyContext
+from elroy.core.constants import USER, RecoverableToolError
+from elroy.core.ctx import ElroyContext
+from elroy.core.tracing import tracer
 from elroy.db.db_models import EmbeddableSqlModel
 from elroy.io.cli import CliIO
 from elroy.io.formatters.base import ElroyPrintable
@@ -70,6 +71,7 @@ class MockCliIO(CliIO):
         return self._user_responses.pop(0)
 
 
+@tracer.chain
 def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] = None) -> str:
     logging.info(f"USER MESSAGE: {msg}")
 

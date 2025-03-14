@@ -3,8 +3,8 @@ from datetime import datetime
 from lorem_text import lorem
 from pytz import UTC
 
-from elroy.config.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, USER
-from elroy.config.ctx import ElroyContext
+from elroy.core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, USER
+from elroy.core.ctx import ElroyContext
 from elroy.llm.utils import count_tokens
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.transforms import compress_context_messages

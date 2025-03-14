@@ -1,7 +1,7 @@
 import pytest
 from tests.utils import process_test_message
 
-from elroy.config.constants import InvalidForceToolError
+from elroy.core.constants import InvalidForceToolError
 from elroy.repository.user.queries import do_get_user_preferred_name
 from elroy.repository.user.tools import set_user_preferred_name
 

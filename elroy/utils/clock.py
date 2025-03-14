@@ -1,8 +1,11 @@
-import logging
 from datetime import datetime, timedelta
 
 import pytz
 from pytz import UTC
+
+from ..core.logging import get_logger
+
+logger = get_logger()
 
 get_utc_now = lambda: datetime.now(UTC)
 
@@ -16,7 +19,7 @@ def string_to_timedelta(time_to_completion: str) -> timedelta:
     # where TIME_UNIT is one of HOUR, DAY, WEEK, MONTH
     # return the timedelta
 
-    logging.debug("Converting time to completion string to timedelta: '%s'", time_to_completion)
+    logger.debug("Converting time to completion string to timedelta: '%s'", time_to_completion)
 
     time_amount, time_unit = time_to_completion.lower().strip().split()
 

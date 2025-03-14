@@ -4,7 +4,7 @@ from typing import List, Pattern, Set
 
 from sqlmodel import SQLModel
 
-from elroy.config.ctx import ElroyContext
+from elroy.core.ctx import ElroyContext
 
 
 def test_migrations_in_sync(ctx: ElroyContext):

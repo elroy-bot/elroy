@@ -1,7 +1,7 @@
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
-from ..config.constants import allow_unused
+from ..core.constants import allow_unused
 
 
 @allow_unused

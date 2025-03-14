@@ -10,8 +10,8 @@ from tests.utils import process_test_message
 from toolz import pipe
 from toolz.curried import map
 
-from elroy.config.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
-from elroy.config.ctx import ElroyContext
+from elroy.core.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
+from elroy.core.ctx import ElroyContext
 from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages

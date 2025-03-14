@@ -1,5 +1,4 @@
 import hashlib
-import logging
 from functools import partial
 from typing import Type
 
@@ -7,14 +6,17 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from ...config.constants import SYSTEM
-from ...config.ctx import ElroyContext
+from ...core.constants import SYSTEM
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
 from ...db.db_models import EmbeddableSqlModel
 from ...llm.client import get_embedding
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
 from ..context_messages.operations import add_context_message, remove_context_messages
 from ..context_messages.queries import get_context_messages
 from .queries import is_in_context, is_in_context_message
+
+logger = get_logger()
 
 
 def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> None:
@@ -26,7 +28,7 @@ def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> No
     vector_storage_row = ctx.db.get_vector_storage_row(row)
 
     if vector_storage_row and vector_storage_row.embedding_text_md5 == new_md5:
-        logging.info("Old and new text matches md5, skipping")
+        logger.info("Old and new text matches md5, skipping")
         return
     else:
         embedding = get_embedding(ctx.embedding_model, new_text)
@@ -44,7 +46,7 @@ def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
     context_messages = get_context_messages(ctx)
 
     if is_in_context(context_messages, memory):
-        logging.info(f"Memory of type {memory.__class__.__name__} with id {memory_id} already in context.")
+        logger.info(f"Memory of type {memory.__class__.__name__} with id {memory_id} already in context.")
     else:
         add_context_message(
             ctx,

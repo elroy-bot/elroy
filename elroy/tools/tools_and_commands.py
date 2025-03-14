@@ -11,7 +11,7 @@ from ..cli.slash_commands import (
     print_context_messages,
     print_system_instruction,
 )
-from ..config.constants import user_only_tool
+from ..core.constants import user_only_tool
 from ..repository.context_messages.operations import (
     pop,
     refresh_system_instructions,

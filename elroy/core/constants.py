@@ -15,6 +15,8 @@ SYSTEM_INSTRUCTION_LABEL_END = "</system_instruction>"
 
 UNKNOWN = "Unknown"
 
+ELROY_ENABLE_TRACING = "ELROY_ENABLE_TRACING"
+
 
 # Message roles
 USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
@@ -42,8 +44,10 @@ MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
 # Empty decorator just meaning to communicate a function should be a tool
 def tool(func: Callable) -> Callable:
+    from .tracing import tracer
+
     setattr(func, "_is_tool", True)
-    return func
+    return tracer.tool(func)
 
 
 def user_only_tool(func: Callable) -> Callable:

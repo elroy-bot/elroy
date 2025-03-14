@@ -1,12 +1,14 @@
-import logging
 from typing import List, Optional
 
 from toolz import pipe
 from toolz.curried import filter, map
 
-from ...config.constants import ASSISTANT
+from ...core.constants import ASSISTANT
+from ...core.logging import get_logger
 from ...utils.utils import last_or_none
 from .data_models import ContextMessage
+
+logger = get_logger()
 
 
 def has_assistant_tool_call(
@@ -17,7 +19,7 @@ def has_assistant_tool_call(
     Assistant tool call message must be in the most recent assistant message
     """
     if not tool_call_id:
-        logging.warning("Tool call ID is None")
+        logger.warning("Tool call ID is None")
         return False
 
     return pipe(

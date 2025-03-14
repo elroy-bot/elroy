@@ -1,4 +1,4 @@
-from ...config.constants import MEMORY_WORD_COUNT_LIMIT
+from ...core.constants import MEMORY_WORD_COUNT_LIMIT
 
 MEMORY_CONSOLIDATION = f"""# Memory Consolidation Task
 

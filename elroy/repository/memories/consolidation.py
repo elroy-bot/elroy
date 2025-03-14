@@ -9,10 +9,14 @@ from sklearn.cluster import DBSCAN
 from toolz import pipe
 from toolz.curried import map, take
 
-from ...config.ctx import ElroyContext
+from ...core.ctx import ElroyContext
+from ...core.logging import get_logger
+from ...core.tracing import tracer
 from ...db.db_models import Memory
 from ...llm.client import query_llm
 from .prompts import MEMORY_CONSOLIDATION
+
+logger = get_logger()
 
 
 @dataclass
@@ -103,6 +107,7 @@ class MemoryCluster:
         return MemoryCluster(memories=[self.memories[i] for i in closest_indices], embeddings=self.embeddings[closest_indices])
 
 
+@tracer.chain
 def consolidate_memories(ctx: ElroyContext):
     """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
     from .queries import get_active_memories
@@ -114,7 +119,7 @@ def consolidate_memories(ctx: ElroyContext):
         list,
     )
 
-    logging.info(f"Found {len(clusters)} memory clusters to consolidate")
+    logger.info(f"Found {len(clusters)} memory clusters to consolidate")
 
     for cluster in clusters:
         # TODO: parallelize this
@@ -169,11 +174,12 @@ def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClus
     return clusters
 
 
+@tracer.chain
 def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: List[Memory]):
     from .operations import do_create_memory, mark_inactive
 
-    logging.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
-    logging.info(f"source memories are: {', '.join([m.name for m in sources])}")
+    logger.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
+    logger.info(f"source memories are: {', '.join([m.name for m in sources])}")
 
     memory = do_create_memory(
         ctx,
@@ -191,9 +197,10 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
     return memory_id
 
 
+@tracer.chain
 def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_on_failure: bool = False):
 
-    logging.info(f"Consolidating memories {len(cluster)} memories in cluster.")
+    logger.info(f"Consolidating memories {len(cluster)} memories in cluster.")
     response = query_llm(
         system=MEMORY_CONSOLIDATION,
         prompt=str(cluster),
@@ -225,7 +232,7 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_
 
                 else:
                     reasoning = "\n".join(lines[i:next_header_idx]).strip()
-                    logging.info(f"Reasoning behind consolidation decisions: {reasoning}")
+                    logger.info(f"Reasoning behind consolidation decisions: {reasoning}")
                     new_memory_parsing_line_start = next_header_idx
                     break
     if not reasoning:
@@ -253,7 +260,7 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_
                     )
                     new_ids.append(new_id)
                 except Exception as e:
-                    logging.warning(
+                    logger.warning(
                         f"Failed to create memory, aborting consolidation. '{current_title}': {e}",
                         exc_info=True,
                     )
@@ -261,14 +268,14 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_
             current_content = []
         else:
             if not current_title:
-                logging.warning(f"Found content without a title: {line}, making the first line as memory title")
+                logger.warning(f"Found content without a title: {line}, making the first line as memory title")
                 current_title = line
             current_content.append(line)
 
     if current_title and current_content:
         content = "\n".join(current_content).strip()
         try:
-            logging.info("Creating consolidated memory")
+            logger.info("Creating consolidated memory")
             new_id = create_consolidated_memory(
                 ctx=ctx,
                 name=current_title,
@@ -280,11 +287,11 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_
             if raise_on_failure:
                 raise
             else:
-                logging.warning(
+                logger.warning(
                     f"Failed to create memory, aborting consolidation. '{current_title}': {e}",
                     exc_info=True,
                 )
 
     if not new_ids:
-        logging.info("No new memories were created from consolidation response. Original memories left unchanged.")
-        logging.debug(f"Original response was: {response}")
+        logger.info("No new memories were created from consolidation response. Original memories left unchanged.")
+        logger.debug(f"Original response was: {response}")
