@@ -1,8 +1,4 @@
-import atexit
-import io
 import logging
-import sys
-import traceback
 import uuid
 from contextlib import contextmanager
 
@@ -27,9 +23,6 @@ def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool,
         from openinference.instrumentation import using_session
 
         with using_session(session_id=session_id):
-            import litellm
-
-            litellm.callbacks = ["otel"]  # noqa F841
 
             with ctx.db_manager.open_session() as dbsession:
                 ctx.set_db_session(dbsession)
