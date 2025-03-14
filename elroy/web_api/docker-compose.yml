@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ELROY_API_SECRET_KEY=${ELROY_API_SECRET_KEY:-supersecretkey}
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/elroy
+    depends_on:
+      - db
+    volumes:
+      - ./:/app
+    command: uvicorn elroy.web_api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  db:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=elroy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: postgres -c 'shared_preload_libraries=pg_vector'
+
+volumes:
+  postgres_data:

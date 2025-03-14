@@ -20,3 +20,5 @@ uv.lock
 benchmarking_data
 .coverage
 site/
+**/node_modules/**
+**/.expo/web/cache/**
