@@ -88,7 +88,7 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
         local_time = earliest_today_msg.created_at.replace(tzinfo=UTC).astimezone(local_tz)
         today_summary = f"I first started chatting with {preferred_name} today at {local_time.strftime('%I:%M %p')}."
     else:
-        today_summary = f"I haven't chatted with {preferred_name} yet today. I should offer a brief greeting."
+        today_summary = f"I haven't chatted with {preferred_name} yet today. I should offer a brief greeting (less than 50 words)."
 
     return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
 
@@ -134,9 +134,9 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
                 user_input,
             )
 
-        io.rule()
-        print_memory_panel(io, ctx)
-        run_in_background(refresh_context_if_needed, ctx)
+            io.rule()
+            print_memory_panel(io, ctx)
+            run_in_background(refresh_context_if_needed, ctx)
 
 
 def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
