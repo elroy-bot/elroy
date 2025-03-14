@@ -34,11 +34,6 @@ def setup_logging():
         "openai",
         "httpx",
         "litellm",
-        "phoenix",
-        "openinference",
-        "opentelemetry",
-        "openinference",
-        "openinference.instrumentation.logging",
     ]:
         logging.getLogger(name).setLevel(logging.WARNING)
 

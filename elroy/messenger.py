@@ -27,9 +27,7 @@ from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
 
-# something like:
-# @tracer.start_as_current_span(name="agent", attributes={SpanAttributes.OPENINFERENCE_SPAN_KIND: "agent"})
-@tracer.agent
+@tracer.chain
 def process_message(
     role: str,
     ctx: ElroyContext,
@@ -115,7 +113,6 @@ def process_message(
             break
 
 
-@tracer.chain
 def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> AssistantToolResult:
     function_to_call = ctx.tool_registry.get(function_call.function_name)
     if not function_to_call:

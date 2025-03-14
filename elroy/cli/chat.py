@@ -7,7 +7,6 @@ from operator import add
 from typing import AsyncIterator, Iterator, Optional
 
 from colorama import init
-from openinference.semconv.trace import SpanAttributes
 from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
@@ -95,7 +94,6 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
 
 
-@tracer.start_as_current_span(name="agent", attributes={SpanAttributes.OPENINFERENCE_SPAN_KIND: "agent"})
 def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
     init(autoreset=True)
 
@@ -142,6 +140,7 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
             run_in_background(refresh_context_if_needed, ctx)
 
 
+@tracer.chain
 def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
     if user_input.startswith("/") and role == USER:
         try:

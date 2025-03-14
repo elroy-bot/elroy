@@ -147,14 +147,12 @@ def generate_chat_completion_message(
             raise e
 
 
-@tracer.chain
 def query_llm(model: ChatModel, prompt: str, system: str) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
     return _query_llm(model=model, prompt=prompt, system=system)
 
 
-@tracer.chain
 def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")

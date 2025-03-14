@@ -194,6 +194,7 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
     return memory_id
 
 
+@tracer.chain
 def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_on_failure: bool = False):
 
     logging.info(f"Consolidating memories {len(cluster)} memories in cluster.")

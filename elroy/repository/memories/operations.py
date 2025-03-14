@@ -33,7 +33,6 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
         return tracker
 
 
-@tracer.chain
 def do_memory_consolidation_check(ctx: ElroyContext) -> Optional[Thread]:
     logging.info("Checking memory consolidation")
 
