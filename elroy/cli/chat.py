@@ -11,6 +11,7 @@ from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
+from .. import tracer
 from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
 from ..config.constants import EXIT, SYSTEM, USER
 from ..config.ctx import ElroyContext
@@ -139,6 +140,7 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
             run_in_background(refresh_context_if_needed, ctx)
 
 
+@tracer.chain
 def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
     if user_input.startswith("/") and role == USER:
         try:

@@ -1,5 +1,6 @@
 from typing import Optional, Tuple
 
+from .. import tracer
 from ..config.constants import MEMORY_WORD_COUNT_LIMIT
 from ..config.llm import ChatModel
 from ..llm.client import query_llm, query_llm_with_word_limit
@@ -18,6 +19,7 @@ However, avoid asking too many questions at once. Be sure to engage in a natural
 )
 
 
+@tracer.chain
 def summarize_conversation(model: ChatModel, convo_summary: str, assistant_name: str) -> str:
     return query_llm_with_word_limit(
         model,
@@ -35,6 +37,7 @@ Only output the summary, do NOT include anything else in your output.
     )
 
 
+@tracer.chain
 def summarize_for_memory(model: ChatModel, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
     user_noun = user_preferred_name or "the user"
 

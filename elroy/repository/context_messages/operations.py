@@ -9,6 +9,7 @@ from sqlmodel import select
 from toolz import concatv, pipe
 from toolz.curried import tail
 
+from ... import tracer
 from ...config.constants import (
     ASSISTANT,
     FORMATTING_INSTRUCT,
@@ -24,7 +25,6 @@ from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
 from ...utils.clock import db_time_to_local
-from ...utils.utils import logged_exec_time
 from ..memories.operations import formulate_memory
 from ..memories.tools import create_memory
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
@@ -164,7 +164,7 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
     )
 
 
-@logged_exec_time
+@tracer.chain
 def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
     logging.info("Refreshing context")
     context_message_list = list(context_messages)

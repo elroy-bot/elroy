@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
+from .. import tracer
 from ..config.constants import (
     ASSISTANT,
     MAX_CHAT_COMPLETION_RETRY_COUNT,
@@ -22,6 +23,7 @@ from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
 
+@tracer.chain
 def generate_chat_completion_message(
     chat_model: ChatModel,
     context_messages: List[ContextMessage],

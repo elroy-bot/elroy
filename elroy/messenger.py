@@ -6,6 +6,7 @@ from typing import Iterator, List, Optional, Union
 from toolz import merge, pipe
 from toolz.curried import valfilter
 
+from . import tracer
 from .cli.slash_commands import get_casted_value, get_prompt_for_param
 from .config.constants import ASSISTANT, SYSTEM, TOOL, USER, RecoverableToolError
 from .config.ctx import ElroyContext
@@ -26,6 +27,7 @@ from .repository.memories.queries import get_relevant_memory_context_msgs
 from .tools.tools_and_commands import SYSTEM_COMMANDS, get_help
 
 
+@tracer.chain
 def process_message(
     role: str,
     ctx: ElroyContext,
@@ -137,6 +139,7 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> Assist
         )
 
 
+@tracer.chain
 def invoke_slash_command(
     io: CliIO, ctx: ElroyContext, msg: str
 ) -> Union[str, Iterator[Union[AssistantResponse, AssistantInternalThought, AssistantToolResult]]]:

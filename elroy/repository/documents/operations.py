@@ -8,6 +8,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Generator, Iterator, List
 
+from ... import tracer
 from ...config.constants import RecoverableToolError, allow_unused
 from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
@@ -27,6 +28,7 @@ class DocumentChunk:
 
 
 @allow_unused
+@tracer.chain
 def convert_to_text(chat_model: ChatModel, content: str) -> str:
     return query_llm(
         system="Your task is to convert the following text into plain text. You should NOT summarize content, "

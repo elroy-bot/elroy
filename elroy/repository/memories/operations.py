@@ -5,6 +5,7 @@ from typing import Iterable, List, Optional, Tuple
 
 from sqlmodel import select
 
+from ... import tracer
 from ...config.constants import MAX_MEMORY_LENGTH, SYSTEM, user_only_tool
 from ...config.ctx import ElroyContext
 from ...config.llm import ChatModel
@@ -135,6 +136,7 @@ def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> T
     )
 
 
+@tracer.chain
 def do_create_memory(
     ctx: ElroyContext,
     name: str,
