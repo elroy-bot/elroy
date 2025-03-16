@@ -1,6 +1,6 @@
 # Changelog
 
-# 0.0.76 (2025-02-28)
+# [0.0.76] - 2025-02-28
 
 ### Added
 - Added ingest_doc API function
