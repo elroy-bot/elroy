@@ -1,5 +1,22 @@
 # Changelog
 
+# [0.0.77] - 2025-03-16
+
+### Added
+- Support for Arize-Phoenix tracing!
+- Directory-based document ingestion with recursive and pattern matching: try it with `elroy ingest`
+- Reflective memory option: Increase reflection of memories
+- Overhauled documentation
+
+### Fixed
+- Fix for context overflow in embeddings
+- Context message ordering bug
+- Assistant name consistency in memory operations
+
+### Improved
+- Shorter, more focused greeting messages
+- More engaging persona and tone
+
 # [0.0.76] - 2025-02-28
 
 ### Added
