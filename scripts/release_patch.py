@@ -59,36 +59,6 @@ def make_edit(elroy: Elroy, instruction: str, rw_files: List[str], ro_files: Lis
     ).run(memory_augmented_instructions)
 
 
-def update_cli_reference(elroy: Elroy):
-    help_output = subprocess.run(["elroy", "--help"], capture_output=True, text=True).stdout.strip()
-    make_edit(
-        elroy,
-        instruction=f"""Review the cli_reference.md and the output of elroy help. Ensure the cli_reference.md is up to date with the latest changes in the CLI.
-For reference, the output of elroy --help is as below:
-{help_output}""",
-        rw_files=["./docs/cli_reference.md"],
-    )
-
-
-def update_tool_guide(elroy: Elroy):
-    help_output = subprocess.run(["elroy", "list-tools"], capture_output=True, text=True).stdout.strip()
-    make_edit(
-        elroy,
-        instruction=f"""Review python commands and the output of elroy list-tools. Ensure the tool_reference.md is up to date with the latest changes in the tools.
-{help_output}""",
-        rw_files=["./docs/tools_guide.md"],
-    )
-
-
-def update_configuration(elroy: Elroy):
-    make_edit(
-        elroy,
-        instruction=f"""Review the configuration.md and ensure it is consistent and complete given main.py and default.yml""",
-        rw_files=["./docs/configuration.md"],
-        ro_files=["./elroy/config/llm.py", "./elroy/config/constants.py", "elroy/cli/main.py"],
-    )
-
-
 def update_changelog(elroy: Elroy):
     last_tag = os.popen("git describe --tags --abbrev=0 2>/dev/null || echo").read().strip()
     commits = os.popen(f'git log {last_tag}..HEAD --name-only --pretty=format:"- %s%n%b%nFiles changed:"').read()
@@ -332,7 +302,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Release a new patch version")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
     parser.add_argument("--skip-docker", action="store_true", help="Skip running docker build test")
-    parser.add_argument("--skip-docs", action="store_true", help="Skip updating README")
     args = parser.parse_args()
 
     errors = Errors([])
@@ -369,10 +338,6 @@ if __name__ == "__main__":
     os.chdir(repo_root)
 
     next_tag = Version(__version__).next_patch()
-    if not args.skip_docs:
-        update_cli_reference(elroy)
-        update_tool_guide(elroy)
-        update_configuration(elroy)
     update_changelog(elroy)
 
     print("Please provide feedback on the changes made in this release")
