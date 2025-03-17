@@ -213,6 +213,7 @@ class MemoryOperationTracker(SQLModel, table=True):
     memories_since_consolidation: int = Field(
         default=0, description="Number of new memories created since the last consolidation operation"
     )
+    messages_since_memory: int = Field(default=0, description="Number of messages processed since the last memory creation")
     created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
 
