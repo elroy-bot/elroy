@@ -35,6 +35,7 @@ min_convo_age_for_greeting_minutes: 120.0  # Minimum age in minutes of conversat
 # Memory Consolidation
 memory_cluster_similarity_threshold: 0.21125  # Threshold for memory cluster similarity
 memories_between_consolidation: 4  # How many memories to create before triggering a memory consolidation operation
+messages_between_memory: 20  # How many messages to create before triggering a memory creation
 l2_memory_relevance_distance_threshold: 1.24  # L2 distance threshold for memory relevance
 max_memory_cluster_size: 5  # The maximum number of memories that can be consolidated into a single memory at once
 min_memory_cluster_size: 3  # The minimum number of memories that can be consolidated into a single memory at once
