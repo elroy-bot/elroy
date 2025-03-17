@@ -173,18 +173,6 @@ jobs:
           ghcr.io/elroy-bot/elroy:latest
           ghcr.io/elroy-bot/elroy:${{ steps.version.outputs.version }}
 
-  deploy-docs:
-    environment:
-      name: release
-    needs: [publish-docker]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - uses: ./.github/actions/setup-elroy-env
-    - name: Deploy docs
-      run: mkdocs gh-deploy --force
 
   update-stable-and-deploy-branch:
     environment:
