@@ -73,7 +73,14 @@ nav:
   - How It Works: how_it_works.md
   - Installation: installation.md
   - CLI: cli.md
-  - Configuration: configuration.md
+  - Configuration:
+    - Overview: configuration/index.md
+    - Basic Configuration: configuration/basic.md
+    - Models: configuration/models.md
+    - Context Management: configuration/context.md
+    - Memory: configuration/memory.md
+    - Tracing: configuration/tracing.md
+    - UI: configuration/ui.md
   - Model Context Protocol: model_context_protocol.md
   - Scripting: scripting.md
   - Tools:

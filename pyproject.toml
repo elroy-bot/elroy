@@ -57,6 +57,10 @@ dev = [
 docs = [
     "mkdocs-git-revision-date-localized-plugin",
     "mkdocs-rss-plugin",
+    "mkdocs-git-revision-date-localized-plugin",
+    "mkdocs-rss-plugin" ,
+    "mkdocs-blog-plugin",
+    "mkdocs-material",
 ]
 
 tracing = [
