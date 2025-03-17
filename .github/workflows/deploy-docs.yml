@@ -14,4 +14,6 @@ jobs:
         fetch-depth: 0
     - uses: ./.github/actions/setup-elroy-env
     - name: Deploy docs
-      run: mkdocs gh-deploy --force
+      run: |
+        source .venv/bin/activate
+        mkdocs gh-deploy --force
