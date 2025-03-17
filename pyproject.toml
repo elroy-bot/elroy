@@ -56,6 +56,7 @@ dev = [
 ]
 
 docs = [
+    "mkdocs",
     "mkdocs-git-revision-date-localized-plugin",
     "mkdocs-rss-plugin",
     "mkdocs-git-revision-date-localized-plugin",
