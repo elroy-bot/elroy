@@ -106,6 +106,7 @@ def process_message(
         if force_tool:
             assert tool_context_messages, "force_tool set, but no tool messages generated"
             add_context_messages(ctx, new_msgs)
+
             break  # we are specifically requesting tool call results, so don't need to loop for assistant response
         elif tool_context_messages:
             # do NOT persist context messages with add_context_messages at this point, we are continuing to loop and accumulate new msgs
