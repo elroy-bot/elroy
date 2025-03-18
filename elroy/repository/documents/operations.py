@@ -226,7 +226,6 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
             chunk.content,
             [doc_excerpt],
             True,
-            False,
         )
     return DocIngestResult.SUCCESS if not doc_was_updated else DocIngestResult.UPDATED
 
