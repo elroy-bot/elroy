@@ -176,6 +176,13 @@ def common(
         rich_help_panel="Memory Consolidation",
         hidden=True,
     ),
+    # Memory Consolidation
+    messages_between_memory: int = ElroyOption(
+        "messages_between_memory",
+        help="Max number of messages that can be processed before memory creation is triggered",
+        rich_help_panel="Memory Consolidation",
+        hidden=True,
+    ),
     l2_memory_relevance_distance_threshold: float = ElroyOption(
         "l2_memory_relevance_distance_threshold",
         help="L2 distance threshold for memory relevance.",
