@@ -28,8 +28,7 @@ from ..recall.queries import (
     is_in_context,
 )
 from ..recall.transforms import to_recalled_memory_metadata
-from ..user.queries import get_assistant_name
-from ..user.tools import get_user_preferred_name
+from ..user.queries import do_get_user_preferred_name, get_assistant_name
 
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> Optional[MemorySource]:
@@ -169,7 +168,11 @@ def get_reflective_recall(
         lambda x: "Recalled Memory Content\n\n"
         + x
         + "#Converstaion Transcript:\n"
-        + format_context_messages(tail(3, list(context_messages)[1:]), get_user_preferred_name(ctx), get_assistant_name(ctx)),  # type: ignore
+        + format_context_messages(
+            tail(3, list(context_messages)[1:]),  # type: ignore
+            do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+            get_assistant_name(ctx),
+        ),
         lambda x: query_llm(
             ctx.chat_model,
             x,

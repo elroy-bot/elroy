@@ -25,7 +25,12 @@ from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
 from ...utils.clock import db_time_to_local
-from ..memories.operations import formulate_memory
+from ...utils.utils import run_in_background
+from ..memories.operations import (
+    create_mem_from_current_context,
+    formulate_memory,
+    get_or_create_memory_op_tracker,
+)
 from ..memories.tools import create_memory
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
 from .data_models import ContextMessage
@@ -117,10 +122,24 @@ def add_context_message(ctx: ElroyContext, message: ContextMessage) -> None:
 
 @retry_on_integrity_error
 def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> None:
+    msgs_list = list(messages)
+    user_and_asst_msgs_ct = len([msg for msg in msgs_list if msg.role in {USER, ASSISTANT}])
+
     pipe(
+        messages,
         concatv(get_context_messages(ctx), messages),
         partial(replace_context_messages, ctx),
     )
+
+    if user_and_asst_msgs_ct > 0:
+        tracker = get_or_create_memory_op_tracker(ctx)
+        tracker.messages_since_memory += user_and_asst_msgs_ct
+        ctx.db.add(tracker)
+        ctx.db.commit()
+        ctx.db.refresh(tracker)
+
+        if tracker.messages_since_memory >= ctx.messages_between_memory:
+            run_in_background(create_mem_from_current_context, ctx)
 
 
 def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Iterable[ContextMessage]) -> ContextMessage:
@@ -172,12 +191,7 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
     context_message_list = list(context_messages)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
-    memory_title, memory_text = formulate_memory(
-        ctx.chat_model,
-        do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-        get_assistant_name(ctx),
-        context_message_list,
-    )
+    memory_title, memory_text = formulate_memory(ctx, context_message_list)
     create_memory(ctx, memory_title, memory_text)
 
     pipe(
