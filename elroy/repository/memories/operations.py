@@ -4,7 +4,6 @@ from typing import Iterable, List, Optional, Tuple
 
 from sqlmodel import select
 
-from ...config.llm import ChatModel
 from ...core.constants import MAX_MEMORY_LENGTH, SYSTEM, user_only_tool
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
@@ -22,8 +21,7 @@ from ..context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
 )
-from ..user.queries import get_assistant_name
-from ..user.tools import get_user_preferred_name
+from ..user.queries import do_get_user_preferred_name, get_assistant_name
 from .consolidation import consolidate_memories
 
 logger = get_logger()
@@ -41,25 +39,14 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
 
 
 def create_mem_from_current_context(ctx: ElroyContext):
-    from ..user.queries import do_get_user_preferred_name, get_assistant_name
-
     memory_title, memory_text = formulate_memory(
-        ctx.chat_model,
-        do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-        get_assistant_name(ctx),
+        ctx,
         list(get_context_messages(ctx)),
     )
     do_create_memory_from_ctx_msgs(ctx, memory_title, memory_text)
 
 
-def do_memory_create_check(ctx: ElroyContext, tracker: MemoryOperationTracker) -> Optional[Thread]:
-    tracker.messages_since_memory += 1
-
-    if tracker.messages_since_memory >= ctx.messages_between_memory:
-        run_in_background(create_mem_from_current_context, ctx)
-
-
-def check_and_update_op_tracker(ctx: ElroyContext, tracker: MemoryOperationTracker) -> Optional[Thread]:
+def do_update_memory_op_tracker(ctx: ElroyContext, tracker: MemoryOperationTracker) -> Optional[Thread]:
     logger.info("Checking memory consolidation")
     tracker.messages_since_memory = 0
     tracker.memories_since_consolidation += 1
@@ -121,27 +108,18 @@ def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str
     do_create_memory_from_ctx_msgs(ctx, name, text)
 
 
-def formulate_mem_from_context(ctx: ElroyContext, context_messages: List[ContextMessage]) -> Tuple[str, str]:
-    return formulate_memory(
-        ctx.chat_model,
-        get_user_preferred_name(ctx),
-        get_assistant_name(ctx),
-        context_messages,
-    )
-
-
-def formulate_memory(
-    chat_model: ChatModel, user_preferred_name: str, assistant_name: str, context_messages: List[ContextMessage]
-) -> Tuple[str, str]:
+def formulate_memory(ctx: ElroyContext, context_messages: List[ContextMessage]) -> Tuple[str, str]:
     from ...llm.prompts import summarize_for_memory
     from ..context_messages.transforms import format_context_messages
 
+    user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
+
     return summarize_for_memory(
-        chat_model,
+        ctx.chat_model,
         format_context_messages(
             context_messages,
             user_preferred_name,
-            assistant_name,
+            get_assistant_name(ctx),
         ),
         user_preferred_name,
     )
@@ -165,6 +143,7 @@ def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> T
         text,
         [get_or_create_context_message_set(ctx)],
         True,
+        get_or_create_memory_op_tracker(ctx),
         True,
     )
 
@@ -175,7 +154,7 @@ def do_create_memory(
     name: str,
     text: str,
     source_metadata: Iterable[MemorySource],
-    check_and_update_tracker: bool,
+    update_memory_op_tracker: bool,
     tracker: MemoryOperationTracker,
     add_mem_to_context: bool,
 ) -> Tuple[Memory, Optional[Thread]]:
@@ -197,7 +176,7 @@ def do_create_memory(
     if add_mem_to_context:
         add_to_context(ctx, memory)
 
-    if check_and_update_tracker:
-        return (memory, check_and_update_op_tracker(ctx, tracker))
+    if update_memory_op_tracker:
+        return (memory, do_update_memory_op_tracker(ctx, tracker))
     else:
         return (memory, None)
