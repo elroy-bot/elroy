@@ -126,8 +126,7 @@ def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) 
     user_and_asst_msgs_ct = len([msg for msg in msgs_list if msg.role in {USER, ASSISTANT}])
 
     pipe(
-        messages,
-        concatv(get_context_messages(ctx), messages),
+        concatv(get_context_messages(ctx), msgs_list),
         partial(replace_context_messages, ctx),
     )
 

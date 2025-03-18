@@ -112,7 +112,6 @@ def update_goal_status(ctx: ElroyContext, goal_name: str, is_terminal: bool, sta
             goal.to_fact(),
             [goal],
             True,
-            True,
         )
     else:
         add_to_context(ctx, goal)

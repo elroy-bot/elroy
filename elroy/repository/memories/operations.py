@@ -46,27 +46,6 @@ def create_mem_from_current_context(ctx: ElroyContext):
     do_create_memory_from_ctx_msgs(ctx, memory_title, memory_text)
 
 
-def do_update_memory_op_tracker(ctx: ElroyContext, tracker: MemoryOperationTracker) -> Optional[Thread]:
-    logger.info("Checking memory consolidation")
-    tracker.messages_since_memory = 0
-    tracker.memories_since_consolidation += 1
-    logger.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
-    thread = None
-
-    if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
-        # Run consolidate_memories in a background thread.
-        # Note: this will reset the tracker, whether or not the background task completes.
-        # This prevents infinite retries if consolidation is failing, but it might be better to fail fast here
-        logger.info("Running memory consolidation")
-        thread = run_in_background(consolidate_memories, ctx)
-        tracker.memories_since_consolidation = 0
-    else:
-        logger.info("Not running memory consolidation")
-    ctx.db.add(tracker)
-    ctx.db.commit()
-    return thread
-
-
 @user_only_tool
 def remember_convo(ctx: ElroyContext):
     """Creates a memory of the current conversation, and refreshes the context. Good for topic changes."""
@@ -137,12 +116,11 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
 def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> Tuple[Memory, Optional[Thread]]:
     """Creates a memory with the current context message set designated as source."""
 
-    return do_create_memory(
+    return do_create_op_tracked_memory(
         ctx,
         name,
         text,
         [get_or_create_context_message_set(ctx)],
-        True,
         get_or_create_memory_op_tracker(ctx),
         True,
     )
@@ -154,10 +132,8 @@ def do_create_memory(
     name: str,
     text: str,
     source_metadata: Iterable[MemorySource],
-    update_memory_op_tracker: bool,
-    tracker: MemoryOperationTracker,
     add_mem_to_context: bool,
-) -> Tuple[Memory, Optional[Thread]]:
+) -> Memory:
     from ..recall.operations import add_to_context, upsert_embedding_if_needed
 
     memory = Memory(
@@ -175,8 +151,35 @@ def do_create_memory(
     upsert_embedding_if_needed(ctx, memory)
     if add_mem_to_context:
         add_to_context(ctx, memory)
+    return memory
 
-    if update_memory_op_tracker:
-        return (memory, do_update_memory_op_tracker(ctx, tracker))
+
+def do_create_op_tracked_memory(
+    ctx: ElroyContext,
+    name: str,
+    text: str,
+    source_metadata: Iterable[MemorySource],
+    tracker: MemoryOperationTracker,
+    add_mem_to_context: bool,
+) -> Tuple[Memory, Optional[Thread]]:
+
+    memory = do_create_memory(ctx, name, text, source_metadata, add_mem_to_context)
+
+    logger.info("Checking memory consolidation")
+    tracker.messages_since_memory = 0
+    tracker.memories_since_consolidation += 1
+    logger.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
+    thread = None
+
+    if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
+        # Run consolidate_memories in a background thread.
+        # Note: this will reset the tracker, whether or not the background task completes.
+        # This prevents infinite retries if consolidation is failing, but it might be better to fail fast here
+        logger.info("Running memory consolidation")
+        thread = run_in_background(consolidate_memories, ctx)
+        tracker.memories_since_consolidation = 0
     else:
-        return (memory, None)
+        logger.info("Not running memory consolidation")
+    ctx.db.add(tracker)
+    ctx.db.commit()
+    return (memory, thread)
