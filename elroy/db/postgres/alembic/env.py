@@ -27,6 +27,10 @@ if not database_url:
     raise ValueError("No postgres URL provided: provide either via --database-url or via ELROY_DATABASE_URL environment variable")
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    return True
+
+
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
@@ -34,6 +38,6 @@ if config.config_file_name is not None:
 
 
 if context.is_offline_mode():
-    run_migrations_offline(context, config)
+    run_migrations_offline(context, config, include_object)
 else:
-    run_migrations_online(context, config)
+    run_migrations_online(context, config, include_object)

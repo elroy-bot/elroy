@@ -1,3 +1,5 @@
+from typing import Any, Callable
+
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
@@ -5,7 +7,7 @@ from ..core.constants import allow_unused
 
 
 @allow_unused
-def run_migrations_offline(context, config) -> None:
+def run_migrations_offline(context, config, include_object: Callable[[Any, str, str, bool, Any], bool]) -> None:
     """Run migrations in 'offline' mode.
 
     This configures the context with just a URL
@@ -23,6 +25,7 @@ def run_migrations_offline(context, config) -> None:
         target_metadata=SQLModel.metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -30,7 +33,7 @@ def run_migrations_offline(context, config) -> None:
 
 
 @allow_unused
-def run_migrations_online(context, config) -> None:
+def run_migrations_online(context, config, include_object: Callable[[Any, str, str, bool, Any], bool]) -> None:
     """Run migrations in 'online' mode.
 
     In this scenario we need to create an Engine
@@ -44,7 +47,11 @@ def run_migrations_online(context, config) -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=SQLModel.metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=SQLModel.metadata,
+            include_object=include_object,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

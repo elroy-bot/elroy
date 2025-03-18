@@ -42,6 +42,23 @@ else:
     )
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    # Ignore all vectorstorage_* tables
+
+    if type_ == "table" and name.startswith("vectorstorage"):
+        # If the table exists in DB but not in models, prevent dropping it
+        if reflected and compare_to is None:
+            return False
+        # If we're comparing during autogenerate
+        elif compare_to is not None:
+            return False
+        else:
+            import pdb
+
+            pdb.set_trace()
+    return True
+
+
 # TODO: enable extension
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -57,6 +74,6 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 if context.is_offline_mode():
-    run_migrations_offline(context, config)
+    run_migrations_offline(context, config, include_object)
 else:
-    run_migrations_online(context, config)
+    run_migrations_online(context, config, include_object)
