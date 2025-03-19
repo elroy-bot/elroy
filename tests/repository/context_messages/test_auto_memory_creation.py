@@ -70,7 +70,7 @@ def test_memory_creation_trigger(mem_op_ctx: ElroyContext, dummy_msgs: List[Cont
     assert len(get_active_memories(mem_op_ctx)) == memory_ct + 1
 
 
-def test_memory_creation_batch_messages(ctx: ElroyContext, dummy_msgs: List[ContextMessage]):
+def test_memory_creation_batch_messages(mem_op_ctx: ElroyContext, dummy_msgs: List[ContextMessage]):
     """
     Test that memory creation is triggered when adding multiple messages at once.
 
@@ -78,15 +78,15 @@ def test_memory_creation_batch_messages(ctx: ElroyContext, dummy_msgs: List[Cont
     1. When adding multiple messages in a batch, the counter is incremented correctly
     2. Memory creation is triggered when the threshold is exceeded
     """
-    memory_ct = len(get_active_memories(ctx))
+    memory_ct = len(get_active_memories(mem_op_ctx))
 
-    add_context_messages(ctx, dummy_msgs)
+    add_context_messages(mem_op_ctx, dummy_msgs)
 
     assert (
-        get_or_create_memory_op_tracker(ctx).messages_since_memory == 0
+        get_or_create_memory_op_tracker(mem_op_ctx).messages_since_memory == 0
     )  # 0 rather than 1, since the memory creation op resets the tracker
 
-    assert len(get_active_memories(ctx)) == memory_ct + 1
+    assert len(get_active_memories(mem_op_ctx)) == memory_ct + 1
 
 
 def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: List[ContextMessage]):
