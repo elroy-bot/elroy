@@ -177,7 +177,7 @@ def common(
         hidden=True,
     ),
     # Memory Consolidation
-    messages_between_memory: int = ElroyOption(
+    messages_between_memory: Optional[int] = ElroyOption(
         "messages_between_memory",
         help="Max number of messages that can be processed before memory creation is triggered",
         rich_help_panel="Memory Consolidation",

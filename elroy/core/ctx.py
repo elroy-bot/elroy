@@ -66,7 +66,7 @@ class ElroyContext:
         max_memory_cluster_size: int,
         min_memory_cluster_size: int,
         memories_between_consolidation: int,
-        messages_between_memory: int,
+        messages_between_memory: Optional[int],
         l2_memory_relevance_distance_threshold: float,
         # Basic Configuration
         debug: bool,

@@ -137,7 +137,7 @@ def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) 
         ctx.db.commit()
         ctx.db.refresh(tracker)
 
-        if tracker.messages_since_memory >= ctx.messages_between_memory:
+        if ctx.messages_between_memory and tracker.messages_since_memory >= ctx.messages_between_memory:
             run_in_background(create_mem_from_current_context, ctx)
 
 

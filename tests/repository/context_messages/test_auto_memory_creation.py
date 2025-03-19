@@ -106,3 +106,11 @@ def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: List[C
     mem_op_ctx.db.refresh(tracker)
     assert tracker.messages_since_memory == 2
     assert len(get_active_memories(mem_op_ctx)) == new_memory_ct
+
+
+def test_null_threshold(mem_op_ctx: ElroyContext, dummy_msgs: List[ContextMessage]):
+    mem_op_ctx.messages_between_memory = None
+
+    memory_ct = len(get_active_memories(mem_op_ctx))
+    add_context_messages(mem_op_ctx, dummy_msgs * 30)
+    assert len(get_active_memories(mem_op_ctx)) == memory_ct
