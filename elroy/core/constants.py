@@ -15,9 +15,6 @@ SYSTEM_INSTRUCTION_LABEL_END = "</system_instruction>"
 
 UNKNOWN = "Unknown"
 
-ELROY_ENABLE_TRACING = "ELROY_ENABLE_TRACING"
-
-
 # Message roles
 USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
 
