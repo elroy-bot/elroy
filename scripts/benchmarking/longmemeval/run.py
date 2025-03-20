@@ -51,7 +51,8 @@ class BenchmarkingRun:
     def init_run(self):
         Elroy(token=self.run_token, database_url=self.db_url).init_db()
 
-        # create table if not exists: cursor.
+
+        # create table if not exists: cursor. AI!
         # columns: run_token (str), question_id (str), session_idx (int, default = -1), message_idx (int, default = -1), is_complete (bool, default = false)
         # unique on: run _token, session_idx
 
