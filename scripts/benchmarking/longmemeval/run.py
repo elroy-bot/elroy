@@ -13,6 +13,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import Optional
 
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 from tqdm import tqdm
 
@@ -57,13 +59,30 @@ class BenchmarkingRun:
         elroy = Elroy(token=self.run_token, database_url=self.db_url)
         elroy.init_db()
 
-        # Create cursor table
-        SQLModel.metadata.create_all(elroy._db._engine)
+        # Create engine and cursor table using SQLAlchemy directly
+        engine = create_engine(self.db_url)
+        SQLModel.metadata.create_all(engine)
 
-        # Initialize cursor entries for each question
-        for i in self.input_data:
-            ...
-            # check if a cursor entry exists, if not create: run_token = self.run_token, question_id = i["question_id"], session_idx = -1, message_idx = -1, is_complete = False
+        # Initialize cursor entries using SQLAlchemy session
+        with Session(engine) as session:
+            for item in self.input_data:
+                # Check if cursor entry exists
+                existing = session.exec(
+                    select(Cursor).where(
+                        Cursor.run_token == self.run_token,
+                        Cursor.question_id == item["question_id"]
+                    )
+                ).first()
+                
+                if not existing:
+                    # Create new cursor entry
+                    cursor = Cursor(
+                        run_token=self.run_token,
+                        question_id=item["question_id"]
+                    )
+                    session.add(cursor)
+            
+            session.commit()
 
         return
 
