@@ -7,7 +7,6 @@ The script simulates chat logs by recording messages and creating memories perio
 
 import argparse
 import json
-import logging
 import sys
 import time
 from functools import cached_property
@@ -19,9 +18,6 @@ from sqlmodel import Field, Session, SQLModel, select
 from tqdm import tqdm
 
 from elroy.api import Elroy
-from elroy.core.logging import setup_core_logging
-
-setup_core_logging(level=logging.WARNING)
 
 
 class Cursor(SQLModel, table=True):
