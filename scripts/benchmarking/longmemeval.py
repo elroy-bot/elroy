@@ -60,14 +60,9 @@ def process_question_message(data, token_prefix, db_dir):
     db_url = f"sqlite:///{db_dir}.db"
     ai = Elroy(token=token_prefix + {question_id}, database_url=db_url)
 
-    msgs_since_refresh = 0
     for session in data["haystack_sessions"]:
         for message in session:
             ai.record_message(message["role"], message["content"])
-            msgs_since_refresh += 1
-            if msgs_since_refresh >= 10:
-                ai.create_memory_from_current_context()
-                msgs_since_refresh = 0
 
     ai_answer = ai.message(question)
 
