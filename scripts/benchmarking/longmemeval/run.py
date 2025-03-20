@@ -43,6 +43,7 @@ def process_messages(input_file, token_prefix=None):
     # Process each question with its own user token and database
     for q in data:
         process_question_message(q, token_prefix, db_dir)
+        return
 
 
 def process_question_message(data, token_prefix, db_dir):
@@ -67,6 +68,7 @@ def process_question_message(data, token_prefix, db_dir):
     ai_answer = ai.message(question)
 
     output = {"question_id": question_id, "question": question, "answer": answer, "ai_answer": ai_answer}
+    print(output)
 
     # save to sqlite
 

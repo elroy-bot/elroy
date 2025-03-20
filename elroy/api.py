@@ -285,12 +285,13 @@ class Elroy:
         return do_get_persona(self.ctx)
 
     @db
-    def record_message(self, role: str, message: str, created_at: Optional[datetime]) -> None:
+    def record_message(self, role: str, message: str, created_at: Optional[datetime] = None) -> None:
         """Records a message into context, without generating a reply
 
         Args:
             role (str): The role of the message
             message (str): The message content
+            created_at: (Optional[datetime]): The timestamp of the message. If None, the current time will be used.
         """
 
         add_context_message(
