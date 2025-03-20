@@ -70,14 +70,12 @@ def process_question_message(data, token_prefix, db_dir):
     output = {"question_id": question_id, "question": question, "answer": answer, "ai_answer": ai_answer}
     print(output)
 
-    # save to sqlite
-
 
 def main():
     parser = argparse.ArgumentParser(description="Process test messages using Elroy API")
-    parser.add_argument("input_file", help="Path to the input JSON file containing messages")
+    parser.add_argument("input-file", help="Path to the input JSON file containing messages")
     parser.add_argument(
-        "token_prefix",
+        "token-prefix",
         nargs="?",
         default=None,
         help="Optional prefix for user tokens. If not provided, a timestamp-based prefix will be generated.",
