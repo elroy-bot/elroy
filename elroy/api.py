@@ -84,6 +84,11 @@ class Elroy:
             if assistant_name:
                 set_assistant_name(self.ctx, assistant_name)
 
+    def init_db(self):
+        with init_elroy_session(self.ctx, PlainIO(), False, False):
+            self.ctx.db_manager.check_connection()
+            self.ctx.db_manager.migrate_if_needed()
+
     @db
     def create_goal(
         self,
