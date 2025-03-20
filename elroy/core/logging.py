@@ -3,15 +3,16 @@ import os
 import warnings
 from typing import Optional
 
+from ..config.env_vars import get_log_level
 from ..config.paths import get_log_file_path
 
 logger = logging.getLogger("elroy")
+logger.setLevel(get_log_level())
 
 
-def setup_core_logging(level: int = logging.INFO):
+def setup_core_logging():
     """Setup basic logging configuration for the Elroy library"""
     # Configure the main Elroy logger
-    logger.setLevel(level)
 
     # Add a basic StreamHandler if no handlers exist
     if not logger.handlers:

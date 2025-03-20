@@ -1,7 +1,7 @@
 import os
 from typing import Any, Callable, TypeVar
 
-from .constants import ELROY_ENABLE_TRACING
+from ..config.env_vars import is_tracing_enabled
 from .logging import get_logger
 
 T = TypeVar("T")
@@ -28,7 +28,7 @@ class NoOpTracer:
         return noop
 
 
-if os.environ.get(ELROY_ENABLE_TRACING, "").lower() in ("1", "true", "yes"):
+if is_tracing_enabled():
     from phoenix.otel import register
 
     logger.info("Enabling tracing")
