@@ -7,6 +7,7 @@ The script simulates chat logs by recording messages and creating memories perio
 
 import argparse
 import json
+import logging
 import sys
 import time
 from functools import cached_property
@@ -18,6 +19,7 @@ from sqlmodel import Field, Session, SQLModel, select
 from tqdm import tqdm
 
 from elroy.api import Elroy
+from elroy.core.logging import setup_core_logging
 
 
 class Cursor(SQLModel, table=True):
@@ -79,9 +81,11 @@ class BenchmarkingRun:
         engine = create_engine(self.db_url)
         SQLModel.metadata.create_all(engine)
 
+        setup_core_logging(level=logging.INFO)
+
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:
-            for item in tqdm(self.input_data, desc="Questions", position=0, leave=True):
+            for item in tqdm(self.input_data[:5], desc="Questions", position=0, leave=True):
                 user_token = f"{self.run_token}_{item['question_id']}"
                 elroy = Elroy(token=user_token, database_url=self.db_url, check_db_migration=False)
                 cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
