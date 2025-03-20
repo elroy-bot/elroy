@@ -191,8 +191,10 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
         "model": model.name,
         "input": [text],
         "caching": model.enable_caching,
-        "api_key": model.api_key,
     }
+
+    if model.api_key:
+        embedding_kwargs["api_key"] = model.api_key
 
     if model.api_base:
         embedding_kwargs["api_base"] = model.api_base
