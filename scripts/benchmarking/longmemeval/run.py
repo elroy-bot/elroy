@@ -21,6 +21,8 @@ from tqdm import tqdm
 from elroy.api import Elroy
 from elroy.core.logging import setup_core_logging
 
+setup_core_logging(level=logging.WARNING)
+
 
 class Cursor(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -81,8 +83,6 @@ class BenchmarkingRun:
         engine = create_engine(self.db_url)
         SQLModel.metadata.create_all(engine)
 
-        setup_core_logging(level=logging.INFO)
-
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:
             for item in tqdm(self.input_data[:5], desc="Questions", position=0, leave=True):
@@ -99,7 +99,8 @@ class BenchmarkingRun:
                             if cursor.message_idx > message_idx:
                                 continue
                             else:
-                                elroy.record_message(message["role"], message["content"], session_date)
+                                if message["role"] == "user":
+                                    elroy.message(message["content"], session_date)
                                 cursor.message_idx = message_idx
                                 session.add(cursor)
                                 session.commit()
