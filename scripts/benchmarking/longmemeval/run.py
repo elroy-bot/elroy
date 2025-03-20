@@ -14,13 +14,14 @@ from pathlib import Path
 from typing import Optional
 
 from sqlalchemy import create_engine
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Field, Session, SQLModel, select
 from tqdm import tqdm
 
 from elroy.api import Elroy
 
 
-class Cursor(SQLModel):
+class Cursor(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
     question_id: str
     session_idx: int = -1
@@ -28,7 +29,8 @@ class Cursor(SQLModel):
     is_complete: bool = False
 
 
-class Answer(SQLModel):
+class Answer(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
     question_id: str
     question_type: str
@@ -38,7 +40,7 @@ class Answer(SQLModel):
 
 
 def get_or_create_cursor(session: Session, run_token: str, question_id: str):
-    cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token, Cursor.question_id == question_id)).first()
+    cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token).where(Cursor.question_id == question_id)).first()
 
     if not cursor:
         # Create new cursor entry
@@ -84,13 +86,12 @@ class BenchmarkingRun:
                 elroy = Elroy(token=user_token, database_url=self.db_url, check_db_migration=False)
                 cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
 
-                for session_idx, session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
+                for session_idx, chat_session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
                     if cursor.session_idx > session_idx:
                         continue
                     else:
-                        session_date = self.input_data["haystack_dates"]
-
-                        for message_idx, message in enumerate(tqdm(session, desc="Messages", position=2, leave=False)):
+                        session_date = item["haystack_dates"]
+                        for message_idx, message in enumerate(tqdm(chat_session, desc="Messages", position=2, leave=False)):
                             if cursor.message_idx > message_idx:
                                 continue
                             else:
