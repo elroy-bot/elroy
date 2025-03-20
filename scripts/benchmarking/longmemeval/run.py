@@ -13,9 +13,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
-from sqlmodel import SQLModel
+from sqlalchemy import create_engine
+from sqlmodel import Session, SQLModel, select
 from tqdm import tqdm
 
 from elroy.api import Elroy
@@ -24,12 +23,30 @@ from elroy.api import Elroy
 class Cursor(SQLModel):
     run_token: str
     question_id: str
-    session_idx: int = -1 
+    session_idx: int = -1
     message_idx: int = -1
     is_complete: bool = False
 
-    class Config:
-        table = True
+
+class Answer(SQLModel):
+    run_token: str
+    question_id: str
+    question_type: str
+    question: str
+    elroy_answer: str
+    answer: str
+
+
+def get_or_create_cursor(session: Session, run_token: str, question_id: str):
+    cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token, Cursor.question_id == question_id)).first()
+
+    if not cursor:
+        # Create new cursor entry
+        cursor = Cursor(run_token=run_token, question_id=question_id)
+        session.add(cursor)
+
+        session.commit()
+    return cursor
 
 
 class BenchmarkingRun:
@@ -55,7 +72,7 @@ class BenchmarkingRun:
     def db_url(self):
         return f"sqlite:///elroy.db"
 
-    def init_run(self):
+    def run(self):
         elroy = Elroy(token=self.run_token, database_url=self.db_url)
         elroy.init_db()
 
@@ -65,101 +82,54 @@ class BenchmarkingRun:
 
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:
-            for item in self.input_data:
-                # Check if cursor entry exists
-                existing = session.exec(
-                    select(Cursor).where(
-                        Cursor.run_token == self.run_token,
-                        Cursor.question_id == item["question_id"]
-                    )
-                ).first()
-                
-                if not existing:
-                    # Create new cursor entry
-                    cursor = Cursor(
-                        run_token=self.run_token,
-                        question_id=item["question_id"]
-                    )
-                    session.add(cursor)
-            
-            session.commit()
+            for item in tqdm(self.input_data, desc="Questions", position=0, leave=True):
+                user_token = f"{self.run_token}_{item['question_id']}"
+                elroy = Elroy(token=user_token, database_url=self.db_url)
+                cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
 
-        return
+                for session_idx, session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
+                    if cursor.session_idx > session_idx:
+                        continue
+                    else:
+                        session_date = self.input_data["haystack_dates"]
 
+                        for message_idx, message in enumerate(tqdm(session, desc="Messages", position=2, leave=False)):
+                            if cursor.message_idx > message_idx:
+                                continue
+                            else:
+                                elroy.record_message(message["role"], message["content"], session_date)
+                                cursor.message_idx = message_idx
+                                session.add(cursor)
+                                session.commit()
+                                session.refresh(cursor)
+                        cursor.session_idx = session_idx
 
-def process_messages(input_file, token_prefix=None):
-    """
-    Process messages from the input JSON file.
-
-    Args:
-        input_file (str): Path to the input JSON file
-        token_prefix (str, optional): Prefix for user tokens. If None, a timestamp-based prefix will be generated.
-    """
-    # Generate token prefix based on timestamp if not provided
-    if token_prefix is None:
-        token_prefix = f"user_{int(time.time())}"
-
-    # Create a directory for SQLite databases if it doesn't exist
-    db_dir = Path("./cache")
-    db_dir.mkdir(exist_ok=True)
-
-    try:
-        with open(input_file, "r") as f:
-            data = json.load(f)
-    except json.JSONDecodeError:
-        print(f"Error: {input_file} is not a valid JSON file")
-        sys.exit(1)
-    except FileNotFoundError:
-        print(f"Error: File {input_file} not found")
-        sys.exit(1)
-
-    # Process each question with its own user token and database
-    for q in data:
-        process_question_message(q, token_prefix, db_dir)
-        return
-
-
-def process_question_message(data, token_prefix, db_dir):
-    """
-    Process messages for a specific question.
-
-    Args:
-        token_prefix (str): Prefix for user token
-        db_dir (Path): Directory for SQLite databases
-    """
-    question_id = data["question_id"]
-    question = data["question"]
-    answer = data["answer"]
-
-    db_url = f"sqlite:///{db_dir}.db"
-    ai = Elroy(token=token_prefix + question_id, database_url=db_url, check_db_migration=True)
-
-    for session_idx, session in enumerate(tqdm(data["haystack_sessions"], desc="Sessions", position=0, leave=True)):
-        for msgs_idx, message in tqdm(session, desc="Messages", position=1, leave=False):
-            import pdb
-
-            pdb.set_trace()
-            ai.record_message(message["role"], message["content"])
-
-    ai_answer = ai.message(question)
-
-    output = {"question_id": question_id, "question": question, "answer": answer, "ai_answer": ai_answer}
-    print(output)
+                answer = Answer(
+                    run_token=self.run_token,
+                    question_id=item["question_id"],
+                    question_type=item["question_type"],
+                    question=item["question"],
+                    elroy_answer=elroy.message(item["question"]),
+                    answer=item["answer"],
+                )
+                session.add(answer)
+                cursor.is_complete = True
+                session.add(cursor)
+                session.commit()
 
 
 def main():
     parser = argparse.ArgumentParser(description="Process test messages using Elroy API")
     parser.add_argument("input_file", help="Path to the input JSON file containing messages")
     parser.add_argument(
-        "token_prefix",
+        "run_token",
         nargs="?",
         default=None,
         help="Optional prefix for user tokens. If not provided, a timestamp-based prefix will be generated.",
     )
 
     args = parser.parse_args()
-
-    process_messages(args.input_file, args.token_prefix)
+    BenchmarkingRun(args.input_file, args.run_token).run()
 
 
 if __name__ == "__main__":
