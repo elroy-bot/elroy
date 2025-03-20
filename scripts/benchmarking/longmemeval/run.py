@@ -73,9 +73,6 @@ class BenchmarkingRun:
         return f"sqlite:///elroy.db"
 
     def run(self):
-        elroy = Elroy(token=self.run_token, database_url=self.db_url)
-        elroy.init_db()
-
         # Create engine and cursor table using SQLAlchemy directly
         engine = create_engine(self.db_url)
         SQLModel.metadata.create_all(engine)
@@ -84,7 +81,7 @@ class BenchmarkingRun:
         with Session(engine) as session:
             for item in tqdm(self.input_data, desc="Questions", position=0, leave=True):
                 user_token = f"{self.run_token}_{item['question_id']}"
-                elroy = Elroy(token=user_token, database_url=self.db_url)
+                elroy = Elroy(token=user_token, database_url=self.db_url, check_db_migration=False)
                 cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
 
                 for session_idx, session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
@@ -120,7 +117,7 @@ class BenchmarkingRun:
 
 def main():
     parser = argparse.ArgumentParser(description="Process test messages using Elroy API")
-    parser.add_argument("input_file", help="Path to the input JSON file containing messages")
+    parser.add_argument("input_file", help="Path to the input JSON file containing messages", default="data/longmemeval_s.json")
     parser.add_argument(
         "run_token",
         nargs="?",
