@@ -20,9 +20,14 @@ from elroy.api import Elroy
 
 
 class Cursor(SQLModel):
-    user_token: str
-    session_idx: str
-    message_idx: int
+    run_token: str
+    question_id: str
+    session_idx: int = -1 
+    message_idx: int = -1
+    is_complete: bool = False
+
+    class Config:
+        table = True
 
 
 class BenchmarkingRun:
@@ -49,15 +54,13 @@ class BenchmarkingRun:
         return f"sqlite:///elroy.db"
 
     def init_run(self):
-        Elroy(token=self.run_token, database_url=self.db_url).init_db()
+        elroy = Elroy(token=self.run_token, database_url=self.db_url)
+        elroy.init_db()
 
+        # Create cursor table
+        SQLModel.metadata.create_all(elroy._db._engine)
 
-        # create table if not exists: cursor. AI!
-        # columns: run_token (str), question_id (str), session_idx (int, default = -1), message_idx (int, default = -1), is_complete (bool, default = false)
-        # unique on: run _token, session_idx
-
-        # create table if not exists: questions: question_id (str), question (str), answer (str), expected_answer (str)
-
+        # Initialize cursor entries for each question
         for i in self.input_data:
             ...
             # check if a cursor entry exists, if not create: run_token = self.run_token, question_id = i["question_id"], session_idx = -1, message_idx = -1, is_complete = False
