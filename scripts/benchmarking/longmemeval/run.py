@@ -53,6 +53,32 @@ def get_or_create_cursor(session: Session, run_token: str, question_id: str):
     return cursor
 
 
+def update_or_create_answer(
+    session: Session,
+    run_token: str,
+    question_id: str,
+    question_type: str,
+    question: str,
+    elroy_answer: str,
+    answer: str,
+):
+    answer_row = session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
+
+    if answer_row:
+        answer_row.elroy_answer = elroy_answer
+    else:
+        answer_row = Answer(
+            run_token=run_token,
+            question_id=question_id,
+            question_type=question_type,
+            question=question,
+            elroy_answer=elroy_answer,
+            answer=answer,
+        )
+    session.add(answer_row)
+    session.commit()
+
+
 class BenchmarkingRun:
     db_file: Path = Path("./elroy.db")
 
@@ -123,10 +149,11 @@ class BenchmarkingRun:
 
                 elroy.ctx.show_internal_thought = False
 
-                answer = Answer(
-                    run_token=self.run_token,
-                    question_id=item["question_id"],
-                    question_type=item["question_type"],
+                update_or_create_answer(
+                    session,
+                    self.run_token,
+                    item["question_id"],
+                    item["question_type"],
                     question=item["question"],
                     elroy_answer=elroy.message(
                         "the following is a test of your memory. Respond simply and concisely. Just give your answer, do not continue the conversation. E.g. if the question is: What is 2+2? Respond simply with: 4. Use tools to search for information, if you don't know say I don't know.: "
@@ -136,10 +163,10 @@ class BenchmarkingRun:
                 )
 
                 elroy.ctx.show_internal_thought = True
-                session.add(answer)
                 cursor.is_complete = True
                 session.add(cursor)
                 session.commit()
+                session.refresh(cursor)
 
 
 def main():
