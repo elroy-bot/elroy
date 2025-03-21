@@ -1,7 +1,7 @@
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Union
+from typing import Any, Callable, Concatenate, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
 
 from toolz import concat, pipe
 from toolz.curried import map
@@ -37,7 +37,10 @@ from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 
 
-def db(f: Callable) -> Callable:
+T = TypeVar('T')  # Type variable to capture the return type
+
+P = ParamSpec('P')
+def db(f: Callable[Concatenate[Any, P], T]) -> Callable[Concatenate[Any, P], T]:
     """Decorator to wrap non-generator function calls with database session context"""
 
     @wraps(f)

@@ -81,7 +81,7 @@ class BenchmarkingRun:
 
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:
-            for item in tqdm(self.input_data[:5], desc="Questions", position=0, leave=True):
+            for item in tqdm(self.input_data[:1], desc="Questions", position=0, leave=True):
                 user_token = f"{self.run_token}_{item['question_id']}"
                 elroy = Elroy(token=user_token, database_url=self.db_url, check_db_migration=False)
                 cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
@@ -96,7 +96,7 @@ class BenchmarkingRun:
                                 continue
                             else:
                                 if message["role"] == "user":
-                                    elroy.message(message["content"], session_date)
+                                    elroy.message(message["content"])
                                 cursor.message_idx = message_idx
                                 session.add(cursor)
                                 session.commit()
