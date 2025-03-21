@@ -246,7 +246,7 @@ class Elroy:
         return do_create_memory(self.ctx, name, text)
 
     @db
-    @tracer.chain
+    @tracer.agent
     def message(self, input: str, enable_tools=True) -> str:
         """Process a message to the assistant and return the response
 

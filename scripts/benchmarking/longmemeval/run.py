@@ -19,9 +19,7 @@ from sqlmodel import Field, Session, SQLModel, select
 from tqdm import tqdm
 
 from elroy.api import Elroy
-
-from ....elroy.core.constants import SYSTEM
-from ....elroy.repository.context_messages.operations import context_refresh
+from elroy.core.constants import SYSTEM
 
 
 class Cursor(SQLModel, table=True):
@@ -87,7 +85,11 @@ class BenchmarkingRun:
         with Session(engine) as session:
             for item in tqdm(self.input_data[:1], desc="Questions", position=0, leave=True):
                 user_token = f"{self.run_token}_{item['question_id']}"
-                elroy = Elroy(token=user_token, database_url=self.db_url, check_db_migration=False)
+                elroy = Elroy(
+                    token=user_token,
+                    database_url=self.db_url,
+                    check_db_migration=False,
+                )
                 cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
 
                 for session_idx, chat_session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
@@ -109,20 +111,31 @@ class BenchmarkingRun:
                                 session.add(cursor)
                                 session.commit()
                                 session.refresh(cursor)
-                        context_refresh(elroy.ctx)
+                        elroy.context_refresh()
                         cursor.session_idx = session_idx
                         cursor.message_idx = -1
                         session.commit()
                         session.refresh(cursor)
+                cursor.session_idx += 1
+                cursor.message_idx = -1
+                session.commit()
+                session.refresh(cursor)
+
+                elroy.ctx.show_internal_thought = False
 
                 answer = Answer(
                     run_token=self.run_token,
                     question_id=item["question_id"],
                     question_type=item["question_type"],
                     question=item["question"],
-                    elroy_answer=elroy.message(item["question"]),
+                    elroy_answer=elroy.message(
+                        "the following is a test of your memory. Respond simply and concisely. Just give your answer, do not continue the conversation. E.g. if the question is: What is 2+2? Respond simply with: 4. Use tools to search for information, if you don't know say I don't know.: "
+                        + item["question"]
+                    ),
                     answer=item["answer"],
                 )
+
+                elroy.ctx.show_internal_thought = True
                 session.add(answer)
                 cursor.is_complete = True
                 session.add(cursor)
