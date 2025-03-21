@@ -20,6 +20,9 @@ from tqdm import tqdm
 
 from elroy.api import Elroy
 
+from ....elroy.core.constants import SYSTEM
+from ....elroy.repository.context_messages.operations import context_refresh
+
 
 class Cursor(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -93,6 +96,7 @@ class BenchmarkingRun:
                         continue
                     else:
                         session_date = item["haystack_dates"]
+                        elroy.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
                         for message_idx, message in enumerate(tqdm(chat_session, desc="Messages", position=2, leave=False)):
                             if cursor.message_idx > message_idx:
                                 logging.warning(f"skipping message {message_idx} because it is behind cursor {cursor.message_idx}")
@@ -105,6 +109,7 @@ class BenchmarkingRun:
                                 session.add(cursor)
                                 session.commit()
                                 session.refresh(cursor)
+                        context_refresh(elroy.ctx)
                         cursor.session_idx = session_idx
                         cursor.message_idx = -1
                         session.commit()
