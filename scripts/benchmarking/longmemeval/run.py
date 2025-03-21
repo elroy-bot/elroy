@@ -109,7 +109,7 @@ class BenchmarkingRun:
 
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:
-            for item in tqdm(self.input_data, desc="Questions", position=0, leave=True):
+            for item in tqdm(self.input_data[:100], desc="Questions", position=0, leave=True):
                 user_token = f"{self.run_token}_{item['question_id']}"
                 elroy = Elroy(
                     token=user_token,
