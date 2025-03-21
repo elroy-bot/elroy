@@ -35,6 +35,7 @@ from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
+from .core.tracing import tracer
 
 
 T = TypeVar('T')  # Type variable to capture the return type
@@ -244,6 +245,7 @@ class Elroy:
         return do_create_memory(self.ctx, name, text)
 
     @db
+    @tracer.chain
     def message(self, input: str, enable_tools=True) -> str:
         """Process a message to the assistant and return the response
 
