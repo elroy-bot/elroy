@@ -11,7 +11,7 @@ import sys
 import time
 from functools import cached_property
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import create_engine
 from sqlmodel import Field, Session, SQLModel, select
@@ -63,12 +63,13 @@ def update_or_create_answer(
     question: str,
     elroy_answer: str,
     answer: str,
-    answer_session_ids: str,
+    answer_session_ids: List[str],
 ):
     answer_row = session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
 
     if answer_row:
         answer_row.elroy_answer = elroy_answer
+        answer_row.answer_session_ids = ", ".join(answer_session_ids)
     else:
         answer_row = Answer(
             run_token=run_token,
@@ -77,7 +78,7 @@ def update_or_create_answer(
             question=question,
             elroy_answer=elroy_answer,
             answer=answer,
-            answer_session_ids=answer_session_ids,
+            answer_session_ids=", ".join(answer_session_ids),
         )
     session.add(answer_row)
     session.commit()
