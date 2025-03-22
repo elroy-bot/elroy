@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 from elroy.api import Elroy
 from elroy.core.constants import SYSTEM
+from elroy.core.tracing import tracer
 
 
 class Cursor(SQLModel, table=True):
@@ -31,6 +32,7 @@ class Cursor(SQLModel, table=True):
 
 
 class Answer(SQLModel, table=True):
+    # update to set extend_existing true AI!
     id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
     question_id: str
@@ -38,6 +40,7 @@ class Answer(SQLModel, table=True):
     question: str
     elroy_answer: str
     answer: str
+    answer_session_ids: str
 
 
 def get_or_create_cursor(session: Session, run_token: str, question_id: str):
@@ -60,6 +63,7 @@ def update_or_create_answer(
     question: str,
     elroy_answer: str,
     answer: str,
+    answer_session_ids: str,
 ):
     answer_row = session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
 
@@ -73,6 +77,7 @@ def update_or_create_answer(
             question=question,
             elroy_answer=elroy_answer,
             answer=answer,
+            answer_session_ids=answer_session_ids,
         )
     session.add(answer_row)
     session.commit()
@@ -117,6 +122,11 @@ class BenchmarkingRun:
                 )
                 cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
 
+
+                @tracer.agent
+                def handle_msg(msg: str, question_id: str, session_idx: int, message_idx: int):
+                    return elroy.message(msg)
+
                 for session_idx, chat_session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
                     if cursor.session_idx > session_idx:
                         # logging.warning(f"skipping session {session_idx} because it is behind cursor {cursor.session_idx}")
@@ -129,6 +139,9 @@ class BenchmarkingRun:
                                 # logging.warning(f"skipping message {message_idx} because it is behind cursor {cursor.message_idx}")
                                 continue
                             else:
+
+
+
                                 if message["role"] == "user":
                                     elroy.message(message["content"])
 
