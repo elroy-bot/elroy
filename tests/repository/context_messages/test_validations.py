@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 
 from elroy.core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
@@ -31,11 +33,44 @@ def test_assistant_tool_calls_followed_by_tool(ctx, system_instruct, tool_call):
 
     assert len(validated) == 3
     assert validated[2].tool_calls is None
-    assert "Assistant message with tool_calls not followed by tool message" in validator.errors[0]
+    assert "Last message is assistant" in validator.errors[0]
     fetched_ids = [m.id for m in get_context_messages(ctx)]
 
     assert fetched_ids != [m.id for m in messages]
     assert fetched_ids == [m.id for m in validated]
+
+
+def test_wrong_tool_call_id(ctx, system_instruct, tool_call: ToolCall, tool_call_2: ToolCall):
+
+    messages = [
+        system_instruct,
+        ContextMessage(role=USER, content="user message", chat_model=None),
+        ContextMessage(role=ASSISTANT, content="assistant message", chat_model=None, tool_calls=[tool_call, tool_call_2]),
+        ContextMessage(role=TOOL, content="tool response", chat_model=None, tool_call_id=tool_call.id),
+        ContextMessage(role=TOOL, content="tool response", chat_model=None, tool_call_id="wrong_id"),
+    ]
+
+    validator = Validator(ctx, messages)
+    validated = list(validator.validated_msgs())
+    assert len(validated) == 4  # wrong_id tool message is removed
+    assert not any(msg.tool_call_id == "wrong_id" for msg in validated)
+    assert any("without corresponding tool_message" in error for error in validator.errors)
+    assert any("without preceding assistant message" in error for error in validator.errors)
+
+
+def test_multiple_tool_calls(ctx, system_instruct, tool_call: ToolCall, tool_call_2: ToolCall):
+    messages = [
+        system_instruct,
+        ContextMessage(role=USER, content="user message", chat_model=None),
+        ContextMessage(role=ASSISTANT, content="assistant message", chat_model=None, tool_calls=[tool_call, tool_call_2]),
+        ContextMessage(role=TOOL, content="tool response", chat_model=None, tool_call_id=tool_call.id),
+        ContextMessage(role=TOOL, content="tool response", chat_model=None, tool_call_id=tool_call_2.id),
+    ]
+
+    validator = Validator(ctx, messages)
+    validated = list(validator.validated_msgs())
+    assert len(validated) == 5
+    assert not validator.errors
 
 
 def test_tool_messages_have_assistant_tool_call(ctx, system_instruct):
@@ -137,7 +172,12 @@ def test_valid_message_sequence(ctx, system_instruct, tool_call):
 
 @pytest.fixture(scope="function")
 def tool_call():
-    return ToolCall(id="123", function={"name": "test_tool", "arguments": '{"arg": "value"}'})
+    return ToolCall(id=uuid.uuid4().hex, function={"name": "test_tool", "arguments": '{"arg": "value"}'})
+
+
+@pytest.fixture(scope="function")
+def tool_call_2():
+    return ToolCall(id=uuid.uuid4().hex, function={"name": "test_tool", "arguments": '{"arg": "value"}'})
 
 
 @pytest.fixture(scope="function")

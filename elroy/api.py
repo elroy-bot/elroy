@@ -1,6 +1,7 @@
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Union
+from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
 
 from toolz import concat, pipe
 from toolz.curried import map
@@ -10,6 +11,7 @@ from .core.constants import USER
 from .core.ctx import ElroyContext
 from .core.logging import setup_core_logging
 from .core.session import dbsession, init_elroy_session
+from .core.tracing import tracer
 from .io.base import PlainIO
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
@@ -35,8 +37,12 @@ from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 
+T = TypeVar("T")  # Type variable to capture the return type
 
-def db(f: Callable) -> Callable:
+P = ParamSpec("P")
+
+
+def db(f: Callable[P, T]) -> Callable[P, T]:
     """Decorator to wrap non-generator function calls with database session context"""
 
     @wraps(f)
@@ -235,6 +241,7 @@ class Elroy:
         return do_create_memory(self.ctx, name, text)
 
     @db
+    @tracer.agent
     def message(self, input: str, enable_tools=True) -> str:
         """Process a message to the assistant and return the response
 
@@ -284,17 +291,19 @@ class Elroy:
         return do_get_persona(self.ctx)
 
     @db
-    def record_message(self, role: str, message: str) -> None:
+    def record_message(self, role: str, message: str, created_at: Optional[datetime] = None) -> None:
         """Records a message into context, without generating a reply
 
         Args:
             role (str): The role of the message
             message (str): The message content
+            created_at: (Optional[datetime]): The timestamp of the message. If None, the current time will be used.
         """
 
         add_context_message(
             self.ctx,
             ContextMessage(
+                created_at=created_at,
                 content=message,
                 role=role,
                 chat_model=None,
