@@ -7,7 +7,6 @@ The script simulates chat logs by recording messages and creating memories perio
 
 import argparse
 import json
-import logging
 import sys
 import time
 from functools import cached_property
@@ -120,14 +119,14 @@ class BenchmarkingRun:
 
                 for session_idx, chat_session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
                     if cursor.session_idx > session_idx:
-                        logging.warning(f"skipping session {session_idx} because it is behind cursor {cursor.session_idx}")
+                        # logging.warning(f"skipping session {session_idx} because it is behind cursor {cursor.session_idx}")
                         continue
                     else:
                         session_date = item["haystack_dates"]
                         elroy.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
                         for message_idx, message in enumerate(tqdm(chat_session, desc="Messages", position=2, leave=False)):
                             if cursor.message_idx > message_idx:
-                                logging.warning(f"skipping message {message_idx} because it is behind cursor {cursor.message_idx}")
+                                # logging.warning(f"skipping message {message_idx} because it is behind cursor {cursor.message_idx}")
                                 continue
                             else:
                                 if message["role"] == "user":
