@@ -144,7 +144,7 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
             run_in_background(refresh_context_if_needed, ctx)
 
 
-@tracer.chain
+@tracer.agent
 def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
     if user_input.startswith("/") and role == USER:
         try:
