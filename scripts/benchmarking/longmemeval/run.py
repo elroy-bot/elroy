@@ -32,7 +32,7 @@ class Cursor(SQLModel, table=True):
 
 
 class Answer(SQLModel, table=True):
-    # update to set extend_existing true AI!
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
     question_id: str
