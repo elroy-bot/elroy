@@ -20,3 +20,13 @@ litellm_settings:
   password: "password"  # The password for the Redis cache. Required if type is "redis".
   namespace: "litellm.caching.caching" # namespace for redis cache
   disable_master_key_return: boolean
+
+
+# docker run \
+#     -v $(pwd)/litellm_config.yaml:/app/config.yaml \
+#     -e AZURE_API_KEY=$AZURE_API_KEY \
+#     -e AZURE_API_BASE=$AZURE_API_BASE \
+#     -e AZURE_API_VERSION=$AZURE_API_VERSION \
+#     -p 4000:4000 \
+#     ghcr.io/berriai/litellm:main-latest \
+#     --config /app/config.yaml --detailed_debug
