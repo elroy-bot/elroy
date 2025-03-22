@@ -27,17 +27,34 @@ class Validator:
         ctx_msg_list = list(context_messages)
 
         for idx, message in enumerate(ctx_msg_list):
-            if (message.role == ASSISTANT and message.tool_calls is not None) and (
-                idx == len(ctx_msg_list) - 1 or ctx_msg_list[idx + 1].role != TOOL
-            ):
-                self.errors.append(
-                    f"Assistant message with tool_calls not followed by tool message: ID = {message.id}, repairing by removing tool_calls"
-                )
-                message.tool_calls = None
-                message.id = None  # unsetting ID so that a new message gets persisted
-                yield message
-            else:
-                yield message
+            if message.role == ASSISTANT and message.tool_calls is not None:
+                if idx == len(ctx_msg_list) - 1:
+                    self.errors.append("Last message is assistant message with tool_calls, repairing by removing tool_calls")
+                    message.tool_calls = None
+                    message.id = None
+                elif ctx_msg_list[idx + 1].role != TOOL:
+                    self.errors.append(
+                        f"Assistant message with tool_calls not followed by tool message: ID = {message.id}, repairing by removing tool_calls"
+                    )
+                    message.tool_calls = None
+                    message.id = None
+                else:
+                    expected_tool_call_ids = {tc.id for tc in message.tool_calls}
+                    actual_tool_calls_ids = {
+                        tool_msg.tool_call_id
+                        for tool_msg in ctx_msg_list[idx + 1 : idx + 1 + len(message.tool_calls)]
+                        if tool_msg.role == TOOL
+                    }
+
+                    missing_tool_call_ids = expected_tool_call_ids - actual_tool_calls_ids
+                    if missing_tool_call_ids:
+                        self.errors.append(
+                            f"Assistant message has tool_call without corresponding tool_message. tool call id(s): {missing_tool_call_ids}). Removing them."
+                        )
+                        message.tool_calls = [tc for tc in message.tool_calls if tc.id not in missing_tool_call_ids]
+                        message.id = None
+                        # we will rely on tool_messages_have_assistant_tool_call to remove any extra tool messages.
+            yield message
 
     def tool_messages_have_assistant_tool_call(self, context_messages: Iterable[ContextMessage]) -> Iterable[ContextMessage]:
         """

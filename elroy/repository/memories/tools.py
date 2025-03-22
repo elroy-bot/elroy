@@ -10,7 +10,7 @@ from ...core.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 from ...llm.client import query_llm
 from ...utils.clock import db_time_to_local
-from .operations import do_create_memory_from_ctx_msgs, do_create_op_tracked_memory
+from .operations import do_create_memory, do_create_memory_from_ctx_msgs
 from .queries import (
     db_get_memory_source_by_name,
     db_get_source_list_for_memory,
@@ -213,12 +213,11 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
     updated_text = f"{original_memory.text}\n\nUpdate ({update_time}):\n{update_text}"
     ctx.db.commit()
 
-    do_create_op_tracked_memory(
+    do_create_memory(
         ctx,
         memory_name,
         updated_text,
         [original_memory],
-        True,
         True,
     )
 
