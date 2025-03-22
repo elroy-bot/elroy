@@ -123,7 +123,7 @@ class BenchmarkingRun:
                 cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
 
                 @tracer.agent
-                def handle_msg(msg: str, question_id: str, session_idx: int, message_idx: int):
+                def handle_msg(msg: str, question_id: str, haystack_session_id: int, message_idx: int):
                     return elroy.message(msg)
 
                 for session_idx, chat_session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
@@ -140,6 +140,12 @@ class BenchmarkingRun:
                             else:
 
                                 if message["role"] == "user":
+                                    handle_msg(
+                                        message["content"],
+                                        item["question_id"],
+                                        item["haystack_session_ids"][session_idx],
+                                        message_idx,
+                                    )
                                     elroy.message(message["content"])
 
                                 cursor.message_idx = message_idx
