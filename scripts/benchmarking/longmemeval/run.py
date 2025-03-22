@@ -122,7 +122,6 @@ class BenchmarkingRun:
                 )
                 cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
 
-
                 @tracer.agent
                 def handle_msg(msg: str, question_id: str, session_idx: int, message_idx: int):
                     return elroy.message(msg)
@@ -139,8 +138,6 @@ class BenchmarkingRun:
                                 # logging.warning(f"skipping message {message_idx} because it is behind cursor {cursor.message_idx}")
                                 continue
                             else:
-
-
 
                                 if message["role"] == "user":
                                     elroy.message(message["content"])
@@ -172,6 +169,7 @@ class BenchmarkingRun:
                         + item["question"]
                     ),
                     answer=item["answer"],
+                    answer_session_ids=item["answer_session_ids"],
                 )
 
                 elroy.ctx.show_internal_thought = True
