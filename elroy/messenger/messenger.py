@@ -19,12 +19,15 @@ from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.validations import Validator
 from ..repository.memories.queries import get_relevant_memory_context_msgs
+from .error_recovery import handle_content_violation, handle_remote_protocol_error
 from .tools import exec_function_call
 
 logger = get_logger()
 
 
 @tracer.chain
+@handle_remote_protocol_error
+@handle_content_violation
 def process_message(
     role: str,
     ctx: ElroyContext,
@@ -43,13 +46,7 @@ def process_message(
         list,
     )  # type: ignore
 
-    new_msgs: List[ContextMessage] = [
-        ContextMessage(
-            role=role,
-            content=msg,
-            chat_model=None,
-        )
-    ]
+    new_msgs: List[ContextMessage] = [ContextMessage(role=role, content=msg, chat_model=None)]
     new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
     if ctx.show_internal_thought:
