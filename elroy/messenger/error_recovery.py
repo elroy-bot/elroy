@@ -75,7 +75,7 @@ def handle_remote_protocol_error(func):
                 yield from func(role, ctx, msg, enable_tools, force_tool)
                 break
             except RemoteProtocolError as e:
-                if attempt >= 3:
+                if attempt >= 5:
                     raise
                 logger.warning(f"Remote protocol error: {str(e)}")
                 attempt += 1
