@@ -1,7 +1,77 @@
-from typing import List, Optional
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Any
 
 from sqlalchemy import create_engine
 from sqlmodel import Field, Session, SQLModel, select
+
+
+@dataclass
+class BenchmarkQuestion:
+    """Class representing a question from the LongMemEval dataset"""
+    question_id: str
+    question_type: str
+    question: str
+    answer: str
+    question_date: str
+    haystack_session_ids: List[str]
+    haystack_dates: List[str]
+    haystack_sessions: List[List[Dict[str, Any]]]
+    answer_session_ids: List[str]
+
+
+class BenchmarkDataset:
+    """Class for loading and accessing the LongMemEval dataset"""
+    
+    def __init__(self, file_path: str):
+        """
+        Initialize the dataset from a JSON file
+        
+        Args:
+            file_path: Path to the JSON file containing the dataset
+        """
+        self.file_path = file_path
+        self.questions = self._load_data()
+        
+    def _load_data(self) -> List[BenchmarkQuestion]:
+        """Load the dataset from the JSON file"""
+        try:
+            with open(self.file_path, "r") as f:
+                data = json.load(f)
+                return [BenchmarkQuestion(**item) for item in data]
+        except json.JSONDecodeError:
+            raise ValueError(f"{self.file_path} is not a valid JSON file")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"File {self.file_path} not found")
+            
+    def get_question(self, question_id: str) -> Optional[BenchmarkQuestion]:
+        """Get a question by its ID"""
+        for question in self.questions:
+            if question.question_id == question_id:
+                return question
+        return None
+    
+    def __len__(self) -> int:
+        """Return the number of questions in the dataset"""
+        return len(self.questions)
+    
+    def __getitem__(self, idx: int) -> BenchmarkQuestion:
+        """Get a question by its index"""
+        return self.questions[idx]
+
+
+def load_benchmark_data(file_path: str) -> BenchmarkDataset:
+    """
+    Load the benchmark data from a JSON file
+    
+    Args:
+        file_path: Path to the JSON file
+        
+    Returns:
+        A BenchmarkDataset object
+    """
+    return BenchmarkDataset(file_path)
 
 
 class Cursor(SQLModel, table=True):

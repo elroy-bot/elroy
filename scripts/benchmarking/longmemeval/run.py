@@ -6,14 +6,21 @@ The script simulates chat logs by recording messages and creating memories perio
 """
 
 import argparse
-import json
+import os
 import sys
 import time
 from functools import cached_property
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
-from setup_benchmarking_db import get_or_create_cursor, update_or_create_answer
+# Add the current directory to the path to ensure imports work
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from setup_benchmarking_db import (
+    get_or_create_cursor, 
+    update_or_create_answer, 
+    load_benchmark_data,
+    BenchmarkDataset
+)
 from sqlmodel import Session
 from tqdm import tqdm
 
@@ -30,15 +37,14 @@ class BenchmarkingRun:
         self.run_token = run_token or f"run_{int(time.time())}"
 
     @cached_property
-    def input_data(self):
+    def input_data(self) -> BenchmarkDataset:
         try:
-            with open(self.input_file, "r") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            print(f"Error: {self.input_file} is not a valid JSON file")
+            return load_benchmark_data(self.input_file)
+        except ValueError as e:
+            print(f"Error: {e}")
             sys.exit(1)
-        except FileNotFoundError:
-            print(f"Error: File {self.input_file} not found")
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
             sys.exit(1)
 
     @property
@@ -66,12 +72,12 @@ class BenchmarkingRun:
                 def handle_msg(msg: str, question_id: str, haystack_session_id: int, message_idx: int):
                     return elroy.message(msg)
 
-                for session_idx, chat_session in enumerate(tqdm(item["haystack_sessions"], desc="Sessions", position=1, leave=False)):
+                for session_idx, chat_session in enumerate(tqdm(item.haystack_sessions, desc="Sessions", position=1, leave=False)):
                     if cursor.session_idx > session_idx:
                         # logging.warning(f"skipping session {session_idx} because it is behind cursor {cursor.session_idx}")
                         continue
                     else:
-                        session_date = item["haystack_dates"]
+                        session_date = item.haystack_dates[session_idx] if session_idx < len(item.haystack_dates) else "unknown date"
                         elroy.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
                         for message_idx, message in enumerate(tqdm(chat_session, desc="Messages", position=2, leave=False)):
                             if cursor.message_idx > message_idx:
@@ -82,8 +88,8 @@ class BenchmarkingRun:
                                 if message["role"] == "user":
                                     handle_msg(
                                         message["content"],
-                                        item["question_id"],
-                                        item["haystack_session_ids"][session_idx],
+                                        item.question_id,
+                                        item.haystack_session_ids[session_idx] if session_idx < len(item.haystack_session_ids) else "unknown",
                                         message_idx,
                                     )
                                     elroy.message(message["content"])
@@ -107,15 +113,15 @@ class BenchmarkingRun:
                 update_or_create_answer(
                     session,
                     self.run_token,
-                    item["question_id"],
-                    item["question_type"],
-                    question=item["question"],
+                    item.question_id,
+                    item.question_type,
+                    question=item.question,
                     elroy_answer=elroy.message(
                         "the following is a test of your memory. Respond simply and concisely. Just give your answer, do not continue the conversation. E.g. if the question is: What is 2+2? Respond simply with: 4. Use tools to search for information, if you don't know say I don't know.: "
-                        + item["question"]
+                        + item.question
                     ),
-                    answer=item["answer"],
-                    answer_session_ids=item["answer_session_ids"],
+                    answer=item.answer,
+                    answer_session_ids=item.answer_session_ids,
                 )
 
                 elroy.ctx.show_internal_thought = True
