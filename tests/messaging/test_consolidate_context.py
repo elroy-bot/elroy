@@ -32,6 +32,7 @@ def test_compress_context_messages(george_ctx: ElroyContext):
         ]
 
     compressed_messages = compress_context_messages(
+        george_ctx.clock,
         george_ctx.chat_model.name,
         george_ctx.context_refresh_target_tokens,
         george_ctx.max_in_context_message_age,

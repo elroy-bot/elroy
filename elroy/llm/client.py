@@ -54,7 +54,7 @@ def generate_chat_completion_message(
         if force_tool:
             context_messages.append(
                 ContextMessage(
-                    created_at=datetime.now(UTC),
+                    created_at=datetime.now(UTC),  # clock not available here
                     role=USER,
                     content=f"User is requesting tool call: {force_tool}",
                     chat_model=chat_model.name,

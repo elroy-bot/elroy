@@ -6,7 +6,6 @@ from sqlmodel import select
 from ...core.constants import RecoverableToolError, allow_unused, user_only_tool
 from ...core.ctx import ElroyContext
 from ...db.db_models import Goal
-from ...utils.clock import db_time_to_local
 
 
 def get_active_goals(ctx: ElroyContext) -> List[Goal]:
@@ -123,11 +122,11 @@ def _print_goals(ctx: ElroyContext, active: bool, n: Optional[int] = None) -> Un
         table.add_row(
             goal.name,
             str(goal.priority),
-            db_time_to_local(goal.updated_at).strftime("%Y-%m-%d %H:%M:%S"),
+            ctx.clock.db_time_to_local(goal.updated_at).strftime("%Y-%m-%d %H:%M:%S"),
             goal.description,
             goal.strategy,
             goal.end_condition,
-            db_time_to_local(goal.target_completion_time).strftime("%Y-%m-%d %H:%M:%S") if goal.target_completion_time else None,
+            ctx.clock.db_time_to_local(goal.target_completion_time).strftime("%Y-%m-%d %H:%M:%S") if goal.target_completion_time else None,
             "\n".join(goal.get_status_updates()),
         )
     return table

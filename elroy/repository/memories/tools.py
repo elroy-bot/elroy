@@ -9,7 +9,6 @@ from ...core.constants import tool, user_only_tool
 from ...core.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 from ...llm.client import query_llm
-from ...utils.clock import db_time_to_local
 from .operations import do_create_memory, do_create_memory_from_ctx_msgs
 from .queries import (
     db_get_memory_source_by_name,
@@ -156,7 +155,7 @@ def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, s
         table.add_row(
             memory.name,
             memory.text,
-            db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S"),
+            ctx.clock.db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S"),
         )
 
     return table
@@ -209,7 +208,7 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
     ctx.db.add(original_memory)
 
     # Create new memory with updated text
-    update_time = db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
+    update_time = ctx.clock.db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
     updated_text = f"{original_memory.text}\n\nUpdate ({update_time}):\n{update_text}"
     ctx.db.commit()
 

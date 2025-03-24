@@ -1,4 +1,3 @@
-from abc import ABC
 from datetime import datetime, timedelta, tzinfo
 
 import pytz
@@ -9,15 +8,18 @@ from ..core.logging import get_logger
 logger = get_logger()
 
 
-class Clock(ABC):
+class Clock:
     now = datetime.now
 
     def utc_now(self) -> datetime:
-        return datetime.now(UTC)
+        return self.now(UTC)
+
+    def local_now(self):
+        return self.now(self.local_tz)
 
     @property
     def local_tz(self) -> tzinfo:
-        info = datetime.now().astimezone().tzinfo
+        info = self.now().astimezone().tzinfo
         assert info
         return info
 
@@ -27,12 +29,19 @@ class Clock(ABC):
     def today_start_utc(self) -> datetime:
         return self.today_start_local().astimezone(UTC)
 
+    def db_time_to_local(self, dt: datetime) -> datetime:
+        return dt.replace(tzinfo=UTC).astimezone(self.local_tz)
+
+
+class FakeClock(Clock):  # noqa
+    def __init__(self, now: datetime):
+        self._now = now
+
+    def now(self):
+        return self._now
+
 
 get_utc_now = lambda: datetime.now(UTC)
-
-
-def db_time_to_local(dt: datetime):
-    return dt.replace(tzinfo=UTC).astimezone(datetime.now().astimezone().tzinfo)
 
 
 def string_to_timedelta(time_to_completion: str) -> timedelta:
