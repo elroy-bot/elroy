@@ -42,7 +42,15 @@ def test_rm_context_messages(george_ctx: ElroyContext):
 def test_add_context_messages(george_ctx: ElroyContext):
     msgs = list(get_context_messages(george_ctx))
 
-    to_add = [ContextMessage(role=USER, content=f"test message {_}", chat_model=george_ctx.chat_model.name) for _ in range(4)]
+    to_add = [
+        ContextMessage(
+            role=USER,
+            content=f"test message {_}",
+            chat_model=george_ctx.chat_model.name,
+            created_at=george_ctx.clock.utc_now(),
+        )
+        for _ in range(4)
+    ]
     for msg in to_add:
         # Concurrent removals
         run_in_background(add_context_messages, george_ctx, [msg])

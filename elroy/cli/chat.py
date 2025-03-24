@@ -196,6 +196,7 @@ def onboard_interactive(io: CliIO, ctx: ElroyContext):
         [
             get_refreshed_system_message(ctx, []),
             ContextMessage(
+                created_at=ctx.clock.utc_now(),
                 role=SYSTEM,
                 content=ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name),
                 chat_model=None,

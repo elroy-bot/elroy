@@ -318,7 +318,7 @@ class Elroy:
         add_context_message(
             self.ctx,
             ContextMessage(
-                created_at=created_at,
+                created_at=created_at or self.ctx.clock.utc_now(),
                 content=message,
                 role=role,
                 chat_model=None,

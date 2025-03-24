@@ -46,7 +46,14 @@ def process_message(
         list,
     )  # type: ignore
 
-    new_msgs: List[ContextMessage] = [ContextMessage(role=role, content=msg, chat_model=None)]
+    new_msgs: List[ContextMessage] = [
+        ContextMessage(
+            role=role,
+            content=msg,
+            chat_model=None,
+            created_at=ctx.clock.utc_now(),
+        )
+    ]
     new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
     if ctx.show_internal_thought:
@@ -82,6 +89,7 @@ def process_message(
                 tool_call_result = exec_function_call(ctx, stream_chunk)
                 tool_context_messages.append(
                     ContextMessage(
+                        created_at=ctx.clock.utc_now(),
                         role=TOOL,
                         tool_call_id=stream_chunk.id,
                         content=tool_call_result.content,
@@ -93,6 +101,7 @@ def process_message(
 
         new_msgs.append(
             ContextMessage(
+                created_at=ctx.clock.utc_now(),
                 role=ASSISTANT,
                 content=stream.get_full_text(),
                 tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),

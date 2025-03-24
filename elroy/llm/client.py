@@ -1,7 +1,9 @@
 import logging
 from dataclasses import asdict
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
+from pytz import UTC
 from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
@@ -52,6 +54,7 @@ def generate_chat_completion_message(
         if force_tool:
             context_messages.append(
                 ContextMessage(
+                    created_at=datetime.now(UTC),
                     role=USER,
                     content=f"User is requesting tool call: {force_tool}",
                     chat_model=chat_model.name,

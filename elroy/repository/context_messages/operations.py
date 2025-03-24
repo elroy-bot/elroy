@@ -180,7 +180,12 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
         remove(lambda _: _ is None),
         list,
         "\n".join,
-        lambda x: ContextMessage(role=SYSTEM, content=x, chat_model=None),
+        lambda x: ContextMessage(
+            role=SYSTEM,
+            content=x,
+            chat_model=None,
+            created_at=ctx.clock.utc_now(),
+        ),
     )
 
 
@@ -279,7 +284,7 @@ def rewrite(ctx: ElroyContext, new_message: str) -> str:
     while context_messages[i].role != ASSISTANT:
         i -= 1
 
-    context_messages[i] = ContextMessage(role=ASSISTANT, content=new_message, chat_model=None)
+    context_messages[i] = ContextMessage(role=ASSISTANT, content=new_message, chat_model=None, created_at=ctx.clock.utc_now())
 
     replace_context_messages(ctx, context_messages)
 

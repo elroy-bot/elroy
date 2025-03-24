@@ -93,6 +93,7 @@ def add_internal_thought(ctx: ElroyContext, thought: str) -> str:
     add_context_message(
         ctx,
         ContextMessage(
+            created_at=ctx.clock.utc_now(),
             role=SYSTEM,
             content=thought,
             chat_model=ctx.chat_model.name,
@@ -132,6 +133,7 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
     add_context_message(
         ctx,
         ContextMessage(
+            created_at=ctx.clock.utc_now(),
             role=SYSTEM,
             content=response,
             chat_model=ctx.chat_model.name,

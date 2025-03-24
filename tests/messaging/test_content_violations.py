@@ -10,7 +10,7 @@ from elroy.llm.stream_parser import AssistantResponse
 from elroy.messenger.messenger import process_message
 
 
-@pytest.skip("Need to implement mockable client")
+@pytest.mark.skip("Need to implement mockable client")
 def test_content_violation_recovery(ctx: ElroyContext):
     """Test that content violation triggers context refresh and retries"""
 
@@ -42,7 +42,7 @@ def test_content_violation_recovery(ctx: ElroyContext):
         assert mock_gen.call_count == 2
 
 
-@pytest.skip("Need to implement mockable client")
+@pytest.mark.skip("Need to implement mockable client")
 def test_content_violation_multiple_retries(ctx: ElroyContext, content_policy_violation_error: ContentPolicyViolationError):
     """Test handling multiple content violations"""
 
@@ -62,7 +62,7 @@ def test_content_violation_multiple_retries(ctx: ElroyContext, content_policy_vi
         assert mock_gen.call_count == 3
 
 
-@pytest.skip("Need to implement mockable client")
+@pytest.mark.skip("Need to implement mockable client")
 def test_content_violation_final_failure(ctx: ElroyContext, content_policy_violation_error: ContentPolicyViolationError):
     """Test handling when all retries fail"""
 

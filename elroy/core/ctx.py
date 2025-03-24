@@ -19,6 +19,7 @@ from ..config.paths import get_default_config_path
 from ..config.personas import PERSONA
 from ..db.db_manager import DbManager, get_db_manager
 from ..db.db_session import DbSession
+from ..utils.clock import Clock
 from .constants import allow_unused
 from .logging import get_logger
 
@@ -41,6 +42,7 @@ class ElroyContext:
         warning_color: str,
         internal_thought_color: str,
         user_token: str,
+        clock: Clock = Clock(),
         custom_tools_path: List[str] = [],
         # API Configuration
         openai_api_key: Optional[str] = None,
@@ -81,6 +83,7 @@ class ElroyContext:
         self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
 
         self.reflect = reflect
+        self.clock = clock
 
         self.user_token = user_token
         self.show_internal_thought = show_internal_thought

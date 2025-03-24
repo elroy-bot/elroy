@@ -211,6 +211,7 @@ def get_reflective_recall(
             ),
             chat_model=ctx.chat_model.name,
             memory_metadata=[to_recalled_memory_metadata(x) for x in memories],
+            created_at=ctx.clock.utc_now(),
         )
     ]
 

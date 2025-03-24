@@ -55,6 +55,7 @@ def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
                 memory_metadata=[RecalledMemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
                 content=memory.to_fact(),
                 chat_model=None,
+                created_at=ctx.clock.utc_now(),
             ),
         )
 

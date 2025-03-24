@@ -12,7 +12,12 @@ from elroy.repository.context_messages.transforms import compress_context_messag
 
 def test_compress_context_messages(george_ctx: ElroyContext):
     # create a very long context to test consolidation
-    system_message = ContextMessage(role=SYSTEM, content=f"{SYSTEM_INSTRUCTION_LABEL}\nSystem message", chat_model=None)
+    system_message = ContextMessage(
+        role=SYSTEM,
+        content=f"{SYSTEM_INSTRUCTION_LABEL}\nSystem message",
+        chat_model=None,
+        created_at=george_ctx.clock.utc_now(),
+    )
     original_messages = [system_message]
 
     for i in range(50):

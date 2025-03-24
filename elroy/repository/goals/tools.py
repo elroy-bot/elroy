@@ -120,6 +120,7 @@ def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> st
             content=f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}': {old_goal.to_fact()}",
             memory_metadata=[to_recalled_memory_metadata(old_goal)],
             chat_model=ctx.chat_model.name,
+            created_at=ctx.clock.utc_now(),
         ),
     )
     return f"Goal '{old_goal_name}' has been renamed to '{new_goal_name}'."

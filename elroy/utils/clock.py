@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from abc import ABC
+from datetime import datetime, timedelta, tzinfo
 
 import pytz
 from pytz import UTC
@@ -6,6 +7,26 @@ from pytz import UTC
 from ..core.logging import get_logger
 
 logger = get_logger()
+
+
+class Clock(ABC):
+    now = datetime.now
+
+    def utc_now(self) -> datetime:
+        return datetime.now(UTC)
+
+    @property
+    def local_tz(self) -> tzinfo:
+        info = datetime.now().astimezone().tzinfo
+        assert info
+        return info
+
+    def today_start_local(self) -> datetime:
+        return self.now(self.local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def today_start_utc(self) -> datetime:
+        return self.today_start_local().astimezone(UTC)
+
 
 get_utc_now = lambda: datetime.now(UTC)
 

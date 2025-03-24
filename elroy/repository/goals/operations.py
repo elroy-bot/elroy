@@ -64,6 +64,7 @@ def do_create_goal(
                 content=f"New goal created: {goal.to_fact()}",
                 memory_metadata=[to_recalled_memory_metadata(goal)],
                 chat_model=ctx.chat_model.name,
+                created_at=ctx.clock.utc_now(),
             ),
         )
 
