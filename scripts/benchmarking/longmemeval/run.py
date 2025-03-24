@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from setup_benchmarking_db import (
+    Cursor,
     get_messages_for_session,
     get_or_create_cursor,
     get_question_by_id,
@@ -23,7 +24,7 @@ from setup_benchmarking_db import (
     load_benchmark_data,
     update_or_create_answer,
 )
-from sqlmodel import Session
+from sqlmodel import Session, select
 from tqdm import tqdm
 
 from elroy.api import Elroy
