@@ -265,7 +265,7 @@ class Elroy:
         return pipe(
             process_message(USER, self.ctx, input, enable_tools),
             collect,
-            filter(self.should_return_chunk),
+            filter(self._should_return_chunk),
             map(self.formatter.format),
             concat,
             list,
@@ -369,10 +369,12 @@ class Elroy:
             Generator[str, None, None]: Generator yielding response chunks
         """
         for chunk in process_message(USER, self.ctx, input, enable_tools):
-            if self.should_return_chunk(chunk):
+            if self._should_return_chunk(chunk):
                 yield from self.formatter.format(chunk)
 
-    def should_return_chunk(self, chunk: Union[TextOutput, FunctionCall]):
+    def _should_return_chunk(self, chunk: Union[TextOutput, FunctionCall]):
+        """filter for whether assistant output chunks should be returned to caller"""
+
         if isinstance(chunk, AssistantInternalThought):
             return self.ctx.show_internal_thought
         elif isinstance(chunk, FunctionCall) or isinstance(chunk, AssistantToolResult):
