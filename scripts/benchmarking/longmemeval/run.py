@@ -53,9 +53,17 @@ class BenchmarkingRun:
 
     def run(self):
         # Initialize database
-        from setup_benchmarking_db import init_db
+        from setup_benchmarking_db import init_db, check_run_exists
 
         engine = init_db(self.db_url)
+
+        # Check if this run already exists in the database
+        with Session(engine) as session:
+            if check_run_exists(session, self.run_token):
+                print(f"Run with token '{self.run_token}' already exists in the database.")
+                print("Resuming from last saved position...")
+            else:
+                print(f"Starting new run with token '{self.run_token}'")
 
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:

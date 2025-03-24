@@ -24,6 +24,9 @@ class BenchmarkQuestion:
 class BenchmarkDataset:
     """Class for loading and accessing the LongMemEval dataset"""
     
+    # Class-level cache to store loaded datasets by file path
+    _datasets_cache = {}
+    
     def __init__(self, file_path: str):
         """
         Initialize the dataset from a JSON file
@@ -32,11 +35,19 @@ class BenchmarkDataset:
             file_path: Path to the JSON file containing the dataset
         """
         self.file_path = file_path
-        self.questions = self._load_data()
+        
+        # Check if this dataset is already in the cache
+        if file_path in BenchmarkDataset._datasets_cache:
+            self.questions = BenchmarkDataset._datasets_cache[file_path]
+        else:
+            # Load the data and store in cache
+            self.questions = self._load_data()
+            BenchmarkDataset._datasets_cache[file_path] = self.questions
         
     def _load_data(self) -> List[BenchmarkQuestion]:
         """Load the dataset from the JSON file"""
         try:
+            print(f"Loading benchmark data from {self.file_path}...")
             with open(self.file_path, "r") as f:
                 data = json.load(f)
                 return [BenchmarkQuestion(**item) for item in data]
@@ -114,6 +125,21 @@ def get_or_create_cursor(session: Session, run_token: str, question_id: str):
     return cursor
 
 
+def check_run_exists(session: Session, run_token: str) -> bool:
+    """
+    Check if a run with the given token already exists in the database
+    
+    Args:
+        session: SQLModel session
+        run_token: The run token to check
+        
+    Returns:
+        True if the run exists, False otherwise
+    """
+    cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token)).first()
+    return cursor is not None
+
+
 def update_or_create_answer(
     session: Session,
     run_token: str,
@@ -127,8 +153,12 @@ def update_or_create_answer(
     answer_row = session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
 
     if answer_row:
-        answer_row.elroy_answer = elroy_answer
-        answer_row.answer_session_ids = ", ".join(answer_session_ids)
+        # Only update if the answer has changed
+        if answer_row.elroy_answer != elroy_answer:
+            answer_row.elroy_answer = elroy_answer
+            answer_row.answer_session_ids = ", ".join(answer_session_ids)
+            session.add(answer_row)
+            session.commit()
     else:
         answer_row = Answer(
             run_token=run_token,
@@ -139,5 +169,5 @@ def update_or_create_answer(
             answer=answer,
             answer_session_ids=", ".join(answer_session_ids),
         )
-    session.add(answer_row)
-    session.commit()
+        session.add(answer_row)
+        session.commit()
