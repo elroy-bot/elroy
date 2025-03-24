@@ -2,7 +2,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import create_engine
-from sqlmodel import Field, Session, SQLModel, func, select, text
+from sqlmodel import Field, Session, SQLModel, func, select
 
 
 # Database model classes
@@ -15,6 +15,7 @@ class Question(SQLModel, table=True):
     question: str
     answer: str
     question_date: str
+    answer_session_ids: str
 
     def __repr__(self):
         return f"Question(id={self.id}, question_id={self.question_id})"
@@ -112,7 +113,7 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
     print(f"Importing {len(data)} questions into database...")
 
     # First check if data is already imported
-    question_count = session.exec(select(Question)).count()
+    question_count = session.exec(select(func.count()).select_from(Question)).one()
     if question_count > 0:
         print("Data already exists in database. Skipping import.")
         return
@@ -126,6 +127,7 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
             question=item["question"],
             answer=item["answer"],
             question_date=item["question_date"],
+            answer_session_ids=", ".join(item["answer_session_ids"]),
         )
         session.add(question)
 
@@ -159,11 +161,7 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
 
 def get_or_create_cursor(session: Session, run_token: str, question_id: str) -> Cursor:
     """Get or create a cursor for tracking progress"""
-    cursor = session.exec(
-        select(Cursor)
-        .where(Cursor.run_token == run_token)
-        .where(Cursor.question_id == question_id)
-    ).first()
+    cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token).where(Cursor.question_id == question_id)).first()
 
     if not cursor:
         # Create new cursor entry
@@ -186,7 +184,7 @@ def check_run_exists(session: Session, run_token: str) -> bool:
     Returns:
         True if the run exists, False otherwise
     """
-    cursor_count = session.exec(select(func.count()).where(Cursor.run_token == run_token))
+    cursor_count = session.exec(select(func.count()).where(Cursor.run_token == run_token)).one()
     return cursor_count > 0
 
 
@@ -198,14 +196,10 @@ def update_or_create_answer(
     question: str,
     elroy_answer: str,
     answer: str,
-    answer_session_ids: List[str],
+    answer_session_ids: str,
 ) -> Answer:
     """Update or create an answer record"""
-    answer_row = session.exec(
-        select(Answer)
-        .where(Answer.run_token == run_token)
-        .where(Answer.question_id == question_id)
-    ).first()
+    answer_row = session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
 
     if answer_row:
         # Only update if the answer has changed
@@ -223,7 +217,7 @@ def update_or_create_answer(
             question=question,
             elroy_answer=elroy_answer,
             answer=answer,
-            answer_session_ids=", ".join(answer_session_ids),
+            answer_session_ids=answer_session_ids,
         )
         session.add(answer_row)
         session.commit()
@@ -244,7 +238,9 @@ def get_sessions_for_question(session: Session, question_id: str) -> List[ChatSe
 
 def get_messages_for_session(session: Session, session_id: str) -> List[ChatMessage]:
     """Get all messages for a chat session"""
-    return list(session.exec(select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.message_idx)))
+    return list(
+        session.exec(select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.message_idx))  # type: ignore
+    )  # type: ignore
 
 
 def main():
