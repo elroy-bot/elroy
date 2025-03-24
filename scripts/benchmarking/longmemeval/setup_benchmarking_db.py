@@ -284,7 +284,7 @@ def main():
                     completed = session.exec(select(func.count()).where(Cursor.run_token == run).where(Cursor.is_complete == True)).one()
 
                     # Count total questions for this run
-                    total = session.exec(text("SELECT COUNT(*) FROM cursor WHERE run_token = :run"), {"run": run}).first()[0]
+                    total = session.exec(select(func.count()).where(Cursor.run_token == run)).one()
 
                     print(f"  {run}: {completed}/{total} questions completed")
             else:
@@ -293,10 +293,10 @@ def main():
     if args.stats:
         engine = create_engine(db_url)
         with Session(engine) as session:
-            question_count = session.exec(text("SELECT COUNT(*) FROM question")).first()[0]
-            session_count = session.exec(text("SELECT COUNT(*) FROM chatsession")).first()[0]
-            message_count = session.exec(text("SELECT COUNT(*) FROM chatmessage")).first()[0]
-            answer_count = session.exec(text("SELECT COUNT(*) FROM answer")).first()[0]
+            question_count = session.exec(select(func.count()).select_from(Question)).one()
+            session_count = session.exec(select(func.count()).select_from(ChatSession)).one()
+            message_count = session.exec(select(func.count()).select_from(ChatMessage)).one()
+            answer_count = session.exec(select(func.count()).select_from(Answer)).one()
 
             print("Database Statistics:")
             print(f"  Questions: {question_count}")

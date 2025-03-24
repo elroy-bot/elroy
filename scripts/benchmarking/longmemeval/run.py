@@ -67,9 +67,9 @@ class BenchmarkingRun:
         # Import data if needed
         with Session(engine) as session:
             # Check if questions table is empty
-            from sqlalchemy import text
+            from sqlalchemy import func
 
-            question_count = session.exec(text("SELECT COUNT(*) FROM question")).first()[0]
+            question_count = session.exec(select(func.count()).select_from(Question)).one()
             if question_count == 0:
                 print("Database is empty. Importing benchmark data...")
                 import_benchmark_data(session, self.input_data)
@@ -89,12 +89,10 @@ class BenchmarkingRun:
             question_limit = 100
 
             # Get all questions from the database
-            from sqlalchemy import text
+            questions = list(session.exec(select(Question).limit(question_limit)))
 
-            questions = list(session.exec(text(f"SELECT * FROM question LIMIT {question_limit}")))
-
-            for question_row in tqdm(questions, desc="Questions", position=0, leave=True):
-                question_id = question_row[1]  # question_id is the second column
+            for question in tqdm(questions, desc="Questions", position=0, leave=True):
+                question_id = question.question_id
                 user_token = f"{self.run_token}_{question_id}"
                 elroy = Elroy(
                     token=user_token,
