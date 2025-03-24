@@ -9,9 +9,12 @@ import argparse
 import os
 import sys
 import time
+from datetime import datetime
 from functools import cached_property
 
 from scripts.benchmarking.longmemeval.benchmarking_db import Question
+
+from elroy.utils.clock import FakeClock
 
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -102,6 +105,8 @@ class BenchmarkingQuestionRun:
             else:
                 with using_session(chat_session.session_id):
                     session_date = chat_session.session_date
+                    self.ai.ctx.clock = FakeClock(datetime.strptime(session_date, "%Y/%m/%d (%a) %H:%M"))
+
                     self.ai.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
                     # Get all messages for this session
                     messages = get_messages_for_session(self.session, self.question_id, chat_session.session_id)
