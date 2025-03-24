@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, tzinfo
+from typing import Optional
 
 import pytz
 from pytz import UTC
@@ -37,8 +38,11 @@ class FakeClock(Clock):  # noqa
     def __init__(self, now: datetime):
         self._now = now
 
-    def now(self):
-        return self._now
+    def now(self, tz: Optional[tzinfo]):
+        if tz:
+            return self._now.astimezone(tz)
+        else:
+            return self._now
 
 
 get_utc_now = lambda: datetime.now(UTC)
