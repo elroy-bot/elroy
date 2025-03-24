@@ -261,7 +261,7 @@ def get_question_by_id(session: Session, question_id: str) -> Optional[Question]
 
 def get_sessions_for_question(session: Session, question_id: str) -> List[ChatSession]:
     """Get all chat sessions for a question"""
-    return list(session.exec(select(ChatSession).where(ChatSession.question_id == question_id)))
+    return list(session.exec(select(ChatSession).where(ChatSession.question_id == question_id).order_by(ChatSession.session_date)))
 
 
 def get_messages_for_session(session: Session, question_id: str, session_id: str) -> List[ChatMessage]:
