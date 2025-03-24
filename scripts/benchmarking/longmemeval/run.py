@@ -14,53 +14,13 @@ from pathlib import Path
 from typing import List, Optional
 
 from sqlalchemy import create_engine
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Session, select
 from tqdm import tqdm
 
 from elroy.api import Elroy
 from elroy.core.constants import SYSTEM
 from elroy.core.tracing import tracer
-
-
-def get_or_create_cursor(session: Session, run_token: str, question_id: str):
-    cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token).where(Cursor.question_id == question_id)).first()
-
-    if not cursor:
-        # Create new cursor entry
-        cursor = Cursor(run_token=run_token, question_id=question_id)
-        session.add(cursor)
-
-        session.commit()
-    return cursor
-
-
-def update_or_create_answer(
-    session: Session,
-    run_token: str,
-    question_id: str,
-    question_type: str,
-    question: str,
-    elroy_answer: str,
-    answer: str,
-    answer_session_ids: List[str],
-):
-    answer_row = session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
-
-    if answer_row:
-        answer_row.elroy_answer = elroy_answer
-        answer_row.answer_session_ids = ", ".join(answer_session_ids)
-    else:
-        answer_row = Answer(
-            run_token=run_token,
-            question_id=question_id,
-            question_type=question_type,
-            question=question,
-            elroy_answer=elroy_answer,
-            answer=answer,
-            answer_session_ids=", ".join(answer_session_ids),
-        )
-    session.add(answer_row)
-    session.commit()
+from scripts.benchmarking.longmemeval.setup_benchmarking_db import Answer, Cursor, get_or_create_cursor, update_or_create_answer
 
 
 class BenchmarkingRun:
@@ -87,9 +47,9 @@ class BenchmarkingRun:
         return f"sqlite:///elroy.db"
 
     def run(self):
-        # Create engine and cursor table using SQLAlchemy directly
-        engine = create_engine(self.db_url)
-        SQLModel.metadata.create_all(engine)
+        # Initialize database
+        from scripts.benchmarking.longmemeval.setup_benchmarking_db import init_db
+        engine = init_db(self.db_url)
 
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:
