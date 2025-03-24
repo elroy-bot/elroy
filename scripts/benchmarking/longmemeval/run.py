@@ -16,8 +16,10 @@ from typing import Optional
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from setup_benchmarking_db import (
-    BenchmarkDataset,
     get_or_create_cursor,
+    get_question_by_id,
+    get_sessions_for_question,
+    get_messages_for_session,
     load_benchmark_data,
     update_or_create_answer,
 )
@@ -37,7 +39,7 @@ class BenchmarkingRun:
         self.run_token = run_token or f"run_{int(time.time())}"
 
     @cached_property
-    def input_data(self) -> BenchmarkDataset:
+    def input_data(self) -> List[Dict[str, Any]]:
         try:
             return load_benchmark_data(self.input_file)
         except ValueError as e:
@@ -53,9 +55,18 @@ class BenchmarkingRun:
 
     def run(self):
         # Initialize database
-        from setup_benchmarking_db import check_run_exists, init_db
+        from setup_benchmarking_db import check_run_exists, init_db, import_benchmark_data
 
         engine = init_db(self.db_url)
+
+        # Import data if needed
+        with Session(engine) as session:
+            # Check if questions table is empty
+            from sqlalchemy import text
+            question_count = session.exec(text("SELECT COUNT(*) FROM question")).first()[0]
+            if question_count == 0:
+                print("Database is empty. Importing benchmark data...")
+                import_benchmark_data(session, self.input_data)
 
         # Check if this run already exists in the database
         with Session(engine) as session:
@@ -68,45 +79,58 @@ class BenchmarkingRun:
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:
             # Limit to first 100 questions for testing
-            dataset_slice = self.input_data[:100] if len(self.input_data) > 100 else self.input_data
-            for item in tqdm(dataset_slice, desc="Questions", position=0, leave=True):
-                user_token = f"{self.run_token}_{item['question_id']}"
+            question_limit = 100
+            
+            # Get all questions from the database
+            from sqlalchemy import text
+            questions = list(session.exec(text(f"SELECT * FROM question LIMIT {question_limit}")))
+            
+            for question_row in tqdm(questions, desc="Questions", position=0, leave=True):
+                question_id = question_row[1]  # question_id is the second column
+                user_token = f"{self.run_token}_{question_id}"
                 elroy = Elroy(
                     token=user_token,
                     database_url=self.db_url,
                     check_db_migration=False,
                 )
-                cursor = get_or_create_cursor(session, self.run_token, item["question_id"])
+                # Get question details
+                question = get_question_by_id(session, question_id)
+                if not question:
+                    print(f"Question {question_id} not found in database. Skipping.")
+                    continue
+                
+                cursor = get_or_create_cursor(session, self.run_token, question_id)
 
                 @tracer.agent
-                def handle_msg(msg: str, question_id: str, haystack_session_id: int, message_idx: int):
+                def handle_msg(msg: str, question_id: str, session_id: str, message_idx: int):
                     return elroy.message(msg)
 
-                for session_idx, chat_session in enumerate(tqdm(item.haystack_sessions, desc="Sessions", position=1, leave=False)):
+                # Get all sessions for this question
+                chat_sessions = get_sessions_for_question(session, question_id)
+                
+                for session_idx, chat_session in enumerate(tqdm(chat_sessions, desc="Sessions", position=1, leave=False)):
                     if cursor.session_idx > session_idx:
-                        # logging.warning(f"skipping session {session_idx} because it is behind cursor {cursor.session_idx}")
+                        # Skip sessions we've already processed
                         continue
                     else:
-                        session_date = item.haystack_dates[session_idx] if session_idx < len(item.haystack_dates) else "unknown date"
+                        session_date = chat_session.session_date
                         elroy.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
-                        for message_idx, message in enumerate(tqdm(chat_session, desc="Messages", position=2, leave=False)):
+                        # Get all messages for this session
+                        messages = get_messages_for_session(session, chat_session.session_id)
+                        
+                        for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
                             if cursor.message_idx > message_idx:
-                                # logging.warning(f"skipping message {message_idx} because it is behind cursor {cursor.message_idx}")
+                                # Skip messages we've already processed
                                 continue
                             else:
-
-                                if message["role"] == "user":
+                                if message.role == "user":
                                     handle_msg(
-                                        message["content"],
-                                        item.question_id,
-                                        (
-                                            item.haystack_session_ids[session_idx]
-                                            if session_idx < len(item.haystack_session_ids)
-                                            else "unknown"
-                                        ),
+                                        message.content,
+                                        question_id,
+                                        chat_session.session_id,
                                         message_idx,
                                     )
-                                    elroy.message(message["content"])
+                                    elroy.message(message.content)
 
                                 cursor.message_idx = message_idx
                                 session.add(cursor)
@@ -127,15 +151,15 @@ class BenchmarkingRun:
                 update_or_create_answer(
                     session,
                     self.run_token,
-                    item.question_id,
-                    item.question_type,
-                    question=item.question,
+                    question.question_id,
+                    question.question_type,
+                    question=question.question,
                     elroy_answer=elroy.message(
                         "the following is a test of your memory. Respond simply and concisely. Just give your answer, do not continue the conversation. E.g. if the question is: What is 2+2? Respond simply with: 4. Use tools to search for information, if you don't know say I don't know.: "
-                        + item.question
+                        + question.question
                     ),
-                    answer=item.answer,
-                    answer_session_ids=item.answer_session_ids,
+                    answer=question.answer,
+                    answer_session_ids=[s.session_id for s in chat_sessions if s.is_answer_session],
                 )
 
                 elroy.ctx.show_internal_thought = True
