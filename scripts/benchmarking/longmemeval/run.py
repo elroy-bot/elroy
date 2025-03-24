@@ -16,10 +16,10 @@ from typing import Any, Dict, List, Optional
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from setup_benchmarking_db import (
+    get_messages_for_session,
     get_or_create_cursor,
     get_question_by_id,
     get_sessions_for_question,
-    get_messages_for_session,
     load_benchmark_data,
     update_or_create_answer,
 )
@@ -55,7 +55,11 @@ class BenchmarkingRun:
 
     def run(self):
         # Initialize database
-        from setup_benchmarking_db import check_run_exists, init_db, import_benchmark_data
+        from setup_benchmarking_db import (
+            check_run_exists,
+            import_benchmark_data,
+            init_db,
+        )
 
         engine = init_db(self.db_url)
 
@@ -63,6 +67,7 @@ class BenchmarkingRun:
         with Session(engine) as session:
             # Check if questions table is empty
             from sqlalchemy import text
+
             question_count = session.exec(text("SELECT COUNT(*) FROM question")).first()[0]
             if question_count == 0:
                 print("Database is empty. Importing benchmark data...")
@@ -80,11 +85,12 @@ class BenchmarkingRun:
         with Session(engine) as session:
             # Limit to first 100 questions for testing
             question_limit = 100
-            
+
             # Get all questions from the database
             from sqlalchemy import text
+
             questions = list(session.exec(text(f"SELECT * FROM question LIMIT {question_limit}")))
-            
+
             for question_row in tqdm(questions, desc="Questions", position=0, leave=True):
                 question_id = question_row[1]  # question_id is the second column
                 user_token = f"{self.run_token}_{question_id}"
@@ -98,7 +104,7 @@ class BenchmarkingRun:
                 if not question:
                     print(f"Question {question_id} not found in database. Skipping.")
                     continue
-                
+
                 cursor = get_or_create_cursor(session, self.run_token, question_id)
 
                 @tracer.agent
@@ -107,7 +113,7 @@ class BenchmarkingRun:
 
                 # Get all sessions for this question
                 chat_sessions = get_sessions_for_question(session, question_id)
-                
+
                 for session_idx, chat_session in enumerate(tqdm(chat_sessions, desc="Sessions", position=1, leave=False)):
                     if cursor.session_idx > session_idx:
                         # Skip sessions we've already processed
@@ -117,7 +123,7 @@ class BenchmarkingRun:
                         elroy.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
                         # Get all messages for this session
                         messages = get_messages_for_session(session, chat_session.session_id)
-                        
+
                         for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
                             if cursor.message_idx > message_idx:
                                 # Skip messages we've already processed

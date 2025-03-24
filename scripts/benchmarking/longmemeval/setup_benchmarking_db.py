@@ -1,51 +1,55 @@
 import json
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import create_engine, text
-from sqlmodel import Field, Session, SQLModel, select
+from sqlalchemy import create_engine
+from sqlmodel import Field, Session, SQLModel, func, select, text
 
 
 # Database model classes
 class Question(SQLModel, table=True):
     """Database model for benchmark questions"""
+
     id: Optional[int] = Field(default=None, primary_key=True)
     question_id: str = Field(index=True)
     question_type: str
     question: str
     answer: str
     question_date: str
-    
+
     def __repr__(self):
         return f"Question(id={self.id}, question_id={self.question_id})"
 
 
 class ChatSession(SQLModel, table=True):
     """Database model for chat sessions"""
+
     id: Optional[int] = Field(default=None, primary_key=True)
     question_id: str = Field(index=True)
     session_id: str = Field(index=True)
     session_date: str
     is_answer_session: bool = False
-    
+
     def __repr__(self):
         return f"ChatSession(id={self.id}, question_id={self.question_id}, session_id={self.session_id})"
 
 
 class ChatMessage(SQLModel, table=True):
     """Database model for chat messages within sessions"""
+
     id: Optional[int] = Field(default=None, primary_key=True)
     session_id: str = Field(index=True)
     message_idx: int
     role: str
     content: str
     has_answer: bool = False
-    
+
     def __repr__(self):
         return f"ChatMessage(id={self.id}, session_id={self.session_id}, message_idx={self.message_idx})"
 
 
 class Cursor(SQLModel, table=True):
     """Cursor to track progress of benchmark runs"""
+
     id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
     question_id: str
@@ -56,6 +60,7 @@ class Cursor(SQLModel, table=True):
 
 class Answer(SQLModel, table=True):
     """Store benchmark answers"""
+
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
@@ -77,10 +82,10 @@ def init_db(db_url: str):
 def load_benchmark_data(file_path: str) -> List[Dict[str, Any]]:
     """
     Load the benchmark data from a JSON file
-    
+
     Args:
         file_path: Path to the JSON file
-        
+
     Returns:
         List of question dictionaries
     """
@@ -95,27 +100,24 @@ def load_benchmark_data(file_path: str) -> List[Dict[str, Any]]:
         raise FileNotFoundError(f"File {file_path} not found")
 
 
-def import_benchmark_data(session: Session, data: List[Dict[str, Any]], limit: Optional[int] = None) -> None:
+def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
     """
     Import benchmark data into the database
-    
+
     Args:
         session: SQLModel session
         data: List of question dictionaries
         limit: Optional limit on number of questions to import
     """
-    # Use a subset of data if limit is specified
-    if limit is not None and limit > 0:
-        data = data[:limit]
-    
+
     print(f"Importing {len(data)} questions into database...")
-    
+
     # First check if data is already imported
     existing_count = session.exec(select(Question)).first()
     if existing_count:
         print("Data already exists in database. Skipping import.")
         return
-    
+
     # Import questions, sessions, and messages
     for item in data:
         # Add question
@@ -124,40 +126,33 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]], limit: O
             question_type=item["question_type"],
             question=item["question"],
             answer=item["answer"],
-            question_date=item["question_date"]
+            question_date=item["question_date"],
         )
         session.add(question)
-        
+
         # Add chat sessions and messages
         for idx, session_id in enumerate(item["haystack_session_ids"]):
             # Determine if this is an answer session
             is_answer = session_id in item["answer_session_ids"]
-            
+
             # Get session date
             session_date = item["haystack_dates"][idx] if idx < len(item["haystack_dates"]) else "unknown"
-            
+
             # Add chat session
             chat_session = ChatSession(
-                question_id=item["question_id"],
-                session_id=session_id,
-                session_date=session_date,
-                is_answer_session=is_answer
+                question_id=item["question_id"], session_id=session_id, session_date=session_date, is_answer_session=is_answer
             )
             session.add(chat_session)
-            
+
             # Add messages for this session
             if idx < len(item["haystack_sessions"]):
                 for msg_idx, msg in enumerate(item["haystack_sessions"][idx]):
                     has_answer = "has_answer" in msg and msg["has_answer"]
                     chat_message = ChatMessage(
-                        session_id=session_id,
-                        message_idx=msg_idx,
-                        role=msg["role"],
-                        content=msg["content"],
-                        has_answer=has_answer
+                        session_id=session_id, message_idx=msg_idx, role=msg["role"], content=msg["content"], has_answer=has_answer
                     )
                     session.add(chat_message)
-    
+
     # Commit all changes
     session.commit()
     print("Data import complete.")
@@ -249,7 +244,6 @@ def main():
     parser.add_argument("--init", action="store_true", help="Initialize the database")
     parser.add_argument("--db-path", default="./elroy.db", help="Path to the SQLite database file")
     parser.add_argument("--load-data", help="Path to the benchmark data JSON file to load")
-    parser.add_argument("--limit", type=int, help="Limit number of questions to import")
     parser.add_argument("--list-runs", action="store_true", help="List all run tokens in the database")
     parser.add_argument("--stats", action="store_true", help="Show database statistics")
 
@@ -257,30 +251,23 @@ def main():
 
     db_url = f"sqlite:///{args.db_path}"
 
-    if args.init:
-        print(f"Initializing database at {args.db_path}")
-        engine = init_db(db_url)
-        print("Database initialized successfully")
-
     if args.load_data:
-        engine = create_engine(db_url)
+        engine = init_db(db_url)
         with Session(engine) as session:
             data = load_benchmark_data(args.load_data)
-            import_benchmark_data(session, data, args.limit)
+            import_benchmark_data(session, data)
 
     if args.list_runs:
         engine = create_engine(db_url)
         with Session(engine) as session:
-            result = session.exec(text("SELECT DISTINCT run_token FROM cursor"))
+            result = session.exec(select(Cursor.run_token).distinct())
             runs = [row[0] for row in result]
 
             if runs:
                 print("Available run tokens:")
                 for run in runs:
                     # Count completed questions for this run
-                    completed = session.exec(
-                        text("SELECT COUNT(*) FROM cursor WHERE run_token = :run AND is_complete = 1"), {"run": run}
-                    ).first()[0]
+                    completed = session.exec(select(func.count()).where(Cursor.run_token == run).where(Cursor.is_complete == True)).one()
 
                     # Count total questions for this run
                     total = session.exec(text("SELECT COUNT(*) FROM cursor WHERE run_token = :run"), {"run": run}).first()[0]
@@ -288,7 +275,7 @@ def main():
                     print(f"  {run}: {completed}/{total} questions completed")
             else:
                 print("No runs found in the database")
-                
+
     if args.stats:
         engine = create_engine(db_url)
         with Session(engine) as session:
@@ -296,7 +283,7 @@ def main():
             session_count = session.exec(text("SELECT COUNT(*) FROM chatsession")).first()[0]
             message_count = session.exec(text("SELECT COUNT(*) FROM chatmessage")).first()[0]
             answer_count = session.exec(text("SELECT COUNT(*) FROM answer")).first()[0]
-            
+
             print("Database Statistics:")
             print(f"  Questions: {question_count}")
             print(f"  Chat Sessions: {session_count}")
