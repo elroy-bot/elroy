@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from sqlalchemy import create_engine
-from sqlmodel import Field, SQLModel, Session, select
+from sqlmodel import Field, Session, SQLModel, select
 
 
 class Cursor(SQLModel, table=True):

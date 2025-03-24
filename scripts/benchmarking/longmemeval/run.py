@@ -11,16 +11,15 @@ import sys
 import time
 from functools import cached_property
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from sqlalchemy import create_engine
-from sqlmodel import Session, select
+from setup_benchmarking_db import get_or_create_cursor, update_or_create_answer
+from sqlmodel import Session
 from tqdm import tqdm
 
 from elroy.api import Elroy
 from elroy.core.constants import SYSTEM
 from elroy.core.tracing import tracer
-from scripts.benchmarking.longmemeval.setup_benchmarking_db import Answer, Cursor, get_or_create_cursor, update_or_create_answer
 
 
 class BenchmarkingRun:
@@ -49,6 +48,7 @@ class BenchmarkingRun:
     def run(self):
         # Initialize database
         from scripts.benchmarking.longmemeval.setup_benchmarking_db import init_db
+
         engine = init_db(self.db_url)
 
         # Initialize cursor entries using SQLAlchemy session
