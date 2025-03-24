@@ -104,7 +104,7 @@ class BenchmarkingQuestionRun:
                     session_date = chat_session.session_date
                     self.ai.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
                     # Get all messages for this session
-                    messages = get_messages_for_session(self.session, chat_session.session_id)
+                    messages = get_messages_for_session(self.session, self.question_id, chat_session.session_id)
 
                     for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
                         if cursor.message_idx > message_idx:

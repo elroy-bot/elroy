@@ -2,14 +2,14 @@ import json
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import create_engine
-from sqlmodel import Field, Session, SQLModel, func, select
+from sqlmodel import Field, Session, SQLModel, UniqueConstraint, func, select
 
 
 # Database model classes
 class Question(SQLModel, table=True):
     """Database model for benchmark questions"""
 
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (UniqueConstraint("question_id"), {"extend_existing": True})
 
     id: Optional[int] = Field(default=None, primary_key=True)
     question_id: str = Field(index=True)
@@ -26,7 +26,7 @@ class Question(SQLModel, table=True):
 class ChatSession(SQLModel, table=True):
     """Database model for chat sessions"""
 
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (UniqueConstraint("question_id", "session_id"), {"extend_existing": True})
 
     id: Optional[int] = Field(default=None, primary_key=True)
     question_id: str = Field(index=True)
@@ -41,9 +41,10 @@ class ChatSession(SQLModel, table=True):
 class ChatMessage(SQLModel, table=True):
     """Database model for chat messages within sessions"""
 
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (UniqueConstraint("question_id", "session_id", "message_idx"), {"extend_existing": True})
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    question_id: str = Field(index=True)
     session_id: str = Field(index=True)
     message_idx: int
     role: str
@@ -57,7 +58,7 @@ class ChatMessage(SQLModel, table=True):
 class Cursor(SQLModel, table=True):
     """Cursor to track progress of benchmark runs"""
 
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (UniqueConstraint("run_token", "question_id"), {"extend_existing": True})
 
     id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
@@ -70,7 +71,7 @@ class Cursor(SQLModel, table=True):
 class Answer(SQLModel, table=True):
     """Store benchmark answers"""
 
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (UniqueConstraint("run_token", "question_id"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
     question_id: str
@@ -158,7 +159,12 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
                 for msg_idx, msg in enumerate(item["haystack_sessions"][idx]):
                     has_answer = "has_answer" in msg and msg["has_answer"]
                     chat_message = ChatMessage(
-                        session_id=session_id, message_idx=msg_idx, role=msg["role"], content=msg["content"], has_answer=has_answer
+                        question_id=item["question_id"],
+                        session_id=session_id,
+                        message_idx=msg_idx,
+                        role=msg["role"],
+                        content=msg["content"],
+                        has_answer=has_answer,
                     )
                     session.add(chat_message)
 
@@ -249,10 +255,10 @@ def get_sessions_for_question(session: Session, question_id: str) -> List[ChatSe
     return list(session.exec(select(ChatSession).where(ChatSession.question_id == question_id)))
 
 
-def get_messages_for_session(session: Session, session_id: str) -> List[ChatMessage]:
+def get_messages_for_session(session: Session, question_id: str, session_id: str) -> List[ChatMessage]:
     """Get all messages for a chat session"""
     return list(
-        session.exec(select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.message_idx))  # type: ignore
+        session.exec(select(ChatMessage).where(ChatMessage.session_id == session_id).where(ChatMessage.question_id == question_id).order_by(ChatMessage.message_idx))  # type: ignore
     )  # type: ignore
 
 
