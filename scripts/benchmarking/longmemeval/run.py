@@ -10,7 +10,6 @@ import os
 import sys
 import time
 from functools import cached_property
-from typing import Optional
 
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -32,7 +31,7 @@ from elroy.core.tracing import tracer
 
 class QuestionEvaluator:
 
-    def __init__(self, session: Session, db_url: str, question_id: str, run_token: Optional[str] = None):
+    def __init__(self, session: Session, db_url: str, question_id: str, run_token: str):
         self.session = session
         self.db_url = db_url
         self.question_id = question_id
@@ -45,6 +44,7 @@ class QuestionEvaluator:
             token=self.user_token,
             database_url=self.db_url,
             check_db_migration=False,
+            show_tool_calls=False,
         )
 
     @tracer.agent
@@ -133,7 +133,9 @@ def main():
         help="Optional prefix for user tokens. If not provided, a timestamp-based prefix will be generated.",
     )
 
-    parser.parse_args()
+    parsed = parser.parse_args()
+
+    run_token = parsed.run_token or f"run_{int(time.time())}"
 
     db_url = "sqlite:///elroy.db"
 
@@ -141,7 +143,7 @@ def main():
     with Session(engine) as session:
         questions = get_questions(session)
         for q in tqdm(questions, desc="Questions", position=0, leave=False):
-            evaluator = QuestionEvaluator(session, db_url, q.question_id)
+            evaluator = QuestionEvaluator(session, db_url, q.question_id, run_token)
             evaluator.run()
 
 

@@ -210,7 +210,7 @@ def update_or_create_answer(
         # Only update if the answer has changed
         if answer_row.elroy_answer != elroy_answer:
             answer_row.elroy_answer = elroy_answer
-            answer_row.answer_session_ids = ", ".join(answer_session_ids)
+            answer_row.answer_session_ids = answer_session_ids
             session.add(answer_row)
             session.commit()
             session.refresh(answer_row)
