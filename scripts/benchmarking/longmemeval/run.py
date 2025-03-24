@@ -11,6 +11,8 @@ import sys
 import time
 from functools import cached_property
 
+from scripts.benchmarking.longmemeval.benchmarking_db import Question
+
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from benchmarking_db import (
@@ -47,40 +49,49 @@ class QuestionEvaluator:
             show_tool_calls=False,
         )
 
+    @cached_property
+    def question(self) -> Question:
+        q = get_question_by_id(self.session, self.question_id)
+        assert q
+        return q
+
     @tracer.agent
-    def handle_msg(self, msg: str, question_id: str, session_id: str, message_idx: int):
+    def handle_msg(self, msg: str):
         return self.ai.message(msg)
 
     @tracer.agent
-    def record_answer(self):
-        question = get_question_by_id(self.session, self.question_id)
-
-        assert question
+    def record_answer(self, question_text: str):
+        self.ai.reset_messages()
 
         try:
             self.ai.ctx.show_internal_thought = False
 
-            update_or_create_answer(
-                self.session,
-                self.run_token,
-                question.question_id,
-                question.question_type,
-                question=question.question,
-                elroy_answer=self.ai.message(
-                    f"""The following is a test of your memory.
+            elroy_answer = self.ai.message(
+                f"""The following is a test of your memory.
                     Just give your answer, do not continue the conversation.
                     E.g. if the question is: What is 2+2? Respond simply with: 4.
                     Use tools to search for information!
                     If you don't know even after using tools, say if you don't know say I don't know.:
-                    {question.question}"""
-                ),
-                answer=question.answer,
-                answer_session_ids=question.answer_session_ids,
+                    {self.question.question}"""
+            )
+
+            update_or_create_answer(
+                self.session,
+                self.run_token,
+                self.question.question_id,
+                self.question.question_type,
+                question=self.question.question,
+                elroy_answer=elroy_answer,
+                answer=self.question.answer,
+                answer_session_ids=self.question.answer_session_ids,
             )
         finally:
             self.ai.ctx.show_internal_thought = True
+        return elroy_answer
 
     def run(self):
+        from openinference.instrumentation import using_metadata, using_session
+
         cursor = get_or_create_cursor(self.session, self.run_token, self.question_id)
         chat_sessions = get_sessions_for_question(self.session, self.question_id)
 
@@ -89,29 +100,37 @@ class QuestionEvaluator:
                 # Skip sessions we've already processed
                 continue
             else:
-                session_date = chat_session.session_date
-                self.ai.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
-                # Get all messages for this session
-                messages = get_messages_for_session(self.session, chat_session.session_id)
+                with using_session(chat_session.session_id):
+                    session_date = chat_session.session_date
+                    self.ai.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
+                    # Get all messages for this session
+                    messages = get_messages_for_session(self.session, chat_session.session_id)
 
-                for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
-                    if cursor.message_idx > message_idx:
-                        # Skip messages we've already processed
-                        continue
-                    else:
-                        if message.role == "user":
-                            self.handle_msg(
-                                message.content,
-                                self.question_id,
-                                chat_session.session_id,
-                                message_idx,
-                            )
+                    for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
+                        if cursor.message_idx > message_idx:
+                            # Skip messages we've already processed
+                            continue
+                        else:
+                            with using_metadata(
+                                {
+                                    "session_id": chat_session.session_id,
+                                    "session_date": session_date,
+                                    "question_id": self.question_id,
+                                    "message_idx": message_idx,
+                                    "message_id": message.id,
+                                    "has_answer": message.has_answer,
+                                }
+                            ):
+                                if message.role == "user":
+                                    self.handle_msg(
+                                        message.content,
+                                    )
 
-                        cursor.message_idx = message_idx
-                        self.session.add(cursor)
-                        self.session.commit()
-                        self.session.refresh(cursor)
-                self.ai.context_refresh()
+                                cursor.message_idx = message_idx
+                                self.session.add(cursor)
+                                self.session.commit()
+                                self.session.refresh(cursor)
+                    self.ai.context_refresh()
                 cursor.session_idx = session_idx
                 cursor.message_idx = -1
                 self.session.commit()
@@ -120,7 +139,16 @@ class QuestionEvaluator:
             cursor.message_idx = -1
             self.session.commit()
             self.session.refresh(cursor)
-        self.record_answer()
+        with using_metadata(
+            {
+                "question_id": self.question_id,
+                "question_type": self.question.question_type,
+                "answer": self.question.answer,
+                "question_date": self.question.question_date,
+                "answer_session_ids": self.question.answer_session_ids,
+            }
+        ):
+            self.record_answer(self.question.question)
 
 
 def main():

@@ -30,6 +30,7 @@ from .repository.context_messages.operations import (
 from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
+from .repository.context_messages.operations import reset_messages as do_reset_messages
 from .repository.context_messages.queries import get_context_messages
 from .repository.context_messages.transforms import is_context_refresh_needed
 from .repository.documents.operations import DocIngestResult, do_ingest, do_ingest_dir
@@ -270,6 +271,11 @@ class Elroy:
             list,
             "\n\n".join,
         )  # type: ignore
+
+    @db
+    def reset_messages(self) -> None:
+        """Reset the context messages, leaving only the system instructions."""
+        do_reset_messages(self.ctx)
 
     @db
     def context_refresh(self) -> None:

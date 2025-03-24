@@ -9,6 +9,8 @@ from sqlmodel import Field, Session, SQLModel, func, select
 class Question(SQLModel, table=True):
     """Database model for benchmark questions"""
 
+    __table_args__ = {"extend_existing": True}
+
     id: Optional[int] = Field(default=None, primary_key=True)
     question_id: str = Field(index=True)
     question_type: str
@@ -24,6 +26,8 @@ class Question(SQLModel, table=True):
 class ChatSession(SQLModel, table=True):
     """Database model for chat sessions"""
 
+    __table_args__ = {"extend_existing": True}
+
     id: Optional[int] = Field(default=None, primary_key=True)
     question_id: str = Field(index=True)
     session_id: str = Field(index=True)
@@ -36,6 +40,8 @@ class ChatSession(SQLModel, table=True):
 
 class ChatMessage(SQLModel, table=True):
     """Database model for chat messages within sessions"""
+
+    __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
     session_id: str = Field(index=True)
@@ -50,6 +56,8 @@ class ChatMessage(SQLModel, table=True):
 
 class Cursor(SQLModel, table=True):
     """Cursor to track progress of benchmark runs"""
+
+    __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
     run_token: str
