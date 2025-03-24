@@ -11,15 +11,15 @@ import sys
 import time
 from functools import cached_property
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from setup_benchmarking_db import (
-    get_or_create_cursor, 
-    update_or_create_answer, 
+    BenchmarkDataset,
+    get_or_create_cursor,
     load_benchmark_data,
-    BenchmarkDataset
+    update_or_create_answer,
 )
 from sqlmodel import Session
 from tqdm import tqdm
@@ -53,7 +53,7 @@ class BenchmarkingRun:
 
     def run(self):
         # Initialize database
-        from setup_benchmarking_db import init_db, check_run_exists
+        from setup_benchmarking_db import check_run_exists, init_db
 
         engine = init_db(self.db_url)
 
@@ -99,7 +99,11 @@ class BenchmarkingRun:
                                     handle_msg(
                                         message["content"],
                                         item.question_id,
-                                        item.haystack_session_ids[session_idx] if session_idx < len(item.haystack_session_ids) else "unknown",
+                                        (
+                                            item.haystack_session_ids[session_idx]
+                                            if session_idx < len(item.haystack_session_ids)
+                                            else "unknown"
+                                        ),
                                         message_idx,
                                     )
                                     elroy.message(message["content"])
