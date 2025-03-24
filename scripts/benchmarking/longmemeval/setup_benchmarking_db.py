@@ -171,7 +171,7 @@ def get_or_create_cursor(session: Session, run_token: str, question_id: str) -> 
         session.add(cursor)
         session.commit()
         session.refresh(cursor)
-    
+
     return cursor
 
 
@@ -186,7 +186,7 @@ def check_run_exists(session: Session, run_token: str) -> bool:
     Returns:
         True if the run exists, False otherwise
     """
-    cursor_count = session.exec(select(Cursor).where(Cursor.run_token == run_token)).count()
+    cursor_count = session.exec(select(func.count()).where(Cursor.run_token == run_token))
     return cursor_count > 0
 
 
@@ -228,7 +228,7 @@ def update_or_create_answer(
         session.add(answer_row)
         session.commit()
         session.refresh(answer_row)
-    
+
     return answer_row
 
 
