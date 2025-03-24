@@ -171,3 +171,63 @@ def update_or_create_answer(
         )
         session.add(answer_row)
         session.commit()
+
+
+def main():
+    """
+    Main function to initialize the database and print schema information
+    when the script is run directly.
+    """
+    import argparse
+    import os
+    
+    parser = argparse.ArgumentParser(description="Initialize and manage the benchmarking database")
+    parser.add_argument("--init", action="store_true", help="Initialize the database")
+    parser.add_argument("--db-path", default="./elroy.db", help="Path to the SQLite database file")
+    parser.add_argument("--load-data", help="Path to the benchmark data JSON file to load")
+    parser.add_argument("--list-runs", action="store_true", help="List all run tokens in the database")
+    
+    args = parser.parse_args()
+    
+    db_url = f"sqlite:///{args.db_path}"
+    
+    if args.init:
+        print(f"Initializing database at {args.db_path}")
+        engine = init_db(db_url)
+        print("Database initialized successfully")
+    
+    if args.load_data:
+        print(f"Loading benchmark data from {args.load_data}")
+        dataset = load_benchmark_data(args.load_data)
+        print(f"Loaded {len(dataset)} questions")
+        
+    if args.list_runs:
+        engine = create_engine(db_url)
+        with Session(engine) as session:
+            # Get distinct run tokens
+            from sqlalchemy import text
+            result = session.exec(text("SELECT DISTINCT run_token FROM cursor"))
+            runs = [row[0] for row in result]
+            
+            if runs:
+                print("Available run tokens:")
+                for run in runs:
+                    # Count completed questions for this run
+                    completed = session.exec(
+                        text("SELECT COUNT(*) FROM cursor WHERE run_token = :run AND is_complete = 1"),
+                        {"run": run}
+                    ).first()[0]
+                    
+                    # Count total questions for this run
+                    total = session.exec(
+                        text("SELECT COUNT(*) FROM cursor WHERE run_token = :run"),
+                        {"run": run}
+                    ).first()[0]
+                    
+                    print(f"  {run}: {completed}/{total} questions completed")
+            else:
+                print("No runs found in the database")
+
+
+if __name__ == "__main__":
+    main()
