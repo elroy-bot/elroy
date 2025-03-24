@@ -31,7 +31,7 @@ from elroy.core.constants import SYSTEM
 from elroy.core.tracing import tracer
 
 
-class QuestionEvaluator:
+class BenchmarkingQuestionRun:
 
     def __init__(self, session: Session, db_url: str, question_id: str, run_token: str):
         self.session = session
@@ -60,7 +60,7 @@ class QuestionEvaluator:
         return self.ai.message(msg)
 
     @tracer.agent
-    def record_answer(self, question_text: str):
+    def record_answer(self, question_text: str, expected_answer: str):
         self.ai.reset_messages()
 
         try:
@@ -148,7 +148,7 @@ class QuestionEvaluator:
                 "answer_session_ids": self.question.answer_session_ids,
             }
         ):
-            self.record_answer(self.question.question)
+            self.record_answer(self.question.question, self.question.answer)
 
 
 def main():
@@ -171,7 +171,7 @@ def main():
     with Session(engine) as session:
         questions = get_questions(session)
         for q in tqdm(questions, desc="Questions", position=0, leave=False):
-            evaluator = QuestionEvaluator(session, db_url, q.question_id, run_token)
+            evaluator = BenchmarkingQuestionRun(session, db_url, q.question_id, run_token)
             evaluator.run()
 
 
