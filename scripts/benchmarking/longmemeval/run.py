@@ -53,13 +53,15 @@ class BenchmarkingRun:
 
     def run(self):
         # Initialize database
-        from scripts.benchmarking.longmemeval.setup_benchmarking_db import init_db
+        from setup_benchmarking_db import init_db
 
         engine = init_db(self.db_url)
 
         # Initialize cursor entries using SQLAlchemy session
         with Session(engine) as session:
-            for item in tqdm(self.input_data[:100], desc="Questions", position=0, leave=True):
+            # Limit to first 100 questions for testing
+            dataset_slice = self.input_data[:100] if len(self.input_data) > 100 else self.input_data
+            for item in tqdm(dataset_slice, desc="Questions", position=0, leave=True):
                 user_token = f"{self.run_token}_{item['question_id']}"
                 elroy = Elroy(
                     token=user_token,
