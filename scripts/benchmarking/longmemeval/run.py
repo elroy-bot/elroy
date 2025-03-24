@@ -75,7 +75,8 @@ class BenchmarkingRun:
 
         # Check if this run already exists in the database
         with Session(engine) as session:
-            if check_run_exists(session, self.run_token):
+            run_exists = session.exec(select(Cursor).where(Cursor.run_token == self.run_token)).count() > 0
+            if run_exists:
                 print(f"Run with token '{self.run_token}' already exists in the database.")
                 print("Resuming from last saved position...")
             else:

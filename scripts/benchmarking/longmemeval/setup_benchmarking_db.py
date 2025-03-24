@@ -107,14 +107,13 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
     Args:
         session: SQLModel session
         data: List of question dictionaries
-        limit: Optional limit on number of questions to import
     """
 
     print(f"Importing {len(data)} questions into database...")
 
     # First check if data is already imported
-    existing_count = session.exec(select(Question)).first()
-    if existing_count:
+    question_count = session.exec(select(Question)).count()
+    if question_count > 0:
         print("Data already exists in database. Skipping import.")
         return
 
@@ -158,15 +157,21 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
     print("Data import complete.")
 
 
-def get_or_create_cursor(session: Session, run_token: str, question_id: str):
-    cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token).where(Cursor.question_id == question_id)).first()
+def get_or_create_cursor(session: Session, run_token: str, question_id: str) -> Cursor:
+    """Get or create a cursor for tracking progress"""
+    cursor = session.exec(
+        select(Cursor)
+        .where(Cursor.run_token == run_token)
+        .where(Cursor.question_id == question_id)
+    ).first()
 
     if not cursor:
         # Create new cursor entry
         cursor = Cursor(run_token=run_token, question_id=question_id)
         session.add(cursor)
-
         session.commit()
+        session.refresh(cursor)
+    
     return cursor
 
 
@@ -181,8 +186,8 @@ def check_run_exists(session: Session, run_token: str) -> bool:
     Returns:
         True if the run exists, False otherwise
     """
-    cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token)).first()
-    return cursor is not None
+    cursor_count = session.exec(select(Cursor).where(Cursor.run_token == run_token)).count()
+    return cursor_count > 0
 
 
 def update_or_create_answer(
@@ -194,8 +199,13 @@ def update_or_create_answer(
     elroy_answer: str,
     answer: str,
     answer_session_ids: List[str],
-):
-    answer_row = session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
+) -> Answer:
+    """Update or create an answer record"""
+    answer_row = session.exec(
+        select(Answer)
+        .where(Answer.run_token == run_token)
+        .where(Answer.question_id == question_id)
+    ).first()
 
     if answer_row:
         # Only update if the answer has changed
@@ -204,6 +214,7 @@ def update_or_create_answer(
             answer_row.answer_session_ids = ", ".join(answer_session_ids)
             session.add(answer_row)
             session.commit()
+            session.refresh(answer_row)
     else:
         answer_row = Answer(
             run_token=run_token,
@@ -216,6 +227,9 @@ def update_or_create_answer(
         )
         session.add(answer_row)
         session.commit()
+        session.refresh(answer_row)
+    
+    return answer_row
 
 
 def get_question_by_id(session: Session, question_id: str) -> Optional[Question]:
