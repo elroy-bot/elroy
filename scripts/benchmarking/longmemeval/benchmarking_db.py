@@ -157,16 +157,25 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
             # Add messages for this session
             if idx < len(item["haystack_sessions"]):
                 for msg_idx, msg in enumerate(item["haystack_sessions"][idx]):
-                    has_answer = "has_answer" in msg and msg["has_answer"]
-                    chat_message = ChatMessage(
-                        question_id=item["question_id"],
-                        session_id=session_id,
-                        message_idx=msg_idx,
-                        role=msg["role"],
-                        content=msg["content"],
-                        has_answer=has_answer,
-                    )
-                    session.add(chat_message)
+                    existing_row = session.exec(
+                        select(ChatMessage)
+                        .where(ChatMessage.session_id == session_id)
+                        .where(ChatMessage.question_id == item["question_id"])
+                        .where(ChatMessage.message_idx == msg_idx)
+                    ).first()
+                    if existing_row:
+                        continue
+                    else:
+                        has_answer = "has_answer" in msg and msg["has_answer"]
+                        chat_message = ChatMessage(
+                            question_id=item["question_id"],
+                            session_id=session_id,
+                            message_idx=msg_idx,
+                            role=msg["role"],
+                            content=msg["content"],
+                            has_answer=has_answer,
+                        )
+                        session.add(chat_message)
 
     # Commit all changes
     session.commit()
@@ -270,11 +279,8 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Initialize and manage the benchmarking database")
-    parser.add_argument("--init", action="store_true", help="Initialize the database")
     parser.add_argument("--db-path", default="./elroy.db", help="Path to the SQLite database file")
-    parser.add_argument("--load-data", help="Path to the benchmark data JSON file to load")
-    parser.add_argument("--list-runs", action="store_true", help="List all run tokens in the database")
-    parser.add_argument("--stats", action="store_true", help="Show database statistics")
+    parser.add_argument("--load-data", default="./data/longmemeval_s.json", help="Path to the benchmark data JSON file to load")
 
     args = parser.parse_args()
 
@@ -285,39 +291,6 @@ def main():
         with Session(engine) as session:
             data = load_benchmark_data(args.load_data)
             import_benchmark_data(session, data)
-
-    if args.list_runs:
-        engine = create_engine(db_url)
-        with Session(engine) as session:
-            result = session.exec(select(Cursor.run_token).distinct())
-            runs = [row[0] for row in result]
-
-            if runs:
-                print("Available run tokens:")
-                for run in runs:
-                    # Count completed questions for this run
-                    completed = session.exec(select(func.count()).where(Cursor.run_token == run).where(Cursor.is_complete == True)).one()
-
-                    # Count total questions for this run
-                    total = session.exec(select(func.count()).where(Cursor.run_token == run)).one()
-
-                    print(f"  {run}: {completed}/{total} questions completed")
-            else:
-                print("No runs found in the database")
-
-    if args.stats:
-        engine = create_engine(db_url)
-        with Session(engine) as session:
-            question_count = session.exec(select(func.count()).select_from(Question)).one()
-            session_count = session.exec(select(func.count()).select_from(ChatSession)).one()
-            message_count = session.exec(select(func.count()).select_from(ChatMessage)).one()
-            answer_count = session.exec(select(func.count()).select_from(Answer)).one()
-
-            print("Database Statistics:")
-            print(f"  Questions: {question_count}")
-            print(f"  Chat Sessions: {session_count}")
-            print(f"  Chat Messages: {message_count}")
-            print(f"  Benchmark Answers: {answer_count}")
 
 
 if __name__ == "__main__":
