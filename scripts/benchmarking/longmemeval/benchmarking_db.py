@@ -159,6 +159,11 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
     print("Data import complete.")
 
 
+def get_questions(session: Session) -> List[Question]:
+    """Get all benchmark questions"""
+    return list(session.exec(select(Question)))
+
+
 def get_or_create_cursor(session: Session, run_token: str, question_id: str) -> Cursor:
     """Get or create a cursor for tracking progress"""
     cursor = session.exec(select(Cursor).where(Cursor.run_token == run_token).where(Cursor.question_id == question_id)).first()
