@@ -26,7 +26,7 @@ class Question(SQLModel, table=True):
 class ChatSession(SQLModel, table=True):
     """Database model for chat sessions"""
 
-    __table_args__ = (UniqueConstraint("question_id", "session_id"), {"extend_existing": True})
+    __table_args__ = (UniqueConstraint("question_id", "session_id", "session_date"), {"extend_existing": True})
 
     id: Optional[int] = Field(default=None, primary_key=True)
     question_id: str = Field(index=True)
