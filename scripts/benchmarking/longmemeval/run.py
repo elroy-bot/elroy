@@ -11,7 +11,7 @@ import sys
 import time
 from functools import cached_property
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
