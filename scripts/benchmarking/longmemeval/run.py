@@ -179,7 +179,7 @@ class HardcodedAssistantResponseQRun(BenchmarkingQuestionRun):
             database_url=self.db_url,
             check_db_migration=False,
             show_tool_calls=False,
-            messages_beteen_memory=self.messages_between_memory,
+            messages_between_memory=self.messages_between_memory,
         )
 
     def handle_msg(self, msg: ChatMessage):
