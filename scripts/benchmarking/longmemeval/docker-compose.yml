@@ -17,7 +17,7 @@ services:
       - redis
     command: ["python", "-m", "litellm", "--config", "/app/config.yaml"]
     volumes:
-      - ./config.yaml:/app/config.yaml
+      - ./litellm_config.yaml:/app/config.yaml
     restart: unless-stopped
 
   redis:

@@ -1,30 +1,27 @@
 model_list:
-
 - model_name: azure/text-embedding-3-small
   litellm_params:
     model: azure/text-embedding-3-small
     api_base: os.environ/AZURE_API_BASE
     api_key: os.environ/AZURE_API_KEY
-    api_version: os.environ/AZURE_API_BASE
+    api_version: os.environ/AZURE_API_VERSION
 - model_name: azure/gpt-4o-turbo
   litellm_params:
     model: azure/gpt-4o-mini
     api_base: os.environ/AZURE_API_BASE
     api_key: os.environ/AZURE_API_KEY
-    api_version: os.environ/AZURE_API_BASE
+    api_version: os.environ/AZURE_API_VERSION
 
 litellm_settings:
-  # Optional - Redis Settings
-  host: "localhost"  # The host address for the Redis cache. Required if type is "redis".
-  port: 6379  # The port number for the Redis cache. Required if type is "redis".
-  password: "password"  # The password for the Redis cache. Required if type is "redis".
-  namespace: "litellm.caching.caching" # namespace for redis cache
+  cache: true
+  cache_params:
+    type: redis
+    host: "redis"
+    port: 6379
+    password: "your_redis_password"
+    namespace: "litellm.caching.caching"
   disable_master_key_return: boolean
   default_fallbacks: ["gemini/gemini-2.0-flash-exp"]
-
-  cache: true
-  cache_params:        # set cache params for redis
-    type: redis
 
 
 # docker run \
