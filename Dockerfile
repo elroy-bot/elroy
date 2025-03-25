@@ -17,14 +17,12 @@ WORKDIR /app
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
+# Copy the local package files
+COPY . /app/elroy-src/
 
-ARG ELROY_VERSION
-
-RUN if [ -z "$ELROY_VERSION" ] ; then \
-        uv pip install --no-cache --system elroy ; \
-    else \
-        uv pip install --no-cache --system elroy==${ELROY_VERSION} ; \
-    fi
+# Install the local package
+# Using -e for editable mode so changes to the code are reflected immediately
+RUN cd /app/elroy-src && uv pip install --no-cache --system -e .
 
 ENV ELROY_HOME=/app/data
 RUN mkdir -p /app/data && \
