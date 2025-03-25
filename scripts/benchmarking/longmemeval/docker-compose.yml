@@ -2,20 +2,17 @@ version: '3.8'
 
 services:
   litellm:
-    image: ghcr.io/berriai/litellm:latest
+    image: ghcr.io/berriai/litellm:main-latest
     ports:
-      - "8000:8000"
+      - "4000:4000"
     environment:
-      - LITELLM_PORT=8000
-      # Cache settings
-      - CACHE=true
-      # Redis connection
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=your_redis_password
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      # Redis connection is handled in litellm_config.yaml
     depends_on:
       - redis
-    command: ["python", "-m", "litellm", "--config", "/app/config.yaml"]
+    command: ["--config", "/app/config.yaml"]
     volumes:
       - ./litellm_config.yaml:/app/config.yaml
     restart: unless-stopped
