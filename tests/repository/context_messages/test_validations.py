@@ -17,7 +17,11 @@ def test_assistant_tool_calls_followed_by_tool(ctx, system_instruct, tool_call):
         ctx,
         [
             system_instruct,
-            ContextMessage(role=USER, content="user message", chat_model=None),
+            ContextMessage(
+                role=USER,
+                content="user message",
+                chat_model=None,
+            ),
             ContextMessage(
                 role=ASSISTANT,
                 content="assistant message",

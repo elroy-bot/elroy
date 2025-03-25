@@ -21,7 +21,8 @@ from ..io.base import ElroyIO
 from ..io.cli import CliIO
 from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from ..llm.stream_parser import collect
-from ..messenger import invoke_slash_command, process_message
+from ..messenger.messenger import process_message
+from ..messenger.slash_commands import invoke_slash_command
 from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import (
     get_refreshed_system_message,

@@ -1,10 +1,8 @@
-from functools import partial
-from typing import Iterable, List, Type
-
-from toolz import compose
+from typing import Iterable, List, Optional, Type
 
 from ...core.constants import tool
 from ...core.ctx import ElroyContext
+from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Goal, Memory
 from ...llm.client import get_embedding
 from ...utils.utils import first_or_none
@@ -21,6 +19,7 @@ def is_in_context(context_messages: Iterable[ContextMessage], memory: Embeddable
     return any(is_in_context_message(memory, x) for x in context_messages)
 
 
+@tracer.chain
 def query_vector(
     table: Type[EmbeddableSqlModel],
     ctx: ElroyContext,
@@ -37,11 +36,13 @@ def query_vector(
         List[Tuple[Fact, float]]: A list of tuples containing the matching Fact and its similarity score.
     """
 
-    return ctx.db.query_vector(
-        ctx.l2_memory_relevance_distance_threshold,
-        table,
-        ctx.user_id,
-        query,
+    return list(
+        ctx.db.query_vector(
+            ctx.l2_memory_relevance_distance_threshold,
+            table,
+            ctx.user_id,
+            query,
+        )
     )
 
 
@@ -77,5 +78,20 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
     return response
 
 
-get_most_relevant_goal = compose(first_or_none, partial(query_vector, Goal))
-get_most_relevant_memory = compose(first_or_none, partial(query_vector, Memory))
+@tracer.chain
+def get_most_relevant_memory(ctx: ElroyContext, query: List[float]) -> Optional[Memory]:
+    """Get the most relevant memory for the given query."""
+    mem = first_or_none(iter(query_vector(Memory, ctx, query)))
+
+    if mem:
+        assert isinstance(mem, Memory)
+        return mem
+
+
+@tracer.chain
+def get_most_relevant_goal(ctx: ElroyContext, query: List[float]) -> Optional[Goal]:
+    goal = first_or_none(iter(query_vector(Goal, ctx, query)))
+
+    if goal:
+        assert isinstance(goal, Goal)
+        return goal
