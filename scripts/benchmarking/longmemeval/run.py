@@ -118,6 +118,7 @@ class BenchmarkingQuestionRun:
                         else:
                             with using_metadata(
                                 {
+                                    "run_id": self.run_token,
                                     "session_id": chat_session.session_id,
                                     "session_date": session_date,
                                     "question_id": self.question_id,
@@ -146,6 +147,7 @@ class BenchmarkingQuestionRun:
             self.session.refresh(cursor)
         with using_metadata(
             {
+                "run_id": self.run_token,
                 "question_id": self.question_id,
                 "question_type": self.question.question_type,
                 "answer": self.question.answer,
