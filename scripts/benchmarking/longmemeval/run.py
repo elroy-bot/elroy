@@ -19,6 +19,7 @@ from elroy.utils.clock import FakeClock
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from benchmarking_db import (
+    ChatMessage,
     get_messages_for_session,
     get_or_create_cursor,
     get_question_by_id,
@@ -30,12 +31,11 @@ from sqlmodel import Session, create_engine
 from tqdm import tqdm
 
 from elroy.api import Elroy
-from elroy.core.constants import SYSTEM
+from elroy.core.constants import SYSTEM, USER
 from elroy.core.tracing import tracer
 
 
 class BenchmarkingQuestionRun:
-
     def __init__(self, session: Session, db_url: str, question_id: str, run_token: str):
         self.session = session
         self.db_url = db_url
@@ -59,11 +59,14 @@ class BenchmarkingQuestionRun:
         return q
 
     @tracer.agent
-    def handle_msg(self, msg: str):
+    def handle_msg(self, msg: str) -> str:
         return self.ai.message(msg)
 
+    def should_handle_msg(self, msg: ChatMessage) -> bool:
+        return msg.role == USER
+
     @tracer.agent
-    def record_answer(self, question_text: str, expected_answer: str):
+    def record_answer(self, question_text: str, expected_answer: str) -> str:
         self.ai.reset_messages()
 
         try:
@@ -93,7 +96,11 @@ class BenchmarkingQuestionRun:
         return elroy_answer
 
     def run(self):
-        from openinference.instrumentation import using_metadata, using_session
+        from openinference.instrumentation import (
+            using_metadata,
+            using_session,
+            using_user,
+        )
 
         cursor = get_or_create_cursor(self.session, self.run_token, self.question_id)
         chat_sessions = get_sessions_for_question(self.session, self.question_id)
@@ -103,40 +110,41 @@ class BenchmarkingQuestionRun:
                 # Skip sessions we've already processed
                 continue
             else:
-                with using_session(chat_session.session_id):
-                    session_date = chat_session.session_date
-                    self.ai.ctx.clock = FakeClock(datetime.strptime(session_date, "%Y/%m/%d (%a) %H:%M"))
+                with using_user(self.user_token):
+                    with using_session(chat_session.session_id):
+                        session_date = chat_session.session_date
+                        self.ai.ctx.clock = FakeClock(datetime.strptime(session_date, "%Y/%m/%d (%a) %H:%M"))
 
-                    self.ai.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
-                    # Get all messages for this session
-                    messages = get_messages_for_session(self.session, self.question_id, chat_session.session_id)
+                        self.ai.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
+                        # Get all messages for this session
+                        messages = get_messages_for_session(self.session, self.question_id, chat_session.session_id)
 
-                    for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
-                        if cursor.message_idx > message_idx:
-                            # Skip messages we've already processed
-                            continue
-                        else:
-                            with using_metadata(
-                                {
-                                    "run_id": self.run_token,
-                                    "session_id": chat_session.session_id,
-                                    "session_date": session_date,
-                                    "question_id": self.question_id,
-                                    "message_idx": message_idx,
-                                    "message_id": message.id,
-                                    "has_answer": message.has_answer,
-                                }
-                            ):
-                                if message.role == "user":
-                                    self.handle_msg(
-                                        message.content,
-                                    )
+                        for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
+                            if cursor.message_idx > message_idx:
+                                # Skip messages we've already processed
+                                continue
+                            else:
+                                with using_metadata(
+                                    {
+                                        "run_id": self.run_token,
+                                        "session_id": chat_session.session_id,
+                                        "session_date": session_date,
+                                        "question_id": self.question_id,
+                                        "message_idx": message_idx,
+                                        "message_id": message.id,
+                                        "has_answer": message.has_answer,
+                                    }
+                                ):
+                                    if self.should_handle_msg(message):
+                                        self.handle_msg(
+                                            message.content,
+                                        )
 
-                                cursor.message_idx = message_idx
-                                self.session.add(cursor)
-                                self.session.commit()
-                                self.session.refresh(cursor)
-                    self.ai.context_refresh()
+                                    cursor.message_idx = message_idx
+                                    self.session.add(cursor)
+                                    self.session.commit()
+                                    self.session.refresh(cursor)
+                        self.ai.context_refresh()
                 cursor.session_idx = session_idx
                 cursor.message_idx = -1
                 self.session.commit()
