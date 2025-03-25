@@ -213,8 +213,8 @@ def main():
     with Session(engine) as session:
         questions = get_questions(session)
         for q in tqdm(questions, desc="Questions", position=0, leave=False):
-            BenchmarkingQuestionRun(session, db_url, q.question_id, run_token).run()
-            BenchmarkingQuestionRun(session, db_url, q.question_id, run_token).run()
+            HardcodedAssistantResponseQRun(session, db_url, q.question_id, run_token).run()
+            # BenchmarkingQuestionRun(session, db_url, q.question_id, run_token).run()
 
 
 if __name__ == "__main__":
