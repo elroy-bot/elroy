@@ -11,8 +11,12 @@ import sys
 import time
 from datetime import datetime
 from functools import cached_property
+from multiprocessing import Pool
+from random import shuffle
 
 from scripts.benchmarking.longmemeval.benchmarking_db import Question
+from toolz import interleave, pipe
+from toolz.curried import map
 
 from elroy.utils.clock import FakeClock
 
@@ -193,6 +197,16 @@ class HardcodedAssistantResponseQRun(BenchmarkingQuestionRun):
         return msg.role == USER
 
 
+def process_question(args: tuple[str, str, str, str]):
+    eval_type, db_url, run_token, question_id = args
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        if eval_type == "HardcodedAssistantResponseQRun":
+            HardcodedAssistantResponseQRun(session, db_url, question_id, run_token).run()
+        else:
+            BenchmarkingQuestionRun(session, db_url, question_id, run_token).run()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Process test messages using Elroy API")
     parser.add_argument("input_file", help="Path to the input JSON file containing messages", default="data/longmemeval_s.json")
@@ -202,6 +216,7 @@ def main():
         default=None,
         help="Optional prefix for user tokens. If not provided, a timestamp-based prefix will be generated.",
     )
+    parser.add_argument("--workers", type=int, default=4, help="Number of parallel workers")
 
     parsed = parser.parse_args()
 
@@ -212,9 +227,21 @@ def main():
     engine = create_engine(db_url)
     with Session(engine) as session:
         questions = get_questions(session)
-        for q in tqdm(questions, desc="Questions", position=0, leave=False):
-            HardcodedAssistantResponseQRun(session, db_url, q.question_id, run_token).run()
-            # BenchmarkingQuestionRun(session, db_url, q.question_id, run_token).run()
+        shuffle(questions)
+
+    # Process questions in parallel
+    with Pool(processes=parsed.workers) as pool:
+        # Create interleaved functions using toolz
+        func_args = pipe(
+            [HardcodedAssistantResponseQRun, BenchmarkingQuestionRun],
+            map(lambda eval_type: [[eval_type, db_url, run_token, q.question_id] for q in questions]),
+            interleave,
+            list,
+        )
+
+        # Use imap to get a progress iterator
+        for _ in tqdm(pool.imap(process_question, func_args), total=len(func_args), desc="Processing all evaluations"):
+            pass
 
 
 if __name__ == "__main__":
