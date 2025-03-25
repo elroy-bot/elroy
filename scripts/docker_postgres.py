@@ -16,6 +16,7 @@ DEFAULT_DB_PASSWORD = "password"
 DEFAULT_DB_HOST = "localhost"
 DEFAULT_DB_PORT = "5432"
 
+
 class PostgresConfig:
     def __init__(self, db_name: str = DEFAULT_DB_NAME, port: str = DEFAULT_DB_PORT, password: str = DEFAULT_DB_PASSWORD):
         self.db_name = db_name

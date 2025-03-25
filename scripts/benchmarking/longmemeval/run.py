@@ -208,7 +208,7 @@ def main():
 
     run_token = parsed.run_token or f"run_{int(time.time())}"
 
-    db_url = "sqlite:///elroy.db"
+    db_url = os.environ["ELROY_BENCHMARK_DATABASE_URL"]
 
     engine = create_engine(db_url)
     with Session(engine) as session:

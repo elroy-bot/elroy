@@ -1,8 +1,10 @@
 import json
+import os
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import create_engine
 from sqlmodel import Field, Session, SQLModel, UniqueConstraint, func, select
+from tqdm import tqdm
 
 
 # Database model classes
@@ -128,7 +130,7 @@ def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
         return
 
     # Import questions, sessions, and messages
-    for item in data:
+    for item in tqdm(data, desc="Questions", position=0, leave=False):
         # Add question
         question = Question(
             question_id=item["question_id"],
@@ -279,12 +281,13 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Initialize and manage the benchmarking database")
-    parser.add_argument("--db-path", default="./elroy.db", help="Path to the SQLite database file")
     parser.add_argument("--load-data", default="./data/longmemeval_s.json", help="Path to the benchmark data JSON file to load")
 
     args = parser.parse_args()
 
-    db_url = f"sqlite:///{args.db_path}"
+    if not os.environ.get("ELROY_BENCHMARK_DATABASE_URL"):
+        raise ValueError("ELROY_BENCHMARK_DATABASE_URL environment variable is not set. Set to URL of sqlite or postgres db")
+    db_url = os.environ["ELROY_BENCHMARK_DATABASE_URL"]
 
     if args.load_data:
         engine = init_db(db_url)
