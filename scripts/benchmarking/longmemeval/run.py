@@ -59,11 +59,12 @@ class BenchmarkingQuestionRun:
         return q
 
     @tracer.agent
-    def handle_msg(self, msg: str) -> str:
+    def ai_respond(self, msg: str) -> str:
         return self.ai.message(msg)
 
-    def should_handle_msg(self, msg: ChatMessage) -> bool:
-        return msg.role == USER
+    def handle_msg(self, msg: ChatMessage):
+        if msg.role == USER:
+            return self.ai_respond(msg.content)
 
     @tracer.agent
     def record_answer(self, question_text: str, expected_answer: str) -> str:
@@ -135,10 +136,7 @@ class BenchmarkingQuestionRun:
                                         "has_answer": message.has_answer,
                                     }
                                 ):
-                                    if self.should_handle_msg(message):
-                                        self.handle_msg(
-                                            message.content,
-                                        )
+                                    self.handle_msg(message)
 
                                     cursor.message_idx = message_idx
                                     self.session.add(cursor)
@@ -166,6 +164,36 @@ class BenchmarkingQuestionRun:
             self.record_answer(self.question.question, self.question.answer)
 
 
+class HardcodedAssistantResponseQRun(BenchmarkingQuestionRun):
+    def __init__(self, session: Session, db_url: str, question_id: str, run_token: str, messages_between_memory: int = 20):
+        self.session = session
+        self.messages_between_memory = messages_between_memory
+        self.db_url = db_url
+        self.question_id = question_id
+        self.run_token = f"msg_bt_mem_{messages_between_memory}_" + (run_token or f"run_{int(time.time())}")
+        self.user_token = f"{self.run_token}_{self.question_id}"
+
+    @cached_property
+    def ai(self) -> Elroy:
+        return Elroy(
+            token=self.user_token,
+            database_url=self.db_url,
+            check_db_migration=False,
+            show_tool_calls=False,
+            messages_beteen_memory=self.messages_between_memory,
+        )
+
+    def handle_msg(self, msg: ChatMessage):
+        return self.record_message(msg.role, msg.content)
+
+    @tracer.agent
+    def record_message(self, role: str, content: str):
+        return self.ai.record_message(role, content)
+
+    def should_handle_msg(self, msg: ChatMessage) -> bool:
+        return msg.role == USER
+
+
 def main():
     parser = argparse.ArgumentParser(description="Process test messages using Elroy API")
     parser.add_argument("input_file", help="Path to the input JSON file containing messages", default="data/longmemeval_s.json")
@@ -186,8 +214,8 @@ def main():
     with Session(engine) as session:
         questions = get_questions(session)
         for q in tqdm(questions, desc="Questions", position=0, leave=False):
-            evaluator = BenchmarkingQuestionRun(session, db_url, q.question_id, run_token)
-            evaluator.run()
+            BenchmarkingQuestionRun(session, db_url, q.question_id, run_token).run()
+            BenchmarkingQuestionRun(session, db_url, q.question_id, run_token).run()
 
 
 if __name__ == "__main__":
