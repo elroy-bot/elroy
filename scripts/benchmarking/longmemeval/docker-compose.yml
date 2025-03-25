@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - LITELLM_PORT=8000
+      # Cache settings
+      - CACHE=true
+      # Redis connection
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=your_redis_password
+    depends_on:
+      - redis
+    command: ["python", "-m", "litellm", "--config", "/app/config.yaml"]
+    volumes:
+      - ./config.yaml:/app/config.yaml
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass your_redis_password
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
