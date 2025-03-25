@@ -6,6 +6,8 @@ from sqlalchemy import create_engine
 from sqlmodel import Field, Session, SQLModel, UniqueConstraint, func, select
 from tqdm import tqdm
 
+from elroy.api import Elroy
+
 
 # Database model classes
 class Question(SQLModel, table=True):
@@ -263,13 +265,13 @@ def get_sessions_for_question(session: Session, question_id: str) -> List[ChatSe
 
     session_ids = question.haystack_session_ids.split(", ")
 
-    return list(session.exec(select(ChatSession).where((ChatSession.session_id.in_(session_ids)).order_by(ChatSession.session_date))))  # type: ignore
+    return list(session.exec(select(ChatSession).where(ChatSession.session_id.in_(session_ids)).order_by(ChatSession.session_date)))  # type: ignore
 
 
 def get_messages_for_session(session: Session, question_id: str, session_id: str) -> List[ChatMessage]:
     """Get all messages for a chat session"""
     return list(
-        session.exec(select(ChatMessage).where(ChatMessage.session_id == session_id).where(ChatMessage.question_id == question_id).order_by(ChatMessage.message_idx))  # type: ignore
+        session.exec(select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.message_idx))  # type: ignore
     )  # type: ignore
 
 
@@ -294,6 +296,8 @@ def main():
         with Session(engine) as session:
             data = load_benchmark_data(args.load_data)
             import_benchmark_data(session, data)
+        ai = Elroy(database_url=db_url, check_db_migration=True)
+        ai.message("hello world")
 
 
 if __name__ == "__main__":

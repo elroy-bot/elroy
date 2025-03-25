@@ -38,7 +38,7 @@ class FakeClock(Clock):  # noqa
     def __init__(self, now: datetime):
         self._now = now
 
-    def now(self, tz: Optional[tzinfo]):
+    def now(self, tz: Optional[tzinfo] = UTC):
         if tz:
             return self._now.astimezone(tz)
         else:

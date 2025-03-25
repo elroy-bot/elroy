@@ -111,38 +111,37 @@ class BenchmarkingQuestionRun:
                 # Skip sessions we've already processed
                 continue
             else:
-                with using_user(self.user_token):
-                    with using_session(chat_session.session_id):
-                        session_date = chat_session.session_date
-                        self.ai.ctx.clock = FakeClock(datetime.strptime(session_date, "%Y/%m/%d (%a) %H:%M"))
+                with using_user(self.user_token), using_session(chat_session.session_id):
+                    session_date = chat_session.session_date
+                    self.ai.ctx.clock = FakeClock(datetime.strptime(session_date, "%Y/%m/%d (%a) %H:%M"))
 
-                        self.ai.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
-                        # Get all messages for this session
-                        messages = get_messages_for_session(self.session, self.question_id, chat_session.session_id)
+                    self.ai.record_message(SYSTEM, f"The user has initiated a chat session. The current time is: {session_date}")
+                    # Get all messages for this session
+                    messages = get_messages_for_session(self.session, self.question_id, chat_session.session_id)
 
-                        for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
-                            if cursor.message_idx > message_idx:
-                                # Skip messages we've already processed
-                                continue
-                            else:
-                                with using_metadata(
-                                    {
-                                        "run_id": self.run_token,
-                                        "session_id": chat_session.session_id,
-                                        "session_date": session_date,
-                                        "question_id": self.question_id,
-                                        "message_idx": message_idx,
-                                        "message_id": message.id,
-                                        "has_answer": message.has_answer,
-                                    }
-                                ):
-                                    self.handle_msg(message)
+                    for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
+                        if cursor.message_idx > message_idx:
+                            # Skip messages we've already processed
+                            continue
+                        else:
+                            with using_metadata(
+                                {
+                                    "run_id": self.run_token,
+                                    "session_id": chat_session.session_id,
+                                    "session_date": session_date,
+                                    "question_id": self.question_id,
+                                    "message_idx": message_idx,
+                                    "message_id": message.id,
+                                    "has_answer": message.has_answer,
+                                }
+                            ):
+                                self.handle_msg(message)
 
-                                    cursor.message_idx = message_idx
-                                    self.session.add(cursor)
-                                    self.session.commit()
-                                    self.session.refresh(cursor)
-                        self.ai.context_refresh()
+                                cursor.message_idx = message_idx
+                                self.session.add(cursor)
+                                self.session.commit()
+                                self.session.refresh(cursor)
+                    self.ai.context_refresh()
                 cursor.session_idx = session_idx
                 cursor.message_idx = -1
                 self.session.commit()

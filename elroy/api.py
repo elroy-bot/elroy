@@ -270,6 +270,7 @@ class Elroy:
             concat,
             list,
             "\n\n".join,
+            lambda x: x.strip(),
         )  # type: ignore
 
     @db
