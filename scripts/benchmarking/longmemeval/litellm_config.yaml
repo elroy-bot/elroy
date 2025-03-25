@@ -20,6 +20,11 @@ litellm_settings:
   password: "password"  # The password for the Redis cache. Required if type is "redis".
   namespace: "litellm.caching.caching" # namespace for redis cache
   disable_master_key_return: boolean
+  default_fallbacks: ["gemini/gemini-2.0-flash-exp"]
+
+  cache: true
+  cache_params:        # set cache params for redis
+    type: redis
 
 
 # docker run \

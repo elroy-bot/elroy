@@ -11,7 +11,6 @@ import sys
 import time
 from datetime import datetime
 from functools import cached_property
-from multiprocessing import Pool
 from random import shuffle
 
 from scripts.benchmarking.longmemeval.benchmarking_db import Question
@@ -229,19 +228,18 @@ def main():
         questions = get_questions(session)
         shuffle(questions)
 
-    # Process questions in parallel
-    with Pool(processes=parsed.workers) as pool:
-        # Create interleaved functions using toolz
-        func_args = pipe(
-            [HardcodedAssistantResponseQRun, BenchmarkingQuestionRun],
-            map(lambda eval_type: [[eval_type, db_url, run_token, q.question_id] for q in questions]),
-            interleave,
-            list,
-        )
+    # Create interleaved functions using toolz
+    func_args = pipe(
+        [HardcodedAssistantResponseQRun, BenchmarkingQuestionRun],
+        map(lambda eval_type: [[eval_type, db_url, run_token, q.question_id] for q in questions]),
+        interleave,
+        list,
+    )
+    shuffle(func_args)
 
-        # Use imap to get a progress iterator
-        for _ in tqdm(pool.imap(process_question, func_args), total=len(func_args), desc="Processing all evaluations"):
-            pass
+    # Use imap to get a progress iterator
+    for args in tqdm(func_args):
+        process_question(args)
 
 
 if __name__ == "__main__":
