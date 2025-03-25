@@ -5,12 +5,16 @@ model_list:
     api_base: os.environ/AZURE_API_BASE
     api_key: os.environ/AZURE_API_KEY
     api_version: os.environ/AZURE_API_VERSION
-- model_name: azure/gpt-4o-turbo
+- model_name: azure/gpt-4o-mini
   litellm_params:
     model: azure/gpt-4o-mini
     api_base: os.environ/AZURE_API_BASE
     api_key: os.environ/AZURE_API_KEY
     api_version: os.environ/AZURE_API_VERSION
+- model_name: "gemini/gemini-2.0-flash-exp"
+  litellm_params:
+    model: gemini/gemini-2.0-flash-exp
+    api_key: os.environ/GEMINI_API_KEY
 
 litellm_settings:
   cache: true
@@ -22,13 +26,3 @@ litellm_settings:
     namespace: "litellm.caching.caching"
   disable_master_key_return: boolean
   default_fallbacks: ["gemini/gemini-2.0-flash-exp"]
-
-
-# docker run \
-#     -v $(pwd)/litellm_config.yaml:/app/config.yaml \
-#     -e AZURE_API_KEY=$AZURE_API_KEY \
-#     -e AZURE_API_BASE=$AZURE_API_BASE \
-#     -e AZURE_API_VERSION=$AZURE_API_VERSION \
-#     -p 4000:4000 \
-#     ghcr.io/berriai/litellm:main-latest \
-#     --config /app/config.yaml
