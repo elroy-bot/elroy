@@ -31,4 +31,4 @@ litellm_settings:
 #     -e AZURE_API_VERSION=$AZURE_API_VERSION \
 #     -p 4000:4000 \
 #     ghcr.io/berriai/litellm:main-latest \
-#     --config /app/config.yaml --detailed_debug
+#     --config /app/config.yaml
