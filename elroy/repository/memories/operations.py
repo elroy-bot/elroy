@@ -49,7 +49,7 @@ def create_mem_from_current_context(ctx: ElroyContext):
 @user_only_tool
 def remember_convo(ctx: ElroyContext):
     """Creates a memory of the current conversation, and refreshes the context. Good for topic changes."""
-    from ...messenger import process_message
+    from ...messenger.messenger import process_message
     from .tools import create_memory
 
     yield from process_message(

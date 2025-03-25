@@ -17,7 +17,7 @@ from elroy.io.formatters.base import ElroyPrintable
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.llm.client import get_embedding, query_llm
 from elroy.llm.stream_parser import SystemInfo
-from elroy.messenger import process_message
+from elroy.messenger.messenger import process_message
 from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.goals.queries import get_active_goals

@@ -2,7 +2,7 @@ import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
+from typing import Any, Callable, Dict, Iterable, Iterator, Optional, TypeVar, Union
 
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
@@ -32,8 +32,13 @@ def is_blank(input: Optional[str]) -> bool:
     return not input or not input.strip()
 
 
-def first_or_none(iterable: Iterator[T]) -> Optional[T]:
-    return next(iterable, None)
+def first_or_none(x: Union[Iterator[T], Iterable[T]]) -> Optional[T]:  # noqa
+    if isinstance(x, Iterator):
+        return next(x, None)
+    elif not isinstance(x, Iterator) and isinstance(x, Iterable):
+        return next(iter(x), None)
+    else:
+        raise ValueError(f"Expected an iterable or iterator, got {x}")
 
 
 def last_or_none(iterable: Iterator[T]) -> Optional[T]:

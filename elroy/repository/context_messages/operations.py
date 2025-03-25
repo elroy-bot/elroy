@@ -184,7 +184,7 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
     )
 
 
-@tracer.chain
+@tracer.agent
 def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
     logger.info("Refreshing context")
     context_message_list = list(context_messages)

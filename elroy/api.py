@@ -16,7 +16,7 @@ from .io.base import PlainIO
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
 from .llm.stream_parser import AssistantInternalThought, AssistantResponse, collect
-from .messenger import process_message
+from .messenger.messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
 from .repository.context_messages.operations import (
     add_context_message,
@@ -48,7 +48,7 @@ def db(f: Callable[P, T]) -> Callable[P, T]:
     @wraps(f)
     def wrapper(self, *args, **kwargs):
         with dbsession(self.ctx):
-            return f(self, *args, **kwargs)
+            return f(self, *args, **kwargs)  # type: ignore
 
     return wrapper
 
