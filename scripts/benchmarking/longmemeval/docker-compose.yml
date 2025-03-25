@@ -36,7 +36,8 @@ services:
     depends_on:
       - postgres
       - litellm
-    command: ["python", "scripts/benchmarking/longmemeval/run.py", "data/longmemeval_s.json"]
+    entrypoint: ["uv", "run", "python", "scripts/benchmarking/longmemeval/run.py", "data/longmemeval_s.json"]
+    # command: ["python", "scripts/benchmarking/longmemeval/run.py", "data/longmemeval_s.json"]
 
   postgres:
     image: ankane/pgvector:v0.5.1
