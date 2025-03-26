@@ -18,7 +18,7 @@ services:
 
   benchmark:
     deploy:
-      replicas: 8
+      replicas: 4
     build:
       context: ../../..
       dockerfile: Dockerfile
