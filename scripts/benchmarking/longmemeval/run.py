@@ -15,6 +15,7 @@ from random import shuffle
 
 from toolz import interleave, pipe
 from toolz.curried import map
+from tqdm import tqdm
 
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -104,7 +105,6 @@ class BenchmarkingQuestionRun:
             using_session,
             using_user,
         )
-        from tqdm import tqdm
 
         from elroy.utils.clock import FakeClock
 
