@@ -31,7 +31,6 @@ from benchmarking_db import (
     update_or_create_answer,
 )
 from sqlmodel import Session, create_engine
-from tqdm import tqdm
 
 from elroy.api import Elroy
 from elroy.core.constants import SYSTEM, USER
@@ -105,13 +104,14 @@ class BenchmarkingQuestionRun:
             using_session,
             using_user,
         )
+        from tqdm import tqdm
 
         from elroy.utils.clock import FakeClock
 
         cursor = get_or_create_cursor(self.session, self.run_token, self.question_id)
         chat_sessions = get_sessions_for_question(self.session, self.question_id)
 
-        for session_idx, chat_session in enumerate(tqdm(chat_sessions, desc="Sessions", position=1, leave=False)):
+        for session_idx, chat_session in enumerate(chat_sessions):
             if cursor.session_idx > session_idx:
                 # Skip sessions we've already processed
                 continue
@@ -124,7 +124,16 @@ class BenchmarkingQuestionRun:
                     # Get all messages for this session
                     messages = get_messages_for_session(self.session, self.question_id, chat_session.session_id)
 
-                    for message_idx, message in enumerate(tqdm(messages, desc="Messages", position=2, leave=False)):
+                    progress_bar = tqdm(
+                        total=len(messages),
+                        desc=f"Session {session_idx + 1}/{len(chat_sessions)}",
+                        file=sys.stdout,
+                        mininterval=10.0,  # Update at most every 10 seconds
+                        miniters=1,  # Update at least every question
+                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
+                    )
+
+                    for message_idx, message in enumerate(messages):
                         if cursor.message_idx > message_idx:
                             # Skip messages we've already processed
                             continue
@@ -146,6 +155,7 @@ class BenchmarkingQuestionRun:
                                 self.session.add(cursor)
                                 self.session.commit()
                                 self.session.refresh(cursor)
+                        progress_bar.update(1)
                     self.ai.context_refresh()
                 cursor.session_idx = session_idx
                 cursor.message_idx = -1
