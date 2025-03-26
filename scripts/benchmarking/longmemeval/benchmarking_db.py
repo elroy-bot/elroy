@@ -88,7 +88,7 @@ class Answer(SQLModel, table=True):
 def init_db(db_url: str):
     """Initialize the database tables"""
     engine = create_engine(db_url)
-    SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.create_all(engine, tables=[t.__table__ for t in [Question, ChatSession, ChatMessage, Cursor, Answer]])
     return engine
 
 
@@ -290,7 +290,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Initialize and manage the benchmarking database")
-    parser.add_argument("--load-data", default="./data/longmemeval_s.json", help="Path to the benchmark data JSON file to load")
+    parser.add_argument("--load-data", help="Path to the benchmark data JSON file to load")
 
     args = parser.parse_args()
 

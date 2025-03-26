@@ -5,13 +5,13 @@ model_list:
     api_base: os.environ/AZURE_API_BASE
     api_key: os.environ/AZURE_API_KEY
     api_version: os.environ/AZURE_API_VERSION
-- model_name: azure/gpt-4o-mini
+- model_name: gpt-4o-mini
   litellm_params:
     model: azure/gpt-4o-mini
     api_base: os.environ/AZURE_API_BASE
     api_key: os.environ/AZURE_API_KEY
     api_version: os.environ/AZURE_API_VERSION
-- model_name: "gemini/gemini-2.0-flash-exp"
+- model_name: "gemini-2.0-flash-exp"
   litellm_params:
     model: gemini/gemini-2.0-flash-exp
     api_key: os.environ/GEMINI_API_KEY
@@ -22,7 +22,7 @@ litellm_settings:
     type: redis
     host: "redis"
     port: 6379
-    password: "your_redis_password"
+    password: "password"
     namespace: "litellm.caching.caching"
   disable_master_key_return: boolean
-  default_fallbacks: ["gemini/gemini-2.0-flash-exp"]
+  default_fallbacks: ["gemini-2.0-flash-exp"]

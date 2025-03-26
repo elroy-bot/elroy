@@ -210,7 +210,7 @@ def process_question(args: tuple[str, str, str, str]):
 
 def main():
     parser = argparse.ArgumentParser(description="Process test messages using Elroy API")
-    parser.add_argument("input_file", help="Path to the input JSON file containing messages", default="data/longmemeval_s.json")
+    parser.add_argument("input_file", help="Path to the input JSON file containing messages")
     parser.add_argument(
         "run_token",
         nargs="?",
@@ -230,7 +230,7 @@ def main():
         questions = get_questions(session)
 
         if len(questions) == 0:
-            do_load_data(session, db_url, "data/longmemeval_s.json")
+            do_load_data(session, db_url, parsed.input_file)
             questions = get_questions(session)
         shuffle(questions)
 
