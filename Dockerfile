@@ -22,7 +22,7 @@ COPY . /app
 
 # Install the local package
 # Using -e for editable mode so changes to the code are reflected immediately
-RUN cd /app && uv pip install --no-cache --system -e ".[tracing,dev]""
+RUN cd /app && uv pip install --no-cache --system -e ".[dev]"
 
 ENV ELROY_HOME=/app/data
 RUN mkdir -p /app/data && \
