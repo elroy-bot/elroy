@@ -275,6 +275,13 @@ def get_messages_for_session(session: Session, question_id: str, session_id: str
     )  # type: ignore
 
 
+def do_load_data(session: Session, db_url: str, data_path: str):
+    data = load_benchmark_data(data_path)
+    import_benchmark_data(session, data)
+    ai = Elroy(database_url=db_url, check_db_migration=True)
+    ai.message("hello world")
+
+
 def main():
     """
     Main function to initialize the database and print schema information
@@ -294,10 +301,7 @@ def main():
     if args.load_data:
         engine = init_db(db_url)
         with Session(engine) as session:
-            data = load_benchmark_data(args.load_data)
-            import_benchmark_data(session, data)
-        ai = Elroy(database_url=db_url, check_db_migration=True)
-        ai.message("hello world")
+            do_load_data(session, db_url, args.load_data)
 
 
 if __name__ == "__main__":

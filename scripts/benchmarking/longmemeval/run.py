@@ -16,18 +16,18 @@ from random import shuffle
 from toolz import interleave, pipe
 from toolz.curried import map
 
-from elroy.utils.clock import FakeClock
-
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from benchmarking_db import (
     ChatMessage,
     Question,
+    do_load_data,
     get_messages_for_session,
     get_or_create_cursor,
     get_question_by_id,
     get_questions,
     get_sessions_for_question,
+    init_db,
     update_or_create_answer,
 )
 from sqlmodel import Session, create_engine
@@ -105,6 +105,8 @@ class BenchmarkingQuestionRun:
             using_session,
             using_user,
         )
+
+        from elroy.utils.clock import FakeClock
 
         cursor = get_or_create_cursor(self.session, self.run_token, self.question_id)
         chat_sessions = get_sessions_for_question(self.session, self.question_id)
@@ -215,7 +217,6 @@ def main():
         default=None,
         help="Optional prefix for user tokens. If not provided, a timestamp-based prefix will be generated.",
     )
-    parser.add_argument("--workers", type=int, default=4, help="Number of parallel workers")
 
     parsed = parser.parse_args()
 
@@ -223,9 +224,14 @@ def main():
 
     db_url = os.environ["ELROY_BENCHMARK_DATABASE_URL"]
 
-    engine = create_engine(db_url)
+    engine = init_db(db_url)
+
     with Session(engine) as session:
         questions = get_questions(session)
+
+        if len(questions) == 0:
+            do_load_data(session, db_url, "data/longmemeval_s.json")
+            questions = get_questions(session)
         shuffle(questions)
 
     # Create interleaved functions using toolz
