@@ -128,7 +128,7 @@ class BenchmarkingQuestionRun:
                         total=len(messages),
                         desc=f"Session {session_idx + 1}/{len(chat_sessions)}",
                         file=sys.stdout,
-                        mininterval=10.0,  # Update at most every 10 seconds
+                        mininterval=1.0,
                         miniters=1,  # Update at least every question
                         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
                     )
