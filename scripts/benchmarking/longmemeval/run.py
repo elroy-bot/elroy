@@ -13,7 +13,6 @@ from datetime import datetime
 from functools import cached_property
 from random import shuffle
 
-from scripts.benchmarking.longmemeval.benchmarking_db import Question
 from toolz import interleave, pipe
 from toolz.curried import map
 
@@ -23,6 +22,7 @@ from elroy.utils.clock import FakeClock
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from benchmarking_db import (
     ChatMessage,
+    Question,
     get_messages_for_session,
     get_or_create_cursor,
     get_question_by_id,
