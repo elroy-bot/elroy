@@ -18,11 +18,11 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # Copy the local package files
-COPY . /app/elroy-src/
+COPY . /app
 
 # Install the local package
 # Using -e for editable mode so changes to the code are reflected immediately
-RUN cd /app/elroy-src && uv pip install --no-cache --system -e .
+RUN cd /app && uv pip install --no-cache --system -e ".[tracing,dev]""
 
 ENV ELROY_HOME=/app/data
 RUN mkdir -p /app/data && \

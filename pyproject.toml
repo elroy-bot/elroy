@@ -53,6 +53,12 @@ dev = [
     "discord-py",
     "pytest-cov>=6.0.0",
     "pytest-rerunfailures",
+
+    # tracing
+    "arize-phoenix",
+    "arize-phoenix-otel",
+    "openinference-semantic-conventions",
+    "openinference-instrumentation-litellm",
 ]
 
 docs = [
@@ -63,13 +69,6 @@ docs = [
     "mkdocs-rss-plugin" ,
     "mkdocs-blog-plugin",
     "mkdocs-material",
-]
-
-tracing = [
-    "arize-phoenix",
-    "arize-phoenix-otel",
-    "openinference-semantic-conventions",
-    "openinference-instrumentation-litellm",
 ]
 
 [project.scripts]
