@@ -22,22 +22,24 @@ services:
       context: ../../..
       dockerfile: Dockerfile
     environment:
-      - AZURE_API_KEY=${AZURE_API_KEY}
-      - AZURE_API_BASE=${AZURE_API_BASE}
-      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      # - AZURE_API_KEY=${AZURE_API_KEY}
+      # - AZURE_API_BASE=${AZURE_API_BASE}
+      # - AZURE_API_VERSION=${AZURE_API_VERSION}
       - PHOENIX_CLIENT_HEADERS=${PHOENIX_CLIENT_HEADERS}
       - PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT}
       - OTEL_EXPORTER_OLTP_HEADERS=${OTEL_EXPORTER_OLTP_HEADERS}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ELROY_CHAT_MODEL=gpt-4o-mini
       - ELROY_EMBEDDING_MODEL=text-embedding-3-small
+      - OPENAI_API_KEY=sk-123
       - ELROY_ENABLE_TRACING=1
       - ELROY_LOG_LEVEL=WARN
       - ELROY_TRACING_APP_NAME=elroy-benchmark
       - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
       - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
-      - ELROY_CHAT_MODEL_API_BASE="http://litellm:4000"
-      - ELROY_EMBEDDING_MODEL_API_BASE="http://litellm:4000"
+      - ELROY_CHAT_MODEL_API_BASE=http://litellm:4000
+      - ELROY_EMBEDDING_MODEL_API_BASE=http://litellm:4000
+      - OPENAI_API_BASE=https://litellm:4000
     volumes:
       - ./data:/app/scripts/benchmarking/longmemeval/data
       - ./:/app/scripts/benchmarking/longmemeval
@@ -64,7 +66,7 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-    command: redis-server --requirepass your_redis_password
+    command: redis-server --requirepass password
     volumes:
       - redis_data:/data
     restart: unless-stopped
