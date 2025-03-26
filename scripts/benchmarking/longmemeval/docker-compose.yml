@@ -16,10 +16,32 @@ services:
       - ./litellm_config.yaml:/app/config.yaml
     restart: unless-stopped
 
-  benchmark:
+  # Base configuration for benchmark services
+  x-benchmark-base: &benchmark-base
     build:
       context: ../../..
       dockerfile: Dockerfile
+    environment:
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELROY_EMBEDDING_MODEL=azure/text-embedding-3-small
+      - ELROY_ENABLE_TRACING=1
+      - ELROY_LOG_LEVEL=WARN
+      - ELROY_TRACING_APP_NAME=elroy-benchmark
+      - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+    volumes:
+      - ./data:/app/scripts/benchmarking/longmemeval/data
+      - ./:/app/scripts/benchmarking/longmemeval
+    depends_on:
+      - postgres
+      - litellm
+
+  # Default benchmark service
+  benchmark:
+    <<: *benchmark-base
     environment:
       - AZURE_API_KEY=${AZURE_API_KEY}
       - AZURE_API_BASE=${AZURE_API_BASE}
@@ -32,13 +54,46 @@ services:
       - ELROY_TRACING_APP_NAME=elroy-benchmark
       - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
       - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
-    # volumes:
-      # - ../:/app/
-    depends_on:
-      - postgres
-      - litellm
-
     entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json"]
+
+  # Additional benchmark instances with different models
+  benchmark-4o:
+    <<: *benchmark-base
+    environment:
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELROY_CHAT_MODEL=azure/gpt-4o
+      - ELROY_EMBEDDING_MODEL=azure/text-embedding-3-small
+      - ELROY_ENABLE_TRACING=1
+      - ELROY_LOG_LEVEL=WARN
+      - ELROY_TRACING_APP_NAME=elroy-benchmark-4o
+      - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json", "run_4o"]
+
+  benchmark-4-turbo:
+    <<: *benchmark-base
+    environment:
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELROY_CHAT_MODEL=azure/gpt-4-turbo
+      - ELROY_EMBEDDING_MODEL=azure/text-embedding-3-small
+      - ELROY_ENABLE_TRACING=1
+      - ELROY_LOG_LEVEL=WARN
+      - ELROY_TRACING_APP_NAME=elroy-benchmark-4-turbo
+      - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json", "run_4_turbo"]
+
+  # Debug service for getting a bash shell
+  benchmark-debug:
+    <<: *benchmark-base
+    entrypoint: ["bash"]
+    command: ["-c", "tail -f /dev/null"]
 
   postgres:
     image: ankane/pgvector:v0.5.1
