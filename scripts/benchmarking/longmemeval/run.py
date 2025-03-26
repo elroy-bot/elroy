@@ -253,8 +253,8 @@ def main():
     )
     shuffle(func_args)
 
-    # Use imap to get a progress iterator
-    for args in tqdm(func_args):
+    for idx, args in enumerate(func_args):
+        print(f"Question {idx + 1}/{len(func_args)}")
         process_question(args)
 
 
