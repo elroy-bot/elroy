@@ -31,13 +31,14 @@ services:
       - ELROY_LOG_LEVEL=WARN
       - ELROY_TRACING_APP_NAME=elroy-benchmark
       - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
     # volumes:
       # - ../:/app/
     depends_on:
       - postgres
       - litellm
 
-    entrypoint: ["uv", "run", "python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json"]
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json"]
 
   postgres:
     image: ankane/pgvector:v0.5.1
