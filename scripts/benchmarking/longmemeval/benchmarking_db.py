@@ -83,6 +83,8 @@ class Answer(SQLModel, table=True):
     elroy_answer: str
     answer: str
     answer_session_ids: str
+    is_correct: bool
+    judge: str
 
 
 def init_db(db_url: str):
@@ -214,6 +216,11 @@ def check_run_exists(session: Session, run_token: str) -> bool:
     return cursor_count > 0
 
 
+def get_answer_if_exists(session: Session, run_token: str, question_id: str) -> Optional[Answer]:
+    """Get an answer record by run token and question ID"""
+    return session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
+
+
 def update_or_create_answer(
     session: Session,
     run_token: str,
@@ -225,7 +232,7 @@ def update_or_create_answer(
     answer_session_ids: str,
 ) -> Answer:
     """Update or create an answer record"""
-    answer_row = session.exec(select(Answer).where(Answer.run_token == run_token).where(Answer.question_id == question_id)).first()
+    answer_row = get_answer_if_exists(session, run_token, question_id)
 
     if answer_row:
         # Only update if the answer has changed

@@ -11,6 +11,12 @@ model_list:
     api_base: os.environ/AZURE_API_BASE
     api_key: os.environ/AZURE_API_KEY
     api_version: os.environ/AZURE_API_VERSION
+- model_name: gpt-4o
+  litellm_params:
+    model: azure/gpt-4o
+    api_base: os.environ/AZURE_API_BASE
+    api_key: os.environ/AZURE_API_KEY
+    api_version: os.environ/AZURE_API_VERSION
 - model_name: "gemini-2.0-flash-exp"
   litellm_params:
     model: gemini/gemini-2.0-flash-exp

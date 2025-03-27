@@ -6,6 +6,7 @@ The script simulates chat logs by recording messages and creating memories perio
 """
 
 import argparse
+import logging
 import os
 import sys
 import time
@@ -13,6 +14,7 @@ from datetime import datetime
 from functools import cached_property
 from random import shuffle
 
+from litellm import completion
 from toolz import interleave, pipe
 from toolz.curried import map
 from tqdm import tqdm
@@ -20,9 +22,11 @@ from tqdm import tqdm
 # Add the current directory to the path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from benchmarking_db import (
+    Answer,
     ChatMessage,
     Question,
     do_load_data,
+    get_answer_if_exists,
     get_messages_for_session,
     get_or_create_cursor,
     get_question_by_id,
@@ -31,7 +35,7 @@ from benchmarking_db import (
     init_db,
     update_or_create_answer,
 )
-from sqlmodel import Session, create_engine
+from sqlmodel import Session, create_engine, select
 
 from elroy.api import Elroy
 from elroy.core.constants import SYSTEM, USER
@@ -176,6 +180,7 @@ class BenchmarkingQuestionRun:
             }
         ):
             self.record_answer(self.question.question, self.question.answer)
+            eval_answer(self.session, self.run_token, self.question_id)
 
 
 class HardcodedAssistantResponseQRun(BenchmarkingQuestionRun):
@@ -216,6 +221,69 @@ def process_question(args: tuple[str, str, str, str]):
             HardcodedAssistantResponseQRun(session, db_url, question_id, run_token).run()
         else:
             BenchmarkingQuestionRun(session, db_url, question_id, run_token).run()
+
+
+def eval_answer(session: Session, run_token: str, question_id: str) -> None:
+    pass
+
+    # via https://github.com/xiaowu0162/LongMemEval/blob/main/src/evaluation/evaluate_qa.py#L20
+
+    answer_row = get_answer_if_exists(session, run_token, question_id)
+    if not answer_row:
+        logging.info(f"No answer found for {run_token} and {question_id}")
+        return
+
+    abstention = question_id.endswith("_abs")
+    task = answer_row.question_type
+    question = answer_row.question
+    response = answer_row.elroy_answer
+    answer = answer_row.answer
+
+    if not abstention:
+        if task in ["single-session-user", "single-session-assistant", "multi-session"]:
+            template = "I will give you a question, a correct answer, and a response from a model. Please answer yes if the response contains the correct answer. Otherwise, answer no. If the response is equivalent to the correct answer or contains all the intermediate steps to get the correct answer, you should also answer yes. If the response only contains a subset of the information required by the answer, answer no. \n\nQuestion: {}\n\nCorrect Answer: {}\n\nModel Response: {}\n\nIs the model response correct? Answer yes or no only."
+            prompt = template.format(question, answer, response)
+        elif task == "temporal-reasoning":
+            template = "I will give you a question, a correct answer, and a response from a model. Please answer yes if the response contains the correct answer. Otherwise, answer no. If the response is equivalent to the correct answer or contains all the intermediate steps to get the correct answer, you should also answer yes. If the response only contains a subset of the information required by the answer, answer no. In addition, do not penalize off-by-one errors for the number of days. If the question asks for the number of days/weeks/months, etc., and the model makes off-by-one errors (e.g., predicting 19 days when the answer is 18), the model's response is still correct. \n\nQuestion: {}\n\nCorrect Answer: {}\n\nModel Response: {}\n\nIs the model response correct? Answer yes or no only."
+            prompt = template.format(question, answer, response)
+        elif task == "knowledge-update":
+            template = "I will give you a question, a correct answer, and a response from a model. Please answer yes if the response contains the correct answer. Otherwise, answer no. If the response contains some previous information along with an updated answer, the response should be considered as correct as long as the updated answer is the required answer.\n\nQuestion: {}\n\nCorrect Answer: {}\n\nModel Response: {}\n\nIs the model response correct? Answer yes or no only."
+            prompt = template.format(question, answer, response)
+        elif task == "single-session-preference":
+            template = "I will give you a question, a rubric for desired personalized response, and a response from a model. Please answer yes if the response satisfies the desired response. Otherwise, answer no. The model does not need to reflect all the points in the rubric. The response is correct as long as it recalls and utilizes the user's personal information correctly.\n\nQuestion: {}\n\nRubric: {}\n\nModel Response: {}\n\nIs the model response correct? Answer yes or no only."
+            prompt = template.format(question, answer, response)
+        else:
+            raise NotImplementedError
+    else:
+        template = "I will give you an unanswerable question, an explanation, and a response from a model. Please answer yes if the model correctly identifies the question as unanswerable. The model could say that the information is incomplete, or some other information is given but the asked information is not.\n\nQuestion: {}\n\nExplanation: {}\n\nModel Response: {}\n\nDoes the model correctly identify the question as unanswerable? Answer yes or no only."
+        prompt = template.format(question, answer, response)
+
+    resp: str = (
+        completion(
+            model=os.environ["ELROY_BENCHMARK_JUDGE_MODEL"],
+            messages=[{"role": USER, "content": prompt}],
+            temperature=0,
+            max_tokens=10,
+            stream=False,
+        )
+        .choices[0]
+        .message.content.strip()
+    )  # type: ignore
+
+    is_correct = "yes" in resp.lower()
+    answer_row.is_correct = is_correct
+    answer_row.judge = os.environ["ELROY_BENCHMARK_JUDGE_MODEL"]
+    session.add(answer_row)
+    session.commit()
+
+
+def backfill_eval():
+    db_url = os.environ["ELROY_BENCHMARK_DATABASE_URL"]
+    engine = init_db(db_url)
+    with Session(engine) as session:
+        answer_dbs = session.exec(select(Answer)).all()
+        for answer in tqdm(answer_dbs):
+            eval_answer(session, answer.run_token, answer.question_id)
 
 
 def main():
