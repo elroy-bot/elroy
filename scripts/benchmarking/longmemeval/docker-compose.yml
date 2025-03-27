@@ -8,7 +8,6 @@ services:
       - AZURE_API_BASE=${AZURE_API_BASE}
       - AZURE_API_VERSION=${AZURE_API_VERSION}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      # Redis connection is handled in litellm_config.yaml
     depends_on:
       - redis
     command: ["--config", "/app/config.yaml"]
