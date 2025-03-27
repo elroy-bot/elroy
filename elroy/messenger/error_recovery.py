@@ -26,13 +26,14 @@ def handle_remote_protocol_error(func):
         enable_tools: bool = True,
         force_tool: Optional[str] = None,
     ) -> Iterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult, FunctionCall]]:
+        from litellm.exceptions import APIConnectionError
 
         attempt = 0
         while True:
             try:
                 yield from func(role, ctx, msg, enable_tools, force_tool)
                 break
-            except RemoteProtocolError as e:
+            except (RemoteProtocolError, APIConnectionError) as e:
                 if attempt >= 5:
                     raise
                 logger.warning(f"Remote protocol error: {str(e)}")

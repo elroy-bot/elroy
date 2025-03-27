@@ -44,7 +44,7 @@ from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 
-T = TypeVar("T")  # Type variable to capture the return type
+T = TypeVar("T")
 
 P = ParamSpec("P")
 

@@ -45,7 +45,7 @@ services:
       - postgres
       - litellm
 
-    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json"]
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json", "run_1743029305"]
 
   postgres:
     image: ankane/pgvector:v0.5.1
