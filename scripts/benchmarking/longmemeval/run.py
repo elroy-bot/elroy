@@ -15,6 +15,7 @@ from functools import cached_property
 from random import shuffle
 
 from litellm import completion
+from phoenix.trace import suppress_tracing
 from toolz import interleave, pipe
 from toolz.curried import map
 from tqdm import tqdm
@@ -69,14 +70,12 @@ class BenchmarkingQuestionRun:
     def ai_respond(self, msg: str) -> str:
         return self.ai.message(msg)
 
-    def ai_respond_no_tracer(self, msg: str) -> str:
-        return self.ai.message(msg)
-
     def handle_msg(self, msg: ChatMessage) -> None:
         if msg.role == USER and msg.has_answer:
             self.ai_respond(msg.content)
         else:
-            self.ai_respond_no_tracer(msg.content)
+            with suppress_tracing():
+                self.ai_respond(msg.content)
 
     @tracer.agent
     def record_answer(self, question_text: str, expected_answer: str) -> str:
@@ -163,7 +162,8 @@ class BenchmarkingQuestionRun:
                                 self.session.commit()
                                 self.session.refresh(cursor)
                         progress_bar.update(1)
-                    self.ai.context_refresh()
+                    with suppress_tracing():
+                        self.ai.context_refresh()
                 cursor.session_idx = session_idx
                 cursor.message_idx = -1
                 self.session.commit()
