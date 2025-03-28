@@ -97,7 +97,12 @@ class Validator:
                 yield msg
             elif msg.role == ASSISTANT:
                 self.errors.append("First non-system message is not user message, repairing by inserting user message")
-                yield ContextMessage(role=USER, content="The user has begun the conversation", chat_model=None)
+                yield ContextMessage(
+                    role=USER,
+                    content="The user has begun the conversation",
+                    chat_model=None,
+                    created_at=self.ctx.clock.utc_now(),
+                )
                 first_user_msg_seen = True
                 yield msg
             else:

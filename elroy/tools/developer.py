@@ -4,7 +4,6 @@ import subprocess
 import sys
 import urllib.parse
 import webbrowser
-from datetime import datetime
 from typing import Optional
 
 from rich.table import Table
@@ -148,7 +147,7 @@ def create_bug_report(
     # Start building the report
     report = [
         f"# Bug Report: {title}",
-        f"\nCreated: {datetime.now().isoformat()}",
+        f"\nCreated: {ctx.clock.now().isoformat()}",
         "\n## Description",
         description if description else "",
     ]

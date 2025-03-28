@@ -37,7 +37,6 @@ class ContextMessage:
         }
 
     def __post_init__(self):
-
         if self.tool_calls is not None:
             self.tool_calls = [ToolCall(**tc) if isinstance(tc, dict) else tc for tc in self.tool_calls]
         # as per openai requirements, empty arrays are disallowed

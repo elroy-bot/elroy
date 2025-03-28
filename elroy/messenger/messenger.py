@@ -19,12 +19,14 @@ from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.validations import Validator
 from ..repository.memories.queries import get_relevant_memory_context_msgs
+from .error_recovery import handle_remote_protocol_error
 from .tools import exec_function_call
 
 logger = get_logger()
 
 
 @tracer.chain
+@handle_remote_protocol_error
 def process_message(
     role: str,
     ctx: ElroyContext,
@@ -48,6 +50,7 @@ def process_message(
             role=role,
             content=msg,
             chat_model=None,
+            created_at=ctx.clock.utc_now(),
         )
     ]
     new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
@@ -85,6 +88,7 @@ def process_message(
                 tool_call_result = exec_function_call(ctx, stream_chunk)
                 tool_context_messages.append(
                     ContextMessage(
+                        created_at=ctx.clock.utc_now(),
                         role=TOOL,
                         tool_call_id=stream_chunk.id,
                         content=tool_call_result.content,
@@ -96,6 +100,7 @@ def process_message(
 
         new_msgs.append(
             ContextMessage(
+                created_at=ctx.clock.utc_now(),
                 role=ASSISTANT,
                 content=stream.get_full_text(),
                 tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),

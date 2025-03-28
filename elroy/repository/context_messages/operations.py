@@ -24,7 +24,6 @@ from ...core.tracing import tracer
 from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
-from ...utils.clock import db_time_to_local
 from ...utils.utils import run_in_background
 from ..memories.operations import (
     create_mem_from_current_context,
@@ -180,7 +179,12 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
         remove(lambda _: _ is None),
         list,
         "\n".join,
-        lambda x: ContextMessage(role=SYSTEM, content=x, chat_model=None),
+        lambda x: ContextMessage(
+            role=SYSTEM,
+            content=x,
+            chat_model=None,
+            created_at=ctx.clock.utc_now(),
+        ),
     )
 
 
@@ -198,6 +202,7 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
         partial(replace_system_instruction, context_message_list),
         partial(
             compress_context_messages,
+            ctx.clock,
             ctx.chat_model.name,
             ctx.context_refresh_target_tokens,
             ctx.max_in_context_message_age,
@@ -224,7 +229,7 @@ def save(ctx: ElroyContext, n: int = 1000) -> str:
         list,
     )
 
-    filename = db_time_to_local(msgs[0].created_at).strftime("%Y-%m-%d_%H-%M-%S") + "__" + db_time_to_local(msgs[-1].created_at).strftime("%Y-%m-%d_%H-%M-%S") + ".json"  # type: ignore
+    filename = ctx.clock.db_time_to_local(msgs[0].created_at).strftime("%Y-%m-%d_%H-%M-%S") + "__" + ctx.clock.db_time_to_local(msgs[-1].created_at).strftime("%Y-%m-%d_%H-%M-%S") + ".json"  # type: ignore
     full_path = get_save_dir() / filename
 
     with open(full_path, "w") as f:
@@ -279,7 +284,7 @@ def rewrite(ctx: ElroyContext, new_message: str) -> str:
     while context_messages[i].role != ASSISTANT:
         i -= 1
 
-    context_messages[i] = ContextMessage(role=ASSISTANT, content=new_message, chat_model=None)
+    context_messages[i] = ContextMessage(role=ASSISTANT, content=new_message, chat_model=None, created_at=ctx.clock.utc_now())
 
     replace_context_messages(ctx, context_messages)
 
