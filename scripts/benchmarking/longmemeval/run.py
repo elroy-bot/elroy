@@ -13,11 +13,12 @@ import time
 from datetime import datetime
 from functools import cached_property
 from random import shuffle
+from typing import Type
 
 from litellm import completion
 from phoenix.trace import suppress_tracing
 from toolz import interleave, pipe
-from toolz.curried import map
+from toolz.curried import map, remove
 from tqdm import tqdm
 
 # Add the current directory to the path to ensure imports work
@@ -28,6 +29,7 @@ from benchmarking_db import (
     Question,
     do_load_data,
     get_answer_if_exists,
+    get_assistant_has_answer_session_ids,
     get_messages_for_session,
     get_or_create_cursor,
     get_question_by_id,
@@ -216,14 +218,16 @@ class HardcodedAssistantResponseQRun(BenchmarkingQuestionRun):
         return msg.role == USER
 
 
-def process_question(args: tuple[str, str, str, str]):
+def process_question(args: tuple[Type[BenchmarkingQuestionRun], str, str, str]):
     eval_type, db_url, run_token, question_id = args
     engine = create_engine(db_url)
     with Session(engine) as session:
-        if eval_type == "HardcodedAssistantResponseQRun":
+        if eval_type == HardcodedAssistantResponseQRun:
             HardcodedAssistantResponseQRun(session, db_url, question_id, run_token).run()
-        else:
+        elif eval_type == BenchmarkingQuestionRun:
             BenchmarkingQuestionRun(session, db_url, question_id, run_token).run()
+        else:
+            raise NotImplementedError(f"Unknown evaluation type: {eval_type}")
 
 
 def eval_answer(session: Session, run_token: str, question_id: str) -> None:
@@ -308,13 +312,19 @@ def main():
     engine = init_db(db_url)
 
     with Session(engine) as session:
-        questions = get_questions(session)
 
-        if len(questions) == 0:
+        if len(get_questions(session)) == 0:
             do_load_data(session, db_url, parsed.input_file)
-            questions = [
-                q for q in get_questions(session) if q.question_type != "temporal-reasoning" and not q.question_id.endswith("_abs")
-            ]
+
+        assistant_answer_session_ids = get_assistant_has_answer_session_ids(session)
+
+        questions = pipe(
+            get_questions(session),
+            remove(lambda q: q.question_type == "temporal-reasoning"),
+            remove(lambda q: q.question_id.endswith("_abs")),
+            remove(lambda q: set(q.answer_session_ids.split(", ")) & assistant_answer_session_ids),
+            list,
+        )
 
     # Create interleaved functions using toolz
     func_args = pipe(

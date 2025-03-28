@@ -1,12 +1,13 @@
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy import create_engine
 from sqlmodel import Field, Session, SQLModel, UniqueConstraint, func, select
 from tqdm import tqdm
 
 from elroy.api import Elroy
+from elroy.core.constants import ASSISTANT
 
 
 # Database model classes
@@ -83,8 +84,8 @@ class Answer(SQLModel, table=True):
     elroy_answer: str
     answer: str
     answer_session_ids: str
-    is_correct: bool
-    judge: str
+    is_correct: Optional[bool] = None
+    judge: Optional[str] = None
 
 
 def init_db(db_url: str):
@@ -113,6 +114,12 @@ def load_benchmark_data(file_path: str) -> List[Dict[str, Any]]:
         raise ValueError(f"{file_path} is not a valid JSON file")
     except FileNotFoundError:
         raise FileNotFoundError(f"File {file_path} not found")
+
+
+def get_assistant_has_answer_session_ids(session: Session) -> Set[str]:
+    return set(
+        session.exec(select(ChatMessage.session_id).where(ChatMessage.has_answer == True).where(ChatMessage.role == ASSISTANT)).all()
+    )
 
 
 def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
