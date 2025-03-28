@@ -28,7 +28,7 @@ services:
   benchmark:
     restart: unless-stopped
     deploy:
-      replicas: 4
+      replicas: 8
     build:
       context: ../../..
       dockerfile: Dockerfile
