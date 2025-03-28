@@ -41,7 +41,7 @@ services:
       - ELROY_EMBEDDING_MODEL=text-embedding-3-small
       - OPENAI_API_KEY=sk-123
       - ELROY_ENABLE_TRACING=1
-      - ELROY_LOG_LEVEL=INFO
+      # - ELROY_LOG_LEVEL=INFO
       - ELROY_TRACING_APP_NAME=elroy-benchmark
       - ELROY_BENCHMARK_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
       - ELROY_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
@@ -56,7 +56,7 @@ services:
       - litellm
       - phoenix
 
-    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json", "run_1743029305"]
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json", "run_2025-03-28"]
 
   postgres:
     image: ankane/pgvector:v0.5.1
