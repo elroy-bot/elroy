@@ -26,6 +26,7 @@ services:
     restart: unless-stopped
 
   benchmark:
+    restart: unless-stopped
     deploy:
       replicas: 4
     build:
