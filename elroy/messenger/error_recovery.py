@@ -35,6 +35,7 @@ def handle_remote_protocol_error(func):
                 break
             except (RemoteProtocolError, APIConnectionError, APIError) as e:
                 if attempt >= 5:
+                    logger.warning("Retries exhausted")
                     raise
                 logger.warning(f"Remote protocol error: {str(e)}")
                 attempt += 1
