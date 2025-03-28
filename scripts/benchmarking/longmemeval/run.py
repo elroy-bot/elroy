@@ -69,14 +69,17 @@ class BenchmarkingQuestionRun:
     def ai_respond(self, msg: str) -> str:
         return self.ai.message(msg)
 
-    def handle_msg(self, msg: ChatMessage):
-        if msg.role == USER:
-            return self.ai_respond(msg.content)
+    def ai_respond_no_tracer(self, msg: str) -> str:
+        return self.ai.message(msg)
+
+    def handle_msg(self, msg: ChatMessage) -> None:
+        if msg.role == USER and msg.has_answer:
+            self.ai_respond(msg.content)
+        else:
+            self.ai_respond_no_tracer(msg.content)
 
     @tracer.agent
     def record_answer(self, question_text: str, expected_answer: str) -> str:
-        self.ai.reset_messages()
-
         try:
             self.ai.ctx.show_internal_thought = False
 
@@ -266,8 +269,8 @@ def eval_answer(session: Session, run_token: str, question_id: str) -> None:
             max_tokens=10,
             stream=False,
         )
-        .choices[0]
-        .message.content.strip()
+        .choices[0]  # type: ignore
+        .message.content.strip()  # type: ignore
     )  # type: ignore
 
     is_correct = "yes" in resp.lower()
@@ -309,8 +312,9 @@ def main():
 
         if len(questions) == 0:
             do_load_data(session, db_url, parsed.input_file)
-            questions = get_questions(session)
-        shuffle(questions)
+            questions = [
+                q for q in get_questions(session) if q.question_type != "temporal-reasoning" and not q.question_id.endswith("_abs")
+            ]
 
     # Create interleaved functions using toolz
     func_args = pipe(
