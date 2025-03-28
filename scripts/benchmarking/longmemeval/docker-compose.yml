@@ -20,9 +20,9 @@ services:
       - "6006:6006"  # Phoenix UI port
       - "4317:4317"  # OpenTelemetry gRPC port
     environment:
-      - PHOENIX_SQL_DATABASE_URL=postgresql://benchmarking:password@postgres:5432/benchmarking
+      - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@phoenixdb:5432/postgres
     depends_on:
-      - postgres
+      - phoenixdb
     restart: unless-stopped
 
   benchmark:
@@ -71,6 +71,18 @@ services:
     command: postgres -c shared_preload_libraries=vector
     restart: unless-stopped
 
+  phoenixdb:
+    image: postgres:16
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - phoenixdata:/var/lib/postgresql/data
+
   redis:
     image: redis:7-alpine
     ports:
@@ -83,3 +95,4 @@ services:
 volumes:
   redis_data:
   benchmarking_postgres-data:
+  phoenixdata:
