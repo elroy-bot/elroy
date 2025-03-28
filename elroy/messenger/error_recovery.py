@@ -41,5 +41,8 @@ def handle_remote_protocol_error(func):
                 sleep_duration_secs = 2**attempt
                 logger.warning(f"Retrying in {sleep_duration_secs} seconds")
                 sleep(sleep_duration_secs)
+            except Exception as e:
+                logger.error(f"Unexpected error of type: {type(e)}")
+                raise
 
     return wrapper
