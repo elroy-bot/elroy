@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
 
 from toolz import concat, pipe
-from toolz.curried import map
+from toolz.curried import filter, map
 
 from .cli.options import get_resolved_params
 from .core.constants import USER
@@ -12,10 +12,16 @@ from .core.ctx import ElroyContext
 from .core.logging import setup_core_logging
 from .core.session import dbsession, init_elroy_session
 from .core.tracing import tracer
+from .db.db_models import FunctionCall
 from .io.base import PlainIO
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
-from .llm.stream_parser import AssistantInternalThought, AssistantResponse, collect
+from .llm.stream_parser import (
+    AssistantInternalThought,
+    AssistantToolResult,
+    TextOutput,
+    collect,
+)
 from .messenger.messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
 from .repository.context_messages.operations import (
@@ -24,6 +30,7 @@ from .repository.context_messages.operations import (
 from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
+from .repository.context_messages.operations import reset_messages as do_reset_messages
 from .repository.context_messages.queries import get_context_messages
 from .repository.context_messages.transforms import is_context_refresh_needed
 from .repository.documents.operations import DocIngestResult, do_ingest, do_ingest_dir
@@ -37,7 +44,7 @@ from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 
-T = TypeVar("T")  # Type variable to capture the return type
+T = TypeVar("T")
 
 P = ParamSpec("P")
 
@@ -64,12 +71,14 @@ class Elroy:
         assistant_name: Optional[str] = None,
         database_url: Optional[str] = None,
         check_db_migration: bool = False,
+        show_tool_calls: bool = True,
         exclude_tools: List[str] = [],  # any tools which should not be loaded
         **kwargs,
     ):
 
         setup_core_logging()
         self.formatter = formatter
+        self.show_tool_calls = show_tool_calls
 
         self.ctx = ElroyContext(
             **get_resolved_params(
@@ -118,7 +127,7 @@ class Elroy:
             ValueError: If goal_name is empty
             GoalAlreadyExistsError: If a goal with the same name already exists
         """
-        goal = do_create_goal(
+        do_create_goal(
             self.ctx,
             goal_name,
             strategy,
@@ -256,11 +265,18 @@ class Elroy:
         return pipe(
             process_message(USER, self.ctx, input, enable_tools),
             collect,
+            filter(self._should_return_chunk),
             map(self.formatter.format),
             concat,
             list,
             "\n\n".join,
+            lambda x: x.strip(),
         )  # type: ignore
+
+    @db
+    def reset_messages(self) -> None:
+        """Reset the context messages, leaving only the system instructions."""
+        do_reset_messages(self.ctx)
 
     @db
     def context_refresh(self) -> None:
@@ -354,8 +370,18 @@ class Elroy:
             Generator[str, None, None]: Generator yielding response chunks
         """
         for chunk in process_message(USER, self.ctx, input, enable_tools):
-            if isinstance(chunk, AssistantResponse) or (isinstance(chunk, AssistantInternalThought) and self.ctx.show_internal_thought):
+            if self._should_return_chunk(chunk):
                 yield from self.formatter.format(chunk)
+
+    def _should_return_chunk(self, chunk: Union[TextOutput, FunctionCall]):
+        """filter for whether assistant output chunks should be returned to caller"""
+
+        if isinstance(chunk, AssistantInternalThought):
+            return self.ctx.show_internal_thought
+        elif isinstance(chunk, FunctionCall) or isinstance(chunk, AssistantToolResult):
+            return self.show_tool_calls
+        else:
+            return True
 
     def _message_stream(self, input: str) -> Generator[str, None, None]:
         """Deprecated, use message_stream"""
