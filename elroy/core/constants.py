@@ -12,8 +12,7 @@ ASSISTANT_ALIAS_STRING = "$ASSISTANT_ALIAS"  # String to replace in system instr
 SYSTEM_INSTRUCTION_LABEL = "<system_instruction>"
 SYSTEM_INSTRUCTION_LABEL_END = "</system_instruction>"
 
-
-UNKNOWN = "Unknown"
+DEFAULT_USER_NAME = "User"
 
 # Message roles
 USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
