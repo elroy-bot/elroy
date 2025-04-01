@@ -2,7 +2,11 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from ...core.constants import ASSISTANT_ALIAS_STRING, UNKNOWN, USER_ALIAS_STRING
+from ...core.constants import (
+    ASSISTANT_ALIAS_STRING,
+    DEFAULT_USER_NAME,
+    USER_ALIAS_STRING,
+)
 from ...core.ctx import ElroyContext
 from ...db.db_models import User
 from ...db.db_session import DbSession
@@ -63,4 +67,4 @@ def is_user_exists(session: Session, user_token: str) -> bool:
 def do_get_user_preferred_name(session: Session, user_id: int) -> str:
     user_preference = do_get_or_create_user_preference(session, user_id)
 
-    return user_preference.preferred_name or UNKNOWN
+    return user_preference.preferred_name or DEFAULT_USER_NAME
