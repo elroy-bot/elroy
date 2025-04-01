@@ -1,6 +1,6 @@
 import traceback
 from bdb import BdbQuit
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import partial
 from itertools import tee
 from multiprocessing import get_logger
@@ -43,6 +43,7 @@ from ..repository.user.queries import (
     is_user_exists,
 )
 from ..repository.user.tools import set_user_preferred_name
+from ..utils.clock import local_now, local_tz, today_start_local
 from ..utils.utils import datetime_to_string, run_in_background
 
 logger = get_logger()
@@ -72,10 +73,7 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     if preferred_name == "Unknown":
         preferred_name = "User (preferred name unknown)"
 
-    local_tz = datetime.now().astimezone().tzinfo
-
-    # Get start of today in local timezone
-    today_start = datetime.now(local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = today_start_local()
 
     # Convert to UTC for database comparison
     today_start_utc = today_start.astimezone(UTC)
@@ -91,12 +89,12 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
 
     if earliest_today_msg:
         # Convert UTC time to local timezone for display
-        local_time = earliest_today_msg.created_at.replace(tzinfo=UTC).astimezone(local_tz)
+        local_time = earliest_today_msg.created_at.replace(tzinfo=UTC).astimezone(local_tz())
         today_summary = f"I first started chatting with {preferred_name} today at {local_time.strftime('%I:%M %p')}."
     else:
         today_summary = f"I haven't chatted with {preferred_name} yet today. I should offer a brief greeting (less than 50 words)."
 
-    return f"{preferred_name} has logged in. The current time is {datetime_to_string(datetime.now().astimezone())}. {today_summary}"
+    return f"{preferred_name} has logged in. The current time is {datetime_to_string(local_now())}. {today_summary}"
 
 
 def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):

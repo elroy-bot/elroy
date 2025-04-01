@@ -14,7 +14,7 @@ from ...core.logging import get_logger
 from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, SourceDocument
 from ...llm.client import query_llm
-from ...utils.clock import get_utc_now
+from ...utils.clock import utc_now
 from ..memories.operations import do_create_memory
 from ..recall.operations import upsert_embedding_if_needed
 from .queries import get_source_doc_by_address, get_source_doc_excerpts
@@ -178,7 +178,7 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
         logger.info(f"Refreshing source doc {address}")
 
         source_doc.content = content
-        source_doc.extracted_at = get_utc_now()  # noqa F841
+        source_doc.extracted_at = utc_now()
         source_doc.content_md5 = content_md5
         mark_source_document_excerpts_inactive(ctx, source_doc)
         doc_was_updated = True
@@ -191,7 +191,7 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
             name=str(address),
             content=content,
             content_md5=content_md5,
-            extracted_at=get_utc_now(),
+            extracted_at=utc_now(),
         )
 
     ctx.db.add(source_doc)

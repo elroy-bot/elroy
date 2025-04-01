@@ -15,7 +15,7 @@ from ...core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL,
 from ...core.logging import get_logger
 from ...db.db_models import ContextMessageSet, MemorySource, Message, ToolCall
 from ...llm.utils import count_tokens
-from ...utils.clock import ensure_utc, get_utc_now
+from ...utils.clock import ensure_utc, utc_now
 from ...utils.utils import datetime_to_string, last_or_none
 from ..user.queries import do_get_assistant_name, do_get_user_preferred_name
 from .data_models import ContextMessage, RecalledMemoryMetadata
@@ -37,7 +37,7 @@ def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMe
         context_messages,
         filter(lambda x: x.role == USER),
         last_or_none,
-        lambda x: (get_utc_now() - x.created_at) if x and x.created_at else None,
+        lambda x: (utc_now() - x.created_at) if x and x.created_at else None,
     )  # type: ignore
 
 
@@ -210,7 +210,7 @@ def compress_context_messages(
 
         if current_token_count > context_refresh_target_tokens:
             break
-        elif msg_created_at is not None and msg_created_at < get_utc_now() - max_in_context_message_age:
+        elif msg_created_at is not None and msg_created_at < utc_now() - max_in_context_message_age:
             logger.info(f"Dropping old message {msg.id}")
             continue
         else:

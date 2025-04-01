@@ -1,7 +1,4 @@
-from datetime import datetime
-
 from lorem_text import lorem
-from pytz import UTC
 
 from elroy.core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, USER
 from elroy.core.ctx import ElroyContext
@@ -12,17 +9,24 @@ from elroy.repository.context_messages.transforms import compress_context_messag
 
 def test_compress_context_messages(george_ctx: ElroyContext):
     # create a very long context to test consolidation
-    system_message = ContextMessage(role=SYSTEM, content=f"{SYSTEM_INSTRUCTION_LABEL}\nSystem message", chat_model=None)
+    system_message = ContextMessage(
+        role=SYSTEM,
+        content=f"{SYSTEM_INSTRUCTION_LABEL}\nSystem message",
+        chat_model=None,
+    )
     original_messages = [system_message]
 
     for i in range(50):
         original_messages += [
-            ContextMessage(role=USER, content=f"{i}\n" + lorem.paragraph(), chat_model=None, created_at=datetime.now(UTC)),
+            ContextMessage(
+                role=USER,
+                content=f"{i}\n" + lorem.paragraph(),
+                chat_model=None,
+            ),
             ContextMessage(
                 role=ASSISTANT,
                 content=f"{i}\n" + lorem.paragraph(),
                 chat_model=george_ctx.chat_model.name,
-                created_at=datetime.now(UTC),
             ),
         ]
 

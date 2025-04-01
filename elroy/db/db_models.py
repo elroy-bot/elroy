@@ -11,7 +11,7 @@ from toolz import pipe
 from toolz.curried import filter
 
 from ..core.constants import EMBEDDING_SIZE, RecoverableToolError
-from ..utils.clock import get_utc_now
+from ..utils.clock import utc_now
 
 
 @dataclass
@@ -100,15 +100,15 @@ class User(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     token: str = Field(..., description="The unique token for the user")
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
 
 
 class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the context")
     text: str = Field(..., description="The text of the message")
@@ -125,21 +125,21 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
 class SourceDocument(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "address"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     address: str = Field(..., description="The address of the document")
     name: str = Field(..., description="The name of the document")
     content: Optional[str] = Field(..., description="The extracted content of the document")
-    extracted_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    extracted_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     content_md5: Optional[str] = Field(..., description="The MD5 hash of the extracted content")
 
 
 class DocumentExcerpt(EmbeddableSqlModel, MemorySource, table=True):
     __table_args__ = (UniqueConstraint("user_id", "source_document_id", "chunk_index", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the document")
     content: str = Field(..., description="The text of the document")
@@ -158,8 +158,8 @@ class DocumentExcerpt(EmbeddableSqlModel, MemorySource, table=True):
 class Goal(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user whose assistant is being reminded")
     name: str = Field(..., description="The name of the goal")
     status_updates: str = Field(
@@ -214,14 +214,14 @@ class MemoryOperationTracker(SQLModel, table=True):
         default=0, description="Number of new memories created since the last consolidation operation"
     )
     messages_since_memory: int = Field(default=0, description="Number of messages processed since the last memory creation")
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
 
 
 class Message(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     role: str = Field(..., description="The role of the message")
     content: Optional[str] = Field(..., description="The text of the message")
@@ -234,8 +234,8 @@ class Message(SQLModel, table=True):
 class UserPreference(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="User for context")
     preferred_name: Optional[str] = Field(default=None, description="The preferred name for the user")
     system_persona: Optional[str] = Field(
@@ -249,8 +249,8 @@ class UserPreference(SQLModel, table=True):
 class ContextMessageSet(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=get_utc_now, nullable=False)  # noqa F841
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=Column(Text), description="The messages in the context window as JSON string")
     is_active: Optional[bool] = Field(True, description="Whether the context is active")

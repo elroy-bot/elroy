@@ -7,7 +7,7 @@ from ...core.constants import SYSTEM, GoalAlreadyExistsError, GoalDoesNotExistEr
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import Goal
-from ...utils.clock import get_utc_now, string_to_timedelta
+from ...utils.clock import string_to_timedelta, utc_now
 from ...utils.utils import is_blank
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.operations import add_context_message
@@ -51,7 +51,7 @@ def do_create_goal(
             strategy=strategy,
             end_condition=end_condition,
             priority=priority,
-            target_completion_time=get_utc_now() + string_to_timedelta(time_to_completion) if time_to_completion else None,
+            target_completion_time=utc_now() + string_to_timedelta(time_to_completion) if time_to_completion else None,
         )  # type: ignore
         ctx.db.add(goal)
         ctx.db.commit()

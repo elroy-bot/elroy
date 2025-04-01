@@ -1,7 +1,6 @@
 import json
 import sys
 from bdb import BdbQuit
-from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import List, Optional
@@ -26,6 +25,7 @@ from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
 from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
+from ..utils.clock import utc_now
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import handle_chat, handle_message_stdio
@@ -435,7 +435,7 @@ def cli_remember(
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
-        memory_name = f"Memory from CLI, created {datetime_to_string(datetime.now())}"
+        memory_name = f"Memory from CLI, created {datetime_to_string(utc_now())}"
         manually_record_user_memory(ctx, text, memory_name)
         io.info(f"Memory created: {memory_name}")
         raise typer.Exit()

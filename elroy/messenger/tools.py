@@ -6,9 +6,7 @@ from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..db.db_models import FunctionCall
-from ..llm.stream_parser import (
-    AssistantToolResult,
-)
+from ..llm.stream_parser import AssistantToolResult
 
 logger = get_logger()
 

@@ -1,4 +1,3 @@
-from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
@@ -24,9 +23,7 @@ from .llm.stream_parser import (
 )
 from .messenger.messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
-from .repository.context_messages.operations import (
-    add_context_message,
-)
+from .repository.context_messages.operations import add_context_message
 from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
@@ -307,19 +304,17 @@ class Elroy:
         return do_get_persona(self.ctx)
 
     @db
-    def record_message(self, role: str, message: str, created_at: Optional[datetime] = None) -> None:
+    def record_message(self, role: str, message: str) -> None:
         """Records a message into context, without generating a reply
 
         Args:
             role (str): The role of the message
             message (str): The message content
-            created_at: (Optional[datetime]): The timestamp of the message. If None, the current time will be used.
         """
 
         add_context_message(
             self.ctx,
             ContextMessage(
-                created_at=created_at,
                 content=message,
                 role=role,
                 chat_model=None,

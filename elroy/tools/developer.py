@@ -4,7 +4,6 @@ import subprocess
 import sys
 import urllib.parse
 import webbrowser
-from datetime import datetime
 from typing import Optional
 
 from rich.table import Table
@@ -15,6 +14,7 @@ from ..config.paths import get_home_dir, get_log_file_path
 from ..core.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, tool, user_only_tool
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
+from ..utils.clock import utc_now
 
 logger = get_logger()
 
@@ -148,7 +148,7 @@ def create_bug_report(
     # Start building the report
     report = [
         f"# Bug Report: {title}",
-        f"\nCreated: {datetime.now().isoformat()}",
+        f"\nCreated: {utc_now().isoformat()}",
         "\n## Description",
         description if description else "",
     ]
