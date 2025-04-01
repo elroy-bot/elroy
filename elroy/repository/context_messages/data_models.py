@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from ...core.constants import ASSISTANT, TOOL
 from ...db.db_models import ToolCall
+from ...utils.clock import utc_now
 
 
 @dataclass
@@ -19,7 +20,7 @@ class ContextMessage:
     role: str
     chat_model: Optional[str]
     id: Optional[int] = None
-    created_at: Optional[datetime] = None
+    created_at: datetime = field(default_factory=utc_now)
     tool_calls: Optional[List[ToolCall]] = None
     tool_call_id: Optional[str] = None
     memory_metadata: List[RecalledMemoryMetadata] = field(default_factory=list)
@@ -37,7 +38,6 @@ class ContextMessage:
         }
 
     def __post_init__(self):
-
         if self.tool_calls is not None:
             self.tool_calls = [ToolCall(**tc) if isinstance(tc, dict) else tc for tc in self.tool_calls]
         # as per openai requirements, empty arrays are disallowed

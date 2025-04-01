@@ -29,4 +29,4 @@ def test_update_memory_relationship_status(george_ctx: ElroyContext):
 
     process_test_message(george_ctx, "Today I went to the store with Sarah")  # this should bring the memory back into context
 
-    quiz_assistant_bool(True, george_ctx, "Am I married")
+    quiz_assistant_bool(True, george_ctx, "Am I married?")

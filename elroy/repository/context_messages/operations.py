@@ -24,7 +24,6 @@ from ...core.tracing import tracer
 from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
-from ...utils.clock import db_time_to_local
 from ...utils.utils import run_in_background
 from ..memories.operations import (
     create_mem_from_current_context,

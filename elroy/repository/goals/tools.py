@@ -8,7 +8,7 @@ from ...core.constants import SYSTEM, RecoverableToolError, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import Goal
-from ...utils.clock import get_utc_now
+from ...utils.clock import utc_now
 from ...utils.utils import first_or_none
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.operations import add_context_message
@@ -106,7 +106,7 @@ def rename_goal(ctx: ElroyContext, old_goal_name: str, new_goal_name: str) -> st
 
     # Rename the goal
     old_goal.name = new_goal_name
-    old_goal.updated_at = get_utc_now()  # noqa F841
+    old_goal.updated_at = utc_now()  # noqa F841
 
     ctx.db.commit()
     ctx.db.refresh(old_goal)

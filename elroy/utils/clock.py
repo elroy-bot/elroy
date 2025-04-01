@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 
 import pytz
 from pytz import UTC
@@ -7,11 +7,31 @@ from ..core.logging import get_logger
 
 logger = get_logger()
 
-get_utc_now = lambda: datetime.now(UTC)
+
+def local_now() -> datetime:
+    return datetime.now(local_tz())
 
 
-def db_time_to_local(dt: datetime):
-    return dt.replace(tzinfo=UTC).astimezone(datetime.now().astimezone().tzinfo)
+def local_tz() -> tzinfo:
+    info = datetime.now().astimezone().tzinfo
+    assert info
+    return info
+
+
+def today_start_local() -> datetime:
+    return local_now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def today_start_utc() -> datetime:
+    return today_start_local().astimezone(UTC)
+
+
+def db_time_to_local(dt: datetime) -> datetime:
+    return dt.replace(tzinfo=UTC).astimezone(local_tz())
+
+
+def utc_now():
+    return datetime.now(UTC)
 
 
 def string_to_timedelta(time_to_completion: str) -> timedelta:

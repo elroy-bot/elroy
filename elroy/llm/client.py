@@ -249,4 +249,4 @@ def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
         tool_choice=None,
         tools=None,
     )
-    return completion(**completion_kwargs).choices[0].message.content  # type: ignore
+    return completion(**completion_kwargs).choices[0].message.content.strip()  # type: ignore
