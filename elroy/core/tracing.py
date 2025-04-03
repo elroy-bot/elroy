@@ -34,15 +34,19 @@ class NoOpTracer:
 
 
 if is_tracing_enabled():
-    from phoenix.otel import register
+    try:
+        from phoenix.otel import register
 
-    logger.info("Enabling tracing")
+        logger.info("Enabling tracing")
 
-    tracer = register(
-        project_name=os.environ.get("ELROY_TRACING_APP_NAME", "elroy"),
-        auto_instrument=True,
-        verbose=False,
-        set_global_tracer_provider=True,
-    ).get_tracer(__name__)
+        tracer = register(
+            project_name=os.environ.get("ELROY_TRACING_APP_NAME", "elroy"),
+            auto_instrument=True,
+            verbose=False,
+            set_global_tracer_provider=True,
+        ).get_tracer(__name__)
+    except ImportError:
+        logger.warning('Phoenix package not installed. Tracing will be disabled. To enable tracing: uv install "elroy[tracing]"')
+        tracer = NoOpTracer()
 else:
     tracer = NoOpTracer()
