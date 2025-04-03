@@ -66,6 +66,7 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
 
     return Message(
         id=context_message.id,
+        created_at=context_message.created_at,
         user_id=user_id,
         content=context_message.content,
         role=context_message.role,
