@@ -37,7 +37,6 @@ import time
 from typing import Callable
 
 from message_processors import MESSAGE_HANDLER_FUNCS
-from run import handle
 
 
 def get_message_processor_token(run_token: str, msg_processor_func: Callable) -> str:
@@ -49,6 +48,8 @@ def get_user_token(run_token: str, question_id: str, msg_processor_func: Callabl
 
 
 def main():
+    from run import handle
+
     parser = argparse.ArgumentParser(description="Process test messages using Elroy API")
     parser.add_argument("input_file", help="Path to the input JSON file containing messages")
     parser.add_argument(

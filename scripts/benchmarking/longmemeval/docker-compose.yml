@@ -90,7 +90,7 @@ services:
       - phoenix
       - redis
       - benchmark-enqueuer
-    entrypoint: ["python /app/scripts/benchmarking/longmemeval/run.py"]
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/run.py"]
 
 
   postgres:
