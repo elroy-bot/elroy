@@ -13,20 +13,6 @@ class Question:
 
 questions = [
     Question(
-        "c5e8278d",
-        question="Who is Rachel?",
-        question_date=datetime.strptime("2022/12/31", "%Y/%m/%d"),
-        question_type="single-session-user",
-        answer="A close friend",
-    ),
-    Question(
-        "c5e8278d",
-        question="What was my last name before I changed it?",
-        question_date=datetime.strptime("2023/05/30", "%Y/%m/%d"),
-        question_type="single-session-user",
-        answer="Johnson",
-    ),
-    Question(
         "af082822",
         question_type="temporal-reasoning",
         question="How many weeks ago did I attend the friends and family sale at Nordstrom?",
@@ -50,6 +36,13 @@ questions = [
     Question(
         "af082822",
         question_type="knowledge-update",
+        question="How many sessions of the bereavement support group did I attend?",
+        answer="Five",
+        question_date=datetime.strptime("2023/11/07", "%Y/%m/%d"),
+    ),
+    Question(
+        "af082822",
+        question_type="knowledge-update",
         question="Who is Steven?",
         question_date=datetime.strptime("2022/11/14", "%Y/%m/%d"),
         answer="Steve is the user's ex-boyfriend.",
@@ -67,6 +60,13 @@ questions = [
         answer="You have a stressful photoshoot today, with a difficult client.",
         question_date=datetime.strptime("2022/04/17", "%Y/%m/%d"),
         question="Why am I feeling stressed today?",
+    ),
+    Question(
+        "ec81a493",
+        question_type="single-session-user",
+        question="How many copies of my favorite artist's debut album were released worldwide?",
+        answer="500",
+        question_date=datetime.strptime("2023/05/30", "%Y/%m/%d"),
     ),
     Question(
         "af082822",
