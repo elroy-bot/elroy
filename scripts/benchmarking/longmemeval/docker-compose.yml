@@ -59,7 +59,7 @@ services:
   benchmark-worker:
     restart: unless-stopped
     deploy:
-      replicas: 3
+      replicas: 2
     build:
       context: ../../..
       dockerfile: Dockerfile.local
