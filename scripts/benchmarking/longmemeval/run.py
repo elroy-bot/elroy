@@ -16,6 +16,7 @@ import sys
 from datetime import datetime
 from typing import Callable
 
+from celery import shared_task
 from freezegun import freeze_time
 from litellm import completion
 from openinference.instrumentation import using_metadata, using_session, using_user
@@ -74,6 +75,7 @@ def get_ai(run_token: str, question_id: str, message_processor_func: Callable):
     )
 
 
+@shared_task(name="evaluate")
 def evaluate(run_token: str, message_processor_name: str, answer_func_name: str, question_id: str):
     get_user_token(run_token, question_id, get_message_handler_func(message_processor_name))
     ai = get_ai(run_token, question_id, get_message_handler_func(message_processor_name))
@@ -118,6 +120,7 @@ def evaluate(run_token: str, message_processor_name: str, answer_func_name: str,
                 )
 
 
+@shared_task(name="handle")
 def handle(run_token: str, message_processor_name: str, question_id: str):
 
     msg_processor_func = get_message_handler_func(message_processor_name)

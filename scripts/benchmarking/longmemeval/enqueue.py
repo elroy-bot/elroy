@@ -65,4 +65,4 @@ def main():
         for msg_handler_func in MESSAGE_HANDLER_FUNCS:
             msg_handler_func_name = msg_handler_func.__name__
 
-            handle(run_token, msg_handler_func_name, question_id)
+            handle.delay(run_token, msg_handler_func_name, question_id)  # type: ignore

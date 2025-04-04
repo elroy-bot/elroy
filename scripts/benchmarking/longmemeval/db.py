@@ -7,7 +7,6 @@ from pytz import UTC
 from sqlalchemy import create_engine
 from sqlmodel import Field, Session, SQLModel, UniqueConstraint, func, select, text
 
-from elroy.api import Elroy
 from elroy.core.constants import ASSISTANT
 
 
@@ -237,36 +236,3 @@ def get_messages_for_session(session: Session, question_id: str, session_id: str
     return list(
         session.exec(select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.message_idx))  # type: ignore
     )  # type: ignore
-
-
-def do_load_data(session: Session, db_url: str, data_path: str):
-    data = load_benchmark_data(data_path)
-    import_benchmark_data(session, data)
-    ai = Elroy(database_url=db_url, check_db_migration=True)
-    ai.message("hello world")
-
-
-def main():
-    """
-    Main function to initialize the database and print schema information
-    when the script is run directly.
-    """
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Initialize and manage the benchmarking database")
-    parser.add_argument("--load-data", help="Path to the benchmark data JSON file to load")
-
-    args = parser.parse_args()
-
-    if not os.environ.get("ELROY_BENCHMARK_DATABASE_URL"):
-        raise ValueError("ELROY_BENCHMARK_DATABASE_URL environment variable is not set. Set to URL of sqlite or postgres db")
-    db_url = os.environ["ELROY_BENCHMARK_DATABASE_URL"]
-
-    if args.load_data:
-        engine = init_db(db_url)
-        with Session(engine) as session:
-            do_load_data(session, db_url, args.load_data)
-
-
-if __name__ == "__main__":
-    main()

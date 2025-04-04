@@ -45,7 +45,6 @@ services:
       - ELROY_EMBEDDING_MODEL_API_BASE=http://litellm:4000
       - OPENAI_API_BASE=http://litellm:4000
       - PYTHONUNBUFFERED=1
-      - ELROY_BENCHMARK_ROLE=enqueuer
       - REDIS_PASSWORD=password
     volumes:
       - ./data:/app/scripts/benchmarking/longmemeval/data
@@ -55,7 +54,7 @@ services:
       - litellm
       - phoenix
       - redis
-    entrypoint: [python /app/scripts/benchmarking/longmemeval/run.py /app/scripts/benchmarking/longmemeval/data/longmemeval_s.json run_2025-04-03"]
+    entrypoint: [python /app/scripts/benchmarking/longmemeval/enqueue.py /app/scripts/benchmarking/longmemeval/data/longmemeval_s.json run_2025-04-03"]
 
   benchmark-worker:
     restart: unless-stopped
@@ -91,7 +90,7 @@ services:
       - phoenix
       - redis
       - benchmark-enqueuer
-    entrypoint: ["bash", "-c", "pip install celery && python /app/scripts/benchmarking/longmemeval/run.py /app/scripts/benchmarking/longmemeval/data/longmemeval_s.json run_2025-04-03"]
+    entrypoint: ["python /app/scripts/benchmarking/longmemeval/run.py"]
 
 
   postgres:
