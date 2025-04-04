@@ -1,13 +1,11 @@
-import json
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import List, Optional, Set
 
 from pytz import UTC
 from sqlalchemy import create_engine
 from sqlmodel import Field, Session, SQLModel, UniqueConstraint, func, select, text
-from tqdm import tqdm
 
 from elroy.api import Elroy
 from elroy.core.constants import ASSISTANT
@@ -97,32 +95,19 @@ class Answer(SQLModel, table=True):
     is_active: Optional[bool] = True
 
 
-def init_db(db_url: str):
+def get_db_url() -> str:
+    """Get the database URL from the environment variable"""
+    db_url = os.environ.get("ELROY_BENCHMARK_DATABASE_URL")
+    if not db_url:
+        raise ValueError("ELROY_BENCHMARK_DATABASE_URL environment variable is not set. Set to URL of sqlite or postgres db")
+    return db_url
+
+
+def get_engine():
     """Initialize the database tables"""
-    engine = create_engine(db_url)
+    engine = create_engine(get_db_url())
     SQLModel.metadata.create_all(engine, tables=[t.__table__ for t in [Question, ChatSession, ChatMessage, Cursor, Answer]])
     return engine
-
-
-def load_benchmark_data(file_path: str) -> List[Dict[str, Any]]:
-    """
-    Load the benchmark data from a JSON file
-
-    Args:
-        file_path: Path to the JSON file
-
-    Returns:
-        List of question dictionaries
-    """
-    try:
-        print(f"Loading benchmark data from {file_path}...")
-        with open(file_path, "r") as f:
-            data = json.load(f)
-            return data
-    except json.JSONDecodeError:
-        raise ValueError(f"{file_path} is not a valid JSON file")
-    except FileNotFoundError:
-        raise FileNotFoundError(f"File {file_path} not found")
 
 
 def get_assistant_has_answer_session_ids(session: Session) -> Set[str]:
@@ -131,87 +116,30 @@ def get_assistant_has_answer_session_ids(session: Session) -> Set[str]:
     )
 
 
-def import_benchmark_data(session: Session, data: List[Dict[str, Any]]) -> None:
-    """
-    Import benchmark data into the database
-
-    Args:
-        session: SQLModel session
-        data: List of question dictionaries
-    """
-
-    print(f"Importing {len(data)} questions into database...")
-
-    # First check if data is already imported
-    question_count = session.exec(select(func.count()).select_from(Question)).one()
-    if question_count > 0:
-        print("Data already exists in database. Skipping import.")
-        return
-
-    # Import questions, sessions, and messages
-    for item in tqdm(data, desc="Questions", position=0, leave=False):
-        # Add question
-        question = Question(
-            question_id=item["question_id"],
-            question_type=item["question_type"],
-            question=item["question"],
-            answer=item["answer"],
-            question_date=item["question_date"],
-            haystack_session_ids=", ".join(item["haystack_session_ids"]),
-            answer_session_ids=", ".join(item["answer_session_ids"]),
-        )
-        session.add(question)
-
-        # Add chat sessions and messages
-        for idx, session_id in enumerate(item["haystack_session_ids"]):
-            # Determine if this is an answer session
-            is_answer = session_id in item["answer_session_ids"]
-
-            # Get session date
-            session_date = item["haystack_dates"][idx] if idx < len(item["haystack_dates"]) else "unknown"
-
-            # Add chat session
-            chat_session = ChatSession(session_id=session_id, session_date=session_date, is_answer_session=is_answer)
-            session.add(chat_session)
-
-            # Add messages for this session
-            if idx < len(item["haystack_sessions"]):
-                for msg_idx, msg in enumerate(item["haystack_sessions"][idx]):
-                    existing_row = session.exec(
-                        select(ChatMessage).where(ChatMessage.session_id == session_id).where(ChatMessage.message_idx == msg_idx)
-                    ).first()
-                    if existing_row:
-                        continue
-                    else:
-                        has_answer = "has_answer" in msg and msg["has_answer"]
-                        chat_message = ChatMessage(
-                            session_id=session_id,
-                            message_idx=msg_idx,
-                            role=msg["role"],
-                            content=msg["content"],
-                            has_answer=has_answer,
-                        )
-                        session.add(chat_message)
-
-    # Commit all changes
-    session.commit()
-    print("Data import complete.")
-
-
 def get_questions(session: Session) -> List[Question]:
     """Get all benchmark questions"""
     return list(session.exec(select(Question)))
 
 
-def get_or_create_cursor(session: Session, run_token: str, question_id: str, method: str) -> Cursor:
+def get_question(session: Session, question_id: str) -> Question:
+    """Get a benchmark question by ID"""
+    q = session.exec(select(Question).where(Question.question_id == question_id)).first()
+    assert q
+    return q
+
+
+def get_or_create_cursor(session: Session, run_token: str, question_id: str, msg_processor_method: str) -> Cursor:
     """Get or create a cursor for tracking progress"""
     cursor = session.exec(
-        select(Cursor).where(Cursor.run_token == run_token).where(Cursor.question_id == question_id).where(Cursor.method == method)
+        select(Cursor)
+        .where(Cursor.run_token == run_token)
+        .where(Cursor.question_id == question_id)
+        .where(Cursor.method == msg_processor_method)
     ).first()
 
     if not cursor:
         # Create new cursor entry
-        cursor = Cursor(run_token=run_token, question_id=question_id, method=method)
+        cursor = Cursor(run_token=run_token, question_id=question_id, method=msg_processor_method, message_idx=0, session_idx=0)
         session.add(cursor)
         session.commit()
         session.refresh(cursor)
