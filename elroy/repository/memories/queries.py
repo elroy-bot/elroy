@@ -23,9 +23,10 @@ from ..context_messages.transforms import (
     format_context_messages,
 )
 from ..recall.queries import (
-    get_most_relevant_goal,
-    get_most_relevant_memory,
+    get_relevant_goals,
+    get_relevant_memories,
     is_in_context,
+    rerank_memories,
 )
 from ..recall.transforms import to_recalled_memory_metadata
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
@@ -77,7 +78,7 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
 
 
 @tracer.chain
-def get_relevant_memories(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
+def get_relevant_memories_and_goals(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
     query_embedding = get_embedding(ctx.embedding_model, query)
 
     relevant_memories = [
@@ -125,11 +126,12 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     new_recalled_memories: List[EmbeddableSqlModel] = pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(ctx, x),
-        filter(lambda x: x is not None),
+        lambda x: juxt(get_relevant_goals, get_relevant_memories)(ctx, x),
+        concat,
         remove(partial(is_in_context, context_messages)),
         list,
-    )  # type: ignore
+        partial(rerank_memories, ctx, context_messages),
+    )
 
     if not new_recalled_memories:
         return []

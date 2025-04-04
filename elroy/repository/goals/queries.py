@@ -20,7 +20,7 @@ def get_active_goals(ctx: ElroyContext) -> List[Goal]:
     Returns:
         List[Goal]: A list of active goals.
     """
-    return get_goals(ctx, True)
+    return list(get_goals(ctx, True))
 
 
 def get_goals(ctx: ElroyContext, active: bool):

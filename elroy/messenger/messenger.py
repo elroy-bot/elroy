@@ -19,12 +19,14 @@ from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.validations import Validator
 from ..repository.memories.queries import get_relevant_memory_context_msgs
+from .error_recovery import retry_completion_api_stream
 from .tools import exec_function_call
 
 logger = get_logger()
 
 
 @tracer.chain
+@retry_completion_api_stream
 def process_message(
     role: str,
     ctx: ElroyContext,
