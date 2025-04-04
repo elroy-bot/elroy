@@ -54,7 +54,7 @@ services:
       - litellm
       - phoenix
       - redis
-    entrypoint: [python /app/scripts/benchmarking/longmemeval/enqueue.py /app/scripts/benchmarking/longmemeval/data/longmemeval_s.json run_2025-04-03"]
+    entrypoint: ["python", "/app/scripts/benchmarking/longmemeval/enqueue.py", "/app/scripts/benchmarking/longmemeval/data/longmemeval_s.json", "run_2025-04-03"]
 
   benchmark-worker:
     restart: unless-stopped

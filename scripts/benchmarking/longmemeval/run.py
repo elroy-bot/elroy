@@ -179,7 +179,7 @@ def handle(run_token: str, message_processor_name: str, question_id: str):
                     session.add(cursor)
                     session.commit()
                     session.refresh(cursor)
-                    handle(run_token, message_processor_name, question_id)
+                    handle.delay(run_token, message_processor_name, question_id)
                     return
 
 
