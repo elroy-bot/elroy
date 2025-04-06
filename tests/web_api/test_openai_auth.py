@@ -31,19 +31,21 @@ def mock_config():
         yield mock_config
 
 
-def test_verify_api_key_auth_disabled(mock_config):
+@pytest.mark.asyncio
+async def test_verify_api_key_auth_disabled(mock_config):
     """Test that API key verification passes when auth is disabled."""
     # Disable authentication
     mock_config.enable_auth = False
 
     # Verify the API key
-    result = verify_api_key(None)
+    result = await verify_api_key("")
 
     # Check the result
     assert result is True
 
 
-def test_verify_api_key_auth_enabled_missing_key(mock_config):
+@pytest.mark.asyncio
+async def test_verify_api_key_auth_enabled_missing_key(mock_config):
     """Test that API key verification fails when auth is enabled but key is missing."""
     # Enable authentication
     mock_config.enable_auth = True
@@ -51,14 +53,15 @@ def test_verify_api_key_auth_enabled_missing_key(mock_config):
 
     # Verify the API key
     with pytest.raises(HTTPException) as excinfo:
-        verify_api_key(None)
+        await verify_api_key("")
 
     # Check the exception
     assert excinfo.value.status_code == 401
     assert excinfo.value.detail == "Missing API key"
 
 
-def test_verify_api_key_auth_enabled_invalid_key(mock_config):
+@pytest.mark.asyncio
+async def test_verify_api_key_auth_enabled_invalid_key(mock_config):
     """Test that API key verification fails when auth is enabled but key is invalid."""
     # Enable authentication
     mock_config.enable_auth = True
@@ -66,34 +69,36 @@ def test_verify_api_key_auth_enabled_invalid_key(mock_config):
 
     # Verify the API key
     with pytest.raises(HTTPException) as excinfo:
-        verify_api_key("invalid-key")
+        await verify_api_key("invalid-key")
 
     # Check the exception
     assert excinfo.value.status_code == 401
     assert excinfo.value.detail == "Invalid API key"
 
 
-def test_verify_api_key_auth_enabled_valid_key(mock_config):
+@pytest.mark.asyncio
+async def test_verify_api_key_auth_enabled_valid_key(mock_config):
     """Test that API key verification passes when auth is enabled and key is valid."""
     # Enable authentication
     mock_config.enable_auth = True
     mock_config.api_keys = ["test-key"]
 
     # Verify the API key
-    result = verify_api_key("test-key")
+    result = await verify_api_key("test-key")
 
     # Check the result
     assert result is True
 
 
-def test_verify_api_key_auth_enabled_valid_key_with_bearer(mock_config):
+@pytest.mark.asyncio
+async def test_verify_api_key_auth_enabled_valid_key_with_bearer(mock_config):
     """Test that API key verification passes when auth is enabled and key is valid with Bearer prefix."""
     # Enable authentication
     mock_config.enable_auth = True
     mock_config.api_keys = ["test-key"]
 
     # Verify the API key
-    result = verify_api_key("Bearer test-key")
+    result = await verify_api_key("Bearer test-key")
 
     # Check the result
     assert result is True
@@ -128,8 +133,35 @@ def test_chat_completions_endpoint_auth_disabled(client, mock_config):
 
                 # Mock the generate_chat_completion function
                 with mock.patch("elroy.web_api.openai_compatible.server.generate_chat_completion") as mock_generate:
-                    # Create a mock response
-                    mock_response = mock.MagicMock()
+                    # Create a proper mock response
+                    from elroy.web_api.openai_compatible.models import (
+                        ChatCompletionResponse,
+                        ChatCompletionResponseChoice,
+                        ChatCompletionResponseMessage,
+                        MessageRole,
+                        UsageInfo,
+                    )
+
+                    mock_response = ChatCompletionResponse(
+                        id="chatcmpl-123",
+                        object="chat.completion",
+                        model="gpt-3.5-turbo",
+                        choices=[
+                            ChatCompletionResponseChoice(
+                                index=0,
+                                message=ChatCompletionResponseMessage(
+                                    role=MessageRole.ASSISTANT,
+                                    content="This is a test response",
+                                ),
+                                finish_reason="stop",
+                            )
+                        ],
+                        usage=UsageInfo(
+                            prompt_tokens=10,
+                            completion_tokens=10,
+                            total_tokens=20,
+                        ),
+                    )
 
                     # Set up the mock to return our mock response
                     mock_generate.return_value = mock_response
@@ -236,8 +268,35 @@ def test_chat_completions_endpoint_auth_enabled_valid_key(client, mock_config):
 
                 # Mock the generate_chat_completion function
                 with mock.patch("elroy.web_api.openai_compatible.server.generate_chat_completion") as mock_generate:
-                    # Create a mock response
-                    mock_response = mock.MagicMock()
+                    # Create a proper mock response
+                    from elroy.web_api.openai_compatible.models import (
+                        ChatCompletionResponse,
+                        ChatCompletionResponseChoice,
+                        ChatCompletionResponseMessage,
+                        MessageRole,
+                        UsageInfo,
+                    )
+
+                    mock_response = ChatCompletionResponse(
+                        id="chatcmpl-123",
+                        object="chat.completion",
+                        model="gpt-3.5-turbo",
+                        choices=[
+                            ChatCompletionResponseChoice(
+                                index=0,
+                                message=ChatCompletionResponseMessage(
+                                    role=MessageRole.ASSISTANT,
+                                    content="This is a test response",
+                                ),
+                                finish_reason="stop",
+                            )
+                        ],
+                        usage=UsageInfo(
+                            prompt_tokens=10,
+                            completion_tokens=10,
+                            total_tokens=20,
+                        ),
+                    )
 
                     # Set up the mock to return our mock response
                     mock_generate.return_value = mock_response

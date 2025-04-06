@@ -50,7 +50,16 @@ class OpenAIServerConfig(BaseModel):
     @classmethod
     def from_env(cls) -> "OpenAIServerConfig":
         """Create a configuration object from environment variables."""
-        return cls()
+        return cls(
+            port=int(os.environ.get("PORT", "8000")),
+            host=os.environ.get("HOST", "127.0.0.1"),
+            enable_auth=os.environ.get("ENABLE_AUTH", "false").lower() == "true",
+            api_keys=[key.strip() for key in os.environ.get("API_KEYS", "").split(",") if key.strip()],
+            enable_memory_creation=os.environ.get("ENABLE_MEMORY_CREATION", "true").lower() == "true",
+            memory_creation_interval=int(os.environ.get("MEMORY_CREATION_INTERVAL", "10")),
+            max_memories_per_request=int(os.environ.get("MAX_MEMORIES_PER_REQUEST", "5")),
+            relevance_threshold=float(os.environ.get("RELEVANCE_THRESHOLD", "0.7")),
+        )
 
 
 def get_config() -> OpenAIServerConfig:

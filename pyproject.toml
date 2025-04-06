@@ -32,6 +32,7 @@ dependencies = [
     "lock>=2018.3.25.2110",
     "mcp",
     "openinference-instrumentation",
+    "pytest-asyncio",
 ]
 
 [project.optional-dependencies]

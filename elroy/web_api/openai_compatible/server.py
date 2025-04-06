@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import APIKeyHeader
 
+from ...cli.options import get_resolved_params
 from ...config.llm import ChatModel
 from ...core.constants import Provider
 from ...core.ctx import ElroyContext
@@ -64,36 +65,35 @@ def get_context() -> ElroyContext:
     """Get the Elroy context for the current request."""
     # For now, we'll use a fixed user token
     # In a real implementation, this would be based on authentication
-    user_token = "openai-compatible-api"
 
     # Create a minimal ElroyContext with default values
-    ctx = ElroyContext(
-        database_url="sqlite:///elroy.db",  # Use default database
-        show_internal_thought=False,
-        system_message_color="blue",
-        assistant_color="green",
-        user_input_color="yellow",
-        warning_color="red",
-        internal_thought_color="magenta",
-        user_token=user_token,
-        embedding_model="text-embedding-ada-002",
-        embedding_model_size=1536,
-        max_assistant_loops=10,
-        max_tokens=4000,
-        max_context_age_minutes=60,
-        min_convo_age_for_greeting_minutes=5,
-        memory_cluster_similarity_threshold=0.7,
-        max_memory_cluster_size=10,
-        min_memory_cluster_size=2,
-        memories_between_consolidation=10,
-        messages_between_memory=10,
-        l2_memory_relevance_distance_threshold=0.7,
-        debug=False,
-        default_assistant_name="Elroy",
-        use_background_threads=True,
-        max_ingested_doc_lines=1000,
-        reflect=True,
-    )
+    ctx = ElroyContext(**get_resolved_params(use_background_threads=True))
+    # database_url="sqlite:///elroy.db",  # Use default database
+    # show_internal_thought=False,
+    # system_message_color="blue",
+    # assistant_color="green",
+    # user_input_color="yellow",
+    # warning_color="red",
+    # internal_thought_color="magenta",
+    # user_token=user_token,
+    # embedding_model="text-embedding-ada-002",
+    # embedding_model_size=1536,
+    # max_assistant_loops=10,
+    # max_tokens=4000,
+    # max_context_age_minutes=60,
+    # min_convo_age_for_greeting_minutes=5,
+    # memory_cluster_similarity_threshold=0.7,
+    # max_memory_cluster_size=10,
+    # min_memory_cluster_size=2,
+    # memories_between_consolidation=10,
+    # messages_between_memory=10,
+    # l2_memory_relevance_distance_threshold=0.7,
+    # debug=False,
+    # default_assistant_name="Elroy",
+    # use_background_threads=True,
+    # max_ingested_doc_lines=1000,
+    # reflect=True,
+    # )
 
     # Open a database session
     db_manager = ctx.db_manager

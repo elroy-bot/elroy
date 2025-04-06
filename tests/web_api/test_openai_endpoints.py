@@ -224,13 +224,17 @@ def test_chat_completions_streaming(
 
         # Check the response
         assert response.status_code == 200
-        assert response.headers["content-type"] == "text/event-stream"
+        assert response.headers["content-type"].startswith("text/event-stream")
 
         # Parse the streaming response
         chunks = []
         for line in response.iter_lines():
             if line:
-                chunks.append(line.decode())
+                # If line is bytes, decode it; if it's already a string, use it as is
+                if isinstance(line, bytes):
+                    chunks.append(line.decode())
+                else:
+                    chunks.append(line)
 
         # Check that we got the expected chunks
         assert len(chunks) == 7
