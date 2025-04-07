@@ -6,7 +6,7 @@ from elroy.repository.memories.consolidation import consolidate_memories
 from elroy.repository.memories.queries import get_active_memories
 from elroy.repository.memories.tools import (
     create_memory,
-    get_source_content,
+    get_source_content_for_memory,
     get_source_list_for_memory,
 )
 
@@ -17,9 +17,9 @@ def test_goal_source(ctx: ElroyContext):
     memory = get_active_memories(ctx)[-1]
 
     source_list = get_source_list_for_memory(ctx, memory.name)
-    assert source_list == "Goal: Run a marathon", "Source list not as expected"
+    assert source_list == [("Goal", "Run a marathon")], "Source list not as expected"
 
-    source_content = get_source_content(ctx, "Goal", "Run a marathon")
+    source_content = get_source_content_for_memory(ctx, memory.name, 0)
     assert "Goal: Run a marathon" in source_content, "Source content not as expected"
 
 
@@ -35,16 +35,15 @@ def test_memory_source(ctx: ElroyContext):
 
     memory = get_active_memories(ctx)[-1]
     source_list = get_source_list_for_memory(ctx, memory.name)
-    assert "Memory: Running progress" in source_list
+    assert ("Memory", "Running progress") in source_list
 
-    assert "Running progress" in get_source_content(ctx, "Memory", "Running progress")
+    assert "Running progress" in get_source_content_for_memory(ctx, memory.name, 0)
 
 
 def test_context_message_source(ctx: ElroyContext):
     process_test_message(ctx, "Hello, I ran a marathon today!")
     create_memory(ctx, "Running progress", "I ran a marathon today")
     source_list = get_source_list_for_memory(ctx, "Running progress")
-    assert "ContextMessageSet" in source_list
+    assert "ContextMessageSet" in source_list[0]
 
-    name = source_list.split(" ")[-1]
-    assert "Hello, I ran a marathon today" in get_source_content(ctx, "ContextMessageSet", name)
+    assert "Hello, I ran a marathon today" in get_source_content_for_memory(ctx, "Running progress", 0)

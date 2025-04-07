@@ -77,7 +77,7 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
 
 
 @tracer.chain
-def get_relevant_memories(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
+def get_relevant_memories_and_goals(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
     query_embedding = get_embedding(ctx.embedding_model, query)
 
     relevant_memories = [

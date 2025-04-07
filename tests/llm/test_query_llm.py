@@ -26,8 +26,16 @@ def test_model_fallback(ctx: ElroyContext, mocker):
     ]
 
     messages = [
-        ContextMessage(role="system", content="You are a test assistant", chat_model=ctx.chat_model.name),
-        ContextMessage(role="user", content="Say hello", chat_model=ctx.chat_model.name),
+        ContextMessage(
+            role="system",
+            content="You are a test assistant",
+            chat_model=ctx.chat_model.name,
+        ),
+        ContextMessage(
+            role="user",
+            content="Say hello",
+            chat_model=ctx.chat_model.name,
+        ),
     ]
 
     # This should trigger fallback from gpt-4 to gpt-3.5-turbo
