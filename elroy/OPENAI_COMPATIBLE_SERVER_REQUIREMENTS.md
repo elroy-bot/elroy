@@ -70,7 +70,29 @@ This document outlines the technical requirements for implementing an OpenAI-com
    - When disabled, allow all requests without authentication
    - Return appropriate error responses for invalid authentication when enabled
 
-4.4. The sever MUST implement the AI client via the Litellm custom handler: https://docs.litellm.ai/docs/providers/custom_llm_server#custom-handler-spec
+4.4. The server MUST implement the AI client via the Litellm custom handler: https://docs.litellm.ai/docs/providers/custom_llm_server#custom-handler-spec
+
+   The custom handler implementation MUST:
+   - Create a class that inherits from `litellm.llms.base.BaseLLM`
+   - Implement the following required methods with their correct signatures:
+     - `completion(self, *args, **kwargs) -> ModelResponse` - For non-streaming completions
+     - `streaming(self, *args, **kwargs) -> Iterator[GenericStreamingChunk]` - For streaming completions
+     - `acompletion(self, *args, **kwargs) -> ModelResponse` - Async version of completion
+     - `astreaming(self, *args, **kwargs) -> AsyncIterator[GenericStreamingChunk]` - Async version of streaming
+
+   - The implementation SHOULD handle the following parameters in these methods:
+     - `model`: The model identifier string
+     - `messages`: The array of message objects
+     - `temperature`, `top_p`, and other model parameters
+     - Any custom parameters needed for memory integration
+
+   - The implementation MUST properly format responses according to the OpenAI API specification:
+     - For non-streaming responses: Return a properly structured `ModelResponse` object
+     - For streaming responses: Yield properly formatted `GenericStreamingChunk` objects
+
+   - The implementation SHOULD include proper error handling:
+     - Create a custom error class inheriting from `Exception`
+     - Return appropriate HTTP status codes and error messages
 
 ### 5. Memory Integration
 
