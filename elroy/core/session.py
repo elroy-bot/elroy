@@ -22,9 +22,9 @@ def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool,
 
         session_id = str(uuid.uuid4())
         logger.info(f"OpenTelemetry instrumentation enabled with session ID: {session_id}")
-        from openinference.instrumentation import using_session
+        from openinference.instrumentation import using_user
 
-        with using_session(session_id=session_id):
+        with using_user(ctx.user_token):
 
             with ctx.db_manager.open_session() as dbsession:
                 ctx.set_db_session(dbsession)
