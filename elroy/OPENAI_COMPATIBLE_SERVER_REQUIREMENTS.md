@@ -70,6 +70,8 @@ This document outlines the technical requirements for implementing an OpenAI-com
    - When disabled, allow all requests without authentication
    - Return appropriate error responses for invalid authentication when enabled
 
+4.4. The sever MUST implement the AI client via the Litellm custom handler: https://docs.litellm.ai/docs/providers/custom_llm_server#custom-handler-spec
+
 ### 5. Memory Integration
 
 5.1. The server MUST integrate with Elroy's memory system:
@@ -126,10 +128,14 @@ This document outlines the technical requirements for implementing an OpenAI-com
    - Use async handlers to prevent blocking
    - Ensure thread safety for shared resources
 
+
 6.2. The server MAY implement caching as a future enhancement (not required for MVP):
    - Consider caching frequently accessed memories in future versions
    - Consider caching model responses when possible in future versions
    - Design with the possibility of adding caching later
+
+### 7. Configuration
+   - The feature MUST reuse model and user configuration as implemented by the `get_resolved_params` function, and the CLI parameters made available in main.py.
 
 ## API Specification
 
@@ -194,6 +200,15 @@ data: [DONE]
 ```
 
 ## Implementation Plan
+
+### Phase 0: LiteLLM Integration
+
+1. **Create Custom LiteLLM Provider**
+   - Create a new module `elroy/web_api/openai_compatible/litellm_provider.py`
+   - Implement a custom LiteLLM provider by subclassing `BaseLLM`
+   - Integrate with Elroy's memory system
+   - **Tests**: Verify the provider correctly augments requests with memories
+   - **Command**: `pytest tests/web_api/test_litellm_provider.py`
 
 ### Phase 1: Core Server Implementation
 

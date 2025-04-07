@@ -265,7 +265,7 @@ def test_streaming_vs_non_streaming_content(client, mock_context):
                 mock_get_memories.return_value = []
 
                 # Mock the generate_chat_completion function for non-streaming
-                with mock.patch("elroy.web_api.openai_compatible.server.generate_chat_completion") as mock_generate:
+                with mock.patch("elroy.web_api.openai_compatible.server.generate_chat_completion_with_litellm") as mock_generate:
                     # Create a proper mock response
                     from elroy.web_api.openai_compatible.models import (
                         ChatCompletionResponse,
@@ -300,7 +300,7 @@ def test_streaming_vs_non_streaming_content(client, mock_context):
                     mock_generate.return_value = mock_response
 
                     # Mock the stream_chat_completion function for streaming
-                    with mock.patch("elroy.web_api.openai_compatible.server.stream_chat_completion") as mock_stream:
+                    with mock.patch("elroy.web_api.openai_compatible.server.stream_chat_completion_with_litellm") as mock_stream:
                         # Set up the mock to yield chunks that combine to the same content
                         mock_stream.return_value = [
                             'data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1234567890,"model":"gpt-3.5-turbo","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}\n\n',

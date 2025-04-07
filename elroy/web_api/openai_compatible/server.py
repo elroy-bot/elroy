@@ -28,6 +28,9 @@ from ...repository.context_messages.data_models import ContextMessage
 from ...repository.user.queries import do_get_user_preferred_name, get_assistant_name
 from ..openai_compatible.config import get_config
 from ..openai_compatible.conversation import ConversationTracker
+
+# Import our custom LiteLLM provider
+from ..openai_compatible.litellm_provider import ElroyLLM
 from ..openai_compatible.memory import (
     convert_context_message_to_openai_message,
     get_relevant_memories_for_conversation,
@@ -140,6 +143,9 @@ async def chat_completions(
     API and returns responses in the same format, but augmented with Elroy's
     memory capabilities.
     """
+    # Initialize our custom LiteLLM provider
+    elroy_llm = ElroyLLM()
+
     config = get_config()
 
     # Get the chat model
@@ -209,10 +215,12 @@ async def chat_completions(
     # Combine all messages
     augmented_context_messages = system_messages + memory_context_messages + non_system_messages
 
-    # Generate the response
+    # Generate the response using our custom LiteLLM provider
     if request.stream:
+        # For streaming responses, use the streaming method of our custom provider
         return StreamingResponse(
-            stream_chat_completion(
+            stream_chat_completion_with_litellm(
+                elroy_llm,
                 ctx,
                 request,
                 augmented_context_messages,
@@ -222,13 +230,151 @@ async def chat_completions(
             media_type="text/event-stream",
         )
     else:
-        return await generate_chat_completion(
+        # For non-streaming responses, use the completion method of our custom provider
+        return await generate_chat_completion_with_litellm(
+            elroy_llm,
             ctx,
             request,
             augmented_context_messages,
             config.enable_memory_creation,
             config.memory_creation_interval,
         )
+
+
+async def generate_chat_completion_with_litellm(
+    elroy_llm: ElroyLLM,
+    ctx: ElroyContext,
+    request: ChatCompletionRequest,
+    context_messages: List[ContextMessage],
+    enable_memory_creation: bool,
+    memory_creation_interval: int,
+) -> ChatCompletionResponse:
+    """
+    Generate a chat completion response using the ElroyLLM provider.
+
+    Args:
+        elroy_llm: The ElroyLLM provider
+        ctx: The Elroy context
+        request: The chat completion request
+        context_messages: The context messages to use for the response
+        enable_memory_creation: Whether to enable memory creation
+        memory_creation_interval: The interval for memory creation
+
+    Returns:
+        A chat completion response
+    """
+    # Create a model response object with default attributes
+    model_response = type("ModelResponse", (), {"id": f"chatcmpl-{uuid.uuid4().hex}", "model": request.model, "choices": [], "usage": {}})()
+
+    # Call the ElroyLLM provider's completion method
+    elroy_llm.completion(
+        model=request.model,
+        messages=request.messages,
+        api_base="",  # Not used
+        custom_prompt_dict={},  # Not used
+        model_response=model_response,
+        print_verbose=logger.debug,
+        encoding=None,
+        api_key=None,
+        logging_obj=None,
+        optional_params={
+            "temperature": request.temperature,
+            "top_p": request.top_p,
+            "n": request.n,
+            "stop": request.stop,
+            "max_tokens": request.max_tokens,
+            "presence_penalty": request.presence_penalty,
+            "frequency_penalty": request.frequency_penalty,
+        },
+    )
+
+    # Convert the model response to a ChatCompletionResponse
+    response = ChatCompletionResponse(
+        id=getattr(model_response, "id", f"chatcmpl-{uuid.uuid4().hex}"),
+        model=getattr(model_response, "model", request.model),
+        choices=[
+            ChatCompletionResponseChoice(
+                index=choice.get("index", 0),
+                message=ChatCompletionResponseMessage(
+                    role=MessageRole.ASSISTANT,
+                    content=choice.get("message", {}).get("content", ""),
+                ),
+                finish_reason=choice.get("finish_reason", "stop"),
+            )
+            for choice in getattr(model_response, "choices", [])
+        ]
+        or [
+            # Default choice if no choices are available
+            ChatCompletionResponseChoice(
+                index=0,
+                message=ChatCompletionResponseMessage(
+                    role=MessageRole.ASSISTANT,
+                    content="",
+                ),
+                finish_reason="stop",
+            )
+        ],
+        usage=UsageInfo(
+            prompt_tokens=getattr(model_response, "usage", {}).get("prompt_tokens", 0),
+            completion_tokens=getattr(model_response, "usage", {}).get("completion_tokens", 0),
+            total_tokens=getattr(model_response, "usage", {}).get("total_tokens", 0),
+        ),
+    )
+
+    return response
+
+
+async def stream_chat_completion_with_litellm(
+    elroy_llm: ElroyLLM,
+    ctx: ElroyContext,
+    request: ChatCompletionRequest,
+    context_messages: List[ContextMessage],
+    enable_memory_creation: bool,
+    memory_creation_interval: int,
+) -> AsyncGenerator[str, None]:
+    """
+    Stream a chat completion response using the ElroyLLM provider.
+
+    Args:
+        elroy_llm: The ElroyLLM provider
+        ctx: The Elroy context
+        request: The chat completion request
+        context_messages: The context messages to use for the response
+        enable_memory_creation: Whether to enable memory creation
+        memory_creation_interval: The interval for memory creation
+
+    Yields:
+        Chunks of the streaming response
+    """
+    # Create a model response object with default attributes
+    model_response = type("ModelResponse", (), {"id": f"chatcmpl-{uuid.uuid4().hex}", "model": request.model, "choices": [], "usage": {}})()
+
+    # Get streaming chunks from the ElroyLLM provider
+    for chunk in elroy_llm.streaming(
+        model=request.model,
+        messages=request.messages,
+        api_base="",  # Not used
+        custom_prompt_dict={},  # Not used
+        model_response=model_response,
+        print_verbose=logger.debug,
+        encoding=None,
+        api_key=None,
+        logging_obj=None,
+        optional_params={
+            "temperature": request.temperature,
+            "top_p": request.top_p,
+            "n": request.n,
+            "stop": request.stop,
+            "max_tokens": request.max_tokens,
+            "presence_penalty": request.presence_penalty,
+            "frequency_penalty": request.frequency_penalty,
+        },
+    ):
+        # Yield the chunk as a server-sent event
+        yield f"data: {json.dumps(chunk)}\n\n"
+
+    # Send the [DONE] message
+    yield "data: [DONE]\n\n"
 
 
 async def generate_chat_completion(
