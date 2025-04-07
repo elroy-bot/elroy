@@ -45,8 +45,7 @@ from ..repository.memories.operations import remember_convo
 from ..repository.memories.tools import (
     create_memory,
     examine_memories,
-    get_source_content,
-    get_source_list_for_memory,
+    get_source_content_for_memory,
     print_memories,
     print_memory,
     search_memories,
@@ -88,11 +87,10 @@ NON_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
 }
 ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
-    get_source_list_for_memory,
     update_outdated_or_incorrect_memory,
 }
 NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
-    get_source_content,
+    get_source_content_for_memory,
     create_goal,
     create_memory,
     contemplate,

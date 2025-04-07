@@ -1,27 +1,27 @@
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from rich.table import Table
 from sqlmodel import desc, select
 from toolz import pipe
 from toolz.curried import map
 
-from ...core.constants import tool, user_only_tool
+from ...core.constants import RecoverableToolError, tool, user_only_tool
 from ...core.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
-from ...llm.client import query_llm
 from ...utils.clock import db_time_to_local
 from .operations import do_create_memory, do_create_memory_from_ctx_msgs
 from .queries import (
     db_get_memory_source_by_name,
     db_get_source_list_for_memory,
     get_memory_by_name,
-    get_relevant_memories,
+    get_relevant_memories_and_goals,
 )
 
 
-@tool
-def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> str:
-    """Get a list of the sources of a memory by its name.
+def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> List[Tuple[str, str]]:
+    """Get a list of the sources of a memory by its name. This can be useful for retrieving more precise information that a memory is based on.
+
+    Once the source is retrieved, the content of the source can be retrieved using the get_source_content tool.
 
     Args:
         memory_name (str): Name of the memory to retrieve the source for
@@ -33,84 +33,86 @@ def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> str:
     memory = get_memory_by_name(ctx, memory_name)
 
     if not memory:
-        return f"Memory not found with name: {memory_name}"
+        raise RecoverableToolError(f"Memory '{memory_name}' not found for the current user.")
     else:
         sources = db_get_source_list_for_memory(ctx, memory)
 
         if not sources:
-            return f"Source information unavailable for memory: {memory_name}"
+            return []
         else:
             return pipe(
                 sources,
-                map(lambda x: f"{x.source_type()}: {x.get_name()}"),
+                map(lambda x: (x.source_type(), x.get_name())),
                 list,
-                "\n".join,
             )  # type: ignore
 
 
 @tool
-def get_source_content(ctx: ElroyContext, source_type: str, source_name: str) -> str:
+def get_source_content_for_memory(ctx: ElroyContext, memory_name: str, index: int = 0) -> str:
     """Retrieves content of the source for a memory, by source type and name.
 
-    Args:
-        source_type (str): Type of the source
-        source_name (str): Name of the source
+    For a given memory, there can be multiple sources.
 
+    Args:
+        memory_name (str): Type of the source
+        index (int): 0-indexed index of which source to retrieve.
     """
 
-    src = db_get_memory_source_by_name(ctx, source_type, source_name)
-    if not src:
-        return f"Source not found with type: {source_type}, name: {source_name}"
+    metadata: List[Tuple[str, str]] = get_source_list_for_memory(ctx, memory_name)
+
+    if not metadata:
+        return f"No sources found for memory '{memory_name}'"
+
+    if index >= len(metadata):
+        raise RecoverableToolError(f"Index {index} out of range. Available indices: {list(range(len(metadata)))}")
+
     else:
-        return src.to_fact()
+        source_type, source_name = metadata[index]
+        src = db_get_memory_source_by_name(ctx, source_type, source_name)
+
+        if not src:
+            return f"Source not found with type: {source_type}, name: {source_name}"
+        else:
+            return f"# Source content for memory: {memory_name} ({index} / {len(metadata) - 1})\n\n" + src.to_fact()
 
 
 @tool
-def examine_memories(ctx: ElroyContext, query: str) -> str:
-    """Search through memories and goals using semantic search and return a synthesized response.
+def examine_memories(ctx: ElroyContext, question: str) -> List[str]:
+    """Search through memories for the answer to a question.
+
+    This function searches summarized memories and goals. Each memory also contains source information.
+
+    If a retrieved memory is relevant but lacks detail to answer the question, use the get_source_content_for_memory tool. This can be useful in cases where broad information about a topic is provided, but more exact recollection is necessary.
 
     Args:
-        query (str): Search query to find relevant memories and goals
+        question (str): Question to examine memories for. Should be a full sentence, with any relevant context that might make the query more specific.
 
     Returns:
-        str: A natural language response synthesizing relevant memories and goals
+        str: A list of relevant memories and goals, formatted for the LLM.
     """
 
-    recalled_items = get_relevant_memories(ctx, query)
+    recalled_items = get_relevant_memories_and_goals(ctx, question)
     relevant_memories = [item for item in recalled_items if isinstance(item, Memory)]
     relevant_goals = [item for item in recalled_items if isinstance(item, Goal)]
 
     # Format context for LLM
-    context_parts = []
+    output = []
     if relevant_memories:
-        context_parts.append("Relevant memories:")
         for memory in relevant_memories:
-            context_parts.append(f"- {memory.name}: {memory.text}")
+            output.append(
+                f"""
+# Memory: {memory.name}
+
+*to view the source content this memory is based on, call tool `{get_source_content_for_memory.__name__}({memory.name}, idx)`
+
+{memory.text}"""
+            )
 
     if relevant_goals:
-        if context_parts:
-            context_parts.append("\n")
-        context_parts.append("Relevant goals:")
         for goal in relevant_goals:
-            context_parts.append(f"- {goal.name}: {goal.to_fact()}")
+            output.append(goal.to_fact())
 
-    if not context_parts:
-        return "No relevant memories or goals found."
-
-    context = "\n".join(context_parts)
-
-    # Generate response using LLM
-    system_prompt = """You are an AI assistant helping to answer questions based on retrieved memories and goals.
-Your task is to analyze the provided context and answer the user's query thoughtfully.
-Base your response entirely on the provided context. If the context doesn't contain relevant information, say so.
-Answer the question directly, short and concise. Do not say things like "based on the current context", just answer straightforwardly.
-"""
-
-    return query_llm(
-        model=ctx.chat_model,
-        system=system_prompt,
-        prompt=f"Query: {query}\n\nContext:\n{context}\n\nPlease provide a thoughtful response to the query based on the above context.",
-    )
+    return output
 
 
 @tool
@@ -173,7 +175,7 @@ def search_memories(ctx: ElroyContext, query: str) -> Union[str, Table]:
         str: A natural language response synthesizing relevant memories
     """
 
-    items = get_relevant_memories(ctx, query)
+    items = get_relevant_memories_and_goals(ctx, query)
 
     if not items:
         return "No relevant memories found"
