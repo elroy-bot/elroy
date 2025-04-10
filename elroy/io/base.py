@@ -63,7 +63,7 @@ class PlainIO(ElroyIO):
             for output in self.formatter.format(message):
                 self.console.print(output, end=end)
         elif isinstance(message, AssistantInternalThought):
-            logger.info(f"{type(message)}: {message}")
+            pass
         elif isinstance(message, SystemWarning):
             logger.warning(message)
         elif isinstance(message, FunctionCall):

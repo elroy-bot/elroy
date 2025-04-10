@@ -26,7 +26,7 @@ def verify_inline_tool_call_instruct_matches_ctx(ctx: ElroyContext) -> None:
         logger.info("Inline tool calls disabled but instruction present in system instruct, refreshing system instruct")
         refresh_system_instructions(ctx)
     else:
-        logger.info("System instruct message matches startup settings")
+        logger.debug("System instruct message matches startup settings")
 
 
 def inline_tool_instruct(schemas: List[Dict[str, Any]]) -> str:

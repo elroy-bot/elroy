@@ -400,11 +400,16 @@ def message(
         "-t",
         help="Specifies the tool to use in responding to a message",
     ),
+    plain: bool = typer.Option(
+        False,
+        "--plain",
+        help="Use plain text output instead of rich text.",
+    ),
 ):
     """Process a single message and exit."""
     assert typer_ctx.parent
     ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
-    io = get_io(**typer_ctx.parent.params)
+    io = get_io(plain=plain, **typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
         handle_message_stdio(ctx, io, message, tool)
 
@@ -661,7 +666,7 @@ def get_ctx(use_background_threads: bool, **kwargs) -> ElroyContext:
 def get_io(**kwargs) -> ElroyIO:
     params = get_resolved_params(**kwargs)
 
-    if sys.stdin.isatty():
+    if sys.stdin.isatty() and not params.get("plain", False):
         return CliIO(
             RichFormatter(
                 system_message_color=params["system_message_color"],
