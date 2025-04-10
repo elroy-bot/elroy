@@ -14,8 +14,6 @@ from sqlmodel import Session
 from elroy.api import Elroy
 from elroy.core.constants import USER
 
-from ....elroy.messenger.error_recovery import retry_completion_api_return
-
 MESSAGES_BETWEEN_MEMORY = 20
 
 # Configure root logger to output to stdout
@@ -56,6 +54,7 @@ def main(token: str, message_func_name: str):
                 )
                 ai.context_refresh()
                 ai.reset_messages()
+                ai.ctx.show_internal_thought = False
                 with freeze_time(current_question.question_date):
                     for answer_func in ANSWER_FUNCS:
                         elroy_answer = answer_func(ai, message.content)
@@ -70,6 +69,7 @@ def main(token: str, message_func_name: str):
                         )
                 question_idx += 1
                 current_question = QUESTIONS[question_idx]
+                ai.ctx.show_internal_thought = True
             logger.info(f"Processing messages {idx} / {len(messages)}")
             with freeze_time(message.session_datetime):
                 message_func(ai, message)
