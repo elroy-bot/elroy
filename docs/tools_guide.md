@@ -24,7 +24,7 @@ Elroy provides a set of tools that can be used by typing a forward slash (/) fol
 | `/add_memory_to_current_context` | Adds memory with the given name to the current conversation context. |
 | `/drop_memory_from_current_context` | Drops the memory with the given name from current context. Does NOT delete the memory. |
 | `/update_outdated_or_incorrect_memory` | Updates an existing memory with new information. |
-| `/examine_memories` | Search through memories and goals using semantic search and return a synthesized response. |
+| `/examine_memories` | Search through memories for the answer to a question. |
 
 ## Document Management
 

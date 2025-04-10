@@ -255,6 +255,7 @@ class Elroy:
         Args:
             input (str): The message to process
             enable_tools (bool): Whether to enable tools for this message
+            force_tool (bool): If set, this will force the assistant to use the tool with this name.
 
         Returns:
             str: The response from the assistant
