@@ -20,10 +20,10 @@ However, avoid asking too many questions at once. Be sure to engage in a natural
 
 
 @tracer.chain
-def summarize_conversation(model: ChatModel, convo_summary: str, assistant_name: str) -> str:
+def summarize_conversation(model: ChatModel, assistant_name: str, convo_summary: str) -> str:
     return query_llm_with_word_limit(
-        model,
-        convo_summary,
+        model=model,
+        prompt=convo_summary,
         word_limit=MEMORY_WORD_COUNT_LIMIT,
         system=f"""
 Your job is to summarize a history of previous messages in a conversation between an AI persona and a human.

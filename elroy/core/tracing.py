@@ -38,10 +38,10 @@ if is_tracing_enabled():
         from phoenix.otel import register
 
         logger.info("Enabling tracing")
-
         tracer = register(
             project_name=os.environ.get("ELROY_TRACING_APP_NAME", "elroy"),
-            auto_instrument=True,
+            protocol="http/protobuf",
+            auto_instrument=False,
             verbose=False,
             set_global_tracer_provider=True,
         ).get_tracer(__name__)
