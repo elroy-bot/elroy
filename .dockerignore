@@ -4,3 +4,4 @@
 .pytest_cache/
 .coverage
 htmlcov/
+scripts/benchmarking/longmemeval/data/**
