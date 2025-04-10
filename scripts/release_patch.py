@@ -157,7 +157,10 @@ def check_local_tag(errors: Errors):
 def validate_docker_build(errors: Errors):
     print("Validating docker build...")
     try:
-        # Run test message
+        # Create a unique tag for this validation run
+        validation_tag = f"elroy-dev-validation-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+        # First build the image
         subprocess.run(
             [
                 "docker",
@@ -165,9 +168,10 @@ def validate_docker_build(errors: Errors):
                 "-f",
                 os.path.join(REPO_ROOT, "Dockerfile.dev"),
                 "-t",
-                "elroy-dev",
+                validation_tag,
                 "--platform",
                 "linux/arm64",
+                "--no-cache",
                 ".",
             ],
             capture_output=True,
@@ -175,16 +179,18 @@ def validate_docker_build(errors: Errors):
             check=True,
         )
 
+        # Run the container with --rm flag to remove it after execution
         result = subprocess.run(
             [
                 "docker",
                 "run",
+                "--rm",
                 "--platform",
                 "linux/arm64",
                 "-it",
                 "-e",
                 "OPENAI_API_KEY",
-                "elroy-dev",
+                validation_tag,
                 "message",
                 "--plain",
                 "this is an automated system test, repeat after me: hello world",
@@ -197,6 +203,9 @@ def validate_docker_build(errors: Errors):
         # Check if output contains "hello world" (case insensitive)
         if "hello world" not in result.stdout.lower():
             errors.messages.append("Error: Docker test message did not contain expected response")
+
+        # Clean up the image after testing
+        subprocess.run(["docker", "rmi", validation_tag], check=False)
 
     except subprocess.CalledProcessError as e:
         errors.messages.append(f"Error: Docker build/run failed:\n{e.stdout}\n{e.stderr}")
