@@ -5,6 +5,7 @@ These settings control how Elroy manages and consolidates memories.
 ## Memory Consolidation Options
 
 * `--memories-between-consolidation INTEGER`: How many memories to create before triggering a memory consolidation operation. [default: 4]
+* `--messages-between-memory INTEGER`: Max number of messages that can be processed before memory creation is triggered. [default: 20]
 * `--l2-memory-relevance-distance-threshold FLOAT`: L2 distance threshold for memory relevance. [default: 1.24]
 * `--memory-cluster-similarity-threshold FLOAT`: Threshold for memory cluster similarity. The lower the parameter is, the less likely memories are to be consolidated. [default: 0.21125]
 * `--max-memory-cluster-size INTEGER`: The maximum number of memories that can be consolidated into a single memory at once. [default: 5]

@@ -233,17 +233,21 @@ BETTER:
     "type": "function",
     "function": {
       "name": "examine_memories",
-      "description": "Search through memories and goals using semantic search and return a synthesized response.",
+      "description": "Search through memories for the answer to a question.
+
+This function searches summarized memories and goals. Each memory also contains source information.
+
+If a retrieved memory is relevant but lacks detail to answer the question, use the get_source_content_for_memory tool. This can be useful in cases where broad information about a topic is provided, but more exact recollection is necessary.",
       "parameters": {
         "type": "object",
         "properties": {
-          "query": {
+          "question": {
             "type": "string",
-            "description": "Search query to find relevant memories and goals"
+            "description": "Question to examine memories for. Should be a full sentence, with any relevant context that might make the query more specific."
           }
         },
         "required": [
-          "query"
+          "question"
         ]
       }
     }
@@ -275,23 +279,24 @@ BETTER:
   {
     "type": "function",
     "function": {
-      "name": "get_source_content",
-      "description": "Retrieves content of the source for a memory, by source type and name.",
+      "name": "get_source_content_for_memory",
+      "description": "Retrieves content of the source for a memory, by source type and name.
+
+For a given memory, there can be multiple sources.",
       "parameters": {
         "type": "object",
         "properties": {
-          "source_type": {
+          "memory_name": {
             "type": "string",
             "description": "Type of the source"
           },
-          "source_name": {
-            "type": "string",
-            "description": "Name of the source"
+          "index": {
+            "type": "integer",
+            "description": "0-indexed index of which source to retrieve."
           }
         },
         "required": [
-          "source_type",
-          "source_name"
+          "memory_name"
         ]
       }
     }
@@ -320,25 +325,6 @@ BETTER:
     "function": {
       "name": "get_source_documents",
       "description": "Gets the list of ingested source documents."
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "get_source_list_for_memory",
-      "description": "Get a list of the sources of a memory by its name.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "memory_name": {
-            "type": "string",
-            "description": "Name of the memory to retrieve the source for"
-          }
-        },
-        "required": [
-          "memory_name"
-        ]
-      }
     }
   },
   {

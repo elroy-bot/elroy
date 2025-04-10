@@ -1,5 +1,22 @@
 # Changelog
 
+# [0.0.78] - 2025-04-10
+
+### Added
+- Simplified memory retrieval assistant tool: Assistant tool can now better retrieve source document information for memories
+- Ensure a memory is created at least every `n` messages (configurable)
+- Plaintext output option for messages
+
+### Fixed
+- Tool call argument validation
+- API key requirement handling
+- Message timestamp consistency
+- Context message validation
+
+### Improved
+- Default user name changed from "UNKNOWN" to "User"
+- PostgreSQL configuration flexibility
+
 # [0.0.77] - 2025-03-16
 
 ### Added

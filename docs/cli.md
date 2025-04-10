@@ -42,7 +42,7 @@ For a full list of available tools and slash commands, see the [Tools Guide](too
 | Command | Description |
 |---------|-------------|
 | `elroy chat` | Opens an interactive chat session (default command) |
-| `elroy message TEXT` | Process a single message and exit |
+| `elroy message TEXT` | Process a single message and exit. Use `--plain` for plaintext output instead of rich text |
 | `elroy remember [TEXT]` | Create a new memory from text or interactively |
 | `elroy ingest PATH` | Ingests document(s) at the given path into memory. Can process single files or directories |
 | `elroy list-models` | Lists supported chat models and exits |
