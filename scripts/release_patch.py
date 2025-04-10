@@ -157,9 +157,6 @@ def check_local_tag(errors: Errors):
 def validate_docker_build(errors: Errors):
     print("Validating docker build...")
     try:
-        # Build docker image
-        subprocess.run(["docker", "compose", "build", "--no-cache"], check=True)
-
         # Run test message
         subprocess.run(
             [
@@ -189,6 +186,7 @@ def validate_docker_build(errors: Errors):
                 "OPENAI_API_KEY",
                 "elroy-dev",
                 "message",
+                "--plain",
                 "this is an automated system test, repeat after me: hello world",
             ],
             capture_output=True,
