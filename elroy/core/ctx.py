@@ -20,7 +20,7 @@ from ..config.personas import PERSONA
 from ..db.db_manager import DbManager, get_db_manager
 from ..db.db_session import DbSession
 from ..repository.user.operations import get_or_create_user_preference
-from .constants import allow_unused
+from .constants import DEFAULT_USER_NAME, allow_unused
 from .logging import get_logger
 
 logger = get_logger()
@@ -29,6 +29,7 @@ logger = get_logger()
 class ElroyContext:
     _db: Optional[DbSession] = None
     _assistant_name: Optional[str] = None
+    _user_preferred_name: Optional[str] = None
 
     def __init__(
         self,
@@ -128,13 +129,17 @@ class ElroyContext:
         registry.register_all()
         return registry
 
+    @property
+    def user_preferred_name(self) -> str:
+        if not self._user_preferred_name:
+            self._user_preference = get_or_create_user_preference(self) or DEFAULT_USER_NAME
+        assert self._user_preferred_name
+        return self._user_preferred_name
+
+    @property
     def assistant_name(self) -> str:
         if not self._assistant_name:
-            user_preference = get_or_create_user_preference(self)
-            if user_preference.assistant_name:
-                self._assistant_name = user_preference.assistant_name
-            else:
-                self._assistant_name = self.default_assistant_name
+            self._assistant_name = get_or_create_user_preference(self).assistant_name or self.default_assistant_name
         assert self._assistant_name
         return self._assistant_name
 

@@ -20,7 +20,6 @@ from ..repository.context_messages.queries import (
     get_current_system_instruct,
 )
 from ..repository.context_messages.transforms import format_context_messages
-from ..repository.user.queries import do_get_user_preferred_name, get_assistant_name
 
 logger = get_logger()
 
@@ -115,18 +114,16 @@ def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -
     """
 
     logger.info("Contemplating...")
-    user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
-    assistant_name = get_assistant_name(ctx)
 
     msgs_input: str = pipe(
         get_context_messages(ctx),
-        lambda x: format_context_messages(x, user_preferred_name, assistant_name),
+        lambda x: format_context_messages(x, ctx.user_preferred_name, ctx.assistant_name),
     )  # type: ignore
 
     response = query_llm(
         model=ctx.chat_model,
         prompt=msgs_input,
-        system=contemplate_prompt(user_preferred_name, contemplation_prompt),
+        system=contemplate_prompt(ctx.user_preferred_name, contemplation_prompt),
     )
 
     add_context_message(

@@ -11,13 +11,15 @@ from elroy.repository.user.queries import do_get_user_preferred_name
 
 
 def test_update_user_preferred_name(ctx: ElroyContext):
+    new_name = "TestUser500"
 
     process_test_message(
         ctx,
-        "Please call me TestUser500 from now on.",
+        f"Please call me {new_name} from now on.",
     )
 
-    assert do_get_user_preferred_name(ctx.db.session, ctx.user_id) == "TestUser500"
+    assert ctx.user_preferred_name == new_name
+    assert do_get_user_preferred_name(ctx.db.session, ctx.user_id) == new_name
 
 
 def test_update_persona(ctx):

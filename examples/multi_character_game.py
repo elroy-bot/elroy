@@ -26,7 +26,7 @@ class Character:
         return self.ai.message(input)
 
     def remember(self, message: str, name: Optional[str]):
-        self.ai.create_memory(message, name)
+        self.ai.create_memory(message, name or f"Memory about {self.name}")
 
 
 class ElroyQuestGame:

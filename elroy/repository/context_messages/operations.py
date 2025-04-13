@@ -31,7 +31,7 @@ from ..memories.operations import (
     get_or_create_memory_op_tracker,
 )
 from ..memories.tools import create_memory
-from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
+from ..user.queries import get_persona
 from .data_models import ContextMessage
 from .queries import get_context_messages
 from .transforms import (
@@ -152,16 +152,14 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
     if len([msg for msg in context_messages if msg.role == USER]) == 0:
         conversation_summary = None
     else:
-        assistant_name = get_assistant_name(ctx)
-
         conversation_summary = pipe(
             context_messages,
             lambda msgs: format_context_messages(
                 msgs,
-                do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-                assistant_name,
+                ctx.user_preferred_name,
+                ctx.assistant_name,
             ),
-            partial(summarize_conversation, ctx.chat_model, assistant_name),
+            partial(summarize_conversation, ctx.chat_model, ctx.assistant_name),
             lambda _: f"<conversational_summary>{_}</conversational_summary>",
             str,
         )

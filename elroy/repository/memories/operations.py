@@ -21,7 +21,6 @@ from ..context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
 )
-from ..user.queries import do_get_user_preferred_name, get_assistant_name
 from .consolidation import consolidate_memories
 
 logger = get_logger()
@@ -91,16 +90,14 @@ def formulate_memory(ctx: ElroyContext, context_messages: List[ContextMessage]) 
     from ...llm.prompts import summarize_for_memory
     from ..context_messages.transforms import format_context_messages
 
-    user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
-
     return summarize_for_memory(
         ctx.chat_model,
         format_context_messages(
             context_messages,
-            user_preferred_name,
-            get_assistant_name(ctx),
+            ctx.user_preferred_name,
+            ctx.assistant_name,
         ),
-        user_preferred_name,
+        ctx.user_preferred_name,
     )
 
 

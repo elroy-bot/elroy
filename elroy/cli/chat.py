@@ -37,11 +37,7 @@ from ..repository.context_messages.validations import Validator
 from ..repository.goals.operations import create_onboarding_goal
 from ..repository.goals.queries import get_active_goals
 from ..repository.memories.queries import get_active_memories
-from ..repository.user.queries import (
-    do_get_user_preferred_name,
-    get_assistant_name,
-    is_user_exists,
-)
+from ..repository.user.queries import get_assistant_name, is_user_exists
 from ..repository.user.tools import set_user_preferred_name
 from ..utils.clock import local_now, local_tz, today_start_local
 from ..utils.utils import datetime_to_string, run_in_background
@@ -68,8 +64,7 @@ def handle_message_stdio(
 
 
 def get_user_logged_in_message(ctx: ElroyContext) -> str:
-    preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
-
+    preferred_name = ctx.user_preferred_name
     if preferred_name == "Unknown":
         preferred_name = "User (preferred name unknown)"
 
@@ -110,7 +105,6 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
         logger.info(f"User has interacted within {ctx.min_convo_age_for_greeting}, skipping greeting.")
     else:
         print_model_selection(io, ctx)
-        do_get_user_preferred_name(ctx.db.session, ctx.user_id)
         process_and_deliver_msg(
             io,
             SYSTEM,

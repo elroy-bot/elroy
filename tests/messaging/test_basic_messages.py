@@ -24,6 +24,7 @@ def test_hello_world(ctx):
 
 def test_force_tool(ctx):
     process_test_message(ctx, "Jimmy", set_user_preferred_name.__name__)
+    assert ctx.user_preferred_name == "Jimmy"
     assert do_get_user_preferred_name(ctx.db.session, ctx.user_id) == "Jimmy"
 
 
