@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -8,8 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
+from ...cli.options import get_resolved_params
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
+from ...core.session import dbsession
 from ...db.db_manager import get_db_manager
 from ...db.db_session import DbSession
 from .litellm_provider import ElroyLiteLLMProvider
@@ -58,8 +60,8 @@ class ChatCompletionRequest(BaseModel):
     stream: Optional[bool] = False
     stop: Optional[Union[str, List[str]]] = None
     max_tokens: Optional[int] = None
-    presence_penalty: Optional[float] = 0.0
-    frequency_penalty: Optional[float] = 0.0
+    # presence_penalty: Optional[float] = 0.0
+    # frequency_penalty: Optional[float] = 0.0
     logit_bias: Optional[Dict[str, float]] = None
     user: Optional[str] = None
     tools: Optional[List[Dict[str, Any]]] = None
@@ -78,42 +80,43 @@ def get_db_session() -> DbSession:
     return db_manager.open_session().__enter__()
 
 
-def get_elroy_context(db: DbSession = Depends(get_db_session)) -> ElroyContext:
+def get_elroy_context(db: DbSession = Depends(get_db_session)) -> Generator[ElroyContext, Any, None]:
     """Get an Elroy context."""
     # Create a basic ElroyContext with default parameters
-    ctx = ElroyContext(
-        database_url=os.environ.get("DATABASE_URL", "sqlite:///elroy.db"),
-        show_internal_thought=True,
-        system_message_color="blue",
-        assistant_color="green",
-        user_input_color="yellow",
-        warning_color="red",
-        internal_thought_color="magenta",
-        user_token="openai-api-user",
-        chat_model=os.environ.get("CHAT_MODEL", "gpt-3.5-turbo"),
-        embedding_model="text-embedding-ada-002",
-        embedding_model_size=1536,
-        max_assistant_loops=10,
-        max_tokens=4000,
-        max_context_age_minutes=60,
-        min_convo_age_for_greeting_minutes=5,
-        memory_cluster_similarity_threshold=0.7,
-        max_memory_cluster_size=10,
-        min_memory_cluster_size=2,
-        memories_between_consolidation=5,
-        messages_between_memory=10,
-        l2_memory_relevance_distance_threshold=RELEVANCE_THRESHOLD,
-        debug=False,
-        default_assistant_name="Elroy",
-        use_background_threads=True,
-        max_ingested_doc_lines=1000,
-        reflect=True,
-    )
+    params = get_resolved_params()
+    ctx = ElroyContext(use_background_threads=False, **params)
+    with dbsession(ctx):
+        yield ctx
+    #     database_url=os.environ.get("DATABASE_URL", "sqlite:///elroy.db"),
+    #     show_internal_thought=True,
+    #     system_message_color="blue",
+    #     assistant_color="green",
+    #     user_input_color="yellow",
+    #     warning_color="red",
+    #     internal_thought_color="magenta",
+    #     user_token="openai-api-user",
+    #     chat_model=os.environ.get("CHAT_MODEL", "gpt-3.5-turbo"),
+    #     embedding_model="text-embedding-ada-002",
+    #     embedding_model_size=1536,
+    #     max_assistant_loops=10,
+    #     max_tokens=4000,
+    #     max_context_age_minutes=60,
+    #     min_convo_age_for_greeting_minutes=5,
+    #     memory_cluster_similarity_threshold=0.7,
+    #     max_memory_cluster_size=10,
+    #     min_memory_cluster_size=2,
+    #     memories_between_consolidation=5,
+    #     messages_between_memory=10,
+    #     l2_memory_relevance_distance_threshold=RELEVANCE_THRESHOLD,
+    #     debug=False,
+    #     default_assistant_name="Elroy",
+    #     use_background_threads=True,
+    #     max_ingested_doc_lines=1000,
+    #     reflect=True,
+    # )
 
     # Set the database session
-    ctx.set_db_session(db)
-
-    return ctx
+    # ctx.set_db_session(db)
 
 
 def get_litellm_provider(ctx: ElroyContext = Depends(get_elroy_context)) -> ElroyLiteLLMProvider:
