@@ -19,6 +19,7 @@ from ..config.paths import get_default_config_path
 from ..config.personas import PERSONA
 from ..db.db_manager import DbManager, get_db_manager
 from ..db.db_session import DbSession
+from ..repository.user.operations import get_or_create_user_preference
 from .constants import allow_unused
 from .logging import get_logger
 
@@ -27,6 +28,7 @@ logger = get_logger()
 
 class ElroyContext:
     _db: Optional[DbSession] = None
+    _assistant_name: Optional[str] = None
 
     def __init__(
         self,
@@ -125,6 +127,27 @@ class ElroyContext:
         )
         registry.register_all()
         return registry
+
+    def assistant_name(self) -> str:
+        if not self._assistant_name:
+            user_preference = get_or_create_user_preference(self)
+            if user_preference.assistant_name:
+                self._assistant_name = user_preference.assistant_name
+            else:
+                self._assistant_name = self.default_assistant_name
+        assert self._assistant_name
+        return self._assistant_name
+
+    def set_assistant_name(self, name: str):
+        from ..repository.context_messages.operations import refresh_system_instructions
+
+        user_preference = get_or_create_user_preference(self)
+        user_preference.assistant_name = name
+        self.db.add(user_preference)
+        self.db.commit()
+        refresh_system_instructions(self)
+
+        self._assistant_name = name
 
     @cached_property
     def config_path(self) -> Path:

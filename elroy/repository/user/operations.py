@@ -48,13 +48,8 @@ def set_assistant_name(ctx: ElroyContext, assistant_name: str) -> str:
     """
     Sets the assistant name for the user
     """
-    from ..context_messages.operations import refresh_system_instructions
 
-    user_preference = get_or_create_user_preference(ctx)
-    user_preference.assistant_name = assistant_name
-    ctx.db.add(user_preference)
-    ctx.db.commit()
-    refresh_system_instructions(ctx)
+    ctx.set_assistant_name(assistant_name)
     return f"Assistant name updated to {assistant_name}."
 
 

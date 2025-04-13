@@ -38,7 +38,7 @@ from .repository.goals.tools import add_goal_status_update as do_add_goal_status
 from .repository.goals.tools import mark_goal_completed as do_mark_goal_completed
 from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
-from .repository.user.operations import set_assistant_name, set_persona
+from .repository.user.operations import set_persona
 from .repository.user.queries import get_persona as do_get_persona
 
 T = TypeVar("T")
@@ -94,7 +94,7 @@ class Elroy:
                 set_persona(self.ctx, persona)
 
             if assistant_name:
-                set_assistant_name(self.ctx, assistant_name)
+                self.ctx.set_assistant_name(assistant_name)
 
     @db
     def create_goal(

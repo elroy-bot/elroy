@@ -1,5 +1,5 @@
 import enum
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, ParamSpec, TypeVar
 
 MEMORY_WORD_COUNT_LIMIT = 300
 
@@ -46,7 +46,11 @@ def tool(func: Callable) -> Callable:
     return tracer.tool(func)
 
 
-def user_only_tool(func: Callable) -> Callable:
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+def user_only_tool(func: Callable[P, T]) -> Callable[P, T]:
     setattr(func, "_is_user_only_tool", True)
     return func
 
