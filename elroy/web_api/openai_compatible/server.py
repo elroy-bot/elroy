@@ -160,39 +160,67 @@ async def auth_middleware(request: Request, call_next):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(
-    request: ChatCompletionRequest,
+    request: Request,  # Use raw request first
     provider: ElroyLiteLLMProvider = Depends(get_litellm_provider),
 ):
     """
-    OpenAI-compatible chat completions endpoint.
-
+    OpenAI-compatible chat completions endpoint with enhanced error handling.
+    
     This endpoint accepts requests in the same format as OpenAI's chat completions API
     and returns responses in the same format, but augmented with memories from Elroy.
     """
     try:
+        # Get the raw request body for debugging
+        body = await request.json()
+        logger.debug(f"Received chat completion request: {body}")
+        
+        # Parse into the model
+        try:
+            parsed_request = ChatCompletionRequest(**body)
+        except Exception as validation_error:
+            logger.error(f"Validation error: {validation_error}")
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                content={
+                    "error": {
+                        "message": f"Validation error: {str(validation_error)}",
+                        "type": "invalid_request_error",
+                        "param": None,
+                        "code": "invalid_request"
+                    }
+                }
+            )
+        
         # Convert Pydantic model to dict
-        messages = [message.dict(exclude_none=True) for message in request.messages]
-
+        messages = [message.dict(exclude_none=True) for message in parsed_request.messages]
+        
         # Extract parameters
-        params = request.dict(exclude={"messages", "model", "stream"})
-
+        params = parsed_request.dict(exclude={"messages", "model", "stream"})
+        
         # Handle streaming
-        if request.stream:
+        if parsed_request.stream:
             return StreamingResponse(
-                stream_chat_completion(provider, request.model, messages, params),
+                stream_chat_completion(provider, parsed_request.model, messages, params),
                 media_type="text/event-stream",
             )
-
+            
         # Handle non-streaming
-        response = provider.completion(request.model, messages, **params)
-
+        response = provider.completion(parsed_request.model, messages, **params)
+            
         # Return the response
         return response
     except Exception as e:
         logger.error(f"Error in chat completions: {e}")
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"error": {"message": str(e), "type": "internal_server_error"}},
+            content={
+                "error": {
+                    "message": str(e),
+                    "type": "internal_server_error",
+                    "param": None,
+                    "code": "internal_error"
+                }
+            }
         )
 
 
@@ -221,6 +249,33 @@ async def stream_chat_completion(provider, model, messages, params):
         error_json = {"error": {"message": str(e), "type": "internal_server_error"}}
         yield f"data: {error_json}\n\n"
         yield "data: [DONE]\n\n"
+
+
+@app.get("/v1/models")
+async def list_models():
+    """
+    OpenAI-compatible models endpoint.
+    
+    Returns a list of available models in OpenAI format.
+    """
+    # You can customize this list based on your available models
+    models = [
+        {
+            "id": "gpt-3.5-turbo",
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "elroy",
+        },
+        {
+            "id": "gpt-4",
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "elroy",
+        },
+        # Add other models you support
+    ]
+    
+    return {"object": "list", "data": models}
 
 
 @app.get("/")

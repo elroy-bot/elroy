@@ -143,6 +143,19 @@ class TestOpenAIEndpoints:
         assert "version" in data
         assert "description" in data
 
+    def test_models_endpoint(self, client):
+        """Test the models endpoint."""
+        response = client.get("/v1/models")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["object"] == "list"
+        assert "data" in data
+        assert len(data["data"]) > 0
+        assert "id" in data["data"][0]
+        assert "object" in data["data"][0]
+        assert "created" in data["data"][0]
+        assert "owned_by" in data["data"][0]
+
     def test_health_endpoint(self, client):
         """Test the health endpoint."""
         response = client.get("/health")
@@ -221,3 +234,8 @@ class TestOpenAIEndpoints:
 
         # Check the response
         assert response.status_code == 422  # Validation error
+        data = response.json()
+        assert "error" in data
+        assert "message" in data["error"]
+        assert "type" in data["error"]
+        assert data["error"]["type"] == "invalid_request_error"
