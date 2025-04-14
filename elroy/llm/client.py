@@ -27,11 +27,6 @@ logger = get_logger()
 
 
 def context_messages_to_dicts(context_messages: List[ContextMessage]) -> List[Dict[str, Any]]:
-    for m in context_messages:
-        if not isinstance(m, ContextMessage):
-            import pdb
-
-            pdb.set_trace()
 
     return pipe(
         context_messages,

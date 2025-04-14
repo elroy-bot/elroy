@@ -208,6 +208,18 @@ async def list_models():
             "created": int(time.time()),
             "owned_by": "elroy",
         },
+        {
+            "id": "gpt-4o",
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "elroy",
+        },
+        {
+            "id": "gpt-4o-mini",
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "elroy",
+        },
         # Add other models you support
     ]
 

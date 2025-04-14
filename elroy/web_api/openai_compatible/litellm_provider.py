@@ -220,11 +220,6 @@ class ElroyLiteLLMProvider(BaseLLM):
                     chat_model=self.ctx.chat_model.name,
                 )
             )
-        for m in ctx_msgs:
-            if not isinstance(m, ContextMessage):
-                import pdb
-
-                pdb.set_trace()
         return ctx_msgs
 
     def completion(self, model: str, raw_messages: List[Dict[str, Any]], **kwargs) -> Any:
