@@ -6,7 +6,7 @@ from litellm.llms.base import BaseLLM
 from ...core.constants import ASSISTANT, SYSTEM, USER
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...llm.client import _build_completion_kwargs
+from ...llm.client import _build_completion_kwargs, context_messages_to_dicts
 from ...repository.context_messages.data_models import ContextMessage
 from ...repository.context_messages.operations import add_context_messages
 from ...repository.context_messages.queries import get_context_messages
@@ -48,7 +48,7 @@ class ElroyLiteLLMProvider(BaseLLM):
         self.memory_creation_interval = memory_creation_interval
         self.max_memories_per_request = max_memories_per_request
 
-    def _get_augmented_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _get_augmented_messages(self, messages: List[ContextMessage]) -> List[ContextMessage]:
         """
         Augment the messages with relevant memories.
 
@@ -60,21 +60,14 @@ class ElroyLiteLLMProvider(BaseLLM):
         """
         # Extract the system message if present
         system_message = None
-        user_messages = []
+        user_messages = [m for m in messages if m.role == USER]
 
-        for msg in messages:
-            if msg["role"] == SYSTEM:
-                system_message = msg
-            elif msg["role"] == USER:
-                user_messages.append(msg["content"])
-
-        # If there are no user messages, no need to augment
         if not user_messages:
             return messages
 
         # Get relevant memories based on the last few user messages
         # Use the last 3 messages or all if fewer
-        query_text = " ".join(user_messages[-3:])
+        query_text = " ".join([m.content or "" for m in user_messages[-3:]])
         relevant_items = get_relevant_memories_and_goals(self.ctx, query_text)
 
         # Limit the number of memories to include
@@ -88,7 +81,7 @@ class ElroyLiteLLMProvider(BaseLLM):
         memory_context = []
         for item in relevant_items:
             memory_text = f"Relevant memory: {item.to_fact()}"
-            memory_context.append({"role": SYSTEM, "content": memory_text})
+            memory_context.append(ContextMessage(role=SYSTEM, content=memory_text, chat_model=self.ctx.chat_model.name))
 
         # Construct the augmented messages
         augmented_messages = []
@@ -102,12 +95,12 @@ class ElroyLiteLLMProvider(BaseLLM):
 
         # Add the rest of the messages
         for msg in messages:
-            if msg["role"] != SYSTEM:  # Skip system message as it's already added
+            if msg.role != SYSTEM:  # Skip system message as it's already added
                 augmented_messages.append(msg)
 
         return augmented_messages
 
-    def _track_conversation(self, messages: List[Dict[str, Any]]) -> None:
+    def _track_conversation(self, messages: List[ContextMessage]) -> None:
         """
         Track the conversation by storing messages and handling divergence.
 
@@ -121,15 +114,7 @@ class ElroyLiteLLMProvider(BaseLLM):
         existing_non_system = [m for m in existing_messages if m.role != SYSTEM]
 
         # Convert incoming messages to ContextMessage objects
-        new_messages = []
-        for msg in messages:
-            new_messages.append(
-                ContextMessage(
-                    role=msg["role"],
-                    content=msg.get("content"),
-                    chat_model=self.ctx.chat_model.name,
-                )
-            )
+        new_messages = messages
 
         # Handle divergence by comparing messages at the same position
         divergence_index = None
@@ -163,13 +148,15 @@ class ElroyLiteLLMProvider(BaseLLM):
                 messages_to_add = new_non_system[len(existing_non_system) :]
                 add_context_messages(self.ctx, messages_to_add)
 
-    def _create_memory_if_needed(self, messages: List[Dict[str, Any]]) -> None:
+    def _create_memory_if_needed(self, messages: List[Any]) -> None:
         """
         Create a memory from the conversation if needed.
 
         Args:
             messages: The messages from the request
         """
+
+        # TODO
         if not self.enable_memory_creation:
             return
 
@@ -210,7 +197,37 @@ class ElroyLiteLLMProvider(BaseLLM):
 
         return response
 
-    def completion(self, model: str, messages: List[Dict[str, Any]], **kwargs) -> Any:
+    def to_context_messages(self, messages: List[Dict[str, Any]]) -> List[ContextMessage]:
+        ctx_msgs = []
+        for msg in messages:
+            if type(msg["content"]) == str:
+                content = msg["content"].strip()
+            elif type(msg["content"]) == list:
+                content_text = []
+                for m in msg["content"]:
+                    if m["type"] == "text":
+                        content_text.append(m["text"])
+                    else:
+                        logger.warning("discarding non-text content of type: " + str(m["type"]))
+                content = "\n".join(content_text)
+            else:
+                raise ValueError(f"Unsupported message content type: {type(msg['content'])}")
+
+            ctx_msgs.append(
+                ContextMessage(
+                    role=msg["role"],
+                    content=content,
+                    chat_model=self.ctx.chat_model.name,
+                )
+            )
+        for m in ctx_msgs:
+            if not isinstance(m, ContextMessage):
+                import pdb
+
+                pdb.set_trace()
+        return ctx_msgs
+
+    def completion(self, model: str, raw_messages: List[Dict[str, Any]], **kwargs) -> Any:
         """
         Generate a non-streaming completion.
 
@@ -223,10 +240,11 @@ class ElroyLiteLLMProvider(BaseLLM):
             The completion response
         """
         # Track conversation
+        messages = self.to_context_messages(raw_messages)
         self._track_conversation(messages)
 
         # Augment messages with memories
-        augmented_messages = self._get_augmented_messages(messages)
+        augmented_messages: List[Dict] = context_messages_to_dicts(self._get_augmented_messages(messages))
 
         # Build completion kwargs
         completion_kwargs = _build_completion_kwargs(
@@ -248,7 +266,7 @@ class ElroyLiteLLMProvider(BaseLLM):
         # Prepare and return the response
         return self._prepare_response(response, model)
 
-    def streaming(self, model: str, messages: List[Dict[str, Any]], **kwargs) -> Iterator[Any]:
+    def streaming(self, model: str, raw_messages: List[Dict[str, Any]], **kwargs) -> Iterator[Any]:
         """
         Generate a streaming completion.
 
@@ -261,10 +279,11 @@ class ElroyLiteLLMProvider(BaseLLM):
             An iterator of streaming chunks
         """
         # Track conversation
+        messages = self.to_context_messages(raw_messages)
         self._track_conversation(messages)
 
         # Augment messages with memories
-        augmented_messages = self._get_augmented_messages(messages)
+        augmented_messages = context_messages_to_dicts(self._get_augmented_messages(messages))
 
         # Build completion kwargs
         completion_kwargs = _build_completion_kwargs(
@@ -296,7 +315,7 @@ class ElroyLiteLLMProvider(BaseLLM):
             except Exception as e:
                 logger.error(f"Error in memory creation: {e}")
 
-    async def acompletion(self, model: str, messages: List[Dict[str, Any]], **kwargs) -> Any:
+    async def acompletion(self, model: str, raw_messages: List[Dict[str, Any]], **kwargs) -> Any:
         """
         Generate an async non-streaming completion.
 
@@ -309,10 +328,11 @@ class ElroyLiteLLMProvider(BaseLLM):
             The completion response
         """
         # Track conversation
+        messages = self.to_context_messages(raw_messages)
         self._track_conversation(messages)
 
         # Augment messages with memories
-        augmented_messages = self._get_augmented_messages(messages)
+        augmented_messages = context_messages_to_dicts(self._get_augmented_messages(messages))
 
         # Build completion kwargs
         completion_kwargs = _build_completion_kwargs(
@@ -334,7 +354,7 @@ class ElroyLiteLLMProvider(BaseLLM):
         # Prepare and return the response
         return self._prepare_response(response, model)
 
-    async def astreaming(self, model: str, messages: List[Dict[str, Any]], **kwargs) -> AsyncIterator[Any]:
+    async def astreaming(self, model: str, raw_messages: List[Dict[str, Any]], **kwargs) -> AsyncIterator[Any]:
         """
         Generate an async streaming completion.
 
@@ -347,10 +367,12 @@ class ElroyLiteLLMProvider(BaseLLM):
             An async iterator of streaming chunks
         """
         # Track conversation
+
+        messages = self.to_context_messages(raw_messages)
         self._track_conversation(messages)
 
         # Augment messages with memories
-        augmented_messages = self._get_augmented_messages(messages)
+        augmented_messages = context_messages_to_dicts(self._get_augmented_messages(messages))
 
         # Build completion kwargs
         completion_kwargs = _build_completion_kwargs(

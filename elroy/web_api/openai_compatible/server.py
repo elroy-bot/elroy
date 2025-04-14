@@ -1,22 +1,19 @@
-import logging
 import os
 import time
 from typing import Any, Dict, Generator, List, Optional, Union
 
-from fastapi.exceptions import RequestValidationError
-from litellm import AllMessageValues
 import uvicorn
-from fastapi import Body, Depends, FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from litellm import AllMessageValues
 from pydantic import BaseModel
+from toolz import dissoc
 
 from ...cli.options import get_resolved_params
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...core.session import dbsession
-from ...db.db_manager import get_db_manager
-from ...db.db_session import DbSession
 from .litellm_provider import ElroyLiteLLMProvider
 
 logger = get_logger()
@@ -90,6 +87,7 @@ def get_litellm_provider(ctx: ElroyContext = Depends(get_elroy_context)) -> Elro
         max_memories_per_request=MAX_MEMORIES_PER_REQUEST,
     )
 
+
 def verify_api_key(request: Request) -> bool:
     """Verify the API key if authentication is enabled."""
     if not ENABLE_AUTH:
@@ -121,7 +119,7 @@ async def auth_middleware(request: Request, call_next):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(
-    request_data: ChatCompletionRequest = Body(...),
+    request: Request,
     provider: ElroyLiteLLMProvider = Depends(get_litellm_provider),
 ):
     """
@@ -130,23 +128,25 @@ async def chat_completions(
     This endpoint accepts requests in the same format as OpenAI's chat completions API
     and returns responses in the same format, but augmented with memories from Elroy.
     """
+
     with dbsession(provider.ctx):
         try:
+            body = await request.json()
             # Convert Pydantic model to dict
-            messages = [dict(m) for m in request_data.messages]
+            messages = body.get("messages")
 
             # Extract parameters
-            params = request_data.model_dump(exclude={"messages", "model", "stream"})
+            params = dissoc(body, "messages", "model", "stream")
 
             # Handle streaming
-            if request_data.stream:
+            if body.get("stream"):
                 return StreamingResponse(
-                    stream_chat_completion(provider, request_data.model, messages, params),
+                    stream_chat_completion(provider, body.get("model"), messages, params),
                     media_type="text/event-stream",
                 )
 
             # Handle non-streaming
-            response = provider.completion(request_data.model, messages, **params)
+            response = provider.completion(body.get("model"), messages, **params)
 
             # Return the response
             return response
@@ -180,7 +180,8 @@ async def stream_chat_completion(provider, model, messages, params):
             # End the stream
             yield "data: [DONE]\n\n"
         except Exception as e:
-            logger.error(f"Error in streaming: {e}")
+            logger.error(f"Error in streaming: {e}", exc_info=True)
+
             error_json = {"error": {"message": str(e), "type": "internal_server_error"}}
             yield f"data: {error_json}\n\n"
             yield "data: [DONE]\n\n"
