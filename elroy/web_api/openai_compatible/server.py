@@ -3,7 +3,7 @@ import time
 from typing import Any, Dict, Generator, List, Optional, Union
 
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Body, Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
@@ -87,36 +87,6 @@ def get_elroy_context(db: DbSession = Depends(get_db_session)) -> Generator[Elro
     ctx = ElroyContext(use_background_threads=False, **params)
     with dbsession(ctx):
         yield ctx
-    #     database_url=os.environ.get("DATABASE_URL", "sqlite:///elroy.db"),
-    #     show_internal_thought=True,
-    #     system_message_color="blue",
-    #     assistant_color="green",
-    #     user_input_color="yellow",
-    #     warning_color="red",
-    #     internal_thought_color="magenta",
-    #     user_token="openai-api-user",
-    #     chat_model=os.environ.get("CHAT_MODEL", "gpt-3.5-turbo"),
-    #     embedding_model="text-embedding-ada-002",
-    #     embedding_model_size=1536,
-    #     max_assistant_loops=10,
-    #     max_tokens=4000,
-    #     max_context_age_minutes=60,
-    #     min_convo_age_for_greeting_minutes=5,
-    #     memory_cluster_similarity_threshold=0.7,
-    #     max_memory_cluster_size=10,
-    #     min_memory_cluster_size=2,
-    #     memories_between_consolidation=5,
-    #     messages_between_memory=10,
-    #     l2_memory_relevance_distance_threshold=RELEVANCE_THRESHOLD,
-    #     debug=False,
-    #     default_assistant_name="Elroy",
-    #     use_background_threads=True,
-    #     max_ingested_doc_lines=1000,
-    #     reflect=True,
-    # )
-
-    # Set the database session
-    # ctx.set_db_session(db)
 
 
 def get_litellm_provider(ctx: ElroyContext = Depends(get_elroy_context)) -> ElroyLiteLLMProvider:
@@ -160,67 +130,64 @@ async def auth_middleware(request: Request, call_next):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(
-    request: Request,  # Use raw request first
+    request_data: ChatCompletionRequest = Body(...),
     provider: ElroyLiteLLMProvider = Depends(get_litellm_provider),
 ):
     """
     OpenAI-compatible chat completions endpoint with enhanced error handling.
-    
+
     This endpoint accepts requests in the same format as OpenAI's chat completions API
     and returns responses in the same format, but augmented with memories from Elroy.
     """
     try:
         # Get the raw request body for debugging
-        body = await request.json()
-        logger.debug(f"Received chat completion request: {body}")
-        
-        # Parse into the model
-        try:
-            parsed_request = ChatCompletionRequest(**body)
-        except Exception as validation_error:
-            logger.error(f"Validation error: {validation_error}")
-            return JSONResponse(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                content={
-                    "error": {
-                        "message": f"Validation error: {str(validation_error)}",
-                        "type": "invalid_request_error",
-                        "param": None,
-                        "code": "invalid_request"
-                    }
-                }
-            )
-        
+        # body = await request_data.json()
+
+        # logger.debug(f"Received chat completion request: {body}")
+
+        # # Parse into the model
+        # try:
+        #     import pdb; pdb.set_trace()
+        #     body['messages'] = [ChatCompletionMessage(**message) for message in body.get('messages', [])]
+
+        #     parsed_request = ChatCompletionRequest(**body)
+        # except Exception as validation_error:
+        #     logger.error(f"Validation error: {validation_error}")
+        #     return JSONResponse(
+        #         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        #         content={
+        #             "error": {
+        #                 "message": f"Validation error: {str(validation_error)}",
+        #                 "type": "invalid_request_error",
+        #                 "param": None,
+        #                 "code": "invalid_request"
+        #             }
+        #         }
+        #     )
+
         # Convert Pydantic model to dict
-        messages = [message.dict(exclude_none=True) for message in parsed_request.messages]
-        
+        messages = [message.model_dump(exclude_none=True) for message in request_data.messages]
+
         # Extract parameters
-        params = parsed_request.dict(exclude={"messages", "model", "stream"})
-        
+        params = request_data.model_dump(exclude={"messages", "model", "stream"})
+
         # Handle streaming
-        if parsed_request.stream:
+        if request_data.stream:
             return StreamingResponse(
-                stream_chat_completion(provider, parsed_request.model, messages, params),
+                stream_chat_completion(provider, request_data.model, messages, params),
                 media_type="text/event-stream",
             )
-            
+
         # Handle non-streaming
-        response = provider.completion(parsed_request.model, messages, **params)
-            
+        response = provider.completion(request_data.model, messages, **params)
+
         # Return the response
         return response
     except Exception as e:
         logger.error(f"Error in chat completions: {e}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "error": {
-                    "message": str(e),
-                    "type": "internal_server_error",
-                    "param": None,
-                    "code": "internal_error"
-                }
-            }
+            content={"error": {"message": str(e), "type": "internal_server_error", "param": None, "code": "internal_error"}},
         )
 
 
@@ -255,7 +222,7 @@ async def stream_chat_completion(provider, model, messages, params):
 async def list_models():
     """
     OpenAI-compatible models endpoint.
-    
+
     Returns a list of available models in OpenAI format.
     """
     # You can customize this list based on your available models
@@ -274,7 +241,7 @@ async def list_models():
         },
         # Add other models you support
     ]
-    
+
     return {"object": "list", "data": models}
 
 
