@@ -1,7 +1,10 @@
+import logging
 import os
 import time
 from typing import Any, Dict, Generator, List, Optional, Union
 
+from fastapi.exceptions import RequestValidationError
+from litellm import AllMessageValues
 import uvicorn
 from fastapi import Body, Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,16 +47,15 @@ MAX_MEMORIES_PER_REQUEST = int(os.environ.get("MAX_MEMORIES_PER_REQUEST", "5"))
 RELEVANCE_THRESHOLD = float(os.environ.get("RELEVANCE_THRESHOLD", "0.7"))
 
 
-class ChatCompletionMessage(BaseModel):
-    role: str
-    content: Optional[str] = None
-    name: Optional[str] = None
-    tool_calls: Optional[List[Dict[str, Any]]] = None
+class ContentBlock(BaseModel):
+    type: str
+    text: Optional[str] = None
+    image_url: Optional[Dict[str, str]] = None
 
 
 class ChatCompletionRequest(BaseModel):
     model: str
-    messages: List[ChatCompletionMessage]
+    messages: List[AllMessageValues]
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 1.0
     n: Optional[int] = 1
@@ -68,19 +70,7 @@ class ChatCompletionRequest(BaseModel):
     tool_choice: Optional[Union[str, Dict[str, Any]]] = None
 
 
-def get_db_session() -> DbSession:
-    """Get a database session."""
-    # Get database URL from environment or use a default
-    database_url = os.environ.get("DATABASE_URL", "sqlite:///elroy.db")
-
-    # Get a database manager
-    db_manager = get_db_manager(database_url)
-
-    # Open a session
-    return db_manager.open_session().__enter__()
-
-
-def get_elroy_context(db: DbSession = Depends(get_db_session)) -> Generator[ElroyContext, Any, None]:
+def get_elroy_context() -> Generator[ElroyContext, Any, None]:
     """Get an Elroy context."""
     # Create a basic ElroyContext with default parameters
     params = get_resolved_params()
@@ -91,13 +81,14 @@ def get_elroy_context(db: DbSession = Depends(get_db_session)) -> Generator[Elro
 
 def get_litellm_provider(ctx: ElroyContext = Depends(get_elroy_context)) -> ElroyLiteLLMProvider:
     """Get an ElroyLiteLLMProvider instance."""
+    params = get_resolved_params()
+    ctx = ElroyContext(use_background_threads=False, **params)
     return ElroyLiteLLMProvider(
         ctx=ctx,
         enable_memory_creation=ENABLE_MEMORY_CREATION,
         memory_creation_interval=MEMORY_CREATION_INTERVAL,
         max_memories_per_request=MAX_MEMORIES_PER_REQUEST,
     )
-
 
 def verify_api_key(request: Request) -> bool:
     """Verify the API key if authentication is enabled."""
@@ -139,56 +130,32 @@ async def chat_completions(
     This endpoint accepts requests in the same format as OpenAI's chat completions API
     and returns responses in the same format, but augmented with memories from Elroy.
     """
-    try:
-        # Get the raw request body for debugging
-        # body = await request_data.json()
+    with dbsession(provider.ctx):
+        try:
+            # Convert Pydantic model to dict
+            messages = [dict(m) for m in request_data.messages]
 
-        # logger.debug(f"Received chat completion request: {body}")
+            # Extract parameters
+            params = request_data.model_dump(exclude={"messages", "model", "stream"})
 
-        # # Parse into the model
-        # try:
-        #     import pdb; pdb.set_trace()
-        #     body['messages'] = [ChatCompletionMessage(**message) for message in body.get('messages', [])]
+            # Handle streaming
+            if request_data.stream:
+                return StreamingResponse(
+                    stream_chat_completion(provider, request_data.model, messages, params),
+                    media_type="text/event-stream",
+                )
 
-        #     parsed_request = ChatCompletionRequest(**body)
-        # except Exception as validation_error:
-        #     logger.error(f"Validation error: {validation_error}")
-        #     return JSONResponse(
-        #         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        #         content={
-        #             "error": {
-        #                 "message": f"Validation error: {str(validation_error)}",
-        #                 "type": "invalid_request_error",
-        #                 "param": None,
-        #                 "code": "invalid_request"
-        #             }
-        #         }
-        #     )
+            # Handle non-streaming
+            response = provider.completion(request_data.model, messages, **params)
 
-        # Convert Pydantic model to dict
-        messages = [message.model_dump(exclude_none=True) for message in request_data.messages]
-
-        # Extract parameters
-        params = request_data.model_dump(exclude={"messages", "model", "stream"})
-
-        # Handle streaming
-        if request_data.stream:
-            return StreamingResponse(
-                stream_chat_completion(provider, request_data.model, messages, params),
-                media_type="text/event-stream",
+            # Return the response
+            return response
+        except Exception as e:
+            logger.error(f"Error in chat completions: {e}")
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"error": {"message": str(e), "type": "internal_server_error", "param": None, "code": "internal_error"}},
             )
-
-        # Handle non-streaming
-        response = provider.completion(request_data.model, messages, **params)
-
-        # Return the response
-        return response
-    except Exception as e:
-        logger.error(f"Error in chat completions: {e}")
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"error": {"message": str(e), "type": "internal_server_error", "param": None, "code": "internal_error"}},
-        )
 
 
 async def stream_chat_completion(provider, model, messages, params):
@@ -204,18 +171,19 @@ async def stream_chat_completion(provider, model, messages, params):
     Yields:
         Streaming response chunks in the SSE format
     """
-    try:
-        for chunk in provider.streaming(model, messages, **params):
-            # Convert chunk to JSON and yield in SSE format
-            yield f"data: {chunk}\n\n"
+    with dbsession(provider.ctx):
+        try:
+            for chunk in provider.streaming(model, messages, **params):
+                # Convert chunk to JSON and yield in SSE format
+                yield f"data: {chunk}\n\n"
 
-        # End the stream
-        yield "data: [DONE]\n\n"
-    except Exception as e:
-        logger.error(f"Error in streaming: {e}")
-        error_json = {"error": {"message": str(e), "type": "internal_server_error"}}
-        yield f"data: {error_json}\n\n"
-        yield "data: [DONE]\n\n"
+            # End the stream
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            logger.error(f"Error in streaming: {e}")
+            error_json = {"error": {"message": str(e), "type": "internal_server_error"}}
+            yield f"data: {error_json}\n\n"
+            yield "data: [DONE]\n\n"
 
 
 @app.get("/v1/models")
