@@ -20,7 +20,7 @@ model_list:
 
 - model_name: claude-3.5-sonnet-20241022
   litellm_params:
-    model: claude-3.5-sonnet-20241022
+    model: anthropic/claude-3.5-sonnet-20241022
     api_key: os.environ/ANTHROPIC_API_KEY
 - model_name: "gemini-2.0-flash-exp"
   litellm_params:
