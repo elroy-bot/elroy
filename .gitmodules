@@ -1,0 +1,3 @@
+[submodule "scripts/benchmarking/LongBench"]
+	path = scripts/benchmarking/LongBench
+	url = https://github.com/elroy-bot/LongBench.git

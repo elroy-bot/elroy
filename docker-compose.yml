@@ -1,62 +1,31 @@
 services:
-  db:
-    image: ankane/pgvector:v0.5.1
-    container_name: elroy_psql
-    environment:
-      - POSTGRES_USER=elroy
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=elroy
-    volumes:
-      - elroy_postgres-data:/var/lib/postgresql/data
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
     ports:
-      - "5432:5432"
-    command:
-      - "postgres"
-      - "-c"
-      - "shared_preload_libraries=vector"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U elroy"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  elroy:
-    container_name: elroy
-    build:
-      context: .
-      dockerfile: Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy
+      - "4000:4000"
     environment:
-      - ELROY_DATABASE_URL=postgresql://elroy:password@db:5432/elroy
-      - PYTHONPATH=/app
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AZURE_API_KEY=${AZURE_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    stdin_open: true
-    tty: true
-    entrypoint: ["elroy"]
-    command: []
-
-
-  elroy-dev:
-    container_name: elroy-dev
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      - ELROY_DATABASE_URL=postgresql://elroy:password@db:5432/elroy
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    stdin_open: true
-    tty: true
-    # Uncomment these 2 lines to add docker socket support to run nested dockers
-    # volumes:
-    # - /var/run/docker.sock:/var/run/docker.sock
+      - redis
+    command: ["--config", "/app/config.yaml"]
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass password --appendonly yes --save 900 1 --save 300 10 --save 60 10000
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
 
 volumes:
-  elroy_postgres-data:
-    name: elroy_postgres-data
+  redis_data:
+  benchmarking_postgres-data:
+  phoenixdata:
