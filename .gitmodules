@@ -1,3 +1,6 @@
 [submodule "scripts/benchmarking/LongBench"]
 	path = scripts/benchmarking/LongBench
 	url = https://github.com/elroy-bot/LongBench.git
+[submodule "scripts/benchmarking/LongMemEval"]
+	path = scripts/benchmarking/LongMemEval
+	url = https://github.com/elroy-bot/LongMemEval.git

@@ -15,7 +15,7 @@ from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, SourceDocument
 from ...llm.client import query_llm
 from ...utils.clock import utc_now
-from ..memories.operations import do_create_memory
+from ..memories.operations import do_create_op_tracked_memory, get_or_create_memory_op_tracker
 from ..recall.operations import upsert_embedding_if_needed
 from .queries import get_source_doc_by_address, get_source_doc_excerpts
 
@@ -109,13 +109,14 @@ def do_ingest_dir(
         raise RecoverableToolError(f"{directory} is not a directory.")
 
     if recursive:
-        file_paths = recursive_file_walk(directory, include, exclude)
+        file_paths = list(recursive_file_walk(directory, include, exclude))
     else:
-        file_paths = (Path(os.path.join(directory, f)) for f in os.listdir(directory) if should_process_file(Path(f), include, exclude))
+        file_paths = list(Path(os.path.join(directory, f)) for f in os.listdir(directory) if should_process_file(Path(f), include, exclude))
 
     results = {}
 
-    for file_path in file_paths:
+    for idx, file_path in enumerate(file_paths):
+        logger.info(f"Processing file {idx + 1} of {len(file_paths)}: {file_path}")
         try:
             result = do_ingest(ctx, file_path, force_refresh)
             results[result] = results.get(result, 0) + 1
@@ -220,11 +221,12 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
 
         logger.info(f"Creating memory from excerpt of document {address} (chunk {chunk.chunk_index})")
 
-        do_create_memory(
+        do_create_op_tracked_memory(
             ctx,
             title,
             chunk.content,
             [doc_excerpt],
+            get_or_create_memory_op_tracker(ctx),
             True,
         )
     return DocIngestResult.SUCCESS if not doc_was_updated else DocIngestResult.UPDATED
