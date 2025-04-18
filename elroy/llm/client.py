@@ -44,6 +44,8 @@ def generate_chat_completion_message(
     if force_tool and not enable_tools:
         logging.error("Force tool requested, but tools are disabled. Ignoring force tool request")
         force_tool = None
+    if force_tool and not tool_schemas:
+        raise ValueError(f"Requested tool {force_tool}, but no tools available")
 
     from litellm import completion
     from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
@@ -80,8 +82,7 @@ def generate_chat_completion_message(
                 message["role"] = USER
                 message["content"] = f"{USER_HIDDEN_PREFIX} {message['content']}"
 
-    if enable_tools:
-
+    if enable_tools and tool_schemas and len(tool_schemas) > 0:
         if force_tool:
             if len(tool_schemas) == 0:
                 raise InvalidForceToolError(f"Requested tool {force_tool}, but not tools available")

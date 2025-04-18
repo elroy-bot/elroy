@@ -3,6 +3,7 @@ user_token: DEFAULT  # User token to use for Elroy
 database_url: null  # Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed
 debug: false  # Enable fail-fast error handling and verbose logging output
 default_assistant_name: "Elroy"  # Default name for the assistant
+include_base_tools: true # Whether to include base tools of the assistant. Note: Memories will still be formed base on context window management.
 custom_tools_path: null  # Path to custom functions to load
 inline_tool_calls: false  # Whether to enable inline tool calls in the assistant (better for some open source models)
 max_ingested_doc_lines: 1000 # Maximum number of lines to ingest from a document. If a document has more lines, it will be ignored.

@@ -2,6 +2,7 @@ import pytest
 from tests.utils import process_test_message
 
 from elroy.core.constants import InvalidForceToolError
+from elroy.repository.memories.queries import get_active_memories
 from elroy.repository.user.queries import do_get_user_preferred_name
 from elroy.repository.user.tools import set_user_preferred_name
 
@@ -30,3 +31,15 @@ def test_force_tool(ctx):
 def test_force_invalid_tool(ctx):
     with pytest.raises(InvalidForceToolError):
         process_test_message(ctx, "Jimmy", "invalid_tool")
+
+
+def test_no_base_tools(ctx):
+    ctx.include_base_tools = False
+
+    process_test_message(ctx, "Please create a memory: today I went swimming")
+    assert len(get_active_memories(ctx)) == 0
+
+
+def test_base_tools(ctx):
+    process_test_message(ctx, "Please create a memory: today I went swimming")
+    assert len(get_active_memories(ctx)) == 1
