@@ -1,3 +1,4 @@
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from functools import cached_property
@@ -78,7 +79,11 @@ class ElroyContext:
         exclude_tools: List[str] = [],  # Tools to exclude from the tool registry
         include_base_tools: bool,
         reflect: bool,
+        shell_commands: bool,
+        allowed_shell_command_prefixes: List[str],
     ):
+        self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in allowed_shell_command_prefixes]
+        self.shell_commands = shell_commands
 
         self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
 
@@ -145,6 +150,8 @@ class ElroyContext:
             self.include_base_tools,
             self.params.custom_tools_path,
             exclude_tools=self.params.exclude_tools,
+            shell_commands=self.shell_commands,
+            allowed_shell_command_prefixes=self.allowed_shell_command_prefixes,
         )
         registry.register_all()
         return registry

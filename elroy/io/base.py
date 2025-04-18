@@ -36,13 +36,13 @@ class ElroyIO:
 
     def info(self, message: Union[str, RenderableType]):
         if isinstance(message, str):
-            self.print(SystemInfo(message))
+            self.print(SystemInfo(content=message))
         else:
             self.print(message)
 
     def warning(self, message: Union[str, RenderableType]):
         if isinstance(message, str):
-            self.print(SystemWarning(message))
+            self.print(SystemWarning(content=message))
         else:
             self.print(message)
 

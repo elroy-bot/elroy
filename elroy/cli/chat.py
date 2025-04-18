@@ -59,9 +59,9 @@ def handle_message_stdio(
         onboard_non_interactive(ctx)
     io.print_stream(
         process_message(
-            USER,
-            ctx,
-            message,
+            role=USER,
+            ctx=ctx,
+            msg=message,
             force_tool=force_tool,
         )
     )
@@ -170,7 +170,14 @@ def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input:
             ctx.db.rollback()
     else:
         try:
-            stream_to_print, stream_to_collect = tee(process_message(role, ctx, user_input, enable_tools))
+            stream_to_print, stream_to_collect = tee(
+                process_message(
+                    role=role,
+                    ctx=ctx,
+                    msg=user_input,
+                    enable_tools=enable_tools,
+                )
+            )
 
             io.print_stream(stream_to_print)
             return collect(stream_to_collect)

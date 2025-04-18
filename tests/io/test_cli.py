@@ -10,5 +10,5 @@ def test_empty_output(rich_formatter):
 
 
 def test_non_empty_output(io: MockCliIO):
-    io.print_stream(iter([SystemInfo("Hello, world!")]))
+    io.print_stream(iter([SystemInfo(content="Hello, world!")]))
     assert io.get_sys_messages() == "Hello, world!"

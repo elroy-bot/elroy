@@ -2,6 +2,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
 
+from pydantic import BaseModel
 from toolz import concat, pipe
 from toolz.curried import filter, map
 
@@ -17,7 +18,6 @@ from .io.formatters.plain_formatter import PlainFormatter
 from .llm.stream_parser import (
     AssistantInternalThought,
     AssistantToolResult,
-    TextOutput,
     collect,
 )
 from .messenger.messenger import process_message
@@ -261,7 +261,13 @@ class Elroy:
         """
 
         return pipe(
-            process_message(USER, self.ctx, input, enable_tools, force_tool),
+            process_message(
+                role=USER,
+                ctx=self.ctx,
+                msg=input,
+                enable_tools=enable_tools,
+                force_tool=force_tool,
+            ),
             collect,
             filter(self._should_return_chunk),
             map(self.formatter.format),
@@ -370,11 +376,16 @@ class Elroy:
         Returns:
             Generator[str, None, None]: Generator yielding response chunks
         """
-        for chunk in process_message(USER, self.ctx, input, enable_tools):
+        for chunk in process_message(
+            role=USER,
+            ctx=self.ctx,
+            msg=input,
+            enable_tools=enable_tools,
+        ):
             if self._should_return_chunk(chunk):
                 yield from self.formatter.format(chunk)
 
-    def _should_return_chunk(self, chunk: Union[TextOutput, FunctionCall]):
+    def _should_return_chunk(self, chunk: BaseModel):
         """filter for whether assistant output chunks should be returned to caller"""
 
         if isinstance(chunk, AssistantInternalThought):

@@ -1,6 +1,7 @@
-from typing import List, Union
+from typing import List
 
 from litellm.types.utils import Delta, ModelResponse, StreamingChoices
+from pydantic import BaseModel
 
 from elroy.config.llm import ChatModel
 from elroy.core.constants import Provider
@@ -10,7 +11,6 @@ from elroy.llm.stream_parser import (
     AssistantResponse,
     CodeBlock,
     StreamParser,
-    TextOutput,
     collect,
 )
 
@@ -28,7 +28,7 @@ def text_to_model_response(text: str) -> ModelResponse:
     return ModelResponse(choices=[StreamingChoices(delta=Delta(content=text))])
 
 
-def parse(chunks: List[str]) -> List[Union[TextOutput, FunctionCall]]:
+def parse(chunks: List[str]) -> List[BaseModel]:
     parser = StreamParser(
         CHAT_MODEL,
         iter([text_to_model_response(chunk) for chunk in chunks]),
@@ -58,26 +58,28 @@ def test_single_char_chunks():
 
 
 def test_no_tags():
-    assert parse(list("Just some normal text with no special tags.")) == [AssistantResponse("Just some normal text with no special tags.")]
+    assert parse(list("Just some normal text with no special tags.")) == [
+        AssistantResponse(content="Just some normal text with no special tags.")
+    ]
 
 
 def test_hanging_tags():
-    assert parse(list("<internal_thou>This is a thought")) == [AssistantResponse("<internal_thou>This is a thought")]
+    assert parse(list("<internal_thou>This is a thought")) == [AssistantResponse(content="<internal_thou>This is a thought")]
 
 
 def test_tricky_tags():
     response = parse(list("<<internal_thought>>This is a thought</internal_thought><Some normal text."))
 
     assert response == [
-        AssistantResponse("<"),
-        AssistantInternalThought(">This is a thought"),
-        AssistantResponse("<Some normal text."),
+        AssistantResponse(content="<"),
+        AssistantInternalThought(content=">This is a thought"),
+        AssistantResponse(content="<Some normal text."),
     ]
 
 
 def test_unknown_tags():
     assert parse(["<unknown_tag>", "Should be treated as normal text", "</unknown_tag>"]) == [
-        AssistantResponse("<unknown_tag>Should be treated as normal text</unknown_tag>")
+        AssistantResponse(content="<unknown_tag>Should be treated as normal text</unknown_tag>")
     ]
 
 
@@ -92,23 +94,23 @@ def test_interleaved_tags_and_text():
             "More text",
         ]
     ) == [
-        AssistantInternalThought("Thought 1"),
-        AssistantResponse("Normal text"),
-        AssistantInternalThought("Thought 2"),
-        AssistantResponse("More text"),
+        AssistantInternalThought(content="Thought 1"),
+        AssistantResponse(content="Normal text"),
+        AssistantInternalThought(content="Thought 2"),
+        AssistantResponse(content="More text"),
     ]
 
 
 def test_incomplete_tags():
     assert parse(["<internal_thought>This is a thought", " and it continues"]) == [
-        AssistantInternalThought("This is a thought and it continues")
+        AssistantInternalThought(content="This is a thought and it continues")
     ]
 
 
 def test_misnested_tags():
     resp = parse(["<internal_thought><internal_thought>Some text</another_tag></internal_thought>"])
 
-    assert resp == [AssistantInternalThought("<internal_thought>Some text</another_tag>")]
+    assert resp == [AssistantInternalThought(content="<internal_thought>Some text</another_tag>")]
 
 
 def test_inline_tool_call():
@@ -148,9 +150,9 @@ def test_internal_thought_and_tool():
     output = parse([input])
     assert len(output) == 3
 
-    assert output[0] == AssistantInternalThought("I should call a tool")
+    assert output[0] == AssistantInternalThought(content="I should call a tool")
     assert isinstance(output[1], FunctionCall)
-    assert output[2] == AssistantResponse("Did the tool call work?")
+    assert output[2] == AssistantResponse(content="Did the tool call work?")
 
 
 def test_internal_thought_and_tool_iter():
@@ -164,16 +166,16 @@ def test_internal_thought_and_tool_iter():
     output = parse(list(input))
     assert len(output) == 3
 
-    assert output[0] == AssistantInternalThought("I should call a tool")
+    assert output[0] == AssistantInternalThought(content="I should call a tool")
     assert isinstance(output[1], FunctionCall)
-    assert output[2] == AssistantResponse("Did the tool call work?")
+    assert output[2] == AssistantResponse(content="Did the tool call work?")
 
 
 def test_think_tag():
     input = "<think>Using alternative tag</think>"
     output = parse(list(input))
     assert len(output) == 1
-    assert output[0] == AssistantInternalThought("Using alternative tag")
+    assert output[0] == AssistantInternalThought(content="Using alternative tag")
 
 
 def test_empty_tag():
@@ -192,7 +194,10 @@ def test_strips_internal_thought_whitespace():
     </internal_thought>This is the message"""
         )
     )
-    assert output == [AssistantInternalThought("This is a thought"), AssistantResponse("This is the message")]
+    assert output == [
+        AssistantInternalThought(content="This is a thought"),
+        AssistantResponse(content="This is the message"),
+    ]
 
 
 def test_strips_assistant_msg_whitespace():
@@ -209,7 +214,10 @@ def test_strips_assistant_msg_whitespace():
     """
         )
     )
-    assert output == [AssistantInternalThought("This is a thought"), AssistantResponse("This is the message")]
+    assert output == [
+        AssistantInternalThought(content="This is a thought"),
+        AssistantResponse(content="This is the message"),
+    ]
 
 
 def test_code_block_standard_format():
