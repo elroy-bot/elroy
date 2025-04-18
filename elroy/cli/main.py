@@ -84,6 +84,11 @@ def common(
         show_default=False,
         rich_help_panel="Basic Configuration",
     ),
+    include_base_tools: bool = ElroyOption(
+        "include_base_tools",
+        help="Whether to load base tools from the Elroy package",
+        rich_help_panel="Basic Configuration",
+    ),
     # Database Configuration
     database_url: Optional[str] = ElroyOption(
         "database_url",

@@ -1,4 +1,4 @@
-from ...core.constants import tool
+from ...core.constants import AutocompleteType, autocomplete, tool
 from ...core.ctx import ElroyContext
 from ...db.db_models import Goal, Memory
 
@@ -35,6 +35,7 @@ def add_goal_to_current_context(ctx: ElroyContext, goal_name: str) -> str:
 
 
 @tool
+@autocomplete(AutocompleteType.IN_CONTEXT_GOALS)
 def drop_goal_from_current_context(ctx: ElroyContext, goal_name: str) -> str:
     """Drops the goal with the given name from current context. Does NOT delete or mark the goal completed.
 

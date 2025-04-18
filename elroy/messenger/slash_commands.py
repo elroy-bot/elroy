@@ -15,7 +15,7 @@ from ..llm.stream_parser import (
     AssistantResponse,
     AssistantToolResult,
 )
-from ..tools.tools_and_commands import SYSTEM_COMMANDS, get_help
+from ..tools.tools_and_commands import get_help
 
 logger = get_logger()
 
@@ -37,7 +37,7 @@ def invoke_slash_command(
     if command == "help":
         func = get_help
     else:
-        func = next((f for f in SYSTEM_COMMANDS if f.__name__ == command), None)
+        func = ctx.tool_registry.tools.get(command)
 
     try:
 
