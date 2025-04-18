@@ -17,11 +17,11 @@ from toolz.curried import map
 from elroy.io.completer import SlashCompleter
 
 from ..config.paths import get_prompt_history_path
-from ..core.constants import EXIT
+from ..core.constants import EXIT, AssistantCommandAuthDeniedError
 from ..core.logging import get_logger
 from ..db.db_models import Goal, Memory
 from ..io.base import ElroyIO
-from ..llm.stream_parser import AssistantInternalThought, TextOutput
+from ..llm.stream_parser import ApprovalRequest, AssistantInternalThought, TextOutput
 from ..repository.context_messages.data_models import ContextMessage
 from .formatters.base import ElroyPrintable
 from .formatters.rich_formatter import RichFormatter
@@ -76,13 +76,21 @@ class CliIO(ElroyIO):
                 self.print(first_msg, end="")
             for message in messages:
                 self.print(message, end="")
-        except KeyboardInterrupt:
-            pass
+        except (KeyboardInterrupt, AssistantCommandAuthDeniedError):
+            return
         finally:
             self.console.print()
 
     def print(self, message: ElroyPrintable, end: str = "\n") -> None:
-        if isinstance(message, AssistantInternalThought) and not self.show_internal_thought:
+        if isinstance(message, ApprovalRequest):
+            self.console.print(f"\nApproval requested: {message.content}")
+            response = input("Approve? (y/n): ").strip().lower()
+            if response in ["y", "yes", "approved", "approve"]:
+                return
+            else:
+                raise AssistantCommandAuthDeniedError(f"User denied approval for: {message.content}")
+
+        elif isinstance(message, AssistantInternalThought) and not self.show_internal_thought:
             logger.debug(f"Internal thought: {message}")
             return
 

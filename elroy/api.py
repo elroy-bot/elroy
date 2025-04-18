@@ -265,6 +265,7 @@ class Elroy:
                 role=USER,
                 ctx=self.ctx,
                 msg=input,
+                allow_approval_requests=True,
                 enable_tools=enable_tools,
                 force_tool=force_tool,
             ),
@@ -381,6 +382,7 @@ class Elroy:
             ctx=self.ctx,
             msg=input,
             enable_tools=enable_tools,
+            allow_approval_requests=False,
         ):
             if self._should_return_chunk(chunk):
                 yield from self.formatter.format(chunk)

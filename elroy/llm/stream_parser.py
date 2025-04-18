@@ -22,6 +22,9 @@ class TextOutput(BaseModel):
         return self.content
 
 
+class ApprovalRequest(BaseModel):
+    content: str
+
 class AssistantInternalThought(TextOutput):
     content: str
 

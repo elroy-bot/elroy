@@ -10,6 +10,7 @@ from ..core.tracing import tracer
 from ..db.db_models import FunctionCall
 from ..llm.client import generate_chat_completion_message
 from ..llm.stream_parser import (
+    ApprovalRequest,
     AssistantInternalThought,
     AssistantResponse,
     CodeBlock,
@@ -30,6 +31,7 @@ def process_message(
     role: str,
     ctx: ElroyContext,
     msg: str,
+    allow_approval_requests: bool,
     enable_tools: bool = True,
     force_tool: Optional[str] = None,
 ) -> Iterator[BaseModel]:
@@ -92,8 +94,26 @@ def process_message(
                         chat_model=ctx.chat_model.name,
                     )
                 )
+                tool_call_results = exec_function_call(ctx, stream_chunk)
 
-                yield tool_call_result
+                for tool_call_result in tool_call_results:
+                    if isinstance(tool_call_result, ApprovalRequest):
+                        if allow_approval_requests:
+                            yield tool_call_result
+                            continue
+                        else:
+                            raise ValueError("Approval request received, but allow_approval_requests is False.")
+
+                    tool_context_messages.append(
+                        ContextMessage(
+                            role=TOOL,
+                            tool_call_id=stream_chunk.id,
+                            content=str(tool_call_result),
+                            chat_model=ctx.chat_model.name,
+                        )
+                    )
+
+                    yield tool_call_result
 
         new_msgs.append(
             ContextMessage(
