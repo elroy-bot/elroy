@@ -7,7 +7,7 @@ from typing import List, Optional
 
 import typer
 from rich.table import Table
-from toolz import dissoc, keymap, pipe
+from toolz import keymap, pipe
 
 from elroy.cli.options import get_str_from_stdin_or_arg
 
@@ -29,12 +29,12 @@ from ..utils.clock import utc_now
 from ..utils.utils import datetime_to_string
 from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import handle_chat, handle_message_stdio
-from .options import ElroyOption, get_resolved_params, resolve_model_alias
+from .options import ElroyOption, get_resolved_params
 from .updater import check_latest_version, check_updates
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
-CLI_ONLY_PARAMS = {"disable_assistant_greeting"}
+CLI_ONLY_PARAMS = {"disable_assistant_greeting", "show_memory_panel"}
 
 
 setup_core_logging()
@@ -208,6 +208,11 @@ def common(
         hidden=True,
     ),
     # UI Configuration
+    show_memory_panel: bool = ElroyOption(  # noqa F841
+        "show_memory_panel",
+        help="Whether to display the memory panel in the UI.",
+        rich_help_panel="UI Configuration",
+    ),
     show_internal_thought: bool = ElroyOption(
         "show_internal_thought",
         help="Show the assistant's internal thought monologue like memory consolidation and internal reflection.",
@@ -359,7 +364,7 @@ def chat(typer_ctx: typer.Context):
     io = get_io(**params)
 
     if sys.stdin.isatty():
-        ctx = get_ctx(use_background_threads=True, **params)
+        ctx = ElroyContext.init(use_background_threads=True, **params)
         assert isinstance(io, CliIO)
 
         check_updates(io)
@@ -379,7 +384,7 @@ def chat(typer_ctx: typer.Context):
                 else:
                     create_bug_report_from_exception_if_confirmed(io, ctx, e)
     else:
-        ctx = get_ctx(use_background_threads=False, **params)
+        ctx = ElroyContext.init(use_background_threads=False, **params)
         message = sys.stdin.read()
         assert isinstance(io, PlainIO)
         with init_elroy_session(ctx, io, True, False):
@@ -408,7 +413,7 @@ def message(
 ):
     """Process a single message and exit."""
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(plain=plain, **typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
         handle_message_stdio(ctx, io, message, tool)
@@ -421,7 +426,7 @@ def print_tools(
 ):
     """Prints the schema for a tool and exits."""
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     io.print(ctx.tool_registry.get_schemas())  # type: ignore
 
@@ -437,7 +442,7 @@ def cli_remember(
 ):
     """Create a new memory from text or interactively."""
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
         memory_name = f"Memory from CLI, created {datetime_to_string(utc_now())}"
@@ -463,7 +468,7 @@ def list_tools(
     typer_ctx: typer.Context,
 ):
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     tools = ctx.tool_registry.get_schemas()
 
@@ -492,7 +497,7 @@ def print_config(
 ):
     """Shows current configuration and exits."""
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     io.print(do_print_config(ctx, show_secrets))
 
@@ -518,7 +523,7 @@ def cli_set_persona(
 ):
     """Set a custom persona for the assistant."""
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
         if get_user_id_if_exists(ctx.db, ctx.user_token):
@@ -531,7 +536,7 @@ def cli_set_persona(
 def reset_persona(typer_ctx: typer.Context):
     """Removes any custom persona, reverting to the default."""
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
         if not get_user_id_if_exists(ctx.db, ctx.user_token):
@@ -546,7 +551,7 @@ def reset_persona(typer_ctx: typer.Context):
 def show_persona(typer_ctx: typer.Context):
     """Print the system persona and exit."""
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
     with init_elroy_session(ctx, io, True, False):
         print(get_persona(ctx))
@@ -598,7 +603,7 @@ def ingest_doc(
     """Ingests document(s) at the given path into memory. Can process single files or directories."""
 
     assert typer_ctx.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
 
     with init_elroy_session(ctx, io, True, False):
@@ -629,7 +634,7 @@ def mcp_print_config(
     from ..mcp.config import get_mcp_config, is_uv_installed
 
     assert typer_ctx.parent and typer_ctx.parent.parent
-    ctx = get_ctx(use_background_threads=False, **typer_ctx.parent.parent.params)
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.parent.params)
     io = get_io(**typer_ctx.parent.parent.params)
 
     if not is_uv_installed():
@@ -641,26 +646,6 @@ def mcp_print_config(
         lambda d: json.dumps(d, indent=2),
         print,
     )
-
-
-def get_ctx(use_background_threads: bool, **kwargs) -> ElroyContext:
-    for m in MODEL_ALIASES:
-        if kwargs.get(m):
-            logger.info(f"Model alias {m} selected")
-            resolved = resolve_model_alias(m)
-            if not resolved:
-                logger.warning("Model alias not found")
-            else:
-                kwargs["chat_model"] = resolved
-        del kwargs[m]
-
-    params = pipe(
-        kwargs,
-        lambda x: dissoc(x, *CLI_ONLY_PARAMS),
-        lambda x: get_resolved_params(**x),
-    )
-
-    return ElroyContext.init(use_background_threads=use_background_threads, **params)
 
 
 def get_io(**kwargs) -> ElroyIO:
@@ -676,6 +661,7 @@ def get_io(**kwargs) -> ElroyIO:
                 internal_thought_color=params["internal_thought_color"],
             ),
             show_internal_thought=params["show_internal_thought"],
+            show_memory_panel=params["show_memory_panel"],
         )
     else:
         return PlainIO()

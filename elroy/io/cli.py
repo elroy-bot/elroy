@@ -34,6 +34,7 @@ class CliIO(ElroyIO):
         self,
         formatter: RichFormatter,
         show_internal_thought: bool,
+        show_memory_panel: bool,
     ) -> None:
         self.console = Console()
         self.formatter = formatter
@@ -53,6 +54,7 @@ class CliIO(ElroyIO):
             style=self.style,
             lexer=PygmentsLexer(TextLexer),
         )
+        self.show_memory_panel = show_memory_panel
 
         self.last_output_type = None
 
@@ -86,7 +88,7 @@ class CliIO(ElroyIO):
 
         if not self.last_output_type and isinstance(message, TextOutput):
             message.content = message.content.lstrip()
-        elif not self.last_output_type == type(message):
+        elif self.last_output_type and not self.last_output_type == type(message):
             self.console.print("\n\n", end="")
 
         for output in self.formatter.format(message):

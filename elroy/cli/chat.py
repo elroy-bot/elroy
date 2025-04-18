@@ -118,7 +118,8 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
             get_user_logged_in_message(ctx),
             False,
         )
-    print_memory_panel(io, ctx)
+    if io.show_memory_panel:
+        print_memory_panel(io, ctx)
 
     while True:
         io.update_completer(
@@ -138,8 +139,9 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
                 user_input,
             )
 
-            io.rule()
-            print_memory_panel(io, ctx)
+            if io.show_memory_panel:
+                io.rule()
+                print_memory_panel(io, ctx)
             run_in_background(refresh_context_if_needed, ctx)
 
 

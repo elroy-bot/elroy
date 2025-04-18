@@ -2,7 +2,10 @@ from rich.text import Text
 from toolz import pipe
 
 from ..core.ctx import ElroyContext
+from ..core.logging import get_logger
 from ..io.cli import CliIO
+
+logger = get_logger()
 
 
 def print_memory_panel(io: CliIO, ctx: ElroyContext) -> None:
@@ -14,6 +17,10 @@ def print_memory_panel(io: CliIO, ctx: ElroyContext) -> None:
     """
     from ..repository.context_messages.queries import get_context_messages
     from ..repository.memories.queries import get_in_context_memories_metadata
+
+    if not io.show_memory_panel:
+        logger.warning("print_memory_panel called, but Memory panel is disabled")
+        return
 
     pipe(
         get_context_messages(ctx),
