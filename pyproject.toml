@@ -26,12 +26,11 @@ dependencies = [
     "litellm>=1.60",
     "typer>=0.12.5",
     "semantic-version>=2.10.0",
-    "aider-chat>=0.74.2",
     "sqlite-vec>=0.1.6",
     "scikit-learn>=1.6.0",
     "lock>=2018.3.25.2110",
     "mcp",
-    "openinference-instrumentation",
+    "importlib-resources",
 ]
 
 [project.optional-dependencies]
@@ -55,6 +54,12 @@ dev = [
     "pytest-rerunfailures",
 ]
 
+
+aider = [
+    "aider-chat>=0.74.2",
+]
+
+
 docs = [
     "mkdocs",
     "mkdocs-git-revision-date-localized-plugin",
@@ -68,6 +73,7 @@ docs = [
 tracing = [
     "arize-phoenix",
     "arize-phoenix-otel",
+    "openinference-instrumentation",
     "openinference-semantic-conventions",
     "openinference-instrumentation-litellm",
 ]

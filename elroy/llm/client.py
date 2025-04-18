@@ -203,7 +203,7 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     for attempt in range(max_attempts):
         try:
             response = embedding(**embedding_kwargs)
-            return response.data[0]["embedding"]
+            return response.data[0]["embedding"]  # type: ignore
         except ContextWindowExceededError:
             new_length = int(len(text) / 2)
             text = text[-new_length:]

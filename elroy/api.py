@@ -22,7 +22,9 @@ from .llm.stream_parser import (
 )
 from .messenger.messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
-from .repository.context_messages.operations import add_context_message
+from .repository.context_messages.operations import (
+    add_context_message,
+)
 from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )

@@ -37,17 +37,28 @@ EXIT = "exit"
 
 MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 
+IS_TOOL = "_is_tool"
+IS_ENABLED = "_is_enabled"
+IS_USER_ONLY_TOOL = "_is_user_only_tool"
+
 
 # Empty decorator just meaning to communicate a function should be a tool
 def tool(func: Callable) -> Callable:
     from .tracing import tracer
 
-    setattr(func, "_is_tool", True)
+    setattr(func, IS_TOOL, True)
     return tracer.tool(func)
 
 
+# Conveys that the tool is disabled
+def disabled_tool(func: Callable) -> Callable:
+    setattr(func, IS_TOOL, True)
+    setattr(func, IS_ENABLED, False)
+    return func
+
+
 def user_only_tool(func: Callable) -> Callable:
-    setattr(func, "_is_user_only_tool", True)
+    setattr(func, IS_USER_ONLY_TOOL, True)
     return func
 
 

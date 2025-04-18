@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from typing import Any, Callable, ParamSpec, TypeVar
 
 from ..config.env_vars import is_tracing_enabled
@@ -33,6 +34,12 @@ class NoOpTracer:
         return noop
 
 
+@contextmanager
+def noop_using_user(user_token: str):
+    """No-op context manager for user token."""
+    yield user_token
+
+
 if is_tracing_enabled():
     try:
         from phoenix.otel import register
@@ -45,8 +52,14 @@ if is_tracing_enabled():
             verbose=False,
             set_global_tracer_provider=True,
         ).get_tracer(__name__)
+
+
+        using_user = instrumentation.using_user
     except ImportError:
         logger.warning('Phoenix package not installed. Tracing will be disabled. To enable tracing: uv install "elroy[tracing]"')
+
         tracer = NoOpTracer()
+        using_user = noop_using_user
 else:
     tracer = NoOpTracer()
+    using_user = noop_using_user

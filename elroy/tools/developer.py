@@ -11,7 +11,13 @@ from rich.text import Text
 
 from .. import __version__
 from ..config.paths import get_home_dir, get_log_file_path
-from ..core.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, tool, user_only_tool
+from ..core.constants import (
+    BUG_REPORT_LOG_LINES,
+    REPO_ISSUES_URL,
+    disabled_tool,
+    tool,
+    user_only_tool,
+)
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..utils.clock import utc_now
@@ -182,44 +188,52 @@ def create_bug_report(
     webbrowser.open(github_url)
 
 
-@tool
-def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
-    """Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction.
-
-    Args:
-        working_dir: Directory containing the file to edit
-        instruction: Complete edit instructions including any necessary context or raw data
-        file_name: Name of the file to edit
-
-    Returns:
-        str: Git diff output showing the changes made
-    """
+try:
     from aider.coders import Coder
     from aider.io import InputOutput
     from aider.models import Model
 
-    logger.info(f"Instructions to aider: {instruction}")
+    @tool
+    def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
+        """Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction.
 
-    # Store current dir
-    original_dir = os.getcwd()
+        Args:
+            working_dir: Directory containing the file to edit
+            instruction: Complete edit instructions including any necessary context or raw data
+            file_name: Name of the file to edit
 
-    try:
-        # Change to working dir
-        os.chdir(working_dir)
+        Returns:
+            str: Git diff output showing the changes made
+        """
 
-        # See: https://aider.chat/docs/scripting.html
-        coder = Coder.create(
-            main_model=Model(ctx.chat_model.name),
-            fnames=[file_name],
-            io=InputOutput(yes=True),
-            auto_commits=False,
-        )
-        coder.run(instruction)
+        logger.info(f"Instructions to aider: {instruction}")
 
-        # Get git diff
-        result = subprocess.run(["git", "diff"], capture_output=True, text=True, check=True)
-        return f"Coding change complete, the following diff was generated:\n{result.stdout}"
+        # Store current dir
+        original_dir = os.getcwd()
 
-    finally:
-        # Restore original dir
-        os.chdir(original_dir)
+        try:
+            # Change to working dir
+            os.chdir(working_dir)
+
+            # See: https://aider.chat/docs/scripting.html
+            coder = Coder.create(
+                main_model=Model(ctx.chat_model.name),
+                fnames=[file_name],
+                io=InputOutput(yes=True),
+                auto_commits=False,
+            )
+            coder.run(instruction)
+
+            # Get git diff
+            result = subprocess.run(["git", "diff"], capture_output=True, text=True, check=True)
+            return f"Coding change complete, the following diff was generated:\n{result.stdout}"
+
+        finally:
+            # Restore original dir
+            os.chdir(original_dir)
+
+except ImportError:
+
+    @disabled_tool
+    def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
+        return "Disabled"
