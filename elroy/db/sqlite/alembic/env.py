@@ -53,9 +53,7 @@ def include_object(object, name, type_, reflected, compare_to):
         elif compare_to is not None:
             return False
         else:
-            import pdb
-
-            pdb.set_trace()
+            logging.warning("Unexpected table found in DB: %s", name)
     return True
 
 

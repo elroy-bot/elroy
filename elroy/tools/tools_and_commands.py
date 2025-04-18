@@ -11,7 +11,7 @@ from ..cli.slash_commands import (
     print_context_messages,
     print_system_instruction,
 )
-from ..core.constants import user_only_tool
+from ..core.constants import IS_ENABLED, user_only_tool
 from ..repository.context_messages.operations import (
     pop,
     refresh_system_instructions,
@@ -126,15 +126,20 @@ USER_ONLY_COMMANDS = {
     set_assistant_name,
     remember_convo,
 }
-ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = (
-    NON_ARG_PREFILL_COMMANDS
-    | IN_CONTEXT_GOAL_COMMANDS
-    | NON_CONTEXT_GOAL_COMMANDS
-    | ALL_ACTIVE_GOAL_COMMANDS
-    | IN_CONTEXT_MEMORY_COMMANDS
-    | NON_CONTEXT_MEMORY_COMMANDS
-    | ALL_ACTIVE_MEMORY_COMMANDS
-)
+ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = {
+    f
+    for f in (
+        NON_ARG_PREFILL_COMMANDS
+        | IN_CONTEXT_GOAL_COMMANDS
+        | NON_CONTEXT_GOAL_COMMANDS
+        | ALL_ACTIVE_GOAL_COMMANDS
+        | IN_CONTEXT_MEMORY_COMMANDS
+        | NON_CONTEXT_MEMORY_COMMANDS
+        | ALL_ACTIVE_MEMORY_COMMANDS
+    )
+    if getattr(f, IS_ENABLED, True)
+}
+
 SYSTEM_COMMANDS = ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS
 
 

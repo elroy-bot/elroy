@@ -5,6 +5,7 @@ from ..io.base import ElroyIO
 from ..io.cli import CliIO
 from .ctx import ElroyContext
 from .logging import get_logger
+from .tracing import using_user
 
 logger = get_logger()
 
@@ -22,10 +23,8 @@ def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool,
 
         session_id = str(uuid.uuid4())
         logger.debug(f"OpenTelemetry instrumentation enabled with session ID: {session_id}")
-        from openinference.instrumentation import using_user
 
         with using_user(ctx.user_token):
-
             with ctx.db_manager.open_session() as dbsession:
                 ctx.set_db_session(dbsession)
 

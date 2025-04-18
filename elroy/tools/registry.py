@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
 
+from ..core.constants import IS_ENABLED, IS_TOOL
 from ..core.logging import get_logger
 from .schema import get_function_schema, validate_schema
 
@@ -20,7 +21,7 @@ def is_langchain_tool(func: Callable) -> bool:
 
 def is_tool(func: Callable) -> bool:
     """Check if a function is marked as a tool by either our @tool decorator or LangChain's."""
-    return getattr(func, "_is_tool", False) or is_langchain_tool(func)
+    return getattr(func, IS_TOOL, False) or is_langchain_tool(func)
 
 
 class ToolRegistry:
@@ -148,6 +149,7 @@ def get_system_tool_schemas() -> List[Dict[str, Any]]:
 
     return pipe(
         ASSISTANT_VISIBLE_COMMANDS,
+        filter(lambda f: getattr(f, IS_ENABLED, True)),
         map(get_function_schema),
         list,
     )  # type: ignore
