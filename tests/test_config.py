@@ -1,58 +1,13 @@
 from inspect import signature
 from pathlib import Path
 
-import pytest
 from rich.table import Table
 from tests.utils import process_test_message
-from typer.testing import CliRunner
 
-from elroy.cli.main import CLI_ONLY_PARAMS, MODEL_ALIASES, app, common
+from elroy.cli.main import CLI_ONLY_PARAMS, MODEL_ALIASES, common
 from elroy.cli.options import DEPRECATED_KEYS
 from elroy.config.llm import DEFAULTS_CONFIG
 from elroy.tools.developer import print_config
-
-
-@pytest.mark.skip("CliRunner not working well in multi threaded app")
-def test_config_precedence(capsys: pytest.CaptureFixture):
-    """Test that config values are properly prioritized:
-    CLI args > env vars > config file > defaults
-    """
-    with capsys.disabled():
-        runner = CliRunner()
-        config_path = Path(__file__).parent / "fixtures" / "test_config.yml"
-
-        # Test 1: CLI args override everything
-        result = runner.invoke(
-            app,
-            args=["--config", str(config_path), "--chat-model", "gpt-4o-mini", "print-config"],
-            env={"ELROY_CHAT_MODEL": "env_model"},
-            catch_exceptions=True,
-        )
-        assert result.exit_code == 0
-        assert "gpt-4o-mini" in result.stdout
-        assert "env_model" not in result.stdout
-        assert "config_file_model" not in result.stdout
-
-        # Test 2: Environment variables override config file
-        result = runner.invoke(
-            app,
-            ["--config", str(config_path), "print-config"],
-            env={"ELROY_CHAT_MODEL": "gpt-4o-mini"},
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0
-        assert "gpt-4o-mini" in result.stdout
-        assert "config_file_model" not in result.stdout
-
-        # Test 3: Config file overrides defaults
-        result = runner.invoke(
-            app,
-            ["--config", str(config_path), "print-config"],
-            env={},  # No environment variables
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0
-        assert "gpt-4o-mini" in result.stdout
 
 
 def test_cli_params_match_defaults():

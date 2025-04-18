@@ -25,17 +25,20 @@ def is_tool(func: Callable) -> bool:
 
 
 class ToolRegistry:
-    def __init__(self, custom_paths: List[str] = [], exclude_tools: List[str] = []):
+    def __init__(self, include_base_tools: bool, custom_paths: List[str] = [], exclude_tools: List[str] = []):
+        self.include_base_tools = include_base_tools
         self.exclude_tools = exclude_tools
         self.custom_paths = custom_paths
         self.tools = {}
         self._schemas = []
 
-    def register_all(self):  # type: ignore
-        from .tools_and_commands import ASSISTANT_VISIBLE_COMMANDS
+    def register_all(self):
 
-        for tool in ASSISTANT_VISIBLE_COMMANDS:
-            self.register(tool)
+        if self.include_base_tools:
+            from .tools_and_commands import ASSISTANT_VISIBLE_COMMANDS
+
+            for tool in ASSISTANT_VISIBLE_COMMANDS:
+                self.register(tool)
         for path in self.custom_paths:
             self.register_path(path)
 

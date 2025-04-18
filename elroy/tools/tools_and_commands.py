@@ -2,7 +2,7 @@ import inspect
 from typing import Callable, Set
 
 from rich.table import Table
-from toolz import pipe
+from toolz import concatv, pipe
 from toolz.curried import map
 
 from ..cli.slash_commands import (
@@ -12,6 +12,7 @@ from ..cli.slash_commands import (
     print_system_instruction,
 )
 from ..core.constants import IS_ENABLED, user_only_tool
+from ..core.ctx import ElroyContext
 from ..repository.context_messages.operations import (
     pop,
     refresh_system_instructions,
@@ -140,20 +141,17 @@ ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = {
     if getattr(f, IS_ENABLED, True)
 }
 
-SYSTEM_COMMANDS = ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS
-
 
 @user_only_tool
-def get_help() -> Table:
+def get_help(ctx: ElroyContext) -> Table:
     """Prints the available system commands
 
     Returns:
         str: The available system commands
     """
-    from ..tools.tools_and_commands import SYSTEM_COMMANDS
 
     commands = pipe(
-        SYSTEM_COMMANDS,
+        concatv(ctx.tool_registry.tools.values(), USER_ONLY_COMMANDS),
         map(
             lambda f: (
                 f.__name__,
