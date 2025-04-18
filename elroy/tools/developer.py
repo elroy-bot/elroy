@@ -189,9 +189,9 @@ def create_bug_report(
 
 
 try:
-    from aider.coders import Coder
-    from aider.io import InputOutput
-    from aider.models import Model
+    from aider.coders import Coder  # type: ignore
+    from aider.io import InputOutput  # type: ignore
+    from aider.models import Model  # type: ignore
 
     @tool
     def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
