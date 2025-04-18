@@ -10,7 +10,7 @@ from toolz import pipe
 from toolz.curried import do
 
 from elroy.cli.chat import onboard_non_interactive
-from elroy.cli.options import get_resolved_params, resolve_model_alias
+from elroy.cli.options import resolve_model_alias
 from elroy.core.constants import ASSISTANT, USER, allow_unused
 from elroy.core.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
@@ -215,15 +215,14 @@ def user_token() -> Generator[str, None, None]:
 @pytest.fixture(scope="function")
 def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext for testing, using the same defaults as the CLI"""
-    params = get_resolved_params(
+
+    # Create new context with all parameters
+    ctx = ElroyContext.init(
         user_token=user_token,
         database_url=db_manager.url,
         chat_model=chat_model_name,
         use_background_threads=True,
     )
-
-    # Create new context with all parameters
-    ctx = ElroyContext(**params)
     ctx.set_db_session(db_session)
 
     onboard_non_interactive(ctx)

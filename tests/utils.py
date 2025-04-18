@@ -30,6 +30,7 @@ class MockCliIO(CliIO):
         super().__init__(
             formatter=formatter,
             show_internal_thought=False,
+            show_memory_panel=True,
         )
 
         self._user_responses: List[str] = []

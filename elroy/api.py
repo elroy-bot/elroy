@@ -5,7 +5,6 @@ from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar
 from toolz import concat, pipe
 from toolz.curried import filter, map
 
-from .cli.options import get_resolved_params
 from .core.constants import USER
 from .core.ctx import ElroyContext
 from .core.logging import setup_core_logging
@@ -76,15 +75,13 @@ class Elroy:
         setup_core_logging()
         self.formatter = formatter
         self.show_tool_calls = show_tool_calls
-        self.ctx = ElroyContext(
-            **get_resolved_params(
-                user_token=token,
-                config_path=config_path,
-                database_url=database_url,
-                use_background_threads=False,
-                exclude_tools=exclude_tools,
-                **kwargs,
-            ),
+        self.ctx = ElroyContext.init(
+            user_token=token,
+            config_path=config_path,
+            database_url=database_url,
+            use_background_threads=False,
+            exclude_tools=exclude_tools,
+            **kwargs,
         )
 
         self.token = self.ctx.user_token

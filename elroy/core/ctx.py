@@ -5,9 +5,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, List, Optional, TypeVar
 
+from toolz import pipe
 from toolz.curried import dissoc
 
-from ..cli.options import DEPRECATED_KEYS
+from ..cli.options import DEPRECATED_KEYS, get_resolved_params, resolve_model_alias
 from ..config.llm import (
     ChatModel,
     EmbeddingModel,
@@ -105,7 +106,25 @@ class ElroyContext:
 
     @classmethod
     def init(cls, **kwargs):
-        invalid_params = set(kwargs.keys()) - set(ElroyContext.__init__.__annotations__.keys())
+        from ..cli.main import CLI_ONLY_PARAMS, MODEL_ALIASES
+
+        for m in MODEL_ALIASES:
+            if kwargs.get(m):
+                logger.info(f"Model alias {m} selected")
+                resolved = resolve_model_alias(m)
+                if not resolved:
+                    logger.warning("Model alias not found")
+                else:
+                    kwargs["chat_model"] = resolved
+                del kwargs[m]
+
+        params = pipe(
+            kwargs,
+            lambda x: dissoc(x, *CLI_ONLY_PARAMS),
+            lambda x: get_resolved_params(**x),
+        )
+
+        invalid_params = set(params.keys()) - set(ElroyContext.__init__.__annotations__.keys())
 
         for k in invalid_params:
             if k in DEPRECATED_KEYS:
@@ -113,7 +132,7 @@ class ElroyContext:
             else:
                 logger.warning(f"Ignoring invalid parameter: {k}")
 
-        return cls(**dissoc(kwargs, *invalid_params))  # type: ignore
+        return cls(**dissoc(params, *invalid_params))  # type: ignore
 
     @cached_property
     def tool_registry(self) -> ToolRegistry:
