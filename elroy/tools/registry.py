@@ -2,6 +2,7 @@ import inspect
 import json
 from functools import partial
 from pathlib import Path
+from re import Pattern
 from types import FunctionType, ModuleType
 from typing import Any, Callable, Dict, Iterator, List, Optional
 
@@ -31,7 +32,7 @@ class ToolRegistry:
         custom_paths: List[str] = [],
         exclude_tools: List[str] = [],
         shell_commands: bool = False,
-        allowed_shell_command_prefixes: List[str] = [],
+        allowed_shell_command_prefixes: List[Pattern[str]] = [],
     ):
         self.include_base_tools = include_base_tools
         self.exclude_tools = exclude_tools
@@ -42,11 +43,15 @@ class ToolRegistry:
         self.allowed_shell_command_prefixes = allowed_shell_command_prefixes
 
     def register_all(self):
+        from .developer import run_shell_command
+
         if self.include_base_tools:
             from .tools_and_commands import ASSISTANT_VISIBLE_COMMANDS
 
             for tool in ASSISTANT_VISIBLE_COMMANDS:
                 self.register(tool)
+        if self.shell_commands:
+            self.register(run_shell_command)
         for path in self.custom_paths:
             self.register_path(path)
 
