@@ -42,7 +42,8 @@ def noop_using_user(user_token: str):
 
 if is_tracing_enabled():
     try:
-        from phoenix.otel import register
+        from openinference import instrumentation  # type: ignore
+        from phoenix.otel import register  # type: ignore
 
         logger.info("Enabling tracing")
         tracer = register(
@@ -52,7 +53,6 @@ if is_tracing_enabled():
             verbose=False,
             set_global_tracer_provider=True,
         ).get_tracer(__name__)
-
 
         using_user = instrumentation.using_user
     except ImportError:
