@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Generator, Generic, Iterator, List, Optional, TypeVar, Union
 
 from litellm.types.utils import Delta, ModelResponse
+from pydantic import BaseModel
 
 from ..config.llm import ChatModel
 from ..core.logging import get_logger
@@ -14,46 +15,54 @@ from .tool_call_accumulator import OpenAIToolCallAccumulator
 logger = get_logger()
 
 
-@dataclass
-class TextOutput(ABC):
+class TextOutput(BaseModel):
     content: str
 
     def __str__(self):
         return self.content
 
 
-@dataclass
 class AssistantInternalThought(TextOutput):
     content: str
 
 
-@dataclass
 class AssistantResponse(TextOutput):
     content: str
 
 
-@dataclass
 class AssistantToolResult(TextOutput):
     content: str
     is_error: bool = False
 
 
-@dataclass
 class SystemInfo(TextOutput):
     content: str
 
 
-@dataclass
 class SystemWarning(TextOutput):
     content: str
 
 
-@dataclass
-class CodeBlock(TextOutput):
+class CodeBlock(BaseModel):
     """Represents a code block that can be formatted with Rich"""
 
     content: str
     language: str = ""  # Optional language for syntax highlighting
+
+    def __str__(self) -> str:
+        return f"```{self.language}\n{self.content}```"
+
+
+class ShellCommandOutput(BaseModel):
+    """Model representing a shell command execution with its context and result"""
+
+    working_dir: str
+    command: str
+    stdout: str
+    stderr: str
+
+    def __str__(self) -> str:
+        return f"""{self.working_dir} > {self.command}\nself.stdout\n{self.stdout}\nself.stderr\n{self.stderr}"""
 
 
 def to_openai_tool_call(content: str) -> Optional[FunctionCall]:
@@ -71,7 +80,7 @@ class TagSet:
     end_tag: str
 
 
-T = TypeVar("T", bound=Union[TextOutput, FunctionCall])
+T = TypeVar("T", bound=BaseModel)
 
 
 class TextProcessor(ABC, Generic[T]):
@@ -132,11 +141,11 @@ class InternalThoughtProcessor(TextProcessor[AssistantInternalThought]):
 
     def maybe_consume_buffer(self) -> Generator[AssistantInternalThought, None, None]:
         if self.first_non_whitespace_emitted:
-            yield AssistantInternalThought(self.buffer)
+            yield AssistantInternalThought(content=self.buffer)
             self.buffer = ""
         elif not self.buffer.isspace():
             self.first_non_whitespace_emitted = True
-            resp = AssistantInternalThought(self.buffer.lstrip())
+            resp = AssistantInternalThought(content=self.buffer.lstrip())
             self.buffer = ""
             yield resp
 
@@ -146,7 +155,7 @@ class InternalThoughtProcessor(TextProcessor[AssistantInternalThought]):
 
     def flush(self) -> Generator[AssistantInternalThought, None, None]:
         if self.buffer:
-            yield AssistantInternalThought(self.buffer)
+            yield AssistantInternalThought(content=self.buffer)
         self.deactivate()
 
 
@@ -245,11 +254,11 @@ class AssistantResponseProcessor:
         self.buffer += text
         if self.first_non_whitespace_emitted:
             if not self.buffer.isspace():
-                yield AssistantResponse(self.buffer)
+                yield AssistantResponse(content=self.buffer)
                 self.buffer = ""
         elif not self.buffer.isspace():
             self.first_non_whitespace_emitted = True
-            resp = AssistantResponse(self.buffer.lstrip())
+            resp = AssistantResponse(content=self.buffer.lstrip())
             self.buffer = ""
             yield resp
         else:
@@ -258,7 +267,7 @@ class AssistantResponseProcessor:
 
     def flush(self) -> Generator[AssistantResponse, None, None]:
         if self.buffer and not self.buffer.isspace():
-            yield AssistantResponse(self.buffer.rstrip())
+            yield AssistantResponse(content=self.buffer.rstrip())
         self.buffer = ""
         self.first_non_whitespace_emitted
         self.deactivate()
@@ -354,7 +363,7 @@ class StreamParser:
         return self.raw_text
 
 
-def collect(input_stream: Iterator[Union[TextOutput, FunctionCall]]) -> List[Union[TextOutput, FunctionCall]]:
+def collect(input_stream: Iterator[BaseModel]) -> List[BaseModel]:
     response = []
     for processed_chunk in input_stream:
         if isinstance(processed_chunk, TextOutput):

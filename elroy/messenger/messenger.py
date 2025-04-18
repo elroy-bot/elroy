@@ -1,5 +1,6 @@
-from typing import Iterator, List, Optional, Union
+from typing import Iterator, List, Optional
 
+from pydantic import BaseModel
 from toolz import pipe
 
 from ..core.constants import ASSISTANT, SYSTEM, TOOL, USER
@@ -11,7 +12,6 @@ from ..llm.client import generate_chat_completion_message
 from ..llm.stream_parser import (
     AssistantInternalThought,
     AssistantResponse,
-    AssistantToolResult,
     CodeBlock,
 )
 from ..repository.context_messages.data_models import ContextMessage
@@ -26,12 +26,13 @@ logger = get_logger()
 
 @tracer.chain
 def process_message(
+    *,
     role: str,
     ctx: ElroyContext,
     msg: str,
     enable_tools: bool = True,
     force_tool: Optional[str] = None,
-) -> Iterator[Union[AssistantResponse, AssistantInternalThought, CodeBlock, AssistantToolResult, FunctionCall]]:
+) -> Iterator[BaseModel]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
     if force_tool and not enable_tools:
@@ -55,8 +56,8 @@ def process_message(
     if ctx.show_internal_thought:
         for new_msg in new_msgs[1:]:
             if new_msg.content:
-                yield AssistantInternalThought(new_msg.content)
-        yield AssistantInternalThought("\n\n")  # empty line to separate internal thoughts from assistant responses
+                yield AssistantInternalThought(content=new_msg.content)
+        yield AssistantInternalThought(content="\n\n")  # empty line to separate internal thoughts from assistant responses
 
     loops = 0
     while True:
@@ -87,7 +88,7 @@ def process_message(
                     ContextMessage(
                         role=TOOL,
                         tool_call_id=stream_chunk.id,
-                        content=tool_call_result.content,
+                        content=str(tool_call_result),
                         chat_model=ctx.chat_model.name,
                     )
                 )

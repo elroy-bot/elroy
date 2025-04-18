@@ -39,7 +39,6 @@ def resolve_model_alias(alias: str) -> Optional[str]:
     }.get(alias)
 
 
-@lru_cache
 def load_config_file_params(config_path: Optional[str] = None) -> Dict:
     # Looks for user specified config path, then merges with default values packaged with the lib
 
@@ -103,7 +102,7 @@ def get_resolved_params(**kwargs) -> Dict[str, Any]:
             {k: os.environ.get(get_env_var_name(k)) for k in DEFAULTS_CONFIG.keys()},  # env vars
             kwargs,  # explicit params
         ],
-        map(valfilter(lambda x: x is not None)),
+        map(valfilter(lambda x: x is not None and x != ())),
         merge,
         lambda d: assoc(d, "database_url", get_default_sqlite_url()) if not d.get("database_url") else d,
     )  # type: ignore

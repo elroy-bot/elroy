@@ -83,7 +83,7 @@ class CliIO(ElroyIO):
 
     def print(self, message: ElroyPrintable, end: str = "\n") -> None:
         if isinstance(message, AssistantInternalThought) and not self.show_internal_thought:
-            logger.debug(f"Internal thought: {message.content}")
+            logger.debug(f"Internal thought: {message}")
             return
 
         if not self.last_output_type and isinstance(message, TextOutput):

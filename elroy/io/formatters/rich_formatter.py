@@ -4,6 +4,8 @@ from rich.console import RenderableType
 from rich.pretty import Pretty
 from rich.syntax import Syntax
 from rich.text import Text
+from toolz import pipe
+from toolz.curried import filter
 
 from ...db.db_models import FunctionCall
 from ...llm.stream_parser import (
@@ -11,6 +13,7 @@ from ...llm.stream_parser import (
     AssistantResponse,
     AssistantToolResult,
     CodeBlock,
+    ShellCommandOutput,
     SystemInfo,
     SystemWarning,
     TextOutput,
@@ -65,6 +68,31 @@ class RichFormatter(Formatter):
                 SystemInfo: self.system_message_color,
             }
             yield Text(message.content, style=styles.get(type(message), self.system_message_color))
+        elif isinstance(message, ShellCommandOutput):
+            # Format the command with syntax highlighting
+            yield Syntax(
+                message.working_dir + " > " + message.command,
+                lexer="bash",  # Use bash lexer for shell commands
+                theme="monokai",
+                line_numbers=False,
+                word_wrap=True,
+                code_width=88,
+            )
+
+            yield pipe(
+                [message.stdout, message.stderr],
+                filter(lambda x: x != ""),
+                "\n".join,
+                lambda x: Syntax(
+                    x,
+                    lexer="text",
+                    theme="monokai",
+                    line_numbers=False,
+                    word_wrap=True,
+                    code_width=88,
+                ),
+            )  # type: ignore
+
         elif isinstance(message, Dict):
             yield Pretty(message)
         else:

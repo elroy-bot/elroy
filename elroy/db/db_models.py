@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Type
 
 from pgvector.sqlalchemy import Vector
+from pydantic import BaseModel
 from sqlalchemy import Column, Text, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
 from toolz import pipe
@@ -28,8 +29,7 @@ class ToolCall:
         return {"id": self.id, "function": self.function, "type": self.type}
 
 
-@dataclass
-class FunctionCall:
+class FunctionCall(BaseModel):
     """
     Internal representation of a tool call, formatted for simpler execution logic
     """
@@ -39,8 +39,7 @@ class FunctionCall:
     function_name: str
     arguments: Dict
 
-    @property
-    def content(self) -> str:
+    def __str__(self):
         return json.dumps({self.function_name: self.arguments})
 
     def to_tool_call(self) -> ToolCall:

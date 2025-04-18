@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Generator, Union
 
+from pydantic import BaseModel
 from rich.console import RenderableType
 
-from ...db.db_models import FunctionCall
-from ...llm.stream_parser import TextOutput
-
-ElroyPrintable = Union[TextOutput, RenderableType, str, FunctionCall, Dict]
+ElroyPrintable = Union[BaseModel, RenderableType, str, Dict]
 
 
 class Formatter(ABC):

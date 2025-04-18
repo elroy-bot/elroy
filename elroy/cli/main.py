@@ -349,6 +349,18 @@ def common(
         rich_help_panel="Context Management",
         deprecated=True,
     ),
+    shell_commands: bool = ElroyOption(
+        "shell_commands",
+        help="Whether to enable shell commands.",
+        rich_help_panel="Basic Configuration",
+        hidden=True,
+    ),
+    allowed_shell_command_prefixes: List[str] = ElroyOption(
+        "allowed_shell_command_prefixes",
+        help="Allowed prefixes for shell commands.",
+        rich_help_panel="Basic Configuration",
+        hidden=True,
+    ),
 ):
     """Common parameters."""
 
