@@ -1,5 +1,5 @@
 import enum
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, ParamSpec, TypeVar
 
 MEMORY_WORD_COUNT_LIMIT = 300
 
@@ -40,6 +40,31 @@ MAX_CHAT_COMPLETION_RETRY_COUNT = 2
 IS_TOOL = "_is_tool"
 IS_ENABLED = "_is_enabled"
 IS_USER_ONLY_TOOL = "_is_user_only_tool"
+AUTOCOMPLETE_TYPE = "_autocomplete_type"
+
+
+class AutocompleteType(enum.Enum):
+    "What the args should be autocompleted for this tool"
+
+    NONE = "none"
+    IN_CONTEXT_GOALS = "in_context_goals"
+    NON_CONTEXT_GOALS = "non_context_goals"
+    ALL_ACTIVE_GOALS = "all_active_goals"
+    IN_CONTEXT_MEMORIES = "in_context_memories"
+    NON_CONTEXT_MEMORIES = "non_context_memories"
+    ALL_ACTIVE_MEMORIES = "all_active_memories"
+
+
+T = TypeVar("T")  # Return type
+P = ParamSpec("P")  # Parameters
+
+
+def autocomplete(autocomplete_type: AutocompleteType) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        setattr(func, AUTOCOMPLETE_TYPE, autocomplete_type)
+        return func
+
+    return decorator
 
 
 # Empty decorator just meaning to communicate a function should be a tool

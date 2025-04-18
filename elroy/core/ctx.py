@@ -76,6 +76,7 @@ class ElroyContext:
         use_background_threads: bool,  # Whether to use background threads for certain operations
         max_ingested_doc_lines: int,  # The maximum number of lines to ingest from a document
         exclude_tools: List[str] = [],  # Tools to exclude from the tool registry
+        include_base_tools: bool,
         reflect: bool,
     ):
 
@@ -139,6 +140,7 @@ class ElroyContext:
         from ..tools.registry import ToolRegistry
 
         registry = ToolRegistry(
+            self.params.include_base_tools,
             self.params.custom_tools_path,
             exclude_tools=self.params.exclude_tools,
         )

@@ -12,6 +12,7 @@ from ..cli.slash_commands import (
     print_system_instruction,
 )
 from ..core.constants import IS_ENABLED, user_only_tool
+from ..core.ctx import ElroyContext
 from ..repository.context_messages.operations import (
     pop,
     refresh_system_instructions,
@@ -144,16 +145,15 @@ SYSTEM_COMMANDS = ASSISTANT_VISIBLE_COMMANDS | USER_ONLY_COMMANDS
 
 
 @user_only_tool
-def get_help() -> Table:
+def get_help(ctx: ElroyContext) -> Table:
     """Prints the available system commands
 
     Returns:
         str: The available system commands
     """
-    from ..tools.tools_and_commands import SYSTEM_COMMANDS
 
     commands = pipe(
-        SYSTEM_COMMANDS,
+        ctx.tool_registry.tools.values(),
         map(
             lambda f: (
                 f.__name__,
