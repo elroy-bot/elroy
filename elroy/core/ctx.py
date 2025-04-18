@@ -78,6 +78,8 @@ class ElroyContext:
         exclude_tools: List[str] = [],  # Tools to exclude from the tool registry
         include_base_tools: bool,
         reflect: bool,
+        shell_commands: bool,
+        allowed_shell_command_prefixes: List[str],
     ):
 
         self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
