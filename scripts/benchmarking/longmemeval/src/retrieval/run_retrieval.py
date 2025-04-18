@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import argparse
 from rank_bm25 import BM25Okapi
+from sentence_transformers import SentenceTransformer, util
 from openai import OpenAI
 from transformers import AutoModel, AutoTokenizer
 from sklearn.preprocessing import normalize

@@ -11,7 +11,11 @@ import csv
 import sys
 from pathlib import Path
 
+from tqdm import tqdm
+
 from elroy.api import Elroy
+
+QUESTIONS_TO_PROCESS = 25
 
 
 def read_data(filename):
@@ -98,9 +102,14 @@ def ingest_question_data(data, question_data_dir, dry_run=False):
         question_data_dir (str): Base directory containing question data
         dry_run (bool): If True, print the operations without executing them
     """
+
+    data = data[:QUESTIONS_TO_PROCESS]
     print(f"Ingesting data for {len(data)} questions...")
 
-    for entry in data:
+    for idx, entry in tqdm(enumerate(data)):
+
+        print(f"ingesting question {idx + 1}/{len(data)}")
+
         question_id = entry["question_id"]
         question_dir = os.path.join(question_data_dir, question_id)
         token = f"2025_04_17_{question_id}"

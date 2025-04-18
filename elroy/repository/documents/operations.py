@@ -143,7 +143,7 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
         raise RecoverableToolError(f"Invalid path: {address}")
 
     if not is_markdown(address):
-        logger.info("non-markdown files may not have optimal results")
+        logger.debug("non-markdown files may not have optimal results")
 
     if not os.path.isfile(address):
         raise NotImplementedError("Only local files are supported at the moment.")

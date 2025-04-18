@@ -7,7 +7,9 @@ For each question, creates a directory with files for each haystack session.
 import json
 import os
 import argparse
+from pathlib import Path
 import re
+from datetime import datetime
 
 
 def create_directory(directory_path):
