@@ -69,8 +69,8 @@ def update_changelog(elroy: Elroy):
     {commits}
 
     Please:
-    1. Add a new entry at the top of the changelog for version {NEXT_PATCH} dated {datetime.now().strftime("%Y-%m-%d")}
-    2. Group the commits into appropriate sections (Added, Fixed, Improved, Infrastructure, etc.) based on their content
+    1. Add a new entry at the top of the changelog for version {NEXT_PATCH} dated {datetime.now().strftime("%Y-%m-%d")}. Note that changelog header should be of format: ## [MAJOR.MINOR.PATCH] - YYYY-MM-DD. There should be an empty line before and after the version header.
+    2. Group the commits into appropriate sections (Added, Fixed, Improved, Infrastructure, etc.) based on their content. These should all be ### headers.
     3. Clean up and standardize the commit messages to be more readable
     4. Maintain the existing changelog format
 

@@ -1,6 +1,6 @@
 # Changelog
 
-# [0.0.79] - 2025-04-20
+## [0.0.79] - 2025-04-20
 
 ### Added
 - Add opt-in shell execution tool
@@ -10,7 +10,7 @@
     - Option to exclude memory panel display
     - More granular dependencies
 
-# [0.0.78] - 2025-04-10
+## [0.0.78] - 2025-04-10
 
 ### Added
 - Simplified memory retrieval assistant tool: Assistant tool can now better retrieve source document information for memories
@@ -27,7 +27,7 @@
 - Default user name changed from "UNKNOWN" to "User"
 - PostgreSQL configuration flexibility
 
-# [0.0.77] - 2025-03-16
+## [0.0.77] - 2025-03-16
 
 ### Added
 - Support for Arize-Phoenix tracing!
@@ -44,7 +44,7 @@
 - Shorter, more focused greeting messages
 - More engaging persona and tone
 
-# [0.0.76] - 2025-02-28
+## [0.0.76] - 2025-02-28
 
 ### Added
 - Added ingest_doc API function
@@ -58,7 +58,6 @@
 
 ### Improved
 - Installation documentation updates for stable branch
-
 
 ## [0.0.75] - 2025-02-23
 
@@ -133,8 +132,8 @@
 - New CLI command: list-tools
 - Installation script for easier setup
 
-### Infra
-Small updates on top of 0.0.69
+### Infrastructure
+- Small updates on top of 0.0.69
 
 ## [0.0.69] - 2025-02-03
 
@@ -178,7 +177,7 @@ Small updates on top of 0.0.69
 - Improved error recovery and differentiation in toolkit
 - --inline-tools option for models that do not natively support tool calls.
 
-### Updates
+### Improved
 - Context refresh is now based on context token counts, rather than wall clock time
 
 ## [0.0.63] - 2025-01-22
@@ -231,7 +230,6 @@ Small updates on top of 0.0.69
 - Autocomplete improvements
 - Results from assistant function calls are now printed to the console
 
-
 ## [0.0.56] - 2024-12-30
 
 ### Improved
@@ -262,7 +260,6 @@ Small updates on top of 0.0.69
 
 ### Breaking changes
 - The default data store is now SQLite, and the database env var has been renamed from ELROY_POSTGRES_URL to ELROY_DATABASE_URL (ELROY_POSTGRES_URL will still be recognized for backward compatibility)
-
 
 ## [0.0.53] - 2024-12-19
 
@@ -341,7 +338,6 @@ Small updates on top of 0.0.69
     - `/print_elroy_config`: View Elroy config from within the chat UI
     - `/create_bug_report`: Open a pre-filled bug report in the browser (available to the user only, not the assistant)
 
-
 ## [0.0.46] - 2024-11-20
 
 ### Added
@@ -369,7 +365,8 @@ Small updates on top of 0.0.69
 
 ## [0.0.43] - 2024-11-18
 
-Minor fixes
+### Fixed
+- Minor fixes
 
 ## [0.0.42] - 2024-11-17
 
@@ -391,9 +388,11 @@ Minor fixes
 
 ## [0.0.41] - 2024-11-14
 
-Updates to package publishing
+### Infrastructure
+- Updates to package publishing
 
 ## [0.0.40] - 2024-11-14
+
 ### Added
 - Initial release of Elroy, a CLI AI personal assistant with long-term memory and goal tracking capabilities.
 - Features include long-term memory, goal tracking, and a memory panel for relevant memories during conversations.
