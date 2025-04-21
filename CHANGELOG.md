@@ -1,5 +1,15 @@
 # Changelog
 
+# [0.0.79] - 2025-04-20
+
+### Added
+- Add opt-in shell execution tool
+
+### Improved
+- More configurable tool and display options:
+    - Option to exclude memory panel display
+    - More granular dependencies
+
 # [0.0.78] - 2025-04-10
 
 ### Added
