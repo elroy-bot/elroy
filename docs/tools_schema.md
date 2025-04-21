@@ -344,6 +344,25 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
+      "name": "run_shell_command",
+      "description": "Run a shell command and return the output.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "The shell command to run."
+          }
+        },
+        "required": [
+          "command"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "make_coding_edit",
       "description": "Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction.",
       "parameters": {
