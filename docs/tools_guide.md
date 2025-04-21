@@ -30,9 +30,8 @@ Elroy provides a set of tools that can be used by typing a forward slash (/) fol
 
 | Tool/Command | Description |
 |-------------|-------------|
-| `/get_source_content` | Retrieves content of the source for a memory, by source type and name. |
+| `/get_source_content_for_memory` | Retrieves content of the source for a memory, by source type and name. |
 | `/get_source_documents` | Gets the list of ingested source documents. |
-| `/get_source_list_for_memory` | Get a list of the sources of a memory by its name. |
 | `/get_source_doc_metadata` | Gets metadata about a source document including extraction time and available chunks. |
 | `/get_document_excerpt` | Gets text of document excerpt by address and chunk index (0-indexed). Use get_source_doc_metadata to get available chunk indices. |
 | `/search_documents` | Search through document excerpts using semantic similarity. |
@@ -52,6 +51,7 @@ Elroy provides a set of tools that can be used by typing a forward slash (/) fol
 |-------------|-------------|
 | `/contemplate` | Contemplate the current context and return a response. |
 | `/tail_elroy_logs` | Returns the last `lines` of the Elroy logs. |
+| `/run_shell_command` | Run a shell command and return the output. |
 | `/make_coding_edit` | Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction. |
 
 ## Adding Custom Tools

@@ -54,7 +54,7 @@ Elroy runs in your terminal helps you with goals while maintaining memory of you
 
 Run the install script:
 ```
-curl -LsSf https://raw.githubusercontent.com/elroy-bot/elroy/main/scripts/uv-installer.sh | sh
+curl -LsSf https://raw.githubusercontent.com/elroy-bot/elroy/main/scripts/install.sh | sh
 ```
 
 Ensure your env has `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or whatever model provider token you wish to use is set.

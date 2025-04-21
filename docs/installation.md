@@ -12,7 +12,7 @@ By default, Elroy will use SQLite. To add a custom DB, you can provide your data
 ## Option 1: Using Install Script (Recommended)
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/elroy-bot/elroy/main/scripts/uv-installer.sh | sh
+curl -LsSf https://raw.githubusercontent.com/elroy-bot/elroy/main/scripts/install.sh | sh
 ```
 
 This will:
