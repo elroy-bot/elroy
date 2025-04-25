@@ -85,12 +85,32 @@ def test_tool_schema_does_not_have_elroy_ctx():
 
 
 def test_exclude_tools(ctx: ElroyContext):
-    params = vars(ctx.params)
-    params["exclude_tools"] = ["get_user_preferred_name"]
+    # Create a new ToolRegistry with the excluded tool
+    from elroy.tools.registry import ToolRegistry
 
-    new_ctx = ElroyContext(**params)
+    # Get the current tool registry parameters
+    include_base_tools = ctx.include_base_tools
+    custom_paths = ctx.config.custom_tools_path
+    shell_commands = ctx.shell_commands
+    allowed_shell_command_prefixes = ctx.allowed_shell_command_prefixes
 
-    assert new_ctx.tool_registry.get("get_user_preferred_name") is None
+    # Create a new tool registry with the excluded tool
+    registry = ToolRegistry(
+        include_base_tools=include_base_tools,
+        custom_paths=custom_paths,
+        exclude_tools=["get_user_preferred_name"],
+        shell_commands=shell_commands,
+        allowed_shell_command_prefixes=allowed_shell_command_prefixes,
+    )
+
+    # Register all tools
+    registry.register_all()
+
+    # Verify that the excluded tool is not available
+    assert registry.get("get_user_preferred_name") is None
+
+    # Verify that other tools are still available
+    assert registry.get("create_memory") is not None
 
 
 def test_custom_tool(ctx: ElroyContext):

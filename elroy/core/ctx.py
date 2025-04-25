@@ -1,34 +1,29 @@
-import re
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
 from functools import cached_property
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, Callable, List, Optional, TypeVar
 
 from toolz import pipe
 from toolz.curried import dissoc
 
 from ..cli.options import DEPRECATED_KEYS, get_resolved_params, resolve_model_alias
-from ..config.llm import (
-    ChatModel,
-    EmbeddingModel,
-    get_chat_model,
-    get_embedding_model,
-    infer_chat_model_name,
-)
 from ..config.paths import get_default_config_path
 from ..config.personas import PERSONA
-from ..db.db_manager import DbManager, get_db_manager
-from ..db.db_session import DbSession
-from .constants import allow_unused
+from .config import ElroyConfig
 from .logging import get_logger
+from .services.database import DatabaseService
+from .services.llm import LLMService
+from .services.memory import MemoryService
+from .services.tools import ToolService
+from .services.user import UserService
 
 logger = get_logger()
 
 
 class ElroyContext:
-    _db: Optional[DbSession] = None
+    """Facade that provides access to all services and configuration"""
+
+    _db = None  # Kept for backward compatibility
 
     def __init__(
         self,
@@ -81,16 +76,18 @@ class ElroyContext:
         reflect: bool,
         shell_commands: bool,
         allowed_shell_command_prefixes: List[str],
+        **kwargs,  # Allow additional parameters for backward compatibility
     ):
-        self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in allowed_shell_command_prefixes]
-        self.shell_commands = shell_commands
+        # Store all configuration in a single object
+        all_params = locals()
+        all_params.pop("self")
+        all_params.pop("kwargs")
+        all_params.update(kwargs)
 
-        self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
+        self.config = ElroyConfig(**all_params)
+        self.params = self.config  # For backward compatibility
 
-        self.reflect = reflect
-
-        self.include_base_tools = include_base_tools
-
+        # Copy frequently accessed config parameters to the top level for backward compatibility
         self.user_token = user_token
         self.show_internal_thought = show_internal_thought
         self.default_assistant_name = default_assistant_name
@@ -99,7 +96,6 @@ class ElroyContext:
         self.max_tokens = max_tokens
         self.max_assistant_loops = max_assistant_loops
         self.l2_memory_relevance_distance_threshold = l2_memory_relevance_distance_threshold
-
         self.context_refresh_target_tokens = int(max_tokens / 3)
         self.memory_cluster_similarity_threshold = memory_cluster_similarity_threshold
         self.min_memory_cluster_size = min_memory_cluster_size
@@ -109,8 +105,22 @@ class ElroyContext:
         self.inline_tool_calls = inline_tool_calls
         self.use_background_threads = use_background_threads
         self.max_ingested_doc_lines = max_ingested_doc_lines
+        self.reflect = reflect
+        self.include_base_tools = include_base_tools
+        self.shell_commands = shell_commands
 
-    from ..tools.registry import ToolRegistry
+        # For backward compatibility with code that accesses these directly
+        import re
+
+        self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in allowed_shell_command_prefixes]
+
+        # Initialize service references (but not the services themselves)
+        self._db_service = None
+        self._llm_service = None
+        self._tool_service = None
+        self._user_service = None
+        self._memory_service = None
+        self._thread_pool = None
 
     @classmethod
     def init(cls, **kwargs):
@@ -132,7 +142,7 @@ class ElroyContext:
             lambda x: get_resolved_params(**x),
         )
 
-        invalid_params = set(params.keys()) - set(ElroyContext.__init__.__annotations__.keys())
+        invalid_params = set(params.keys()) - set(cls.__init__.__annotations__.keys()) - {"kwargs"}
 
         for k in invalid_params:
             if k in DEPRECATED_KEYS:
@@ -140,103 +150,103 @@ class ElroyContext:
             else:
                 logger.warning(f"Ignoring invalid parameter: {k}")
 
-        return cls(**dissoc(params, *invalid_params))  # type: ignore
+        return cls(**{k: v for k, v in params.items() if k not in invalid_params})
+
+    # Service accessors with lazy initialization
 
     @cached_property
-    def tool_registry(self) -> ToolRegistry:
-        from ..tools.registry import ToolRegistry
-
-        registry = ToolRegistry(
-            self.include_base_tools,
-            self.params.custom_tools_path,
-            exclude_tools=self.params.exclude_tools,
-            shell_commands=self.shell_commands,
-            allowed_shell_command_prefixes=self.allowed_shell_command_prefixes,
-        )
-        registry.register_all()
-        return registry
+    def db_service(self):
+        if not self._db_service:
+            self._db_service = DatabaseService(self.config)
+        return self._db_service
 
     @cached_property
-    def config_path(self) -> Path:
-        if self.params.config_path:
-            return Path(self.params.config_path)
-        else:
-            return get_default_config_path()
+    def llm_service(self):
+        if not self._llm_service:
+            self._llm_service = LLMService(self.config)
+        return self._llm_service
+
+    @cached_property
+    def tool_service(self):
+        if not self._tool_service:
+            self._tool_service = ToolService(self.config)
+        return self._tool_service
+
+    @cached_property
+    def user_service(self):
+        if not self._user_service:
+            self._user_service = UserService(self.config, self.db_service)
+        return self._user_service
+
+    @cached_property
+    def memory_service(self):
+        if not self._memory_service:
+            self._memory_service = MemoryService(self.config)
+        return self._memory_service
+
+    # Delegate properties to maintain backward compatibility
+
+    @property
+    def db(self):
+        return self.db_service.db
+
+    @property
+    def db_manager(self):
+        return self.db_service.db_manager
+
+    @property
+    def is_chat_model_inferred(self):
+        return self.llm_service.is_chat_model_inferred
+
+    @property
+    def chat_model(self):
+        return self.llm_service.chat_model
+
+    @property
+    def embedding_model(self):
+        return self.llm_service.embedding_model
+
+    @property
+    def tool_registry(self):
+        return self.tool_service.tool_registry
+
+    @property
+    def user_id(self):
+        return self.user_service.user_id
+
+    @property
+    def max_in_context_message_age(self):
+        return self.memory_service.max_in_context_message_age
+
+    @property
+    def min_convo_age_for_greeting(self):
+        return self.memory_service.min_convo_age_for_greeting
 
     @cached_property
     def thread_pool(self) -> ThreadPoolExecutor:
-        return ThreadPoolExecutor()
-
-    @property
-    def max_in_context_message_age(self) -> timedelta:
-        return timedelta(minutes=self.params.max_context_age_minutes)
-
-    @property
-    def min_convo_age_for_greeting(self) -> timedelta:
-        return timedelta(minutes=self.params.min_convo_age_for_greeting_minutes)
-
-    @property
-    def is_chat_model_inferred(self) -> bool:
-        return self.params.chat_model is None
+        if not self._thread_pool:
+            self._thread_pool = ThreadPoolExecutor()
+        return self._thread_pool
 
     @cached_property
-    def chat_model(self) -> ChatModel:
-        if not self.params.chat_model:
-            chat_model_name = infer_chat_model_name()
+    def config_path(self) -> Path:
+        if self.config.config_path:
+            return Path(self.config.config_path)
         else:
-            chat_model_name = self.params.chat_model
+            return get_default_config_path()
 
-        return get_chat_model(
-            model_name=chat_model_name,
-            openai_api_key=self.params.openai_api_key,
-            openai_api_base=self.params.openai_api_base,
-            api_key=self.params.chat_model_api_key,
-            api_base=self.params.chat_model_api_base,
-            enable_caching=self.params.enable_caching,
-            inline_tool_calls=self.params.inline_tool_calls,
-        )
+    # Database session management (for backward compatibility)
 
-    @cached_property
-    def embedding_model(self) -> EmbeddingModel:
-        return get_embedding_model(
-            model_name=self.params.embedding_model,
-            embedding_size=self.params.embedding_model_size,
-            api_key=self.params.embedding_model_api_key,
-            api_base=self.params.embedding_model_api_base,
-            openai_embedding_api_base=self.params.openai_embedding_api_base,
-            openai_api_key=self.params.openai_api_key,
-            openai_api_base=self.params.openai_api_base,
-            enable_caching=self.params.enable_caching,
-        )
-
-    @cached_property
-    def user_id(self) -> int:
-        from ..repository.user.operations import create_user_id
-        from ..repository.user.queries import get_user_id_if_exists
-
-        return get_user_id_if_exists(self.db, self.user_token) or create_user_id(self.db, self.user_token)
-
-    @property
-    def db(self) -> DbSession:
-        if not self._db:
-            raise ValueError("No db session open")
-        else:
-            return self._db
-
-    @cached_property
-    def db_manager(self) -> DbManager:
-        assert self.params.database_url, "Database URL not set"
-        return get_db_manager(self.params.database_url)
-
-    @allow_unused
     def is_db_connected(self) -> bool:
-        return bool(self._db)
+        return self.db_service.is_db_connected()
 
-    def set_db_session(self, db: DbSession):
-        self._db = db
+    def set_db_session(self, db):
+        self._db = db  # For backward compatibility
+        self.db_service.set_db_session(db)
 
     def unset_db_session(self):
-        self._db = None
+        self._db = None  # For backward compatibility
+        self.db_service.unset_db_session()
 
 
 T = TypeVar("T", bound=Callable[..., Any])

@@ -89,7 +89,15 @@ def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> Optional[thread
     # hack to get a new session for the thread
     def wrapped_fn():
         # Create completely new connection in the new thread
-        new_ctx = ElroyContext(**vars(ctx.params))
+        # Get parameters from the original context
+        params = vars(ctx.params)
+
+        # Ensure use_background_threads is set to False to avoid infinite recursion
+        params["use_background_threads"] = False
+
+        # Use ElroyContext.init to handle parameter resolution
+        new_ctx = ElroyContext.init(**params)
+
         with dbsession(new_ctx):
             fn(new_ctx, *args)
 
