@@ -26,6 +26,17 @@ from .stream_parser import StreamParser
 logger = get_logger()
 
 
+def context_messages_to_dicts(context_messages: List[ContextMessage]) -> List[Dict[str, Any]]:
+
+    return pipe(
+        context_messages,
+        map(asdict),
+        map(keyfilter(lambda k: k not in ("id", "created_at", "memory_metadata", "chat_model"))),
+        map(lambda d: dissoc(d, "tool_calls") if not d.get("tool_calls") else d),
+        list,
+    )  # type: ignore
+
+
 @tracer.chain
 def generate_chat_completion_message(
     chat_model: ChatModel,
@@ -62,13 +73,7 @@ def generate_chat_completion_message(
         else:
             raise ValueError("Assistant message already the most recent message")
 
-    context_message_dicts = pipe(
-        context_messages,
-        map(asdict),
-        map(keyfilter(lambda k: k not in ("id", "created_at", "memory_metadata", "chat_model"))),
-        map(lambda d: dissoc(d, "tool_calls") if not d.get("tool_calls") else d),
-        list,
-    )
+    context_message_dicts = context_messages_to_dicts(context_messages)
 
     if chat_model.ensure_alternating_roles:
         USER_HIDDEN_PREFIX = "[This is a system message, representing internal thought process of the assistant]"
