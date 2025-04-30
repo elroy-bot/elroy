@@ -2,6 +2,7 @@ from typing import Any, Iterator, Union
 
 from rich.console import Console, RenderableType
 
+from ..core.constants import AssistantCommandAuthDeniedError
 from ..core.logging import get_logger
 from ..db.db_models import FunctionCall
 from ..llm.stream_parser import (
@@ -24,9 +25,12 @@ class ElroyIO:
     console: Console
 
     def print_stream(self, messages: Iterator[ElroyPrintable]) -> None:
-        for message in messages:
-            self.print(message, end="")
-        self.console.print("")
+        try:
+            for message in messages:
+                self.print(message, end="")
+            self.console.print("")
+        except (KeyboardInterrupt, EOFError, AssistantCommandAuthDeniedError):
+            return
 
     def print(self, message: ElroyPrintable, end: str = "\n") -> None:
         if is_rich_printable(message):

@@ -82,6 +82,7 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] 
             ctx=ctx,
             msg=msg,
             force_tool=force_tool,
+            allow_approval_requests=False,
         ),
         map(str),
         list,

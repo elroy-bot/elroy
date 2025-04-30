@@ -67,6 +67,10 @@ def allow_unused(func: Callable) -> Callable:
     return func
 
 
+class AssistantCommandAuthDeniedError(Exception):
+    pass
+
+
 class MissingToolCallMessageError(Exception):
     pass
 

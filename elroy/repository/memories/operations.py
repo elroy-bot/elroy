@@ -58,6 +58,7 @@ def remember_convo(ctx: ElroyContext):
         msg="The use has triggered a remember_convo command. Through goals in context or via a new memory, capture information about the current converstaion",
         force_tool=create_memory.__name__,
         enable_tools=True,
+        allow_approval_requests=False,
     )
 
 

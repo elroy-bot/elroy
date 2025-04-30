@@ -62,6 +62,7 @@ def handle_message_stdio(
             role=USER,
             ctx=ctx,
             msg=message,
+            allow_approval_requests=True,
             force_tool=force_tool,
         )
     )
@@ -176,6 +177,7 @@ def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input:
                     ctx=ctx,
                     msg=user_input,
                     enable_tools=enable_tools,
+                    allow_approval_requests=True,
                 )
             )
 
