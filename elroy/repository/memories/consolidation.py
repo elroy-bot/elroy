@@ -1,9 +1,9 @@
-import logging
 from dataclasses import dataclass
 from functools import cached_property, partial
 from typing import List
 
 import numpy as np
+from pydantic import BaseModel
 from scipy.spatial.distance import cosine
 from sklearn.cluster import DBSCAN
 from toolz import pipe
@@ -13,7 +13,7 @@ from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...core.tracing import tracer
 from ...db.db_models import Memory
-from ...llm.client import query_llm
+from ...llm.client import query_llm_with_response_format
 from .prompts import MEMORY_CONSOLIDATION
 
 logger = get_logger()
@@ -197,100 +197,19 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
 
 
 @tracer.chain
-def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster, raise_on_failure: bool = False):
+def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
+    class MemoryResponse(BaseModel):
+        title: str
+        content: str
+
+    class ConsolidationResponse(BaseModel):
+        reasoning: str  # noqa F841
+        memories: List[MemoryResponse]
 
     logger.info(f"Consolidating memories {len(cluster)} memories in cluster.")
-    response = query_llm(
-        system=MEMORY_CONSOLIDATION,
-        prompt=str(cluster),
-        model=ctx.chat_model,
+    response = query_llm_with_response_format(
+        system=MEMORY_CONSOLIDATION, prompt=str(cluster), model=ctx.chat_model, response_format=ConsolidationResponse
     )
 
-    new_ids = []
-
-    reasoning = None
-
-    new_memory_parsing_line_start = 0
-    lines = response.split("\n")
-    for i, line in enumerate(lines):
-        if line.lstrip().startswith("#"):
-            first_header = line.strip()
-            # Check if it looks like a reasoning section
-            if "reason" in first_header.lower() or "consolidat" in first_header.lower():
-                # Find next header
-                next_header_idx = None
-                for j in range(i + 1, len(lines)):
-                    if lines[j].lstrip().startswith("#"):
-                        next_header_idx = j
-                        break
-
-                if next_header_idx is None:
-                    # No more headers - reasoning goes to end
-                    logging.error("No content found after reasoning section, aborting memory consolidation")
-                    return
-
-                else:
-                    reasoning = "\n".join(lines[i:next_header_idx]).strip()
-                    logger.info(f"Reasoning behind consolidation decisions: {reasoning}")
-                    new_memory_parsing_line_start = next_header_idx
-                    break
-    if not reasoning:
-        logging.error("No reasoning section found in consolidation response, interpreting all sections as memories")
-
-    current_title = ""
-    current_content = []
-
-    for line in lines[new_memory_parsing_line_start:]:
-        line = line.strip()
-        if not line:
-            continue
-        # Look for anything that could be a title (lines starting with # or ##)
-        if line.startswith("#"):
-            # If we have accumulated content, save it as a memory
-            if current_title and current_content:
-                content = "\n".join(current_content).strip()
-                try:
-
-                    new_id = create_consolidated_memory(
-                        ctx=ctx,
-                        name=current_title,
-                        text=content,
-                        sources=cluster.memories,
-                    )
-                    new_ids.append(new_id)
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to create memory, aborting consolidation. '{current_title}': {e}",
-                        exc_info=True,
-                    )
-            current_title = line.lstrip("#").strip()
-            current_content = []
-        else:
-            if not current_title:
-                logger.warning(f"Found content without a title: {line}, making the first line as memory title")
-                current_title = line
-            current_content.append(line)
-
-    if current_title and current_content:
-        content = "\n".join(current_content).strip()
-        try:
-            logger.info("Creating consolidated memory")
-            new_id = create_consolidated_memory(
-                ctx=ctx,
-                name=current_title,
-                text=content,
-                sources=cluster.memories,
-            )
-            new_ids.append(new_id)
-        except Exception as e:
-            if raise_on_failure:
-                raise
-            else:
-                logger.warning(
-                    f"Failed to create memory, aborting consolidation. '{current_title}': {e}",
-                    exc_info=True,
-                )
-
-    if not new_ids:
-        logger.info("No new memories were created from consolidation response. Original memories left unchanged.")
-        logger.debug(f"Original response was: {response}")
+    for memory in response.memories:
+        create_consolidated_memory(ctx, memory.title, memory.content, cluster.memories)

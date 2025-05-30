@@ -9,11 +9,7 @@ from ..core.logging import get_logger
 from ..core.tracing import tracer
 from ..db.db_models import FunctionCall
 from ..llm.client import generate_chat_completion_message
-from ..llm.stream_parser import (
-    AssistantInternalThought,
-    AssistantResponse,
-    CodeBlock,
-)
+from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, CodeBlock
 from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import get_context_messages
