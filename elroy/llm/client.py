@@ -1,7 +1,8 @@
 import logging
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
+from pydantic import BaseModel
 from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
@@ -154,7 +155,16 @@ def generate_chat_completion_message(
 def query_llm(model: ChatModel, prompt: str, system: str) -> str:
     if not prompt:
         raise ValueError("Prompt cannot be empty")
-    return _query_llm(model=model, prompt=prompt, system=system)
+    return _query_llm(model=model, prompt=prompt, system=system, response_format=None)
+
+
+T = TypeVar("T", bound=BaseModel)
+
+
+def query_llm_with_response_format(model: ChatModel, prompt: str, system: str, response_format: Type[T]) -> T:
+    response = _query_llm(model=model, prompt=prompt, system=system, response_format=response_format)
+
+    return response_format.model_validate_json(response)
 
 
 def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
@@ -219,6 +229,7 @@ def _build_completion_kwargs(
     stream: bool,
     tool_choice: Union[str, Dict, None],
     tools: Optional[List[Dict[str, Any]]],
+    response_format: Optional[Type[BaseModel]] = None,
 ) -> Dict[str, Any]:
     """Centralized configuration for LLM requests"""
     kwargs = {
@@ -227,6 +238,7 @@ def _build_completion_kwargs(
         "caching": model.enable_caching,
         "tool_choice": tool_choice,
         "tools": tools,
+        "response_format": response_format,
     }
     if model.api_key:
         kwargs["api_key"] = model.api_key
@@ -239,7 +251,7 @@ def _build_completion_kwargs(
     return kwargs
 
 
-def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
+def _query_llm(model: ChatModel, prompt: str, system: str, response_format: Optional[Type[BaseModel]]) -> str:
     from litellm import completion
 
     messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
@@ -249,5 +261,6 @@ def _query_llm(model: ChatModel, prompt: str, system: str) -> str:
         stream=False,
         tool_choice=None,
         tools=None,
+        response_format=response_format,
     )
     return completion(**completion_kwargs).choices[0].message.content.strip()  # type: ignore

@@ -15,16 +15,10 @@ from .db.db_models import FunctionCall
 from .io.base import PlainIO
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
-from .llm.stream_parser import (
-    AssistantInternalThought,
-    AssistantToolResult,
-    collect,
-)
+from .llm.stream_parser import AssistantInternalThought, AssistantToolResult, collect
 from .messenger.messenger import process_message
 from .repository.context_messages.data_models import ContextMessage
-from .repository.context_messages.operations import (
-    add_context_message,
-)
+from .repository.context_messages.operations import add_context_message
 from .repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
