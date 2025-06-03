@@ -9,7 +9,7 @@ def is_tracing_enabled() -> bool:
 
 
 def get_log_level() -> int:
-    log_level = os.environ.get("ELROY_LOG_LEVEL", "INFO").upper()
+    log_level = os.environ.get("ELROY_LOG_LEVEL", "WARNING").upper()
 
     if log_level == "INFO":
         return logging.INFO
