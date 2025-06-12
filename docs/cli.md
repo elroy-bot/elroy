@@ -93,5 +93,3 @@ cat meeting_notes.txt | elroy remember
 # Use a specific tool with piped input
 echo "Buy groceries" | elroy message --tool create_goal
 ```
-
-For more detailed information about configuration options and flags, see the [Configuration](configuration.md) page.
