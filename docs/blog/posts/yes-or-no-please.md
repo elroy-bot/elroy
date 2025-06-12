@@ -102,7 +102,7 @@ def test_goal(ctx: ElroyContext):
     )
 ```
 
-### What (sadly) hasn't worked: LLM's talking to LLM's
+### What (sadly) hasn't worked: LLMs talking to LLMs
 Elroy has onboarding functionality, in which it's encouraged to use a few specific functions early on.
 
 The solution of having two instances of a memory assistant talk to each other, with one assistant in the role of "user":
@@ -135,7 +135,7 @@ I now only ask the assistant yes or no questions in tests. I get most of the mil
 #### Telling the assistant it is in a test
 Simply being upfront about the assistant being in a test has worked wonders, moreso even than giving strict instructions on output format [^1]. Luckily, the assistant's knowledge of it's narrow existence has not triggered noticeable [existential angst](https://www.youtube.com/watch?v=X7HmltUWXgs&t=32s) (so far).
 
-As a side note, testing LLM's feels _weird_ sometimes. I felt guilty writing this test, which verified a failsafe that prevents the assistant from calling tools in an infinite loop:
+As a side note, testing LLMs feels _weird_ sometimes. I felt guilty writing this test, which verified a failsafe that prevents the assistant from calling tools in an infinite loop:
 
 ```python
 
@@ -188,4 +188,4 @@ To me, an ideal LLM test is probably a little flaky. I want to test how the mode
 
 ## Tests still help!
 
-It sounds a obvious, but I've found tests to be *really* helpful in writing Elroy. LLM's present new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.
+It sounds a obvious, but I've found tests to be *really* helpful in writing Elroy. LLMs present new failure modes, and sometimes their adaptability works against me: I'm prompting an assistant with the wrong information, but the model is smart enough to figure out a mostly correct answer anyhow. Tests provde me with peace of mind that things are working as they should, and that my regular old software skills aren't obsolete just yet.
