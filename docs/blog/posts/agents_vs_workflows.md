@@ -1,25 +1,100 @@
+---
 title: The problem with tool based memory recall
+date: 2025-03-04
+---
 
-I wanted to build an LLM assistant with memory abilities. The first solution I turned to, which many people have done, is build an agent loop with access to custom tools I wrote, that manage and read memory.
+# The problem with tool based memory recall
 
-There's now a handly tool for builders like this: MCP. MCP has taken off among LLM builders, to the point where it almost seems mandatory to support it to get anyone interested in your tool. There are storm clouds on the horizon, though: the _builders_ of MCP servers that far exceeds the number of _users_. I'm not really _that_ interested in using MCP to use _your_ tool, but I sure am eager for you to use MCP to access _mine_. Maybe you'd even pay me!
-
-
-The problem is that MCP nicely solved a small, cumbersome problem for developers (cross language code execution), at least locally, but the user is left to fix for themselves the hard problem of handing tools to LLM's: how these tools should be used together. This is a task made much more difficult without easy access to edit the tools themselves. With MCP, I've completely delegated not only logic and instructions of my tools, but the execution as well.
-
-footnote:
-and not only the _logic_ of the tools, but the _execution on my machine_, and implicity managing my machine's resources (clumsily, at least for now!).
+I wanted to build an LLM assistant with memory abilities. My goal was to make a _program_ that could chat in human text. My ideal users are technical, capable and interested in customizing their software, but not necessarily interested in LLM's for their own sake.
 
 
+The first solution I turned to, which many people have done, is build an agent loop with access to custom tools I wrote, that manage and read memory:
 
-Similar to a well trained monkey given a hammer, an LLM handed a tool can wield a tool and use it on command. This makes for nice demos.
+<diagram: agent with access to create_memory, search_memory>
+
+There's now a handly tool for builders like this: MCP. MCP has taken off among LLM builders, to the point where it almost seems mandatory to support it to get anyone interested in your tool. There are many implementations of my memory tools available via MCP, in fact [smithery.ai](https://smithery.ai/) lists one from Mem0 on it's homepage:
+
+![smithery](../../images/smithery.png)
+
+Now, an (in theory) lightweight abstraction sits between my program and it's tools:
+
+<diagram: mcp in between my program and the memory tools>
+
+
+There are in theory 3 involved parties for MCP's:
+1. the MCP author
+2. the LLM-powered program creator
+3. the end user
+
+
+There are storm clouds on the horizon, though: the _builders_ of MCP servers that far exceeds the number of _end users_[1].
+
+
+### Problems with the tool approach
+
+I got my program working pretty well on gpt-4. With careful prompt tweaking, it referenced and created memories at the right times.
+
+Then, I wanted to see how Sonnet would do, and I had a problem[3]: the program's behavior completely changed! Now, it was creating a memory on almost every message, and searching memories for even trivial responses.
+
+
+### MCP's user problem
+When I run a software program, my goal is _automoation_. I want the software to do a task so reliably that I _don't have to think about it_. For a program to fill this need, it must do repeatable tasks _in a consistent way_. If a program's job is not done consistently, I'll still have to think about it, and that's what the computer is for!
+
+How can we accomplish this, when LLM's are by definition open ended and unpredictable?
+
+### Workflows vs Agents
+
+Today, the _agent_ abstraction is so dominant in the field that it has become the standard word for "LLM powered software program". However, I think _workflow_ is a compelling alternative:
+
+<digram: original agent bit, vs a workflow loop>
+
+Many pixels have been spilled debating what constitutes an _agent_. Here's my definition:
+- long lived, has autonomy
+- has multiple, potentially open ended use cases
+
+The _agent_ has many degrees of freedom with what changes it can make in your system, and it's discretion will be used to determine what data it reads.
+
+A _workflow_ is, navigating a _decision tree_, considering a more defined set of options at each step, and working towards a concrete goal.
+
+
+These two abstractions are very similar, and can in fact describe the same program. However, the distinction informs important design choices.
+
+An _agent_ generally should have lots of autonomy, with _guardrails_ that prevent it from doing something harmful. A workflow, on the other hand, starts relatively constrained, and perhaps gains more complexity and capabilities over time.
+
+A _workflow_ predominantly leans on the LLM to make _decisions_. At key points, the LLM has the ability to query for data, synthesize it, and choose between a small number of options[4].
+
+Another way to frame the definition of workflows vs agents is how much logic we delegate to code:
+
+
+<diagram: maximalist approach at one end, increasing "guardrails") (guardrails are just code)
+
+
+y axi: logic handled by agent
+x axies: logic handled by code
+
+top left is fully autonomous LLM
+middle is LLM's with guardrails
+bottom is workflow
+
+building with workflows is quadratic in how they use code
+building with agents in mind is quadratic decining
+
+useful software will land in between here
+
+(anthropic ceo wants to worry you / thrill investors with this scenario)
+>
 
 
 
-I have a problem when I
 
-What makes a software program useful, however, is the ability to do larger, repeatable tasks _in a consistent way_. If a program's job is not done consistently, I'll still have to think about it, and that's what the computer is for!
-Programmers often have this problem, but luckily they have a handy tool at their disposal: code. However, using it lessens the feel of playing god. As soon as we turn to code to fix our LLM problem, the target market of addressable tasks:
+## The issue with MCP and agents: Consistency
+
+One solution to my problem of inconsistent agent tool usage is to edit the tools, but now MCP is in my way: I've completely delegated their logic to a library I don't control!
+
+<diagram: core program can't edit tools across MCP>
+
+
+Programmers are often faced with the pr their software behaving unpredictably, but luckily they have a handy tool at their disposal: code. However, using it lessens the feel of playing god. As soon as we turn to code to fix our LLM problem, the target market of addressable tasks:
 
 
 spectrum
@@ -33,19 +108,13 @@ just use code                   Current sweet spot                              
 the "tools" at the LLM's disposal are, just, _code_. the openai spec implies there will soon be more, but they've tellingly not been able to think of any that aren't well described by the word _function_
 
 
-What I really want is a script that navigates _decision tree_. At key points, have the ability to query for data, synthesize it, and choose between a small number of options.
+What I really want is a script that navigates _decision tree_.
 
 This could also be described as a _workflow_.
 
-Many pixels have been spilled debating what constitutes an _agent_. Here's my definition:
-- long lived, has autonomy
-- has multiple use cases
-
-The _agent_ has many degrees of freedom with what changes it can make in your system, and it's discretion will be used to determine what data it reads.
 
 An agent might have _guardrails_, constraining it from doing certain operations, but these are largely for _safety_
 
-For someone like me to be a user of an LLM tool every day for autonmous work, I need the outcome to be _predictable_.
 
 
 ---
@@ -64,36 +133,25 @@ For a piece of software to be useful, I need it to do something I want it to do,
 
 I think software maintainers who think about building "agents"  will be outcompeted by those who think about building _workflows_.
 
-
-The agent approach leads maintainers to _add more prompting_. This can solve some problems, but in the long run what this will create is either unpredictable abstractions, or a predictable one created at very high cost.
+The agent approach leads maintainers to _add more prompting_. This can solve some problems, but in the long run what this will create is either unpredictable abstractions, or a predictable abstraction created at very high cost.
 
 
 The workflow approach leads to lean on the LLM for relatively simple _decisions_, with shifting complexity to code.
 
-(diagram: maximalist approach at one end, increasing "guardrails")
 
-
-y axi: logic handled by agent
-x axies: logic handled by code
-
-top left is fully autonomous LLM
-middle is LLM's with guardrails
-bottom is workflow
-
-building with workflows is quadratic in how they use code
-building with agents in mind is quadratic decining
-
-useful software will land in between here
 
 ---
 
-The conclusions here are all free of hard data, other than building a memory tool for myself. Aka., just vibes and personal experience
+
+[1] A conclusions data-free conclusssion based on vibes and personal experience
+
+[2] :
+and not only the _logic_ of the tools, but the _execution on my machine_, and implicity managing my machine's resources (clumsily, at least for now!).
+
+[3] One problem I _didn't_ have, thanks to [litellm](https://www.litellm.ai/), was updating a lot of my code to support a different model API.
 
 
-
-
-
-
+[4] This also implies that nearly all of the "tools" at an LLM's disposal are _read only_ - actual execution of system changes is done by code.
 
 
 
