@@ -62,7 +62,6 @@ from ..repository.user.tools import (
 )
 from .developer import (
     create_bug_report,
-    make_coding_edit,
     print_config,
     tail_elroy_logs,
 )
@@ -105,7 +104,6 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_user_preferred_name,
     set_user_preferred_name,
     tail_elroy_logs,
-    make_coding_edit,
 }
 USER_ONLY_COMMANDS = {
     ingest_doc,

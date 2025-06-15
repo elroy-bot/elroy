@@ -11,6 +11,7 @@ dependencies = [
     "pgvector>=0.3.6",
     "psycopg2-binary>=2.9.9",
     "sqlalchemy>=2.0.29",
+    "click>=8.2.1",
     "pyyaml>=6.0.1",
     "requests>=2.32.2",
     "tiktoken>=0.8.0",
@@ -53,12 +54,6 @@ dev = [
     "pytest-cov>=6.0.0",
     "pytest-rerunfailures",
 ]
-
-
-aider = [
-    "aider-chat>=0.84.0",
-]
-
 
 docs = [
     "mkdocs",

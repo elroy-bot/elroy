@@ -16,7 +16,6 @@ from ..core.constants import (
     BUG_REPORT_LOG_LINES,
     REPO_ISSUES_URL,
     RecoverableToolError,
-    disabled_tool,
     tool,
     user_only_tool,
 )
@@ -217,54 +216,3 @@ def create_bug_report(
     params = {"title": title, "body": full_report}
     github_url = f"{base_url}?{urllib.parse.urlencode(params)}"
     webbrowser.open(github_url)
-
-
-try:
-    from aider.coders import Coder  # type: ignore
-    from aider.io import InputOutput  # type: ignore
-    from aider.models import Model  # type: ignore
-
-    @tool
-    def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
-        """Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction.
-
-        Args:
-            working_dir: Directory containing the file to edit
-            instruction: Complete edit instructions including any necessary context or raw data
-            file_name: Name of the file to edit
-
-        Returns:
-            str: Git diff output showing the changes made
-        """
-
-        logger.info(f"Instructions to aider: {instruction}")
-
-        # Store current dir
-        original_dir = os.getcwd()
-
-        try:
-            # Change to working dir
-            os.chdir(working_dir)
-
-            # See: https://aider.chat/docs/scripting.html
-            coder = Coder.create(
-                main_model=Model(ctx.chat_model.name),
-                fnames=[file_name],
-                io=InputOutput(yes=True),
-                auto_commits=False,
-            )
-            coder.run(instruction)
-
-            # Get git diff
-            result = subprocess.run(["git", "diff"], capture_output=True, text=True, check=True)
-            return f"Coding change complete, the following diff was generated:\n{result.stdout}"
-
-        finally:
-            # Restore original dir
-            os.chdir(original_dir)
-
-except ImportError:
-
-    @disabled_tool
-    def make_coding_edit(ctx: ElroyContext, working_dir: str, instruction: str, file_name: str) -> str:
-        return "Disabled"

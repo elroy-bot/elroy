@@ -6,6 +6,9 @@
 - Enhanced memory filtering with relevance processing to reduce noise
 - Updated default log level
 
+### Breaking change
+- Removed Aider integration. The integration caused dependency issues
+
 ## [0.0.79] - 2025-04-20
 
 ### Added
