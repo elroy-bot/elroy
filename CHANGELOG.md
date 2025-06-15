@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.80] - 2025-06-14
+
+### Improved
+- Enhanced memory filtering with relevance processing to reduce noise
+- Updated default log level
+
 ## [0.0.79] - 2025-04-20
 
 ### Added
