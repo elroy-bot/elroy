@@ -23,7 +23,7 @@ dependencies = [
     "sqlmodel>=0.0.21",
     "docstring-parser>=0.16",
     "pygments>=2.18.0",
-    "litellm>=1.60",
+    "litellm>=1.72.6",
     "typer>=0.12.5",
     "semantic-version>=2.10.0",
     "sqlite-vec>=0.1.6",
@@ -107,7 +107,8 @@ target-version = ['py39', 'py310', 'py311']
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "ignore::DeprecationWarning"
+    "ignore::DeprecationWarning",
+    "ignore:.*Pydantic serializer warnings.*:UserWarning",
 ]
 log_cli = true
 log_level = "INFO"
