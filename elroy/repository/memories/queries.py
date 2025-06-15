@@ -2,10 +2,12 @@ import json
 from functools import partial
 from typing import Iterable, List, Optional, Sequence, Union
 
+from pydantic import BaseModel
 from sqlmodel import select
 from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
+from ...config.llm import ChatModel
 from ...core.constants import SYSTEM
 from ...core.ctx import ElroyContext
 from ...core.tracing import tracer
@@ -16,15 +18,15 @@ from ...db.db_models import (
     MemorySource,
     get_memory_source_class,
 )
-from ...llm.client import get_embedding, query_llm
+from ...llm.client import get_embedding, query_llm, query_llm_with_response_format
 from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
 from ..context_messages.transforms import (
     ContextMessageSetWithMessages,
     format_context_messages,
 )
 from ..recall.queries import (
-    get_most_relevant_goal,
-    get_most_relevant_memory,
+    get_most_relevant_goals,
+    get_most_relevant_memories,
     is_in_context,
 )
 from ..recall.transforms import to_recalled_memory_metadata
@@ -106,6 +108,38 @@ def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Optional[Memory]:
 
 
 @tracer.chain
+def filter_for_relevance(
+    model: ChatModel,
+    query: str,
+    memories: List[EmbeddableSqlModel],
+) -> List[EmbeddableSqlModel]:
+
+    memories_str = "\n\n".join(f"{i}. {memory.to_fact()}" for i, memory in enumerate(memories))
+
+    class RelevanceResponse(BaseModel):
+        answers: List[bool]
+        reasoning: str  # noqa: F841
+
+    resp = query_llm_with_response_format(
+        model=model,
+        prompt=f"""
+        Query: {query}
+        Responses:
+        {memories_str}
+        """,
+        system="""Your job is to determine which of a set of memories are relevant to a query.
+        Given a query and a list of memories, output:
+        - a list of boolean values indicating whether each memory is relevant to the query.
+        - a brief explanation of your reasoning.
+
+        """,
+        response_format=RelevanceResponse,
+    )
+
+    return [mem for mem, r in zip(list(memories), resp.answers) if r]
+
+
+@tracer.chain
 def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     message_content = pipe(
         context_messages,
@@ -122,26 +156,27 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
 
     assert isinstance(message_content, str)
 
-    new_recalled_memories: List[EmbeddableSqlModel] = pipe(
+    return pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goal, get_most_relevant_memory)(ctx, x),
+        lambda x: juxt(get_most_relevant_goals, get_most_relevant_memories)(ctx, x),
+        concat,
+        list,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
         list,
-    )  # type: ignore
-
-    if not new_recalled_memories:
-        return []
-    elif ctx.reflect:
-        return get_reflective_recall(ctx, context_messages, new_recalled_memories)
-    else:
-        return get_fast_recall(new_recalled_memories)
+        lambda mems: filter_for_relevance(ctx.chat_model, message_content, mems),
+        list,
+        lambda mems: get_reflective_recall(ctx, context_messages, mems) if ctx.reflect else get_fast_recall(mems),
+    )
 
 
 @tracer.chain
 def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessage]:
     """Add recalled content to context, unprocessed."""
+    if not memories:
+        return []
+
     return pipe(
         memories,
         map(
@@ -161,6 +196,9 @@ def get_reflective_recall(
     ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]
 ) -> List[ContextMessage]:
     """More process memory into more reflective recall message"""
+    if not memories:
+        return []
+
     output: str = pipe(
         memories,
         map(lambda x: x.to_fact()),

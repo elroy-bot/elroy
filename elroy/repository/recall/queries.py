@@ -1,11 +1,10 @@
-from typing import Iterable, List, Optional, Type
+from typing import Iterable, List, Type, TypeVar
 
 from ...core.constants import tool
 from ...core.ctx import ElroyContext
 from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Goal, Memory
 from ...llm.client import get_embedding
-from ...utils.utils import first_or_none
 from ..context_messages.data_models import ContextMessage
 
 
@@ -19,12 +18,15 @@ def is_in_context(context_messages: Iterable[ContextMessage], memory: Embeddable
     return any(is_in_context_message(memory, x) for x in context_messages)
 
 
+T = TypeVar("T", bound=EmbeddableSqlModel)
+
+
 @tracer.chain
 def query_vector(
-    table: Type[EmbeddableSqlModel],
+    table: Type[T],
     ctx: ElroyContext,
     query: List[float],
-) -> Iterable[EmbeddableSqlModel]:
+) -> Iterable[T]:
     """
     Perform a vector search on the specified table using the given query.
 
@@ -43,7 +45,7 @@ def query_vector(
             ctx.user_id,
             query,
         )
-    )
+    )  # type: ignore
 
 
 @tool
@@ -79,19 +81,11 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
 
 
 @tracer.chain
-def get_most_relevant_memory(ctx: ElroyContext, query: List[float]) -> Optional[Memory]:
+def get_most_relevant_memories(ctx: ElroyContext, query: List[float]) -> List[Memory]:
     """Get the most relevant memory for the given query."""
-    mem = first_or_none(iter(query_vector(Memory, ctx, query)))
-
-    if mem:
-        assert isinstance(mem, Memory)
-        return mem
+    return list(query_vector(Memory, ctx, query))[:2]
 
 
 @tracer.chain
-def get_most_relevant_goal(ctx: ElroyContext, query: List[float]) -> Optional[Goal]:
-    goal = first_or_none(iter(query_vector(Goal, ctx, query)))
-
-    if goal:
-        assert isinstance(goal, Goal)
-        return goal
+def get_most_relevant_goals(ctx: ElroyContext, query: List[float]) -> List[Goal]:
+    return list(query_vector(Goal, ctx, query))[:2]
