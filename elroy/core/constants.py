@@ -50,13 +50,6 @@ def tool(func: Callable) -> Callable:
     return tracer.tool(func)
 
 
-# Conveys that the tool is disabled
-def disabled_tool(func: Callable) -> Callable:
-    setattr(func, IS_TOOL, True)
-    setattr(func, IS_ENABLED, False)
-    return func
-
-
 def user_only_tool(func: Callable) -> Callable:
     setattr(func, IS_USER_ONLY_TOOL, True)
     return func

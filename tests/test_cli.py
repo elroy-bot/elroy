@@ -10,7 +10,7 @@ from elroy.repository.user.queries import get_persona
 
 def test_persona(ctx: ElroyContext):
 
-    runner = CliRunner(mix_stderr=True)
+    runner = CliRunner()
     config_path = str(Path(__file__).parent / "fixtures" / "test_config.yml")
     result = runner.invoke(
         app,
