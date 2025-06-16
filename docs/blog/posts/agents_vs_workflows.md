@@ -1,16 +1,20 @@
 ---
-title: The problem with tool based memory recall
+title: Build an Agent, or build a Workflow?
 date: 2025-03-04
 ---
 
-# The problem with tool based memory recall
+# Build an Agent, or build a Workflow?
 
 I wanted to build an LLM assistant with memory abilities. My goal was to make a _program_ that could chat in human text. My ideal users are technical, capable and interested in customizing their software, but not necessarily interested in LLM's for their own sake.
+
+## Approach #1: "Agent" with tools
 
 
 The first solution I turned to, which many people have done, is build an agent loop with access to custom tools I wrote, that manage and read memory:
 
-<diagram: agent with access to create_memory, search_memory>
+![tool_based_agent](../../images/blog/agents_vs_workflows/simple_tool_based_agent.png)
+
+## Enter MCP
 
 There's now a handly tool for builders like this: MCP. MCP has taken off among LLM builders, to the point where it almost seems mandatory to support it to get anyone interested in your tool. There are many implementations of my memory tools available via MCP, in fact [smithery.ai](https://smithery.ai/) lists one from Mem0 on it's homepage:
 
@@ -18,8 +22,7 @@ There's now a handly tool for builders like this: MCP. MCP has taken off among L
 
 Now, an (in theory) lightweight abstraction sits between my program and it's tools:
 
-<diagram: mcp in between my program and the memory tools>
-
+![mcp](../../images/blog/agents_vs_workflows/mcp.png)
 
 There are in theory 3 involved parties for MCP's:
 1. the MCP author
