@@ -8,7 +8,7 @@ from tests.utils import process_test_message
 from elroy.core.ctx import ElroyContext
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.documents.operations import (
-    DocIngestResult,
+    DocIngestStatus,
     do_ingest,
     do_ingest_dir,
 )
@@ -37,21 +37,21 @@ def test_ingest_doc(ctx: ElroyContext, midnight_garden_md_path: str):
 
 
 def test_ingest_doc_duplicate(ctx: ElroyContext, midnight_garden_md_path: Path):
-    assert do_ingest(ctx, midnight_garden_md_path, False) == DocIngestResult.SUCCESS
-    assert do_ingest(ctx, midnight_garden_md_path, False) == DocIngestResult.UNCHANGED
-    assert do_ingest(ctx, midnight_garden_md_path, True) == DocIngestResult.UPDATED
+    assert do_ingest(ctx, midnight_garden_md_path, False) == DocIngestStatus.SUCCESS
+    assert do_ingest(ctx, midnight_garden_md_path, False) == DocIngestStatus.UNCHANGED
+    assert do_ingest(ctx, midnight_garden_md_path, True) == DocIngestStatus.UPDATED
 
 
 def test_large_doc(ctx: ElroyContext, very_large_document_path: Path):
-    assert do_ingest(ctx, very_large_document_path, False) == DocIngestResult.TOO_LONG
+    assert do_ingest(ctx, very_large_document_path, False) == DocIngestStatus.TOO_LONG
 
 
 def test_recursive_dir_ingest(ctx: ElroyContext, test_docs_dir: Path):
     # Test recursive ingestion
-    results = do_ingest_dir(ctx, test_docs_dir, force_refresh=False, recursive=True, include=["*.md"], exclude=["*.log"])
+    results = list(do_ingest_dir(ctx, test_docs_dir, force_refresh=False, recursive=True, include=["*.md"], exclude=["*.log"]))[-1]
 
     # Should find all 3 markdown files (2 in root, 1 in subdir)
-    assert results[DocIngestResult.SUCCESS] == 3
+    assert results[DocIngestStatus.SUCCESS] == 3
 
     # Verify txt file was not included due to include pattern
     assert not any(doc.address.endswith(".txt") for doc in get_source_docs(ctx))
@@ -65,7 +65,7 @@ def test_non_recursive_dir_ingest(ctx: ElroyContext, test_docs_dir: Path):
     results = do_ingest_dir(ctx, test_docs_dir, force_refresh=False, recursive=False, include=["*.md"], exclude=[])
 
     # Should only find 2 markdown files in root dir
-    assert results[DocIngestResult.SUCCESS] == 2
+    assert list(results)[-1][DocIngestStatus.SUCCESS] == 2
 
     # Verify no files from subdirectory were ingested
     assert not any("subdir" in doc.address for doc in get_source_docs(ctx))
@@ -83,7 +83,7 @@ def test_dir_ingest_exclude_patterns(ctx: ElroyContext, test_docs_dir: Path):
     )
 
     # Should only find 2 markdown files from root
-    assert results[DocIngestResult.SUCCESS] == 2
+    assert list(results)[-1][DocIngestStatus.SUCCESS] == 2
 
     # Verify excluded patterns worked
     docs = list(get_source_docs(ctx))

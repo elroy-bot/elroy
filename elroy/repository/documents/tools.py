@@ -2,7 +2,7 @@ from pathlib import Path
 
 from ...core.constants import RecoverableToolError, tool
 from ...core.ctx import ElroyContext
-from .operations import DocIngestResult, do_ingest
+from .operations import DocIngestStatus, do_ingest
 from .queries import get_source_doc_by_address, get_source_doc_excerpts, get_source_docs
 
 
@@ -106,4 +106,4 @@ def ingest_doc(ctx: ElroyContext, address: str) -> str:
 
     result = do_ingest(ctx, Path(address), False)
 
-    return f"Document {address} has been ingested." if DocIngestResult.SUCCESS == result else f"Document {address} has been updated."
+    return f"Document {address} has been ingested." if DocIngestStatus.SUCCESS == result else f"Document {address} has been updated."
