@@ -3,11 +3,11 @@ import sys
 from bdb import BdbQuit
 from functools import partial
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import typer
 from rich.table import Table
-from toolz import keymap, pipe
+from toolz import pipe
 
 from elroy.cli.options import get_str_from_stdin_or_arg
 
@@ -625,11 +625,31 @@ def ingest_doc(
 
     with init_elroy_session(ctx, io, True, False):
         if path.is_file():
-            results = {do_ingest(ctx, path, force_refresh): 1}
+            result = do_ingest(ctx, path, force_refresh)
+            io.info(f"Document ingestion result: {result.name}")
         elif path.is_dir():
-            results = do_ingest_dir(ctx, path, force_refresh, recursive, include, exclude)
-            io.info(f"Doc results:")
-            io.print(keymap(lambda x: x.name, results))
+            from rich.live import Live
+            from rich.table import Table
+
+            from elroy.repository.documents.operations import DocIngestStatus
+
+            # Initialize status counts
+            # Create a function to generate the status table
+            def generate_status_table(statuses: Dict[DocIngestStatus, int]):
+                table = Table()
+                table.add_column("Status", style="bold")
+                table.add_column("Count", justify="right")
+
+                for status, count in statuses.items():
+                    table.add_row(status.name, str(count))
+
+                return table
+
+            # Use Rich's Live display to update the table in real-time
+            with Live(generate_status_table({s: 0 for s in DocIngestStatus}), refresh_per_second=8) as live:
+                # Consume the generator and update the display
+                for status_update in do_ingest_dir(ctx, path, force_refresh, recursive, include, exclude):
+                    live.update(generate_status_table(status_update))
         else:
             io.warning(f"Path {path} is neither a file nor a directory")
 

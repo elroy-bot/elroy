@@ -40,12 +40,13 @@ def convert_to_text(chat_model: ChatModel, content: str) -> str:
     )
 
 
-class DocIngestResult(Enum):
+class DocIngestStatus(Enum):
     SUCCESS = "Document has been ingested successfully."
     UPDATED = "Document has been re-ingested successfully."
     UNCHANGED = "Document not ingested as it has not changed."
     TOO_LONG = "Document exceeds the configured max_ingested_doc_lines, and was not ingested."
     FAILED = "Document ingestion failed."
+    PENDING = "Document is queued for ingestion"
 
 
 def should_process_file(path: Path, include: List[str], exclude: List[str]) -> bool:
@@ -91,7 +92,7 @@ def do_ingest_dir(
     recursive: bool,
     include: List[str],
     exclude: List[str],
-) -> Dict[DocIngestResult, int]:
+) -> Generator[Dict[DocIngestStatus, int], None, None]:
     """
     Recursively ingest all files in a directory that match the include/exclude patterns.
 
@@ -109,24 +110,31 @@ def do_ingest_dir(
         raise RecoverableToolError(f"{directory} is not a directory.")
 
     if recursive:
-        file_paths = recursive_file_walk(directory, include, exclude)
+        file_paths = list(recursive_file_walk(directory, include, exclude))
     else:
-        file_paths = (Path(os.path.join(directory, f)) for f in os.listdir(directory) if should_process_file(Path(f), include, exclude))
+        file_paths = list(
+            (Path(os.path.join(directory, f)) for f in os.listdir(directory) if should_process_file(Path(f), include, exclude))
+        )
 
-    results = {}
+    statuses = {status: 0 for status in DocIngestStatus}
 
-    for file_path in file_paths:
+    yield statuses
+
+    for idx, file_path in enumerate(file_paths):
         try:
             result = do_ingest(ctx, file_path, force_refresh)
-            results[result] = results.get(result, 0) + 1
+            statuses[result] = statuses.get(result, 0) + 1
+
         except Exception as e:
-            results[DocIngestResult.FAILED] = results.get(DocIngestResult.FAILED, 0) + 1
+            statuses[DocIngestStatus.FAILED] = statuses.get(DocIngestStatus.FAILED, 0) + 1
             logger.warning(f"Failed to ingest {file_path}: {str(e)}")
+        statuses[DocIngestStatus.PENDING] = len(file_paths) - (idx + 1)
+        yield statuses
 
-    return results
+    yield statuses
 
 
-def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocIngestResult:
+def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocIngestStatus:
     """Downloads the document at the given address, and extracts content into memory.
 
     Args:
@@ -157,7 +165,7 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
 
     if len(lines) > ctx.max_ingested_doc_lines:
         logger.info(f"Document {address} exceeds max_ingested_doc_lines ({ctx.max_ingested_doc_lines}), skipping")
-        return DocIngestResult.TOO_LONG
+        return DocIngestStatus.TOO_LONG
 
     content = "\n".join(lines)
 
@@ -174,7 +182,7 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
             logger.info(f"Force flag set, re-ingesting doc {address}")
         else:
             logger.info(f"Source doc {address} not changed and no force flag set, skipping")
-            return DocIngestResult.UNCHANGED
+            return DocIngestStatus.UNCHANGED
         logger.info(f"Refreshing source doc {address}")
 
         source_doc.content = content
@@ -225,9 +233,9 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
             title,
             chunk.content,
             [doc_excerpt],
-            True,
+            False,
         )
-    return DocIngestResult.SUCCESS if not doc_was_updated else DocIngestResult.UPDATED
+    return DocIngestStatus.SUCCESS if not doc_was_updated else DocIngestStatus.UPDATED
 
 
 def excerpts_from_doc(address: Path, content: str) -> Generator[DocumentChunk, Any, None]:

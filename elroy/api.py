@@ -27,7 +27,7 @@ from .repository.context_messages.operations import (
 from .repository.context_messages.operations import reset_messages as do_reset_messages
 from .repository.context_messages.queries import get_context_messages
 from .repository.context_messages.transforms import is_context_refresh_needed
-from .repository.documents.operations import DocIngestResult, do_ingest, do_ingest_dir
+from .repository.documents.operations import DocIngestStatus, do_ingest, do_ingest_dir
 from .repository.goals.operations import do_create_goal
 from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
@@ -330,7 +330,7 @@ class Elroy:
             self.context_refresh()
 
     @db
-    def ingest_doc(self, address: Union[str, Path], force_refresh=False) -> DocIngestResult:
+    def ingest_doc(self, address: Union[str, Path], force_refresh=False) -> DocIngestStatus:
         """Ingest a document into the assistant's memory
 
         Args:
@@ -348,7 +348,7 @@ class Elroy:
     @db
     def ingest_dir(
         self, address: Union[str, Path], include: List[str], exclude: List[str], recursive: bool, force_refresh=False
-    ) -> Dict[DocIngestResult, int]:
+    ) -> Dict[DocIngestStatus, int]:
         """Ingest a directory of documents into the assistant's memory
 
         Args:
@@ -360,7 +360,9 @@ class Elroy:
 
         """
 
-        return do_ingest_dir(self.ctx, address if isinstance(address, Path) else Path(address), force_refresh, recursive, include, exclude)
+        return list(
+            do_ingest_dir(self.ctx, address if isinstance(address, Path) else Path(address), force_refresh, recursive, include, exclude)
+        )[-1]
 
     def message_stream(self, input: str, enable_tools: bool = True) -> Generator[str, None, None]:
         """Process a message to the assistant and yield response chunks
