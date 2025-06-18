@@ -24,18 +24,14 @@ Now, an (in theory) lightweight abstraction sits between my program and it's too
 
 ![mcp](../../images/blog/agents_vs_workflows/mcp.png)
 
-There are in theory 3 involved parties for MCP's:
-1. the MCP author
-2. the LLM-powered program creator
-3. the end user
+This abstraction suggests extending my application via picking from a library of MCP's:
+
+![more_mcp](../../images/blog/agents_vs_workflows/more_mcp.png)
 
 
-There are storm clouds on the horizon, though: the _builders_ of MCP servers that far exceeds the number of _end users_[1].
+## Agentic trouble
 
-
-### Problems with the tool approach
-
-I got my program working pretty well on gpt-4. With careful prompt tweaking, it referenced and created memories at the right times.
+I got my memory program working pretty well on gpt-4. With careful prompt tweaking, it referenced and created memories at the right times.
 
 Then, I wanted to see how Sonnet would do, and I had a problem[3]: the program's behavior completely changed! Now, it was creating a memory on almost every message, and searching memories for even trivial responses.
 
