@@ -13,6 +13,7 @@ from sqlmodel import select
 from toolz import pipe
 
 from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
+from ..core.async_tasks import schedule_task
 from ..core.constants import EXIT, SYSTEM, USER
 from ..core.ctx import ElroyContext
 from ..core.tracing import tracer
@@ -25,6 +26,7 @@ from ..messenger.messenger import process_message
 from ..messenger.slash_commands import invoke_slash_command
 from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import (
+    eject_irrelevant_memories,
     get_refreshed_system_message,
     refresh_context_if_needed,
     replace_context_messages,
@@ -44,7 +46,7 @@ from ..repository.user.queries import (
 )
 from ..repository.user.tools import set_user_preferred_name
 from ..utils.clock import local_now, local_tz, today_start_local
-from ..utils.utils import datetime_to_string, run_in_background
+from ..utils.utils import datetime_to_string
 
 logger = get_logger()
 
@@ -100,6 +102,8 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
 def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
     init(autoreset=True)
 
+    eject_irrelevant_memories(ctx)
+
     print_title_ruler(io, get_assistant_name(ctx))
 
     context_messages = Validator(ctx, get_context_messages(ctx)).validated_msgs()
@@ -142,7 +146,8 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
             if io.show_memory_panel:
                 io.rule()
                 print_memory_panel(io, ctx)
-            run_in_background(refresh_context_if_needed, ctx)
+            schedule_task(refresh_context_if_needed, ctx, replace=True, delay_seconds=5)
+            schedule_task(eject_irrelevant_memories, ctx, replace=True, delay_seconds=30)
 
 
 @tracer.agent

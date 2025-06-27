@@ -1,6 +1,6 @@
 import json
 from functools import partial
-from typing import Iterable, List, Optional, Sequence, Union
+from typing import Callable, Iterable, List, Optional, Sequence, TypeVar, Union
 
 from pydantic import BaseModel
 from sqlmodel import select
@@ -107,14 +107,18 @@ def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Optional[Memory]:
     ).first()
 
 
+T = TypeVar("T")
+
+
 @tracer.chain
 def filter_for_relevance(
     model: ChatModel,
     query: str,
-    memories: List[EmbeddableSqlModel],
-) -> List[EmbeddableSqlModel]:
+    memories: List[T],
+    extraction_fn: Callable[[T], str],
+) -> List[T]:
 
-    memories_str = "\n\n".join(f"{i}. {memory.to_fact()}" for i, memory in enumerate(memories))
+    memories_str = "\n\n".join(f"{i}. {extraction_fn(memory)}" for i, memory in enumerate(memories))
 
     class RelevanceResponse(BaseModel):
         answers: List[bool]
@@ -139,17 +143,26 @@ def filter_for_relevance(
     return [mem for mem, r in zip(list(memories), resp.answers) if r]
 
 
-@tracer.chain
-def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
-    message_content = pipe(
+def get_message_content(context_messages: List[ContextMessage], n: int) -> str:
+    return pipe(
         context_messages,
         remove(lambda x: x.role == SYSTEM),
+        remove(is_memory_message),
         tail(4),
         map(lambda x: f"{x.role}: {x.content}" if x.content else None),
         remove(lambda x: x is None),
         list,
         "\n".join,
     )
+
+
+def is_memory_message(context_message: ContextMessage) -> bool:
+    return context_message.memory_metadata is not None and context_message.memory_metadata != []
+
+
+@tracer.chain
+def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    message_content = get_message_content(context_messages, 6)
 
     if not message_content:
         return []
@@ -165,7 +178,12 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
         list,
-        lambda mems: filter_for_relevance(ctx.chat_model, message_content, mems),
+        lambda mems: filter_for_relevance(
+            ctx.chat_model,
+            message_content,
+            mems,
+            lambda m: m.to_fact(),
+        ),
         list,
         lambda mems: get_reflective_recall(ctx, context_messages, mems) if ctx.reflect else get_fast_recall(mems),
     )
