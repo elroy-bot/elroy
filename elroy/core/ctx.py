@@ -124,12 +124,14 @@ class ElroyContext:
                     logger.warning("Model alias not found")
                 else:
                     kwargs["chat_model"] = resolved
+
+            if m in kwargs:
                 del kwargs[m]
 
         params = pipe(
             kwargs,
-            lambda x: dissoc(x, *CLI_ONLY_PARAMS),
             lambda x: get_resolved_params(**x),
+            lambda x: dissoc(x, *CLI_ONLY_PARAMS),
         )
 
         invalid_params = set(params.keys()) - set(ElroyContext.__init__.__annotations__.keys())

@@ -1,5 +1,3 @@
-import logging
-import time
 from functools import partial
 from typing import List
 
@@ -20,10 +18,10 @@ def test_identical_memories(ctx):
     """Test consolidation of identical memories marks one inactive"""
     memory1 = do_create_memory_from_ctx_msgs(
         ctx, "User's Hiking Habits", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
-    )[0]
+    )
     memory2 = do_create_memory_from_ctx_msgs(
         ctx, "User's Mountain Activities", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
-    )[0]
+    )
 
     assert memory1 and memory2
 
@@ -36,9 +34,10 @@ def test_identical_memories(ctx):
 
 
 def test_trigger(ctx):
+    ctx.use_background_threads = False
     assert ctx.memories_between_consolidation == 4
 
-    threads = pipe(
+    pipe(
         [
             "I went to the store today, January 1",
             "I went shopping at the store on New Year' Day",
@@ -46,25 +45,9 @@ def test_trigger(ctx):
             "I bought some items on New Year's Day",
         ],
         map(partial(do_create_memory_from_ctx_msgs, ctx, "Shopping Trip")),
-        map(lambda x: x[1]),
         filter(lambda x: x is not None),
         list,
     )
-
-    assert len(threads) > 0, "No threads created for consolidation test"
-
-    max_retries = 10
-    retry_count = 0
-    live_thread_count = len(threads)
-    while retry_count < max_retries:
-        live_thread_count = len([thread for thread in threads if thread.is_alive()])  # type: ignore
-        if live_thread_count == 0:
-            break
-        else:
-            logging.info(f"Waiting for {live_thread_count} consolidation threads to complete...")
-            time.sleep(0.5)
-
-    assert live_thread_count == 0, "Consolidation threads did not complete in time"
 
     assert len(get_active_memories(ctx)) == 1
     assert (

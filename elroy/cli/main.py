@@ -386,6 +386,11 @@ def chat(typer_ctx: typer.Context):
 
         check_updates(io)
 
+        # Initialize the APScheduler
+        from ..core.async_tasks import init_scheduler, shutdown_scheduler
+
+        init_scheduler()
+
         with init_elroy_session(ctx, io, True, True):
             try:
                 handle_chat(io, params["disable_assistant_greeting"], ctx)
@@ -400,6 +405,9 @@ def chat(typer_ctx: typer.Context):
                     )
                 else:
                     create_bug_report_from_exception_if_confirmed(io, ctx, e)
+            finally:
+                shutdown_scheduler(wait=False)
+
     else:
         ctx = ElroyContext.init(use_background_threads=False, **params)
         message = sys.stdin.read()
