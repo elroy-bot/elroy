@@ -4,8 +4,6 @@ from typing import List
 
 import numpy as np
 from pydantic import BaseModel
-from scipy.spatial.distance import cosine
-from sklearn.cluster import DBSCAN
 from toolz import pipe
 from toolz.curried import map, take
 
@@ -58,6 +56,8 @@ class MemoryCluster:
     @cached_property
     def distance_matrix(self) -> np.ndarray:
         """Lazily compute and cache the distance matrix."""
+        from scipy.spatial.distance import cosine  # lazy load
+
         size = len(self)
         _distance_matrix = np.zeros((size, size))
         for i in range(size):
@@ -141,7 +141,8 @@ def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryClus
 
     embeddings_array = np.array(embeddings)
 
-    # Perform DBSCAN clustering
+    from sklearn.cluster import DBSCAN  # lazy load
+
     clustering = DBSCAN(
         eps=ctx.memory_cluster_similarity_threshold,
         metric="cosine",
