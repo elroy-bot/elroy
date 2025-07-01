@@ -1,3 +1,4 @@
+import re
 import traceback
 from bdb import BdbQuit
 from datetime import timedelta
@@ -152,6 +153,9 @@ def handle_chat(io: CliIO, disable_greeting: bool, ctx: ElroyContext):
 
 @tracer.agent
 def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
+    if user_input.startswith("/ask"):
+        user_input = re.sub("^/ask", "", user_input)
+
     if user_input.startswith("/") and role == USER:
         try:
             result = invoke_slash_command(io, ctx, user_input)
