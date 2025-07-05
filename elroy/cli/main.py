@@ -34,7 +34,7 @@ from .updater import check_latest_version, check_updates
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
-CLI_ONLY_PARAMS = {"disable_assistant_greeting", "show_memory_panel"}
+CLI_ONLY_PARAMS = {"enable_assistant_greeting", "show_memory_panel"}
 
 
 setup_core_logging()
@@ -167,11 +167,10 @@ def common(
         rich_help_panel="Context Management",
         hidden=True,
     ),
-    disable_assistant_greeting: bool = typer.Option(  # noqa F841
+    enable_assistant_greeting: bool = typer.Option(  # noqa F841
         False,
-        "--first",
-        "--no-enable-assistant-greeting",
-        help="If true, assistant will not send the first message",
+        "--greeting",
+        help="If true, assistant will send the first message",
         rich_help_panel="Context Management",
     ),
     # Memory Consolidation
@@ -393,7 +392,7 @@ def chat(typer_ctx: typer.Context):
 
         with init_elroy_session(ctx, io, True, True):
             try:
-                handle_chat(io, params["disable_assistant_greeting"], ctx)
+                handle_chat(io, params["enable_assistant_greeting"], ctx)
             except BdbQuit:
                 logger.info("Exiting...")
             except EOFError:
