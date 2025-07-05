@@ -15,6 +15,7 @@ from toolz import concatv, pipe
 from toolz.curried import map
 
 from elroy.io.completer import SlashCompleter
+from elroy.io.live_panel import LivePanelManager
 
 from ..config.paths import get_prompt_history_path
 from ..core.constants import EXIT
@@ -35,6 +36,7 @@ class CliIO(ElroyIO):
         formatter: RichFormatter,
         show_internal_thought: bool,
         show_memory_panel: bool,
+        show_live_panel: bool = False,
     ) -> None:
         self.console = Console()
         self.formatter = formatter
@@ -55,8 +57,33 @@ class CliIO(ElroyIO):
             lexer=PygmentsLexer(TextLexer),
         )
         self.show_memory_panel = show_memory_panel
+        self.show_live_panel = show_live_panel
+        self.live_panel = LivePanelManager(self.console)
 
         self.last_output_type = None
+
+    def start_live_panel(self):
+        """Start the live panel for background operations."""
+        return self.live_panel.live_panel()
+
+    def add_background_job(self, job_id: str, name: str, status=None):
+        """Add a job to the live panel."""
+        from elroy.io.live_panel import JobStatus
+
+        status = status or JobStatus.SCHEDULED
+        self.live_panel.add_job(job_id, name, status)
+
+    def update_background_job(self, job_id: str, **kwargs):
+        """Update a background job in the live panel."""
+        self.live_panel.update_job(job_id, **kwargs)
+
+    def complete_background_job(self, job_id: str, progress: str = None):
+        """Mark a background job as completed."""
+        self.live_panel.complete_job(job_id, progress)
+
+    def fail_background_job(self, job_id: str, error: str):
+        """Mark a background job as failed."""
+        self.live_panel.fail_job(job_id, error)
 
     @contextmanager
     def status(self, message: str = ""):

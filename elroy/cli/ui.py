@@ -29,6 +29,27 @@ def print_memory_panel(io: CliIO, ctx: ElroyContext) -> None:
     )
 
 
+def print_live_panel(io: CliIO) -> None:
+    """
+    Print the live panel showing background operation status if enabled and has active jobs.
+    """
+
+    import pdb
+
+    pdb.set_trace()
+    if not io.show_live_panel:
+        logger.debug("print_live_panel called, but Live panel is disabled")
+        return
+
+    if not io.live_panel.has_active_jobs:
+        logger.debug("print_live_panel called, but no active jobs")
+        return
+
+    # Display the current state of the live panel
+    panel = io.live_panel._create_panel()
+    io.console.print(panel)
+
+
 def print_title_ruler(io: CliIO, assistant_name: str):
     io.console.rule(
         Text(assistant_name, justify="center", style=io.user_input_color),
