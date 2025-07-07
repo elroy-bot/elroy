@@ -1,3 +1,4 @@
+from time import sleep
 from typing import Iterator, List, Optional
 
 from pydantic import BaseModel
@@ -47,7 +48,11 @@ def process_message(
             chat_model=None,
         )
     ]
+
+    ctx.update_task_status("memory_fetch", "Fetching")
+    sleep(5)
     new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
+    ctx.update_task_status("memory_fetch", "Complete", True)
 
     if ctx.show_internal_thought:
         for new_msg in new_msgs[1:]:
