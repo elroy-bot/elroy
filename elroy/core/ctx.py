@@ -1,10 +1,10 @@
 import re
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, List, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 from toolz import pipe
 from toolz.curried import dissoc
@@ -29,6 +29,7 @@ logger = get_logger()
 
 class ElroyContext:
     _db: Optional[DbSession] = None
+    _task_status: Dict[str, Dict[str, Any]] = {}
 
     def __init__(
         self,
@@ -239,6 +240,47 @@ class ElroyContext:
 
     def unset_db_session(self):
         self._db = None
+
+    def update_task_status(self, task_id: str, status: str, is_terminal: bool = False, name: Optional[str] = None):
+        """Update the status of a background task"""
+        now = datetime.now()
+
+        if task_id not in self._task_status:
+            self._task_status[task_id] = {
+                "id": task_id,
+                "name": name or task_id,
+                "status": status,
+                "last_status_updated_at": now,
+                "is_terminal": is_terminal,
+            }
+        else:
+            self._task_status[task_id]["status"] = status
+            self._task_status[task_id]["last_status_updated_at"] = now
+            self._task_status[task_id]["is_terminal"] = is_terminal
+            if name:
+                self._task_status[task_id]["name"] = name
+
+    def get_tasks(self) -> List[Dict[str, Any]]:
+        """Get list of active tasks, removing stale ones"""
+        now = datetime.now()
+        cutoff_time = now - timedelta(seconds=10)
+
+        # Remove stale tasks
+        stale_tasks = [task_id for task_id, task in self._task_status.items() if task["last_status_updated_at"] < cutoff_time]
+
+        for task_id in stale_tasks:
+            del self._task_status[task_id]
+
+        # Return remaining tasks
+        return [
+            {"id": task["id"], "name": task["name"], "status": task["status"], "last_status_updated_at": task["last_status_updated_at"]}
+            for task in self._task_status.values()
+        ]
+
+    def clear_task_status(self, task_id: str):
+        """Remove a specific task from the status tracking"""
+        if task_id in self._task_status:
+            del self._task_status[task_id]
 
 
 T = TypeVar("T", bound=Callable[..., Any])

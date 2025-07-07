@@ -10,6 +10,7 @@ from prompt_toolkit.styles import Style as PTKStyle
 from pygments.lexers.special import TextLexer
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 from toolz import concatv, pipe
 from toolz.curried import map
@@ -35,6 +36,7 @@ class CliIO(ElroyIO):
         formatter: RichFormatter,
         show_internal_thought: bool,
         show_memory_panel: bool,
+        show_live_panel: bool = True,
     ) -> None:
         self.console = Console()
         self.formatter = formatter
@@ -55,6 +57,8 @@ class CliIO(ElroyIO):
             lexer=PygmentsLexer(TextLexer),
         )
         self.show_memory_panel = show_memory_panel
+        self.show_live_panel = show_live_panel
+        self._live_panel = None
 
         self.last_output_type = None
 
@@ -156,3 +160,48 @@ class CliIO(ElroyIO):
             ["/" + EXIT, "/help"].__add__,
             lambda x: SlashCompleter(words=x),  # type: ignore
         )
+
+    def _generate_task_status_panel(self, ctx) -> Panel:
+        """Generate a rich panel showing current task status"""
+        from ..core.ctx import ElroyContext
+
+        if not isinstance(ctx, ElroyContext):
+            return Panel("Task status unavailable", title="Background Tasks", border_style=self.user_input_color)
+
+        tasks = ctx.get_tasks()
+
+        if not tasks:
+            return Panel("No active tasks", title="Background Tasks", border_style=self.user_input_color)
+
+        table = Table.grid(padding=(0, 2))
+        table.add_column("Task", style="bold")
+        table.add_column("Status")
+
+        for task in tasks:
+            table.add_row(task["name"], f"[dim]{task['status']}[/dim]")
+
+        return Panel(table, title="Background Tasks", border_style=self.user_input_color)
+
+    def print_task_status_panel(self, ctx):
+        """Print the task status panel if there are active tasks"""
+        if not self.show_live_panel:
+            return
+
+        from ..core.ctx import ElroyContext
+
+        if not isinstance(ctx, ElroyContext):
+            return
+
+        tasks = ctx.get_tasks()
+
+        if tasks:
+            self.console.print(self._generate_task_status_panel(ctx))
+
+    def start_live_panel(self, ctx):
+        """Start the live panel for showing task status - simplified to just print when needed"""
+
+    def update_live_panel(self, ctx):
+        """Update the live panel with current task status - simplified to just print when needed"""
+
+    def stop_live_panel(self):
+        """Stop the live panel - simplified to just cleanup"""

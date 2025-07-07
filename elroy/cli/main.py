@@ -706,6 +706,7 @@ def get_io(**kwargs) -> ElroyIO:
             ),
             show_internal_thought=params["show_internal_thought"],
             show_memory_panel=params["show_memory_panel"],
+            show_live_panel=params.get("show_live_panel", True),
         )
     else:
         return PlainIO()
