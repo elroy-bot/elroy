@@ -133,6 +133,9 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
             list(get_context_messages(ctx)),
         )
 
+        # Print task status panel if there are active tasks
+        io.print_task_status_panel(ctx)
+
         user_input = io.prompt_user(ctx.thread_pool, 3)
         if user_input.lower().startswith(f"/{EXIT}") or user_input == EXIT:
             break
