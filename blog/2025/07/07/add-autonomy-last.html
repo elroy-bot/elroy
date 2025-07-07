@@ -12,27 +12,29 @@
         <meta name="author" content="Elroy Team">
       
       
-        <link rel="canonical" href="https://elroy.bot/configuration.html">
+        <link rel="canonical" href="https://elroy.bot/blog/2025/07/07/add-autonomy-last.html">
+      
+      
+        <link rel="prev" href="../../03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html">
       
       
       
+        <link rel="alternate" type="application/rss+xml" title="RSS feed" href="../../../../feed_rss_created.xml">
+        <link rel="alternate" type="application/rss+xml" title="RSS feed of updated content" href="../../../../feed_rss_updated.xml">
       
-        <link rel="alternate" type="application/rss+xml" title="RSS feed" href="feed_rss_created.xml">
-        <link rel="alternate" type="application/rss+xml" title="RSS feed of updated content" href="feed_rss_updated.xml">
-      
-      <link rel="icon" href="images/logo_circle.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.9">
+      <link rel="icon" href="../../../../images/logo_circle.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
     
     
       
-        <title>Configuration - Elroy</title>
+        <title>Add Autonomy Last - Elroy</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.4af4bdda.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.342714a4.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -51,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="stylesheets/extra.css">
+      <link rel="stylesheet" href="../../../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -77,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#configuration" class="md-skip">
+        <a href="#add-autonomy-last" class="md-skip">
           Skip to content
         </a>
       
@@ -93,9 +95,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="index.html" title="Elroy" class="md-header__button md-logo" aria-label="Elroy" data-md-component="logo">
+    <a href="../../../../index.html" title="Elroy" class="md-header__button md-logo" aria-label="Elroy" data-md-component="logo">
       
-  <img src="images/logo_circle.png" alt="logo">
+  <img src="../../../../images/logo_circle.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -112,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Configuration
+              Add Autonomy Last
             
           </span>
         </div>
@@ -124,11 +126,13 @@
     
     
     
-      <label class="md-header__button md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-      </label>
-      <div class="md-search" data-md-component="search" role="dialog">
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
@@ -165,6 +169,7 @@
     </div>
   </div>
 </div>
+      
     
     
       <div class="md-header__source">
@@ -195,7 +200,9 @@
           
             
               
-              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" hidden>
                 <div class="md-sidebar__scrollwrap">
                   <div class="md-sidebar__inner">
                     
@@ -204,9 +211,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="index.html" title="Elroy" class="md-nav__button md-logo" aria-label="Elroy" data-md-component="logo">
+    <a href="../../../../index.html" title="Elroy" class="md-nav__button md-logo" aria-label="Elroy" data-md-component="logo">
       
-  <img src="images/logo_circle.png" alt="logo">
+  <img src="../../../../images/logo_circle.png" alt="logo">
 
     </a>
     Elroy
@@ -233,8 +240,9 @@
   
   
     <li class="md-nav__item">
-      <a href="index.html" class="md-nav__link">
+      <a href="../../../../index.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Home
@@ -254,8 +262,9 @@
   
   
     <li class="md-nav__item">
-      <a href="how_it_works.html" class="md-nav__link">
+      <a href="../../../../how_it_works.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     How It Works
@@ -275,8 +284,9 @@
   
   
     <li class="md-nav__item">
-      <a href="installation.html" class="md-nav__link">
+      <a href="../../../../installation.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Installation
@@ -296,8 +306,9 @@
   
   
     <li class="md-nav__item">
-      <a href="cli.html" class="md-nav__link">
+      <a href="../../../../cli.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     CLI
@@ -338,6 +349,7 @@
     
     
     
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
@@ -347,10 +359,10 @@
         <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
         
           
-          
           <div class="md-nav__link md-nav__container">
-            <a href="configuration/index.html" class="md-nav__link ">
+            <a href="../../../../configuration/index.html" class="md-nav__link ">
               
+  
   
   <span class="md-ellipsis">
     Configuration
@@ -383,8 +395,9 @@
   
   
     <li class="md-nav__item">
-      <a href="configuration/basic.html" class="md-nav__link">
+      <a href="../../../../configuration/basic.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Basic Configuration
@@ -405,8 +418,9 @@
   
   
     <li class="md-nav__item">
-      <a href="configuration/models.html" class="md-nav__link">
+      <a href="../../../../configuration/models.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Models
@@ -427,8 +441,9 @@
   
   
     <li class="md-nav__item">
-      <a href="configuration/context.html" class="md-nav__link">
+      <a href="../../../../configuration/context.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Context Management
@@ -449,8 +464,9 @@
   
   
     <li class="md-nav__item">
-      <a href="configuration/memory.html" class="md-nav__link">
+      <a href="../../../../configuration/memory.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Memory
@@ -471,8 +487,9 @@
   
   
     <li class="md-nav__item">
-      <a href="configuration/tracing.html" class="md-nav__link">
+      <a href="../../../../configuration/tracing.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Tracing
@@ -493,8 +510,9 @@
   
   
     <li class="md-nav__item">
-      <a href="configuration/ui.html" class="md-nav__link">
+      <a href="../../../../configuration/ui.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     UI
@@ -522,8 +540,9 @@
   
   
     <li class="md-nav__item">
-      <a href="model_context_protocol.html" class="md-nav__link">
+      <a href="../../../../model_context_protocol.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Model Context Protocol
@@ -543,8 +562,9 @@
   
   
     <li class="md-nav__item">
-      <a href="scripting.html" class="md-nav__link">
+      <a href="../../../../scripting.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Scripting
@@ -573,6 +593,7 @@
     
     
     
+    
     <li class="md-nav__item md-nav__item--nested">
       
         
@@ -584,6 +605,7 @@
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
             
+  
   
   <span class="md-ellipsis">
     Tools
@@ -608,8 +630,9 @@
   
   
     <li class="md-nav__item">
-      <a href="tools_guide.html" class="md-nav__link">
+      <a href="../../../../tools_guide.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Tools Guide
@@ -630,8 +653,9 @@
   
   
     <li class="md-nav__item">
-      <a href="tools_schema.html" class="md-nav__link">
+      <a href="../../../../tools_schema.html" class="md-nav__link">
         
+  
   
   <span class="md-ellipsis">
     Tools Schema
@@ -656,8 +680,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -668,19 +694,18 @@
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-          
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
-        
-          
           
           <div class="md-nav__link md-nav__container">
-            <a href="blog/index.html" class="md-nav__link ">
+            <a href="../../../index.html" class="md-nav__link ">
               
+  
   
   <span class="md-ellipsis">
     Blog
@@ -692,7 +717,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             Blog
@@ -716,6 +741,8 @@
             
             
               
+                
+              
               <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
                 <div class="md-sidebar__scrollwrap">
                   <div class="md-sidebar__inner">
@@ -735,11 +762,62 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#configuration-categories" class="md-nav__link">
+  <a href="#autonomy-first-vs-autonomy-last" class="md-nav__link">
     <span class="md-ellipsis">
-      Configuration Categories
+      Autonomy first vs autonomy last
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case-study-building-elroy-a-chatbot-with-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Case study: Building Elroy, a chatbot with memory
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Case study: Building Elroy, a chatbot with memory">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#approach-1-agent-with-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Approach #1: "Agent" with tools
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#approach-2-model-context-protocol-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      Approach #2: Model Context Protocol (MCP)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentic-trouble" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agentic trouble
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#approach-3-autonomy-last" class="md-nav__link">
+    <span class="md-ellipsis">
+      Approach #3: Autonomy Last
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -752,29 +830,135 @@
             
           
           
-            <div class="md-content" data-md-component="content">
-              <article class="md-content__inner md-typeset">
-                
-                  
+  <div class="md-content md-content--post" data-md-component="content">
+    <div class="md-sidebar md-sidebar--post" data-md-component="sidebar" data-md-type="navigation">
+      <div class="md-sidebar__scrollwrap">
+        <div class="md-sidebar__inner md-post">
+          <nav class="md-nav md-nav--primary">
+            <div class="md-post__back">
+              <div class="md-nav__title md-nav__container">
+                <a href="../../../index.html" class="md-nav__link">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+                  <span class="md-ellipsis">
+                    Back to index
+                  </span>
+                </a>
+              </div>
+            </div>
+            
+            <ul class="md-post__meta md-nav__list">
+              <li class="md-nav__item md-nav__item--section">
+                <div class="md-post__title">
+                  <span class="md-ellipsis">
+                    Metadata
+                  </span>
+                </div>
+                <nav class="md-nav">
+                  <ul class="md-nav__list">
+                    <li class="md-nav__item">
+                      <div class="md-nav__link">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 19H5V8h14m-3-7v2H8V1H6v2H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1m-1 11h-5v5h5z"/></svg>
+                        <time datetime="2025-07-07 00:00:00+00:00" class="md-ellipsis">July 7, 2025</time>
+                      </div>
+                    </li>
+                    
+                    
+                    
+                      
+                      <li class="md-nav__item">
+                        <div class="md-nav__link">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 20a8 8 0 0 0 8-8 8 8 0 0 0-8-8 8 8 0 0 0-8 8 8 8 0 0 0 8 8m0-18a10 10 0 0 1 10 10 10 10 0 0 1-10 10C6.47 22 2 17.5 2 12A10 10 0 0 1 12 2m.5 5v5.25l4.5 2.67-.75 1.23L11 13V7z"/></svg>
+                          <span class="md-ellipsis">
+                            
+                              4 min read
+                            
+                          </span>
+                        </div>
+                      </li>
+                    
+                  </ul>
+                </nav>
+              </li>
+            </ul>
+            
+          </nav>
+          
+        </div>
+      </div>
+    </div>
+    <article class="md-content__inner md-typeset">
+      
+        
+  
+
 
 
   
   
 
 
-<h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p><strong>Note:</strong> The configuration documentation has been reorganized into separate pages for better organization. Please visit the <a href="configuration/index.html">Configuration Overview</a> page for the updated documentation.</p>
-</blockquote>
-<h2 id="configuration-categories">Configuration Categories<a class="headerlink" href="#configuration-categories" title="Permanent link">&para;</a></h2>
+<h1 id="add-autonomy-last">Add Autonomy Last<a class="headerlink" href="#add-autonomy-last" title="Permanent link">&para;</a></h1>
+<p>A core challenge of using LLM's to build reliable automation is calibrating how much <strong>autonomy</strong> to give to models.</p>
+<p>Too much, and the program <a href="https://www.anthropic.com/research/project-vend-1">loses track of what it's supposed to be doing</a>. Too little, and the program feels a bit too, well, <em>ordinary</em><sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>.</p>
+<h2 id="autonomy-first-vs-autonomy-last">Autonomy first vs autonomy last<a class="headerlink" href="#autonomy-first-vs-autonomy-last" title="Permanent link">&para;</a></h2>
+<p>An implicit strategy question when building with LLMs is <em>autonomy first</em> or <em>autonomy last</em>:</p>
+<p><img alt="autonomy_first_vs_last" src="../../../../images/blog/autonomy_last/autonomy_first_vs_last.png" /></p>
+<p>All of the major LLM-specific programming techniques are firmly <em>autonomy first</em> strategies:</p>
 <ul>
-<li><a href="configuration/basic.html">Basic Configuration</a> - Core settings for Elroy</li>
-<li><a href="configuration/models.html">Models</a> - Model selection and configuration</li>
-<li><a href="configuration/context.html">Context Management</a> - Settings for context window management</li>
-<li><a href="configuration/memory.html">Memory</a> - Memory consolidation and retrieval settings</li>
-<li><a href="configuration/tracing.html">Tracing</a> - Monitoring and debugging with Arize-Phoenix</li>
-<li><a href="configuration/ui.html">UI</a> - User interface customization</li>
+<li><em>MCP</em> surfaces a wide variety of functionality the program can have, and lets the LLM decide which to use</li>
+<li><em>Guardrails</em> add some light buffers around the LLM to prevent it from causing too much trouble.</li>
+<li><em>Prompt engineering</em> describes the alchemy of whispering just the right phrases to your LLM to get the behavior you want.</li>
+<li><em>Context engineering</em> begins to stress programming to deliver only relevant information to LLMs at critical points in program execution</li>
 </ul>
+<p>All of these:</p>
+<ol>
+<li>Start with a maximally autonomous program</li>
+<li>Adjust context, tools, and prompts until you narrow down behavior as desired.</li>
+</ol>
+<p>All have similar issues when scaling in size and complexity:</p>
+<ul>
+<li>Program behavior changes too much when switching between models</li>
+<li>The LLM gets confused, and either hallucinates data or misuses tools at its disposal</li>
+</ul>
+<p>When problems are encountered, programmers tend to attempt to repair by <em>adding more prompting</em>. But this is a duct tape response: a prompt that clarifies for one model might confused another.</p>
+<p><em>Autonomy last</em>, on the other hand, maximizes the logic that can be handled by code, then adds autonomous functions. This approach strives to keep the tasks delegated to LLMs <a href="https://en.wikipedia.org/wiki/KISS_principle">simple</a>. As the program grows in size and complexity, the programmer can closely monitor encapsulations and keep behavior consistent.</p>
+<h2 id="case-study-building-elroy-a-chatbot-with-memory">Case study: Building Elroy, a chatbot with memory<a class="headerlink" href="#case-study-building-elroy-a-chatbot-with-memory" title="Permanent link">&para;</a></h2>
+<p>I wanted to build an LLM assistant with memory abilities, called <a href="https://github.com/elroy-bot/elroy">Elroy</a>. My goal was to make a <em>program</em> that could chat in human text. My ideal users are technical, capable and interested in customizing their software, but not necessarily interested in LLMs for their own sake.</p>
+<h3 id="approach-1-agent-with-tools">Approach #1: "Agent" with tools<a class="headerlink" href="#approach-1-agent-with-tools" title="Permanent link">&para;</a></h3>
+<p>The first solution I turned to, which many people have done, is build an agent loop with access to custom for creating and reading memories:</p>
+<p><img alt="tool_based_agent" src="../../../../images/blog/autonomy_last/Agent.png" /></p>
+<h3 id="approach-2-model-context-protocol-mcp">Approach #2: Model Context Protocol (MCP)<a class="headerlink" href="#approach-2-model-context-protocol-mcp" title="Permanent link">&para;</a></h3>
+<p>There's now a handly tool for builders like this: <a href="https://modelcontextprotocol.io/introduction">MCP</a>. There are many implementations of my memory tools available via MCP, in fact <a href="https://smithery.ai/">smithery.ai</a> lists one from Mem0 on it's homepage:</p>
+<p><img alt="smithery" src="../../../../images/blog/autonomy_last/smithery.png" /></p>
+<p>Now, an (in theory) lightweight abstraction sits between my program and it's tools:</p>
+<p><img alt="mcp" src="../../../../images/blog/autonomy_last/mcp.png" /></p>
+<p>This suggests extending my application via picking from a library of MCP's:</p>
+<p><img alt="more_mcp" src="../../../../images/blog/autonomy_last/more_mcp.png" /></p>
+<h3 id="agentic-trouble">Agentic trouble<a class="headerlink" href="#agentic-trouble" title="Permanent link">&para;</a></h3>
+<p>I got my memory program working pretty well on gpt-4. At first it wasn't creating or referencing memories enough, but I was able to fix this with careful prompting.</p>
+<p>Then, I wanted to see how Sonnet would do, and I had a problem<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup>: the program's behavior completely changed! Now, it was creating a memory on almost every message, and searching memories for even trivial responses:</p>
+<p><img alt="tool_usage" src="../../../../images/blog/autonomy_last/tool_usage_rate.png" /></p>
+<h3 id="approach-3-autonomy-last">Approach #3: Autonomy Last<a class="headerlink" href="#approach-3-autonomy-last" title="Permanent link">&para;</a></h3>
+<p>My solution was to remove the timing of recall and memory creation from the agent's control. Upon receiving a message, the memories are automatically searched, with relevant ones being added to context. Every n messages, a memory is created<sup id="fnref:3"><a class="footnote-ref" href="#fn:3">3</a></sup>:</p>
+<p><img alt="tool_usage" src="../../../../images/blog/autonomy_last/elroy.png" /></p>
+<p>This made much more of the behavior of my program deterministic, and made it easier to reason about and optimize.</p>
+<h1 id="autonomy-last">Autonomy Last<a class="headerlink" href="#autonomy-last" title="Permanent link">&para;</a></h1>
+<p>The "autonomy last" approach trades some of the magic of fully autonomous LLMs for predictable, reliable behavior that scales as your program grows in complexity. While my evidence is, (as I should have stated from the outset), <em>vibes</em>, I think this approach will lead to more maintainable and robust applications.</p>
+<hr />
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:1">
+<p>Rather than using <em>agents</em> to describe the genre of program under discussion, I'll be somewhat pointedly referring to them as <em>programs</em>.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:2">
+<p>One problem I <em>didn't</em> have, thanks to <a href="https://www.litellm.ai/">litellm</a>, was updating a lot of my code to support a different model API.&#160;<a class="footnote-backref" href="#fnref:2" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:3">
+<p>Elroy also monitors for the context window being exceeded, and consolidates similar memories in the background.&#160;<a class="footnote-backref" href="#fnref:3" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
 
 
 
@@ -795,7 +979,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 17, 2025 01:36:34">March 17, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="June 12, 2025 14:37:34 UTC">June 12, 2025</span>
   </span>
 
     
@@ -806,12 +990,14 @@
 
 
 
+  
 
 
-                
-              </article>
-            </div>
-          
+
+      
+    </article>
+  </div>
+
           
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
         </div>
@@ -878,10 +1064,12 @@
     </div>
     
     
-    <script id="__config" type="application/json">{"base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+      
+      <script id="__config" type="application/json">{"base": "../../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "../../../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.c8b220af.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.56ea9cef.min.js"></script>
       
     
   </body>
