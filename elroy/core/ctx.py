@@ -9,6 +9,8 @@ from typing import Any, Callable, List, Optional, TypeVar
 from toolz import pipe
 from toolz.curried import dissoc
 
+from ..io.status import StatusTracker
+
 from ..cli.options import DEPRECATED_KEYS, get_resolved_params, resolve_model_alias
 from ..config.llm import (
     ChatModel,
@@ -143,6 +145,10 @@ class ElroyContext:
                 logger.warning(f"Ignoring invalid parameter: {k}")
 
         return cls(**dissoc(params, *invalid_params))  # type: ignore
+
+    @cached_property
+    def status_tracker(self) -> StatusTracker:
+        return StatusTracker()
 
     @cached_property
     def tool_registry(self) -> ToolRegistry:

@@ -5,7 +5,7 @@ from typing import Callable, Iterable, List, Optional, Sequence, TypeVar, Union
 from pydantic import BaseModel
 from sqlmodel import select
 from toolz import concat, juxt, pipe, unique
-from toolz.curried import filter, map, remove, tail
+from toolz.curried import filter, map, remove, tail, do
 
 from ...config.llm import ChatModel
 from ...core.constants import SYSTEM
@@ -172,18 +172,22 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
+        do(ctx.status_tracker.track("Fetching memories")),
         lambda x: juxt(get_most_relevant_goals, get_most_relevant_memories)(ctx, x),
+        do(ctx.status_tracker.complete("Fetching memories")),
         concat,
         list,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
         list,
+        do(ctx.status_tracker.track("Selecting relevant memories")),
         lambda mems: filter_for_relevance(
             ctx.chat_model,
             message_content,
             mems,
             lambda m: m.to_fact(),
         ),
+        do(ctx.status_tracker.complete("Selecting relevant memories")),
         list,
         lambda mems: get_reflective_recall(ctx, context_messages, mems) if ctx.reflect else get_fast_recall(mems),
     )
@@ -214,61 +218,62 @@ def get_reflective_recall(
     ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]
 ) -> List[ContextMessage]:
     """More process memory into more reflective recall message"""
-    if not memories:
-        return []
+    with ctx.status_tracker.tracking("Reflecting on memories"):
+        if not memories:
+            return []
 
-    output: str = pipe(
-        memories,
-        map(lambda x: x.to_fact()),
-        "\n\n".join,
-        lambda x: "Recalled Memory Content\n\n"
-        + x
-        + "#Converstaion Transcript:\n"
-        + format_context_messages(
-            tail(3, list(context_messages)[1:]),  # type: ignore
-            do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-            get_assistant_name(ctx),
-        ),
-        lambda x: query_llm(
-            ctx.chat_model,
-            x,
-            """#Identity and Purpose
-
-        I am the internal thoughts of an AI assistant. I am reflecting on memories that have entered my awareness.
-
-        I am considering recalled context, as well as the transcript of a recent conversation. I am:
-        - Re-stating the most relevant context from the recalled content
-        - Reflecting on how the recalled content relates to the conversation transcript
-
-        Specific examples are most helpful. For example, if the recalled content is:
-
-        "USER mentioned that when playing basketball, they struggle to remember to follow through on their shots."
-
-        and the conversation transcript includes:
-        "USER: I'm going to play basketball next week"
-
-        a good response would be:
-        "I remember that USER struggles to remember to follow through on their shots when playing basketball. I should remind USER about following through on their shots for next week's game."
-
-
-        My response will be in the first person, and will be transmitted to an AI assistant to inform their response. My response will NOT be transmitted to the user.
-
-        My response is brief and to the point, no more than 100 words.
-        """,
-        ),
-    )  # type: ignore
-
-    return [
-        ContextMessage(
-            role=SYSTEM,
-            content="\n".join(
-                [output, "\nThis recollection was based on the following Goals and Memories:"]
-                + [x.__class__.__name__ + ": " + x.get_name() for x in memories]
+        output: str = pipe(
+            memories,
+            map(lambda x: x.to_fact()),
+            "\n\n".join,
+            lambda x: "Recalled Memory Content\n\n"
+            + x
+            + "#Converstaion Transcript:\n"
+            + format_context_messages(
+                tail(3, list(context_messages)[1:]),  # type: ignore
+                do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+                get_assistant_name(ctx),
             ),
-            chat_model=ctx.chat_model.name,
-            memory_metadata=[to_recalled_memory_metadata(x) for x in memories],
-        )
-    ]
+            lambda x: query_llm(
+                ctx.chat_model,
+                x,
+                """#Identity and Purpose
+
+            I am the internal thoughts of an AI assistant. I am reflecting on memories that have entered my awareness.
+
+            I am considering recalled context, as well as the transcript of a recent conversation. I am:
+            - Re-stating the most relevant context from the recalled content
+            - Reflecting on how the recalled content relates to the conversation transcript
+
+            Specific examples are most helpful. For example, if the recalled content is:
+
+            "USER mentioned that when playing basketball, they struggle to remember to follow through on their shots."
+
+            and the conversation transcript includes:
+            "USER: I'm going to play basketball next week"
+
+            a good response would be:
+            "I remember that USER struggles to remember to follow through on their shots when playing basketball. I should remind USER about following through on their shots for next week's game."
+
+
+            My response will be in the first person, and will be transmitted to an AI assistant to inform their response. My response will NOT be transmitted to the user.
+
+            My response is brief and to the point, no more than 100 words.
+            """,
+            ),
+        )  # type: ignore
+
+        return [
+            ContextMessage(
+                role=SYSTEM,
+                content="\n".join(
+                    [output, "\nThis recollection was based on the following Goals and Memories:"]
+                    + [x.__class__.__name__ + ": " + x.get_name() for x in memories]
+                ),
+                chat_model=ctx.chat_model.name,
+                memory_metadata=[to_recalled_memory_metadata(x) for x in memories],
+            )
+        ]
 
 
 def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> List[str]:

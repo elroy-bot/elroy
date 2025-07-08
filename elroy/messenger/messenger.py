@@ -3,6 +3,8 @@ from typing import Iterator, List, Optional
 from pydantic import BaseModel
 from toolz import pipe
 
+from ..io.status import StatusTracker
+
 from ..core.constants import ASSISTANT, SYSTEM, TOOL, USER
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger

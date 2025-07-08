@@ -13,6 +13,8 @@ from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
+from ..io.status import StatusTracker
+
 from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
 from ..core.async_tasks import schedule_task
 from ..core.constants import EXIT, SYSTEM, USER
@@ -107,6 +109,8 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
 
     print_title_ruler(io, get_assistant_name(ctx))
 
+    io.console.li
+
     context_messages = Validator(ctx, get_context_messages(ctx)).validated_msgs()
 
     if not enable_greeting:
@@ -152,7 +156,7 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
 
 
 @tracer.agent
-def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True):
+def process_and_deliver_msg(io: CliIO, role: str, ctx: ElroyContext, user_input: str, enable_tools: bool = True,):
     if user_input.startswith("/ask"):
         user_input = re.sub("^/ask", "", user_input)
 
