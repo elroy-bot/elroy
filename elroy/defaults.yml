@@ -49,6 +49,7 @@ assistant_color: "#77DFD8"  # Color for assistant output
 warning_color: "yellow"  # Color for warning messages
 internal_thought_color: "#708090"  # Color for internal thought messages
 show_memory_panel: true  # Whether to display the memory panel
+show_live_panel: true # Whether to display the live panel showing background operation status
 
 
 # Shell commands

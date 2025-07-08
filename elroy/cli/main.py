@@ -34,7 +34,7 @@ from .updater import check_latest_version, check_updates
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
 
-CLI_ONLY_PARAMS = {"enable_assistant_greeting", "show_memory_panel"}
+CLI_ONLY_PARAMS = {"enable_assistant_greeting", "show_memory_panel", "show_live_panel"}
 
 
 setup_core_logging()
@@ -215,6 +215,11 @@ def common(
     show_memory_panel: bool = ElroyOption(  # noqa F841
         "show_memory_panel",
         help="Whether to display the memory panel in the UI.",
+        rich_help_panel="UI Configuration",
+    ),
+    show_live_panel: bool = ElroyOption(  # noqa F841
+        "show_live_panel",
+        help="Whether to display the live panel showing background operation status.",
         rich_help_panel="UI Configuration",
     ),
     show_internal_thought: bool = ElroyOption(
@@ -706,6 +711,7 @@ def get_io(**kwargs) -> ElroyIO:
             ),
             show_internal_thought=params["show_internal_thought"],
             show_memory_panel=params["show_memory_panel"],
+            show_live_panel=params["show_live_panel"],
         )
     else:
         return PlainIO()

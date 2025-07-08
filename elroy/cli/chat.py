@@ -13,7 +13,12 @@ from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
-from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
+from ..cli.ui import (
+    print_live_panel,
+    print_memory_panel,
+    print_model_selection,
+    print_title_ruler,
+)
 from ..core.async_tasks import schedule_task
 from ..core.constants import EXIT, SYSTEM, USER
 from ..core.ctx import ElroyContext
@@ -103,6 +108,9 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
 def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
     init(autoreset=True)
 
+    # Set up live panel context for background tasks
+    ctx._live_panel = io.live_panel
+
     eject_irrelevant_memories(ctx)
 
     print_title_ruler(io, get_assistant_name(ctx))
@@ -147,8 +155,12 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
             if io.show_memory_panel:
                 io.rule()
                 print_memory_panel(io, ctx)
-            schedule_task(refresh_context_if_needed, ctx, replace=True, delay_seconds=5)
-            schedule_task(eject_irrelevant_memories, ctx, replace=True, delay_seconds=30)
+
+            if io.show_live_panel:
+                print_live_panel(io)
+
+            schedule_task(refresh_context_if_needed, ctx, replace=True, delay_seconds=5, job_name="Context Refresh")
+            schedule_task(eject_irrelevant_memories, ctx, replace=True, delay_seconds=30, job_name="Memory Cleanup")
 
 
 @tracer.agent
