@@ -103,8 +103,6 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
 def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
     init(autoreset=True)
 
-    eject_irrelevant_memories(ctx)
-
     print_title_ruler(io, get_assistant_name(ctx))
 
     context_messages = Validator(ctx, get_context_messages(ctx)).validated_msgs()
