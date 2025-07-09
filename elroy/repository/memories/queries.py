@@ -10,6 +10,7 @@ from toolz.curried import filter, map, remove, tail
 from ...config.llm import ChatModel
 from ...core.constants import SYSTEM
 from ...core.ctx import ElroyContext
+from ...core.logging import log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import (
     EmbeddableSqlModel,
@@ -111,6 +112,7 @@ T = TypeVar("T")
 
 
 @tracer.chain
+@log_execution_time
 def filter_for_relevance(
     model: ChatModel,
     query: str,
@@ -210,6 +212,7 @@ def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessa
 
 
 @tracer.chain
+@log_execution_time
 def get_reflective_recall(
     ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]
 ) -> List[ContextMessage]:

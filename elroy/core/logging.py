@@ -1,13 +1,38 @@
+import functools
 import logging
 import os
+import time
 import warnings
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from ..config.env_vars import get_log_level
 from ..config.paths import get_log_file_path
 
 logger = logging.getLogger("elroy")
 logger.setLevel(get_log_level())
+
+
+def log_execution_time(func: Callable) -> Callable:
+    """Simple decorator that logs function execution time."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        logger = get_logger()
+        task_name = func.__name__
+
+        start_time = time.perf_counter()
+
+        try:
+            result = func(*args, **kwargs)
+            elapsed = time.perf_counter() - start_time
+            logger.info(f"{task_name} (took {elapsed:.2f}s)")
+            return result
+        except Exception as e:
+            elapsed = time.perf_counter() - start_time
+            logger.error(f"{task_name} (took {elapsed:.2f}s) - {str(e)}")
+            raise
+
+    return wrapper
 
 
 def setup_core_logging():
