@@ -10,7 +10,7 @@ from toolz.curried import filter, map, remove, tail
 from ...config.llm import ChatModel
 from ...core.constants import SYSTEM
 from ...core.ctx import ElroyContext
-from ...core.logging import log_execution_time
+from ...core.logging import get_logger, log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import (
     EmbeddableSqlModel,
@@ -32,6 +32,8 @@ from ..recall.queries import (
 )
 from ..recall.transforms import to_recalled_memory_metadata
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
+
+logger = get_logger()
 
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> Optional[MemorySource]:
@@ -160,6 +162,26 @@ def get_message_content(context_messages: List[ContextMessage], n: int) -> str:
 
 def is_memory_message(context_message: ContextMessage) -> bool:
     return context_message.memory_metadata is not None and context_message.memory_metadata != []
+
+
+@log_execution_time
+def is_memory_check_needed(ctx: ElroyContext, context_messages: List[ContextMessage]) -> bool:
+    class Resp(BaseModel):
+        should_consult_memory: bool
+
+    resp = query_llm_with_response_format(
+        ctx.chat_model,
+        system="""
+        You are an internal process for an AI assistant. Given a conversation transcript, determine if memory of the user should be consulted based on the content of the *most recent user message*
+        Note: The memory transcript may already include memories that have been recalled and surfaced to the assistant. If these memories give sufficient context, memory should not be consulted again.
+        Response true if memory should be consulted, false otherwise.
+        """,
+        prompt="\n".join([f"{m.role}: {m.content}" for m in context_messages[:5]]),
+        response_format=Resp,
+    )
+    logger.info(f"memory check needed: {resp.should_consult_memory}")
+
+    return resp.should_consult_memory
 
 
 @tracer.chain

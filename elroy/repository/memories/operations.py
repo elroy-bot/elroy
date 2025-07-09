@@ -6,7 +6,7 @@ from sqlmodel import select
 from ...core.async_tasks import schedule_task
 from ...core.constants import MAX_MEMORY_LENGTH, SYSTEM, user_only_tool
 from ...core.ctx import ElroyContext
-from ...core.logging import get_logger
+from ...core.logging import get_logger, log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import (
     EmbeddableSqlModel,
@@ -37,6 +37,7 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
         return tracker
 
 
+@log_execution_time
 def create_mem_from_current_context(ctx: ElroyContext):
     memory_title, memory_text = formulate_memory(
         ctx,

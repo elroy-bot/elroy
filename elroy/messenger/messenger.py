@@ -14,7 +14,10 @@ from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.validations import Validator
-from ..repository.memories.queries import get_relevant_memory_context_msgs
+from ..repository.memories.queries import (
+    get_relevant_memory_context_msgs,
+    is_memory_check_needed,
+)
 from .tools import exec_function_call
 
 logger = get_logger()
@@ -47,7 +50,9 @@ def process_message(
             chat_model=None,
         )
     ]
-    new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
+
+    if is_memory_check_needed(ctx, context_messages + new_msgs):
+        new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
     if ctx.show_internal_thought:
         for new_msg in new_msgs[1:]:
