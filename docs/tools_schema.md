@@ -344,54 +344,6 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
-      "name": "run_shell_command",
-      "description": "Run a shell command and return the output.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "command": {
-            "type": "string",
-            "description": "The shell command to run."
-          }
-        },
-        "required": [
-          "command"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "make_coding_edit",
-      "description": "Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "working_dir": {
-            "type": "string",
-            "description": "Directory containing the file to edit"
-          },
-          "instruction": {
-            "type": "string",
-            "description": "Complete edit instructions including any necessary context or raw data"
-          },
-          "file_name": {
-            "type": "string",
-            "description": "Name of the file to edit"
-          }
-        },
-        "required": [
-          "working_dir",
-          "instruction",
-          "file_name"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "mark_goal_completed",
       "description": "Marks a goal as completed, with closing comments.",
       "parameters": {

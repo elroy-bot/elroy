@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.0.81] - 2025-07-10
+
+### Added
+- Status table for document ingestion in directories, with improved real-time feedback
+
+### Improved
+- Major performance improvements for simple exchanges by adding a decision step for whether memory check is needed
+- Irrelevant memories are now ejected asynchronously, reducing context noise and improving recall
+- Document ingestion logic updated: newly ingested docs are no longer added to status, and status is shown for directory ingests
+- Turned off assistant greeting by default for a less intrusive startup experience
+- Do not consider messages starting with `/ask` as slash commands
+- Memory filtering on startup is now removed for faster initialization
+
+### Fixed
+- Bugfixes for memory ejection and context refresh logic
+- More robust handling of document ingestion and status reporting
+- Various minor bugfixes in async task scheduling and memory operations
+
+### Infrastructure
+- Delayed import of `scipy` and `DBSCAN` to speed up startup and avoid unnecessary dependencies
+- Cleaned up and standardized error messages
+- Updated and expanded test coverage for memory and document ingestion features
+
 ## [0.0.80] - 2025-06-14
 
 ### Improved
