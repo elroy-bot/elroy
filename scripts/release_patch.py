@@ -202,7 +202,7 @@ def validate_docker_build(errors: Errors):
 
         # Check if output contains "hello world" (case insensitive)
         if "hello world" not in result.stdout.lower():
-            errors.messages.append("Error: Docker test message did not contain expected response")
+            errors.messages.append(f"Error: Docker test message did not contain expected response. Output: {result.stdout.lower()}")
 
         # Clean up the image after testing
         subprocess.run(["docker", "rmi", validation_tag], check=False)
