@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from functools import partial
 from typing import Callable, Iterable, List, Optional, Sequence, TypeVar, Union
 
@@ -166,22 +167,58 @@ def is_memory_message(context_message: ContextMessage) -> bool:
 
 @log_execution_time
 def is_memory_check_needed(ctx: ElroyContext, context_messages: List[ContextMessage]) -> bool:
+
+    class ConsultMemoryReasons(str, Enum):
+        unfamiliar_topic = "unfamiliar_topic"  # noqa: F841
+        references_past_conversation = "references_past_conversation"  # noqa: F841
+        mentions_personal_details = "mentions_personal_details"  # noqa: F841
+        asks_about_previous_work = "asks_about_previous_work"  # noqa: F841
+        context_dependent_question = "context_dependent_question"  # noqa: F841
+        follow_up_question = "follow_up_question"  # noqa: F841
+        ambiguous_pronouns = "ambiguous_pronouns"  # noqa: F841
+        requests_continuation = "requests_continuation"  # noqa: F841
+        mentions_shared_context = "mentions_shared_context"  # noqa: F841
+        asks_for_updates = "asks_for_updates"  # noqa: F841
+        document_search_needed = "document_search_needed"  # noqa: F841
+
+    class DoNotConsultMemoryReasons(str, Enum):
+        only_general_knowledge_needed = "only_general_knowledge_needed"  # noqa: F841
+        self_contained_question = "self_contained_question"  # noqa: F841
+        factual_lookup = "factual_lookup"  # noqa: F841
+        mathematical_calculation = "mathematical_calculation"  # noqa: F841
+        code_explanation = "code_explanation"  # noqa: F841
+        greeting_or_small_talk = "greeting_or_small_talk"  # noqa: F841
+        hypothetical_scenario = "hypothetical_scenario"  # noqa: F841
+        definitional_question = "definitional_question"  # noqa: F841
+        current_events_only = "current_events_only"  # noqa: F841
+        creative_writing_prompt = "creative_writing_prompt"  # noqa: F841
+
     class Resp(BaseModel):
-        should_consult_memory: bool
+        response: Union[ConsultMemoryReasons, DoNotConsultMemoryReasons]
 
     resp = query_llm_with_response_format(
         ctx.chat_model,
         system="""
         You are an internal process for an AI assistant. Given a conversation transcript, determine if memory of the user should be consulted based on the content of the *most recent user message*
-        Note: The memory transcript may already include memories that have been recalled and surfaced to the assistant. If these memories give sufficient context, memory should not be consulted again.
+
+        The memory database that you could search contains memories based on conversational transcripts, as well as documents ingested on behalf of the user.
+
+        Consider a few factors when determining your answer:
+        - If the conversation transcript already includes relevant memories, return FALSE
+        - If the conversation transcript mentions specific topics that are not general knowledge, return TRUE
+        - If you are being explicitly asked to recall something, return TRUE
+        - The memory transcript may already include memories that have been recalled and surfaced to the assistant. If these memories give sufficient context, memory should not be consulted again.
+        - You may be being explicitly asked to recall something
         Response true if memory should be consulted, false otherwise.
         """,
         prompt="\n".join([f"{m.role}: {m.content}" for m in context_messages[:5]]),
         response_format=Resp,
     )
-    logger.info(f"memory check needed: {resp.should_consult_memory}")
+    should_consult_memory = isinstance(resp.response, ConsultMemoryReasons)
 
-    return resp.should_consult_memory
+    logger.info(f"memory check needed: {should_consult_memory} ({resp.response})")
+
+    return should_consult_memory
 
 
 @tracer.chain

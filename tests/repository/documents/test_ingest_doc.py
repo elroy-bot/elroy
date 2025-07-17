@@ -20,7 +20,7 @@ def test_ingest_doc(ctx: ElroyContext, midnight_garden_md_path: str):
     ingest_doc(ctx, midnight_garden_md_path)
     reset_messages(ctx)
 
-    response = process_test_message(ctx, "In the Midnight Garden, what was the name of the main character?")
+    response = process_test_message(ctx, "You've ingested the story Midnight Garden. In it, what was the name of the main character?")
     assert "clara" in response.lower()
 
     response = process_test_message(ctx, "What was the last sentence of the story, The Midnight Garden?")
