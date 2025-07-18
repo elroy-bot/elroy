@@ -22,7 +22,7 @@ def check_updates(io: CliIO):
         if latest_version > current_version:
             if typer.confirm(f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"):
                 typer.echo("Upgrading elroy...")
-                
+
                 # Try uv tool first
                 if _is_uv_tool_installed():
                     upgrade_exit_code = _upgrade_with_uv_tool(latest_version)
@@ -45,14 +45,9 @@ def _is_uv_tool_installed() -> bool:
     """Check if elroy is installed as a uv tool"""
     if not shutil.which("uv"):
         return False
-    
+
     try:
-        result = subprocess.run(
-            ["uv", "tool", "list"], 
-            capture_output=True, 
-            text=True, 
-            timeout=5
-        )
+        result = subprocess.run(["uv", "tool", "list"], capture_output=True, text=True, timeout=5)
         return result.returncode == 0 and "elroy" in result.stdout
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         return False
@@ -61,8 +56,7 @@ def _is_uv_tool_installed() -> bool:
 def _is_pip_available() -> bool:
     """Check if pip is available"""
     try:
-        subprocess.run([sys.executable, "-m", "pip", "--version"], 
-                      capture_output=True, timeout=5)
+        subprocess.run([sys.executable, "-m", "pip", "--version"], capture_output=True, timeout=5)
         return True
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         return False
@@ -75,9 +69,7 @@ def _upgrade_with_uv_tool(version: Version) -> int:
 
 def _upgrade_with_pip(version: Version) -> int:
     """Upgrade elroy using pip"""
-    return os.system(
-        f"{sys.executable} -m pip install --upgrade --upgrade-strategy only-if-needed elroy=={version}"
-    )
+    return os.system(f"{sys.executable} -m pip install --upgrade --upgrade-strategy only-if-needed elroy=={version}")
 
 
 def check_latest_version() -> tuple[Version, Version]:

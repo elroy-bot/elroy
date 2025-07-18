@@ -11,6 +11,7 @@ from toolz import pipe
 
 from elroy.cli.options import get_str_from_stdin_or_arg
 
+from .. import __version__
 from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..core.constants import KNOWN_MODELS, MODEL_SELECTION_CONFIG_PANEL
 from ..core.ctx import ElroyContext
@@ -43,7 +44,7 @@ setup_file_logging()
 logger = get_logger()
 
 app = typer.Typer(
-    help="Elroy CLI",
+    help=f"Elroy {__version__}",
     context_settings={
         "obj": None,
     },
