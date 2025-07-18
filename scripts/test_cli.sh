@@ -98,5 +98,9 @@ run_test "Resetting persona" \
     "elroy reset-persona && elroy show-persona" \
     "Elroy"
 
+run_test "Executing help" \
+    "elroy --help" \
+    "Elroy"
+
 echo "✅ All tests passed successfully!"
 

@@ -11,7 +11,8 @@ dependencies = [
     "pgvector>=0.3.6",
     "psycopg2-binary>=2.9.9",
     "sqlalchemy>=2.0.29",
-    "click>=8.2.1",
+    "click==8.1.7", # ensure typer and click are compatible before changing versions
+    "typer==0.12.5", # ensure typer and click are compatible before changing versions
     "pyyaml>=6.0.1",
     "requests>=2.32.2",
     "tiktoken>=0.8.0",
@@ -25,7 +26,6 @@ dependencies = [
     "docstring-parser>=0.16",
     "pygments>=2.18.0",
     "litellm>=1.68.0",
-    "typer>=0.12.5",
     "semantic-version>=2.10.0",
     "sqlite-vec>=0.1.6",
     "scikit-learn>=1.6.0",
