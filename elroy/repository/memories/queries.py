@@ -4,7 +4,7 @@ from functools import partial
 from typing import Callable, Iterable, List, Optional, Sequence, TypeVar, Union
 
 from pydantic import BaseModel
-from sqlmodel import select
+from sqlmodel import col, select
 from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
@@ -344,3 +344,7 @@ def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage])
         list,
         sorted,
     )  # type: ignore
+
+
+def get_memories(ctx: ElroyContext, memory_ids: List[int]) -> List[Memory]:
+    return list(ctx.db.exec(select(Memory).where(Memory.user_id == ctx.user_id, col(Memory.id).in_(memory_ids))).all())

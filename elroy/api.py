@@ -1,17 +1,17 @@
-from functools import wraps
+from functools import partial, wraps
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
 
 from pydantic import BaseModel
 from toolz import concat, pipe
-from toolz.curried import filter, map
+from toolz.curried import do, filter, map
 
 from .core.constants import USER
 from .core.ctx import ElroyContext
 from .core.logging import setup_core_logging
 from .core.session import dbsession, init_elroy_session
 from .core.tracing import tracer
-from .db.db_models import FunctionCall
+from .db.db_models import FunctionCall, Memory
 from .io.base import PlainIO
 from .io.formatters.base import StringFormatter
 from .io.formatters.plain_formatter import PlainFormatter
@@ -33,6 +33,7 @@ from .repository.goals.queries import get_active_goal_names as do_get_active_goa
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
 from .repository.goals.tools import add_goal_status_update as do_add_goal_status_update
 from .repository.goals.tools import mark_goal_completed as do_mark_goal_completed
+from .repository.memories.queries import get_memories
 from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
 from .repository.user.operations import set_assistant_name, set_persona
@@ -130,6 +131,14 @@ class Elroy:
             priority,
         )
         return f"Goal '{goal_name}' has been created."
+
+    @db
+    def get_current_messages(self) -> List[ContextMessage]:  # noqa F841
+        """Retrieves messages currently in context"""
+        return pipe(
+            get_context_messages(self.ctx),
+            list,
+        )  # type: ignore
 
     @db
     def add_goal_status_update(self, goal_name: str, status_update_or_note: str) -> str:
@@ -241,6 +250,22 @@ class Elroy:
             str: The result of the memory creation
         """
         return do_create_memory(self.ctx, name, text)
+
+    @db
+    def get_current_memories(self) -> List[Memory]:
+        """Retrieves the list of memories currently in context"""
+        return pipe(
+            self.get_current_messages(),
+            map(lambda m: m.memory_metadata),
+            filter(lambda m: m is not None),
+            concat,
+            filter(lambda m: m.memory_type == Memory.__name__),
+            map(lambda m: m.id),
+            list,
+            partial(get_memories, self.ctx),
+            map(do(self.ctx.db.session.expunge)),
+            list,
+        )
 
     @db
     @tracer.chain
