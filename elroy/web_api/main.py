@@ -4,8 +4,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from elroy.api import Elroy
-
-from ..repository.memories.models import MemoryResponse
+from elroy.repository.memories.models import MemoryResponse
 
 app = FastAPI(title="Elroy API", version="1.0.0")
 
