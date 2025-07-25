@@ -24,6 +24,10 @@ class ChatResponse(BaseModel):
     messages: List[MessageResponse]
 
 
+class MemoryRequest(BaseModel):
+    text: str
+
+
 @app.get("/get_current_messages", response_model=List[MessageResponse])
 async def get_current_messages():
     """Return a list of current messages in the conversation context."""
@@ -38,12 +42,9 @@ async def get_current_messages():
 
 
 @app.post("/create_augmented_memory", response_model=MemoryResponse)
-async def create_augmented_memory():
+async def create_augmented_memory(request: MemoryRequest):
     elroy = Elroy()
-
-    text = "TODO"
-
-    return elroy.create_augmented_memory(text)
+    return elroy.create_augmented_memory(request.text)
 
 
 @app.get("/get_current_memories", response_model=List[MemoryResponse])
