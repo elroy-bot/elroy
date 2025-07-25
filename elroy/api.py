@@ -220,7 +220,7 @@ class Elroy:
     @db
     def create_augmented_memory(self, text: str) -> str:
         mem = augment_memory(self.ctx, text)
-        return do_create_memory(mem.title, mem.text)
+        return self.create_memory(mem.title, mem.text)
 
     @db
     def create_memory(self, name: str, text: str) -> str:
