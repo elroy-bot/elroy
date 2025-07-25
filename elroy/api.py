@@ -33,6 +33,7 @@ from .repository.goals.queries import get_active_goal_names as do_get_active_goa
 from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
 from .repository.goals.tools import add_goal_status_update as do_add_goal_status_update
 from .repository.goals.tools import mark_goal_completed as do_mark_goal_completed
+from .repository.memories.operations import augment_memory
 from .repository.memories.queries import get_memories
 from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
@@ -215,6 +216,11 @@ class Elroy:
             str: The result of the memory creation
         """
         return self.create_memory(name, text)
+
+    @db
+    def create_augmented_memory(self, text: str) -> str:
+        mem = augment_memory(self.ctx, text)
+        return do_create_memory(mem.title, mem.text)
 
     @db
     def create_memory(self, name: str, text: str) -> str:

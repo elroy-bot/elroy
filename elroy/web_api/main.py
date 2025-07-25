@@ -1,21 +1,20 @@
 from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 
 from elroy.api import Elroy
 
+from ..repository.memories.models import MemoryResponse
+
 app = FastAPI(title="Elroy API", version="1.0.0")
+
+# Style note: do not catch and reraise errors, outside of specific error handling, let regular errors propagate.
 
 
 class MessageResponse(BaseModel):
     role: str
     content: str
-
-
-class MemoryResponse(BaseModel):
-    title: str
-    text: str
 
 
 class ChatRequest(BaseModel):
@@ -29,49 +28,49 @@ class ChatResponse(BaseModel):
 @app.get("/get_current_messages", response_model=List[MessageResponse])
 async def get_current_messages():
     """Return a list of current messages in the conversation context."""
-    try:
-        elroy = Elroy()
-        elroy.ctx
+    elroy = Elroy()
+    elroy.ctx
 
-        messages = []
-        for msg in elroy.get_current_messages():
-            messages.append(MessageResponse(role=msg.role, content=msg.content or ""))
+    messages = []
+    for msg in elroy.get_current_messages():
+        messages.append(MessageResponse(role=msg.role, content=msg.content or ""))
 
-        return messages
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return messages
+
+
+@app.post("/create_augmented_memory", response_model=MemoryResponse)
+async def create_augmented_memory():
+    elroy = Elroy()
+
+    text = "TODO"
+
+    return elroy.create_augmented_memory(text)
 
 
 @app.get("/get_current_memories", response_model=List[MemoryResponse])
 async def get_current_memories():
     """Return a list of memories for the current user."""
-    try:
-        elroy = Elroy()
-        elroy.ctx
+    elroy = Elroy()
+    elroy.ctx
 
-        memories = []
-        for memory in elroy.get_current_memories():
-            memories.append(MemoryResponse(title=memory.name, text=memory.text))
+    memories = []
+    for memory in elroy.get_current_memories():
+        memories.append(MemoryResponse(title=memory.name, text=memory.text))
 
-        return memories
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return memories
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Process a user message and return the updated conversation."""
-    try:
-        elroy = Elroy()
-        elroy.message(request.message)
-        messages = []
-        for msg in elroy.get_current_messages():
-            if msg.content:
-                messages.append(MessageResponse(role=msg.role, content=msg.content or ""))
+    elroy = Elroy()
+    elroy.message(request.message)
+    messages = []
+    for msg in elroy.get_current_messages():
+        if msg.content:
+            messages.append(MessageResponse(role=msg.role, content=msg.content or ""))
 
-        return ChatResponse(messages=messages)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return ChatResponse(messages=messages)
 
 
 if __name__ == "__main__":
