@@ -1,11 +1,13 @@
+import os
+import tempfile
 from typing import List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from litellm import transcription
 from pydantic import BaseModel
 
 from elroy.api import Elroy
-
-from ..repository.memories.models import MemoryResponse
+from elroy.repository.memories.models import MemoryResponse
 
 app = FastAPI(title="Elroy API", version="1.0.0")
 
@@ -71,6 +73,44 @@ async def chat(request: ChatRequest):
             messages.append(MessageResponse(role=msg.role, content=msg.content or ""))
 
     return ChatResponse(messages=messages)
+
+
+@app.post("/create_voice_memory", response_model=str)
+async def create_voice_memory(file: UploadFile = File(...)):
+    """Accept a voice recording upload, transcribe it, and create a memory."""
+    if not file.content_type or not file.content_type.startswith("audio/"):
+        raise HTTPException(status_code=400, detail="File must be an audio file")
+
+    try:
+        # Create a temporary file to store the uploaded audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+
+        try:
+            # Transcribe the audio using litellm
+            with open(temp_file_path, "rb") as audio_file:
+                response = transcription(model="whisper-1", file=audio_file)
+
+            # Extract the transcribed text
+            transcribed_text = response.text if hasattr(response, "text") else str(response)
+
+            # Create memory using Elroy
+            elroy = Elroy()
+            # Use the original filename as the memory name, or generate one based on timestamp
+            memory_name = f"Voice memo: {file.filename or 'untitled'}"
+            result = elroy.create_memory(memory_name, transcribed_text)
+
+            return result
+
+        finally:
+            # Clean up the temporary file
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing voice memo: {str(e)}")
 
 
 if __name__ == "__main__":
