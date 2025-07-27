@@ -1,11 +1,10 @@
-from typing import Iterable, List, Optional, Type
+from typing import Iterable, List, Optional, Type, Union
 
 from sqlalchemy import select
 from sqlmodel import and_, select
 from toolz import pipe
 from toolz.curried import map
 
-from ...core.constants import RESULT_SET_LIMIT_COUNT
 from ..db_models import EmbeddableSqlModel, VectorStorage
 from ..db_session import DbSession
 
@@ -41,41 +40,59 @@ class PostgresSession(DbSession):
         self.session.commit()
 
     def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
+        self,
+        l2_distance_threshold: float,
+        tables: Union[Type[EmbeddableSqlModel], List[Type[EmbeddableSqlModel]]],
+        user_id: int,
+        query: List[float],
+        limit_per_table: int = 10,
     ) -> Iterable[EmbeddableSqlModel]:
         """
-        Perform a vector search on the specified table using the given query.
+        Perform a vector search on the specified table(s) using the given query.
 
         Args:
-            query (str): The search query.
-            table (EmbeddableSqlModel): The SQLModel table to search.
+            l2_distance_threshold: Maximum L2 distance for results
+            tables: Single table or list of tables to search
+            user_id: User ID to filter by
+            query: The embedding vector to search with
+            limit_per_table: Maximum results per table
 
         Returns:
-            List[Tuple[Fact, float]]: A list of tuples containing the matching Fact and its similarity score.
+            Iterable of EmbeddableSqlModel results from all tables
         """
+        # Normalize to list
+        if not isinstance(tables, list):
+            tables = [tables]
 
-        # Use pgvector's <-> operator for L2 distance
-        distance_exp = VectorStorage.embedding_data.l2_distance(query).label("distance")  # type: ignore
+        all_results = []
 
-        return pipe(
-            self.exec(
-                select(table, distance_exp)
-                .join(
-                    VectorStorage,
-                    and_(
-                        VectorStorage.source_type == table.__name__,
-                        VectorStorage.source_id == table.id,
-                    ),
-                )
-                .where(
-                    and_(
-                        table.user_id == user_id,
-                        table.is_active == True,
-                        distance_exp < l2_distance_threshold,
+        for table in tables:
+            # Use pgvector's <-> operator for L2 distance
+            distance_exp = VectorStorage.embedding_data.l2_distance(query).label("distance")  # type: ignore
+
+            results = pipe(
+                self.exec(
+                    select(table, distance_exp)
+                    .join(
+                        VectorStorage,
+                        and_(
+                            VectorStorage.source_type == table.__name__,
+                            VectorStorage.source_id == table.id,
+                        ),
                     )
-                )
-                .order_by(distance_exp)
-                .limit(RESULT_SET_LIMIT_COUNT)  # type: ignore
-            ),
-            map(lambda row: row[0]),
-        )
+                    .where(
+                        and_(
+                            table.user_id == user_id,
+                            table.is_active == True,
+                            distance_exp < l2_distance_threshold,
+                        )
+                    )
+                    .order_by(distance_exp)
+                    .limit(limit_per_table)  # type: ignore
+                ),
+                map(lambda row: row[0]),
+                list,
+            )
+            all_results.extend(results)
+
+        return iter(all_results)

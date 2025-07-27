@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Optional, Type
+from typing import Iterable, List, Optional, Type, Union
 
 from sqlmodel import Session, select
 
@@ -56,6 +56,11 @@ class DbSession(ABC):
 
     @abstractmethod
     def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
+        self,
+        l2_distance_threshold: float,
+        tables: Union[Type[EmbeddableSqlModel], List[Type[EmbeddableSqlModel]]],
+        user_id: int,
+        query: List[float],
+        limit_per_table: int = 10,
     ) -> Iterable[EmbeddableSqlModel]:
         raise NotImplementedError

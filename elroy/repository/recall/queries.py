@@ -1,4 +1,4 @@
-from typing import Iterable, List, Type, TypeVar
+from typing import Iterable, List, TypeVar
 
 from ...core.constants import tool
 from ...core.ctx import ElroyContext
@@ -22,33 +22,6 @@ def is_in_context(context_messages: Iterable[ContextMessage], memory: Embeddable
 T = TypeVar("T", bound=EmbeddableSqlModel)
 
 
-@tracer.chain
-def query_vector(
-    table: Type[T],
-    ctx: ElroyContext,
-    query: List[float],
-) -> Iterable[T]:
-    """
-    Perform a vector search on the specified table using the given query.
-
-    Args:
-        query (str): The search query.
-        table (EmbeddableSqlModel): The SQLModel table to search.
-
-    Returns:
-        List[Tuple[Fact, float]]: A list of tuples containing the matching Fact and its similarity score.
-    """
-
-    return list(
-        ctx.db.query_vector(
-            ctx.l2_memory_relevance_distance_threshold,
-            table,
-            ctx.user_id,
-            query,
-        )
-    )  # type: ignore
-
-
 @tool
 def search_documents(ctx: ElroyContext, query: str) -> str:
     """
@@ -65,7 +38,7 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
     query_embedding = get_embedding(ctx.embedding_model, query)
 
     # Search for relevant documents using vector similarity
-    results = query_vector(DocumentExcerpt, ctx, query_embedding)
+    results = ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, DocumentExcerpt, ctx.user_id, query_embedding)
 
     # Convert results to readable format
     found_docs = list(results)
@@ -85,10 +58,13 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
 @log_execution_time
 def get_most_relevant_memories(ctx: ElroyContext, query: List[float]) -> List[Memory]:
     """Get the most relevant memory for the given query."""
-    return list(query_vector(Memory, ctx, query))[:2]
+    results = list(ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Memory, ctx.user_id, query, limit_per_table=2))
+    return [r for r in results if isinstance(r, Memory)]
 
 
 @tracer.chain
 @log_execution_time
 def get_most_relevant_goals(ctx: ElroyContext, query: List[float]) -> List[Goal]:
-    return list(query_vector(Goal, ctx, query))[:2]
+    """Get the most relevant goals for the given query."""
+    results = list(ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Goal, ctx.user_id, query, limit_per_table=2))
+    return [r for r in results if isinstance(r, Goal)]

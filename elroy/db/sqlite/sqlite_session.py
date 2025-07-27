@@ -1,12 +1,12 @@
 from struct import unpack
-from typing import Iterable, List, Optional, Type
+from typing import Iterable, List, Optional, Type, Union
 
 import sqlite_vec
 from sqlalchemy import text
 from toolz import assoc, pipe
 from toolz.curried import map
 
-from ...core.constants import EMBEDDING_SIZE, RESULT_SET_LIMIT_COUNT
+from ...core.constants import EMBEDDING_SIZE
 from ..db_models import EmbeddableSqlModel, VectorStorage
 from ..db_session import DbSession
 
@@ -102,41 +102,67 @@ class SqliteSession(DbSession):
         return self._deserialize_embedding(result[0])
 
     def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
+        self,
+        l2_distance_threshold: float,
+        tables: Union[Type[EmbeddableSqlModel], List[Type[EmbeddableSqlModel]]],
+        user_id: int,
+        query: List[float],
+        limit_per_table: int = 10,
     ) -> Iterable[EmbeddableSqlModel]:
+        """
+        Perform a vector search on the specified table(s) using the given query.
+
+        Args:
+            l2_distance_threshold: Maximum L2 distance for results
+            tables: Single table or list of tables to search
+            user_id: User ID to filter by
+            query: The embedding vector to search with
+            limit_per_table: Maximum results per table
+
+        Returns:
+            Iterable of EmbeddableSqlModel results from all tables
+        """
+        # Normalize to list
+        if not isinstance(tables, list):
+            tables = [tables]
 
         # Serialize the vector once
         serialized_query = sqlite_vec.serialize_float32(query)
 
-        results = self.session.exec(
-            text(
-                f"""
-                SELECT {table.__tablename__}.*, vec_distance_L2(vectorstorage.embedding_data, :query_vec) as distance
-                FROM {table.__tablename__}
-                JOIN vectorstorage ON vectorstorage.source_type = :source_type
-                    AND vectorstorage.source_id = {table.__tablename__}.id
-                WHERE {table.__tablename__}.user_id = :user_id
-                AND {table.__tablename__}.is_active = 1
-                AND vec_distance_L2(vectorstorage.embedding_data, :query_vec) < :threshold
-                ORDER BY distance
-                LIMIT :limit
-            """
-            ).bindparams(
-                query_vec=serialized_query,
-                source_type=table.__name__,
-                user_id=user_id,
-                threshold=l2_distance_threshold,
-                limit=RESULT_SET_LIMIT_COUNT,
-            )  # type: ignore
-        )
+        all_results = []
 
-        return pipe(
-            results,
-            map(lambda row: dict(row._mapping)),  # Convert SQLAlchemy Row to dict
-            map(table.model_validate),  # Convert dict to model instance
-            list,
-            iter,
-        )
+        for table in tables:
+            results = self.session.exec(
+                text(
+                    f"""
+                    SELECT {table.__tablename__}.*, vec_distance_L2(vectorstorage.embedding_data, :query_vec) as distance
+                    FROM {table.__tablename__}
+                    JOIN vectorstorage ON vectorstorage.source_type = :source_type
+                        AND vectorstorage.source_id = {table.__tablename__}.id
+                    WHERE {table.__tablename__}.user_id = :user_id
+                    AND {table.__tablename__}.is_active = 1
+                    AND vec_distance_L2(vectorstorage.embedding_data, :query_vec) < :threshold
+                    ORDER BY distance
+                    LIMIT :limit
+                """
+                ).bindparams(
+                    query_vec=serialized_query,
+                    source_type=table.__name__,
+                    user_id=user_id,
+                    threshold=l2_distance_threshold,
+                    limit=limit_per_table,
+                )  # type: ignore
+            )
+
+            table_results = pipe(
+                results,
+                map(lambda row: dict(row._mapping)),  # Convert SQLAlchemy Row to dict
+                map(table.model_validate),  # Convert dict to model instance
+                list,
+            )
+            all_results.extend(table_results)
+
+        return iter(all_results)
 
     def _deserialize_embedding(self, data: bytes) -> List[float]:
         """Deserialize binary vector data from SQLite into a list of floats"""

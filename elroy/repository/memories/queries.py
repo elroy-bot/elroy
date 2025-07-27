@@ -5,7 +5,7 @@ from typing import Callable, Iterable, List, Optional, Sequence, TypeVar, Union
 
 from pydantic import BaseModel
 from sqlmodel import col, select
-from toolz import concat, juxt, pipe, unique
+from toolz import concat, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
 from ...config.llm import ChatModel
@@ -27,8 +27,6 @@ from ..context_messages.transforms import (
     format_context_messages,
 )
 from ..recall.queries import (
-    get_most_relevant_goals,
-    get_most_relevant_memories,
     is_in_context,
 )
 from ..recall.transforms import to_recalled_memory_metadata
@@ -86,19 +84,10 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
 def get_relevant_memories_and_goals(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
     query_embedding = get_embedding(ctx.embedding_model, query)
 
-    relevant_memories = [
-        memory
-        for memory in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Memory, ctx.user_id, query_embedding)
-        if isinstance(memory, Memory)
-    ]
+    # Use unified search across Memory and Goal types
+    results = ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, [Memory, Goal], ctx.user_id, query_embedding)
 
-    relevant_goals = [
-        goal
-        for goal in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Goal, ctx.user_id, query_embedding)
-        if isinstance(goal, Goal)
-    ]
-
-    return relevant_memories + relevant_goals
+    return [result for result in results if isinstance(result, (Memory, Goal))]
 
 
 def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Optional[Memory]:
@@ -233,8 +222,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goals, get_most_relevant_memories)(ctx, x),
-        concat,
+        lambda x: ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, [Memory, DocumentExcerpt, Goal], ctx.user_id, x),
         list,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
