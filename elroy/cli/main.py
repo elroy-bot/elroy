@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 
 import typer
 from rich.table import Table
+from sqlmodel import col
 from toolz import pipe
 
 from elroy.cli.options import get_str_from_stdin_or_arg
@@ -526,25 +527,25 @@ def user_stats(
         from ..db.db_models import DocumentExcerpt, Goal, Memory, Message, VectorStorage
 
         # Get counts for all data types
-        total_messages = ctx.db.exec(select(func.count(Message.id)).where(Message.user_id == ctx.user_id)).first() or 0
+        total_messages = ctx.db.exec(select(func.count(col(Message.id))).where(Message.user_id == ctx.user_id)).first() or 0
 
-        total_memories = ctx.db.exec(select(func.count(Memory.id)).where(Memory.user_id == ctx.user_id)).first() or 0
+        total_memories = ctx.db.exec(select(func.count(col(Memory.id))).where(Memory.user_id == ctx.user_id)).first() or 0
 
         active_memories = (
-            ctx.db.exec(select(func.count(Memory.id)).where(Memory.user_id == ctx.user_id, Memory.is_active == True)).first() or 0
+            ctx.db.exec(select(func.count(col(Memory.id))).where(Memory.user_id == ctx.user_id, Memory.is_active == True)).first() or 0
         )
 
-        total_goals = ctx.db.exec(select(func.count(Goal.id)).where(Goal.user_id == ctx.user_id)).first() or 0
+        total_goals = ctx.db.exec(select(func.count(col(Goal.id))).where(Goal.user_id == ctx.user_id)).first() or 0
 
-        active_goals = ctx.db.exec(select(func.count(Goal.id)).where(Goal.user_id == ctx.user_id, Goal.is_active == True)).first() or 0
+        active_goals = ctx.db.exec(select(func.count(col(Goal.id))).where(Goal.user_id == ctx.user_id, Goal.is_active == True)).first() or 0
 
         total_document_excerpts = (
-            ctx.db.exec(select(func.count(DocumentExcerpt.id)).where(DocumentExcerpt.user_id == ctx.user_id)).first() or 0
+            ctx.db.exec(select(func.count(col(DocumentExcerpt.id))).where(DocumentExcerpt.user_id == ctx.user_id)).first() or 0
         )
 
         active_document_excerpts = (
             ctx.db.exec(
-                select(func.count(DocumentExcerpt.id)).where(DocumentExcerpt.user_id == ctx.user_id, DocumentExcerpt.is_active == True)
+                select(func.count(col(DocumentExcerpt.id))).where(DocumentExcerpt.user_id == ctx.user_id, DocumentExcerpt.is_active == True)
             ).first()
             or 0
         )
@@ -552,9 +553,9 @@ def user_stats(
         # Count vectors for this user's entities
         vectors_for_memories = (
             ctx.db.exec(
-                select(func.count(VectorStorage.id)).where(
+                select(func.count(col(VectorStorage.id))).where(
                     VectorStorage.source_type == "Memory",
-                    VectorStorage.source_id.in_(select(Memory.id).where(Memory.user_id == ctx.user_id)),
+                    col(VectorStorage.source_id).in_(select(col(Memory.id)).where(Memory.user_id == ctx.user_id)),
                 )
             ).first()
             or 0
@@ -562,8 +563,11 @@ def user_stats(
 
         vectors_for_goals = (
             ctx.db.exec(
-                select(func.count(VectorStorage.id)).where(
-                    VectorStorage.source_type == "Goal", VectorStorage.source_id.in_(select(Goal.id).where(Goal.user_id == ctx.user_id))
+                select(func.count(col(VectorStorage.id))).where(
+                    VectorStorage.source_type == "Goal",
+                    col(VectorStorage.source_id).in_(
+                        select(col(Goal.id)).where(Goal.user_id == ctx.user_id),
+                    ),
                 )
             ).first()
             or 0
@@ -571,9 +575,9 @@ def user_stats(
 
         vectors_for_documents = (
             ctx.db.exec(
-                select(func.count(VectorStorage.id)).where(
+                select(func.count(col(VectorStorage.id))).where(
                     VectorStorage.source_type == "DocumentExcerpt",
-                    VectorStorage.source_id.in_(select(DocumentExcerpt.id).where(DocumentExcerpt.user_id == ctx.user_id)),
+                    col(VectorStorage.source_id).in_(select(col(DocumentExcerpt.id)).where(DocumentExcerpt.user_id == ctx.user_id)),
                 )
             ).first()
             or 0

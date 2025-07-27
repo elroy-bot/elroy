@@ -68,15 +68,16 @@ class SqliteSession(DbSession):
             text(
                 """
                 INSERT INTO vectorstorage
-                (source_type, source_id, embedding_data, embedding_text_md5)
+                (source_type, source_id, embedding_data, embedding_text_md5, user_id)
                 VALUES
-                (:source_type, :source_id, :embedding_data, :embedding_text_md5)
+                (:source_type, :source_id, :embedding_data, :embedding_text_md5, :user_id)
             """
             ).bindparams(
                 source_type=row.__class__.__name__,
                 source_id=row_id,
                 embedding_data=sqlite_vec.serialize_float32(embedding_data),
                 embedding_text_md5=embedding_text_md5,
+                user_id=row.user_id,
             )  # type: ignore
         )
         self.session.commit()

@@ -219,6 +219,18 @@ class Elroy:
 
     @db
     def create_augmented_memory(self, text: str) -> str:
+        """Creates an augmented memory by processing raw text through AI enhancement.
+
+        This method takes raw text input and uses AI to improve and structure it before
+        creating a memory. The AI enhancement process typically includes improving clarity,
+        adding context, and generating an appropriate title.
+
+        Args:
+            text (str): The raw text to be processed and stored as memory.
+
+        Returns:
+            str: The result of the memory creation process.
+        """
         mem = augment_memory(self.ctx, text)
         return self.create_memory(mem.title, mem.text)
 
