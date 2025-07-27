@@ -23,9 +23,6 @@ USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
 # TODO: make this dynamic
 EMBEDDING_SIZE = 1536
 
-
-RESULT_SET_LIMIT_COUNT = 5
-
 REPO_ISSUES_URL = "https://github.com/elroy-bot/elroy/issues"
 
 BUG_REPORT_LOG_LINES = 15

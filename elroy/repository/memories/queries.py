@@ -222,7 +222,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, [Memory, DocumentExcerpt, Goal], ctx.user_id, x),
+        lambda x: ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, [Memory, Goal], ctx.user_id, x),
         list,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),

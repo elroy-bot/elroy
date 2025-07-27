@@ -3,7 +3,7 @@ from functools import partial
 from typing import Iterable, List, Optional, Tuple
 
 from sqlmodel import select
-from toolz import concat, juxt, pipe
+from toolz import pipe
 from toolz.curried import filter
 
 from ...core.async_tasks import schedule_task
@@ -13,6 +13,7 @@ from ...core.logging import get_logger, log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import (
     EmbeddableSqlModel,
+    Goal,
     Memory,
     MemoryOperationTracker,
     MemorySource,
@@ -23,7 +24,7 @@ from ..context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
 )
-from ..recall.queries import get_most_relevant_goals, get_most_relevant_memories
+from ..recall.queries import query_vector
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
 from .consolidation import consolidate_memories
 from .models import MemoryResponse
@@ -47,8 +48,7 @@ def augment_memory(ctx: ElroyContext, content: str) -> MemoryResponse:
     memories: List[EmbeddableSqlModel] = pipe(
         content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goals, get_most_relevant_memories)(ctx, x),
-        concat,
+        lambda x: query_vector([Memory, Goal], ctx, x),
         list,
         filter(lambda x: x is not None),
         list,

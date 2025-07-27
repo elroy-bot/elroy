@@ -14,41 +14,29 @@ API_BASE = "http://localhost:8000"
 def test_get_current_messages():
     """Test the get_current_messages endpoint."""
     print("Testing /get_current_messages...")
-    try:
-        response = requests.get(f"{API_BASE}/get_current_messages")
-        print(f"Status: {response.status_code}")
-        print(f"Response: {json.dumps(response.json(), indent=2)}")
-        return response.status_code == 200
-    except Exception as e:
-        print(f"Error: {e}")
-        return False
+    response = requests.get(f"{API_BASE}/get_current_messages")
+    print(f"Status: {response.status_code}")
+    print(f"Response: {json.dumps(response.json(), indent=2)}")
+    assert response.status_code == 200
 
 
 def test_get_current_memories():
     """Test the get_current_memories endpoint."""
     print("\nTesting /get_current_memories...")
-    try:
-        response = requests.get(f"{API_BASE}/get_current_memories")
-        print(f"Status: {response.status_code}")
-        print(f"Response: {json.dumps(response.json(), indent=2)}")
-        return response.status_code == 200
-    except Exception as e:
-        print(f"Error: {e}")
-        return False
+    response = requests.get(f"{API_BASE}/get_current_memories")
+    print(f"Status: {response.status_code}")
+    print(f"Response: {json.dumps(response.json(), indent=2)}")
+    assert response.status_code == 200
 
 
 def test_chat():
     """Test the chat endpoint."""
     print("\nTesting /chat...")
-    try:
-        test_message = {"message": "Hello, how are you?"}
-        response = requests.post(f"{API_BASE}/chat", json=test_message)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {json.dumps(response.json(), indent=2)}")
-        return response.status_code == 200
-    except Exception as e:
-        print(f"Error: {e}")
-        return False
+    test_message = {"message": "Hello, how are you?"}
+    response = requests.post(f"{API_BASE}/chat", json=test_message)
+    print(f"Status: {response.status_code}")
+    print(f"Response: {json.dumps(response.json(), indent=2)}")
+    assert response.status_code == 200
 
 
 def main():
