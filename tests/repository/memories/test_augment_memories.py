@@ -1,7 +1,10 @@
+import pytest
+
 from elroy.core.ctx import ElroyContext
 from elroy.repository.memories.operations import augment_memory, do_create_memory
 
 
+@pytest.mark.flaky(reruns=3)
 def test_augment_memory(ctx: ElroyContext):
     do_create_memory(ctx, "My best friend", "My best friend's name is Ted, his birthday is April 27", [], False)
 

@@ -35,7 +35,11 @@ class PostgresSession(DbSession):
         assert row_id
         self.session.add(
             VectorStorage(
-                source_type=row.__class__.__name__, source_id=row_id, embedding_data=embedding_data, embedding_text_md5=embedding_text_md5
+                source_type=row.__class__.__name__,
+                source_id=row_id,
+                embedding_data=embedding_data,
+                embedding_text_md5=embedding_text_md5,
+                user_id=row.user_id,
             )
         )
         self.session.commit()

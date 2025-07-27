@@ -53,6 +53,7 @@ class VectorStorage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     source_type: str = Field(..., description="The type of model this embedding is for (e.g. Memory, Goal)")
     source_id: int = Field(..., description="The ID of the source model")
+    user_id: int = Field(..., description="The user ID for the vector")
     embedding_data: List[float] = Field(
         ..., description="The vector embedding data", sa_column=Column(Vector(EMBEDDING_SIZE), nullable=False)
     )
