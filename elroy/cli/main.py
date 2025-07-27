@@ -511,6 +511,94 @@ def list_tools(
     io.console.print(table)
 
 
+@app.command(name="stats")
+def user_stats(
+    typer_ctx: typer.Context,
+):
+    """Show user statistics."""
+    assert typer_ctx.parent
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
+
+    with init_elroy_session(ctx, io, True, False):
+        from sqlmodel import func, select
+
+        from ..db.db_models import DocumentExcerpt, Goal, Memory, Message, VectorStorage
+
+        # Get counts for all data types
+        total_messages = ctx.db.exec(select(func.count(Message.id)).where(Message.user_id == ctx.user_id)).first() or 0
+
+        total_memories = ctx.db.exec(select(func.count(Memory.id)).where(Memory.user_id == ctx.user_id)).first() or 0
+
+        active_memories = (
+            ctx.db.exec(select(func.count(Memory.id)).where(Memory.user_id == ctx.user_id, Memory.is_active == True)).first() or 0
+        )
+
+        total_goals = ctx.db.exec(select(func.count(Goal.id)).where(Goal.user_id == ctx.user_id)).first() or 0
+
+        active_goals = ctx.db.exec(select(func.count(Goal.id)).where(Goal.user_id == ctx.user_id, Goal.is_active == True)).first() or 0
+
+        total_document_excerpts = (
+            ctx.db.exec(select(func.count(DocumentExcerpt.id)).where(DocumentExcerpt.user_id == ctx.user_id)).first() or 0
+        )
+
+        active_document_excerpts = (
+            ctx.db.exec(
+                select(func.count(DocumentExcerpt.id)).where(DocumentExcerpt.user_id == ctx.user_id, DocumentExcerpt.is_active == True)
+            ).first()
+            or 0
+        )
+
+        # Count vectors for this user's entities
+        vectors_for_memories = (
+            ctx.db.exec(
+                select(func.count(VectorStorage.id)).where(
+                    VectorStorage.source_type == "Memory",
+                    VectorStorage.source_id.in_(select(Memory.id).where(Memory.user_id == ctx.user_id)),
+                )
+            ).first()
+            or 0
+        )
+
+        vectors_for_goals = (
+            ctx.db.exec(
+                select(func.count(VectorStorage.id)).where(
+                    VectorStorage.source_type == "Goal", VectorStorage.source_id.in_(select(Goal.id).where(Goal.user_id == ctx.user_id))
+                )
+            ).first()
+            or 0
+        )
+
+        vectors_for_documents = (
+            ctx.db.exec(
+                select(func.count(VectorStorage.id)).where(
+                    VectorStorage.source_type == "DocumentExcerpt",
+                    VectorStorage.source_id.in_(select(DocumentExcerpt.id).where(DocumentExcerpt.user_id == ctx.user_id)),
+                )
+            ).first()
+            or 0
+        )
+
+        total_vectors = vectors_for_memories + vectors_for_goals + vectors_for_documents
+
+        # Create and display the table
+        table = Table(title=f"User Statistics (Token: {ctx.user_token})")
+        table.add_column("Metric", style="bold")
+        table.add_column("Count", justify="right", style="cyan")
+
+        table.add_row("Total Messages", str(total_messages))
+        table.add_row("Total Memories", str(total_memories))
+        table.add_row("Active Memories", str(active_memories))
+        table.add_row("Total Goals", str(total_goals))
+        table.add_row("Active Goals", str(active_goals))
+        table.add_row("Total Document Excerpts", str(total_document_excerpts))
+        table.add_row("Active Document Excerpts", str(active_document_excerpts))
+        table.add_row("Total Vectors Stored", str(total_vectors))
+
+        io.console.print(table)
+        raise typer.Exit()
+
+
 @app.command(name="print-config")
 def print_config(
     typer_ctx: typer.Context,
