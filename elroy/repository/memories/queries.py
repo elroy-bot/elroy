@@ -1,9 +1,8 @@
 import json
-from enum import Enum
 from functools import partial
 from typing import Callable, Iterable, List, Optional, Sequence, TypeVar, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import col, select
 from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
@@ -15,23 +14,24 @@ from ...core.logging import get_logger, log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import (
     EmbeddableSqlModel,
-    Goal,
     Memory,
     MemorySource,
+    Reminder,
     get_memory_source_class,
 )
-from ...llm.client import get_embedding, query_llm, query_llm_with_response_format
-from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
+from ...llm.client import get_embedding, query_llm_with_response_format
+from ...models import RecallMetadata, ReflectiveRecallResonse
+from ..context_messages.data_models import ContextMessage
+from ..context_messages.tools import to_synthetic_tool_call
 from ..context_messages.transforms import (
     ContextMessageSetWithMessages,
     format_context_messages,
 )
 from ..recall.queries import (
-    get_most_relevant_goals,
     get_most_relevant_memories,
+    get_most_relevant_reminders,
     is_in_context,
 )
-from ..recall.transforms import to_recalled_memory_metadata
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
 
 logger = get_logger()
@@ -83,7 +83,7 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
 
 
 @tracer.chain
-def get_relevant_memories_and_goals(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
+def get_relevant_memories_and_reminders(ctx: ElroyContext, query: str) -> List[Union[Reminder, Memory]]:
     query_embedding = get_embedding(ctx.embedding_model, query)
 
     relevant_memories = [
@@ -92,13 +92,13 @@ def get_relevant_memories_and_goals(ctx: ElroyContext, query: str) -> List[Union
         if isinstance(memory, Memory)
     ]
 
-    relevant_goals = [
-        goal
-        for goal in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Goal, ctx.user_id, query_embedding)
-        if isinstance(goal, Goal)
+    relevant_reminders = [
+        reminder
+        for reminder in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Reminder, ctx.user_id, query_embedding)
+        if isinstance(reminder, Reminder)
     ]
 
-    return relevant_memories + relevant_goals
+    return relevant_memories + relevant_reminders
 
 
 def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Optional[Memory]:
@@ -165,62 +165,6 @@ def is_memory_message(context_message: ContextMessage) -> bool:
     return context_message.memory_metadata is not None and context_message.memory_metadata != []
 
 
-@log_execution_time
-def is_memory_check_needed(ctx: ElroyContext, context_messages: List[ContextMessage]) -> bool:
-
-    class ConsultMemoryReasons(str, Enum):
-        unfamiliar_topic = "unfamiliar_topic"  # noqa: F841
-        references_past_conversation = "references_past_conversation"  # noqa: F841
-        mentions_personal_details = "mentions_personal_details"  # noqa: F841
-        asks_about_previous_work = "asks_about_previous_work"  # noqa: F841
-        context_dependent_question = "context_dependent_question"  # noqa: F841
-        follow_up_question = "follow_up_question"  # noqa: F841
-        ambiguous_pronouns = "ambiguous_pronouns"  # noqa: F841
-        requests_continuation = "requests_continuation"  # noqa: F841
-        mentions_shared_context = "mentions_shared_context"  # noqa: F841
-        asks_for_updates = "asks_for_updates"  # noqa: F841
-        document_search_needed = "document_search_needed"  # noqa: F841
-
-    class DoNotConsultMemoryReasons(str, Enum):
-        only_general_knowledge_needed = "only_general_knowledge_needed"  # noqa: F841
-        self_contained_question = "self_contained_question"  # noqa: F841
-        factual_lookup = "factual_lookup"  # noqa: F841
-        mathematical_calculation = "mathematical_calculation"  # noqa: F841
-        code_explanation = "code_explanation"  # noqa: F841
-        greeting_or_small_talk = "greeting_or_small_talk"  # noqa: F841
-        hypothetical_scenario = "hypothetical_scenario"  # noqa: F841
-        definitional_question = "definitional_question"  # noqa: F841
-        current_events_only = "current_events_only"  # noqa: F841
-        creative_writing_prompt = "creative_writing_prompt"  # noqa: F841
-
-    class Resp(BaseModel):
-        response: Union[ConsultMemoryReasons, DoNotConsultMemoryReasons]
-
-    resp = query_llm_with_response_format(
-        ctx.chat_model,
-        system="""
-        You are an internal process for an AI assistant. Given a conversation transcript, determine if memory of the user should be consulted based on the content of the *most recent user message*
-
-        The memory database that you could search contains memories based on conversational transcripts, as well as documents ingested on behalf of the user.
-
-        Consider a few factors when determining your answer:
-        - If the conversation transcript already includes relevant memories, return FALSE
-        - If the conversation transcript mentions specific topics that are not general knowledge, return TRUE
-        - If you are being explicitly asked to recall something, return TRUE
-        - The memory transcript may already include memories that have been recalled and surfaced to the assistant. If these memories give sufficient context, memory should not be consulted again.
-        - You may be being explicitly asked to recall something
-        Response true if memory should be consulted, false otherwise.
-        """,
-        prompt="\n".join([f"{m.role}: {m.content}" for m in context_messages[:5]]),
-        response_format=Resp,
-    )
-    should_consult_memory = isinstance(resp.response, ConsultMemoryReasons)
-
-    logger.info(f"memory check needed: {should_consult_memory} ({resp.response})")
-
-    return should_consult_memory
-
-
 @tracer.chain
 def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
     message_content = get_message_content(context_messages, 6)
@@ -233,18 +177,10 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goals, get_most_relevant_memories)(ctx, x),
+        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
         concat,
-        list,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
-        list,
-        lambda mems: filter_for_relevance(
-            ctx.chat_model,
-            message_content,
-            mems,
-            lambda m: m.to_fact(),
-        ),
         list,
         lambda mems: get_reflective_recall(ctx, context_messages, mems) if ctx.reflect else get_fast_recall(mems),
     )
@@ -256,18 +192,10 @@ def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessa
     if not memories:
         return []
 
-    return pipe(
-        memories,
-        map(
-            lambda x: ContextMessage(
-                role=SYSTEM,
-                memory_metadata=[RecalledMemoryMetadata(memory_type=x.__class__.__name__, id=x.id, name=x.get_name())],
-                content="Information recalled from assistant memory: " + x.to_fact(),
-                chat_model=None,
-            )
-        ),
-        list,
-    )  # type: ignore
+    return to_synthetic_tool_call(
+        func_name="get_fast_recall",
+        func_response="\n\n".join(x.to_fact() for x in memories),
+    )
 
 
 @tracer.chain
@@ -278,6 +206,12 @@ def get_reflective_recall(
     """More process memory into more reflective recall message"""
     if not memories:
         return []
+
+    class ReflectionResponse(BaseModel):
+        content: Optional[str] = Field(
+            description="The content of the reflection on the memories, written in the first person. If memories are irrelevant, this field should be empty"
+        )
+        is_relevant: bool = Field(description="Whether or not any of the recalled information is relevant to the conversation.")
 
     output: str = pipe(
         memories,
@@ -291,7 +225,7 @@ def get_reflective_recall(
             do_get_user_preferred_name(ctx.db.session, ctx.user_id),
             get_assistant_name(ctx),
         ),
-        lambda x: query_llm(
+        lambda x: query_llm_with_response_format(
             ctx.chat_model,
             x,
             """#Identity and Purpose
@@ -317,20 +251,25 @@ def get_reflective_recall(
 
         My response is brief and to the point, no more than 100 words.
         """,
+            response_format=ReflectionResponse,
         ),
     )  # type: ignore
 
-    return [
-        ContextMessage(
-            role=SYSTEM,
-            content="\n".join(
-                [output, "\nThis recollection was based on the following Goals and Memories:"]
-                + [x.__class__.__name__ + ": " + x.get_name() for x in memories]
+    assert isinstance(output, ReflectionResponse)
+    if not output.is_relevant:
+        return []
+    elif output.is_relevant and not output.content:
+        logger.warning("Memories deemed relevant, but not content returned.")
+        return []
+    else:
+        assert output.content
+        return to_synthetic_tool_call(
+            "get_reflective_recall",
+            ReflectiveRecallResonse(
+                content=output.content,
+                memory_metadata=[RecallMetadata(memory_type=x.__class__.__name__, memory_id=str(x.id)) for x in memories],
             ),
-            chat_model=ctx.chat_model.name,
-            memory_metadata=[to_recalled_memory_metadata(x) for x in memories],
         )
-    ]
 
 
 def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> List[str]:

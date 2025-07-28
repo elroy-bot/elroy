@@ -19,13 +19,13 @@ def get_supported_openai_models() -> List[str]:
         Higher scores indicate more powerful models.
         """
         # Base score based on model family
-        if model_name.startswith("o1"):
+        if model_name.startswith("o3"):
             score = 1000
-        elif "gpt-4o" in model_name:
+        elif "gpt-5" in model_name.lower():
             score = 500
-        elif "gpt-4" in model_name:
+        elif "gpt-4o" in model_name:
             score = 100
-        elif "gpt-3.5" in model_name:
+        elif "gpt-4" in model_name:
             score = 50
         else:
             score = 0
@@ -51,7 +51,7 @@ def get_supported_openai_models() -> List[str]:
         if date_match:
             date_int = int(date_match.group(0).replace("-", ""))
         else:
-            # no date string will means e.g. gpt-4o, which will be the most recent model. Thus missing date = more powerful.
+            # no date string will means most recent model. Thus missing date = more powerful.
             date_int = 99999999
 
         return (score, modifier, version_num, date_int)

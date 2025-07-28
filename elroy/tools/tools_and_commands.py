@@ -8,6 +8,7 @@ from toolz.curried import map
 from ..cli.slash_commands import (
     add_internal_thought,
     contemplate,
+    memo,
     print_context_messages,
     print_system_instruction,
 )
@@ -21,9 +22,7 @@ from ..repository.context_messages.operations import (
     save,
 )
 from ..repository.context_messages.tools import (
-    add_goal_to_current_context,
     add_memory_to_current_context,
-    drop_goal_from_current_context,
     drop_memory_from_current_context,
 )
 from ..repository.documents.tools import (
@@ -32,15 +31,6 @@ from ..repository.documents.tools import (
     get_source_documents,
     ingest_doc,
     reingest_doc,
-)
-from ..repository.goals.queries import print_active_goals, print_complete_goals
-from ..repository.goals.tools import (
-    add_goal_status_update,
-    create_goal,
-    delete_goal_permanently,
-    mark_goal_completed,
-    print_goal,
-    rename_goal,
 )
 from ..repository.memories.operations import remember_convo
 from ..repository.memories.tools import (
@@ -53,6 +43,17 @@ from ..repository.memories.tools import (
     update_outdated_or_incorrect_memory,
 )
 from ..repository.recall.queries import search_documents
+from ..repository.reminders.queries import (
+    print_active_reminders,
+    print_inactive_reminders,
+)
+from ..repository.reminders.tools import (
+    create_reminder,
+    deactivate_reminder,
+    print_reminder,
+    rename_reminder,
+    update_reminder_text,
+)
 from ..repository.user.operations import set_assistant_name
 from ..repository.user.tools import (
     get_user_full_name,
@@ -66,19 +67,6 @@ from .developer import (
     tail_elroy_logs,
 )
 
-IN_CONTEXT_GOAL_COMMANDS: Set[Callable] = {
-    drop_goal_from_current_context,
-}
-NON_CONTEXT_GOAL_COMMANDS: Set[Callable] = {
-    add_goal_to_current_context,
-}
-ALL_ACTIVE_GOAL_COMMANDS: Set[Callable] = {
-    rename_goal,
-    print_goal,
-    add_goal_status_update,
-    mark_goal_completed,
-    delete_goal_permanently,
-}
 IN_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
     drop_memory_from_current_context,
 }
@@ -89,9 +77,15 @@ ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
     update_outdated_or_incorrect_memory,
 }
+ALL_ACTIVE_REMINDER_COMMANDS: Set[Callable] = {
+    deactivate_reminder,
+    print_reminder,
+    rename_reminder,
+    update_reminder_text,
+}
 NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_source_content_for_memory,
-    create_goal,
+    create_reminder,
     create_memory,
     contemplate,
     examine_memories,
@@ -103,13 +97,14 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_source_documents,
     get_user_preferred_name,
     set_user_preferred_name,
-    tail_elroy_logs,
 }
 USER_ONLY_COMMANDS = {
+    tail_elroy_logs,
     ingest_doc,
     reingest_doc,
     print_config,
     add_internal_thought,
+    memo,
     reset_messages,
     print_context_messages,
     print_system_instruction,
@@ -117,10 +112,10 @@ USER_ONLY_COMMANDS = {
     save,
     rewrite,
     refresh_system_instructions,
-    print_active_goals,
-    print_complete_goals,
     print_memories,
     search_memories,
+    print_active_reminders,
+    print_inactive_reminders,
     create_bug_report,
     set_assistant_name,
     remember_convo,
@@ -129,12 +124,10 @@ ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = {
     f
     for f in (
         NON_ARG_PREFILL_COMMANDS
-        | IN_CONTEXT_GOAL_COMMANDS
-        | NON_CONTEXT_GOAL_COMMANDS
-        | ALL_ACTIVE_GOAL_COMMANDS
         | IN_CONTEXT_MEMORY_COMMANDS
         | NON_CONTEXT_MEMORY_COMMANDS
         | ALL_ACTIVE_MEMORY_COMMANDS
+        | ALL_ACTIVE_REMINDER_COMMANDS
     )
     if getattr(f, IS_ENABLED, True)
 }

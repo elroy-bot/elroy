@@ -61,7 +61,7 @@ echo "What is 2+2?" | elroy chat
 cat meeting_notes.txt | elroy remember
 
 # Use a specific tool with piped input
-echo "Buy groceries" | elroy message --tool create_goal
+echo "Buy groceries" | elroy message --tool create_reminder
 ```
 
 For more examples, see the [examples directory](https://github.com/elroy-bot/elroy/tree/main/examples) in the Elroy repository.

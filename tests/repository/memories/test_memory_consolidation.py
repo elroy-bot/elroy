@@ -11,7 +11,7 @@ from elroy.repository.memories.consolidation import (
     consolidate_memory_cluster,
 )
 from elroy.repository.memories.operations import do_create_memory_from_ctx_msgs
-from elroy.repository.memories.queries import get_active_memories
+from elroy.repository.memories.queries import get_active_memories, get_memory_by_name
 
 
 def test_identical_memories(ctx):
@@ -27,10 +27,9 @@ def test_identical_memories(ctx):
 
     consolidate_memory_cluster(ctx, get_cluster(ctx, [memory1, memory2]))
 
-    ctx.db.refresh(memory1)
-    ctx.db.refresh(memory2)
+    memory2 = get_memory_by_name(ctx, memory2.name)
 
-    assert not memory2.is_active
+    assert memory2 is None  # doesn't get returned, since it is now inactive
 
 
 def test_trigger(ctx):

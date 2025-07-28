@@ -1,3 +1,4 @@
+from datetime import datetime
 from functools import partial, wraps
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
@@ -6,39 +7,43 @@ from pydantic import BaseModel
 from toolz import concat, pipe
 from toolz.curried import do, filter, map
 
-from .core.constants import USER
-from .core.ctx import ElroyContext
-from .core.logging import setup_core_logging
-from .core.session import dbsession, init_elroy_session
-from .core.tracing import tracer
-from .db.db_models import FunctionCall, Memory
-from .io.base import PlainIO
-from .io.formatters.base import StringFormatter
-from .io.formatters.plain_formatter import PlainFormatter
-from .llm.stream_parser import AssistantInternalThought, AssistantToolResult, collect
-from .messenger.messenger import process_message
-from .repository.context_messages.data_models import ContextMessage
-from .repository.context_messages.operations import (
+from elroy.db.db_models import Reminder
+
+from ..core.constants import USER
+from ..core.ctx import ElroyContext
+from ..core.logging import setup_core_logging
+from ..core.session import dbsession, init_elroy_session
+from ..core.tracing import tracer
+from ..db.db_models import FunctionCall, Memory
+from ..io.base import PlainIO
+from ..io.formatters.base import StringFormatter
+from ..io.formatters.plain_formatter import PlainFormatter
+from ..llm.stream_parser import AssistantInternalThought, AssistantToolResult, collect
+from ..messenger.messenger import process_message
+from ..repository.context_messages.data_models import ContextMessage
+from ..repository.context_messages.operations import (
     add_context_message,
 )
-from .repository.context_messages.operations import (
+from ..repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
-from .repository.context_messages.operations import reset_messages as do_reset_messages
-from .repository.context_messages.queries import get_context_messages
-from .repository.context_messages.transforms import is_context_refresh_needed
-from .repository.documents.operations import DocIngestStatus, do_ingest, do_ingest_dir
-from .repository.goals.operations import do_create_goal
-from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
-from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
-from .repository.goals.tools import add_goal_status_update as do_add_goal_status_update
-from .repository.goals.tools import mark_goal_completed as do_mark_goal_completed
-from .repository.memories.operations import augment_memory
-from .repository.memories.queries import get_memories
-from .repository.memories.tools import create_memory as do_create_memory
-from .repository.memories.tools import examine_memories as do_query_memory
-from .repository.user.operations import set_assistant_name, set_persona
-from .repository.user.queries import get_persona as do_get_persona
+from ..repository.context_messages.operations import reset_messages as do_reset_messages
+from ..repository.context_messages.queries import get_context_messages
+from ..repository.context_messages.transforms import is_context_refresh_needed
+from ..repository.documents.operations import DocIngestStatus, do_ingest, do_ingest_dir
+from ..repository.memo import do_ingest_memo
+from ..repository.memories.queries import get_memories
+from ..repository.memories.tools import create_memory as do_create_memory
+from ..repository.memories.tools import examine_memories as do_query_memory
+from ..repository.reminders.operations import do_create_reminder
+from ..repository.reminders.queries import (
+    get_active_reminders as do_get_active_reminders,
+)
+from ..repository.reminders.queries import (
+    get_due_timed_reminders as do_get_due_timed_reminders,
+)
+from ..repository.user.operations import set_assistant_name, set_persona
+from ..repository.user.queries import get_persona as do_get_persona
 
 T = TypeVar("T")
 
@@ -71,6 +76,20 @@ class Elroy:
         exclude_tools: List[str] = [],  # any tools which should not be loaded
         **kwargs,
     ):
+        """Initialize an Elroy instance.
+
+        Args:
+            token (Optional[str]): User authentication token
+            formatter (StringFormatter): Formatter for output messages
+            config_path (Optional[str]): Path to configuration file
+            persona (Optional[str]): Assistant persona to set
+            assistant_name (Optional[str]): Name for the assistant
+            database_url (Optional[str]): URL for database connection
+            check_db_migration (bool): Whether to check database migrations
+            show_tool_calls (bool): Whether to show tool calls in output
+            exclude_tools (List[str]): List of tools to exclude from loading
+            **kwargs: Additional configuration parameters
+        """
 
         setup_core_logging()
         self.formatter = formatter
@@ -94,46 +113,6 @@ class Elroy:
                 set_assistant_name(self.ctx, assistant_name)
 
     @db
-    def create_goal(
-        self,
-        goal_name: str,
-        strategy: Optional[str] = None,
-        description: Optional[str] = None,
-        end_condition: Optional[str] = None,
-        time_to_completion: Optional[str] = None,
-        priority: Optional[int] = None,
-    ) -> str:
-        """Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.
-        Goals should be *specific* and *measurable*. They should be based on the user's needs and desires, and should
-        be achievable within a reasonable timeframe.
-
-        Args:
-            goal_name (str): Name of the goal
-            strategy (str): The strategy to achieve the goal. Your strategy should detail either how you (the personal assistant) will achieve the goal, or how you will assist your user to solve the goal. Limit to 100 words.
-            description (str): A brief description of the goal. Limit to 100 words.
-            end_condition (str): The condition that indicate to you (the personal assistant) that the goal is achieved or terminated. It is critical that this end condition be OBSERVABLE BY YOU (the assistant). For example, the end_condition may be that you've asked the user about the goal status.
-            time_to_completion (str): The amount of time from now until the goal can be completed. Should be in the form of NUMBER TIME_UNIT, where TIME_UNIT is one of HOURS, DAYS, WEEKS, MONTHS. For example, "1 DAYS" would be a goal that should be completed within 1 day.
-            priority (int, optional): The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest.
-
-        Returns:
-            str: A confirmation message that the goal was created.
-
-        Raises:
-            ValueError: If goal_name is empty
-            GoalAlreadyExistsError: If a goal with the same name already exists
-        """
-        do_create_goal(
-            self.ctx,
-            goal_name,
-            strategy,
-            description,
-            end_condition,
-            time_to_completion,
-            priority,
-        )
-        return f"Goal '{goal_name}' has been created."
-
-    @db
     def get_current_messages(self) -> List[ContextMessage]:  # noqa F841
         """Retrieves messages currently in context"""
         return pipe(
@@ -142,66 +121,61 @@ class Elroy:
         )  # type: ignore
 
     @db
-    def add_goal_status_update(self, goal_name: str, status_update_or_note: str) -> str:
-        """Captures either a progress update or note relevant to the goal.
-
-        Args:
-            goal_name (str): Name of the goal
-            status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
-
-        Returns:
-            str: Confirmation message that the status update was added.
-        """
-        return do_add_goal_status_update(self.ctx, goal_name, status_update_or_note)
-
-    @db
-    def mark_goal_completed(self, goal_name: str, closing_comments: Optional[str] = None) -> str:
-        """Marks a goal as completed, with closing comments.
-
-        Args:
-            goal_name (str): The name of the goal
-            closing_comments (Optional[str]): Updated status with a short account of how the goal was completed and what was learned
-
-        Returns:
-            str: Confirmation message that the goal was marked as completed
-
-        Raises:
-            GoalDoesNotExistError: If the goal doesn't exist
-        """
-        return do_mark_goal_completed(self.ctx, goal_name, closing_comments)
-
-    @db
-    def get_active_goal_names(self) -> List[str]:
-        """Gets the list of names for all active goals
-
-        Returns:
-            List[str]: List of names for all active goals
-        """
-        return do_get_active_goal_names(self.ctx)
-
-    @db
-    def get_goal_by_name(self, goal_name: str) -> Optional[str]:
-        """Get the fact for a goal by name
-
-        Args:
-            goal_name (str): Name of the goal
-
-        Returns:
-            Optional[str]: The fact for the goal with the given name
-        """
-        return do_get_goal_by_name(self.ctx, goal_name)
-
-    @db
     def query_memory(self, query: str) -> str:
-        """Search through memories and goals using semantic search.
+        """Search through memories using semantic search.
 
         Args:
-            query (str): The search query text to find relevant memories and goals
+            query (str): The search query text to find relevant memories
 
         Returns:
-            str: A response synthesizing relevant memories and goals that match the query
+            str: A response synthesizing relevant memories that match the query
         """
         return do_query_memory(self.ctx, query)
+
+    @db
+    def get_due_timed_reminders(self) -> List[Reminder]:
+        """Get all reminders that are due based on their trigger time.
+
+        Returns:
+            List[Reminder]: List of reminders that are currently due
+        """
+        return do_get_due_timed_reminders(self.ctx)
+
+    @db
+    def get_active_reminders(self) -> List[Reminder]:
+        """Get all active reminders for the current user.
+
+        Returns:
+            List[Reminder]: List of all active reminders
+        """
+        return do_get_active_reminders(self.ctx)
+
+    @db
+    def create_reminder(self, name: str, text: str, trigger_time: Optional[datetime], reminder_context: Optional[str]) -> Reminder:
+        """Create a new reminder.
+
+        Args:
+            name (str): Name/title for the reminder
+            text (str): The content of the reminder
+            trigger_time (Optional[datetime]): When the reminder should trigger
+            reminder_context (Optional[str]): Additional context for the reminder
+
+        Returns:
+            The created reminder object
+        """
+        return do_create_reminder(self.ctx, name, text, trigger_time, reminder_context)
+
+    @db
+    def ingest_memo(self, text: str) -> List[Reminder | Memory]:
+        """Ingest a memo text and extract memories and reminders from it.
+
+        Args:
+            text (str): The memo text to process
+
+        Returns:
+            List[str]: List of facts from extracted reminders and memories
+        """
+        return do_ingest_memo(self.ctx, text)
 
     @db
     def remember(self, name: str, text: str) -> str:
@@ -216,23 +190,6 @@ class Elroy:
             str: The result of the memory creation
         """
         return self.create_memory(name, text)
-
-    @db
-    def create_augmented_memory(self, text: str) -> str:
-        """Creates an augmented memory by processing raw text through AI enhancement.
-
-        This method takes raw text input and uses AI to improve and structure it before
-        creating a memory. The AI enhancement process typically includes improving clarity,
-        adding context, and generating an appropriate title.
-
-        Args:
-            text (str): The raw text to be processed and stored as memory.
-
-        Returns:
-            str: The result of the memory creation process.
-        """
-        mem = augment_memory(self.ctx, text)
-        return self.create_memory(mem.title, mem.text)
 
     @db
     def create_memory(self, name: str, text: str) -> str:
@@ -426,8 +383,15 @@ class Elroy:
             if self._should_return_chunk(chunk):
                 yield from self.formatter.format(chunk)
 
-    def _should_return_chunk(self, chunk: BaseModel):
-        """filter for whether assistant output chunks should be returned to caller"""
+    def _should_return_chunk(self, chunk: BaseModel) -> bool:
+        """Filter for whether assistant output chunks should be returned to caller.
+
+        Args:
+            chunk (BaseModel): The output chunk to evaluate
+
+        Returns:
+            bool: True if chunk should be returned to caller
+        """
 
         if isinstance(chunk, AssistantInternalThought):
             return self.ctx.show_internal_thought

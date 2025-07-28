@@ -76,18 +76,6 @@ class RecoverableToolError(Exception):
     """Exceptions in tool calls that the assistant can learn from and correct"""
 
 
-class GoalAlreadyExistsError(RecoverableToolError):
-    def __init__(self, goal_name: str):
-        super().__init__(f"Error: Goal with name '{goal_name}' already exists")
-
-
-class GoalDoesNotExistError(RecoverableToolError):
-    def __init__(self, goal_name: str, valid_goal_names: List[str]):
-        msg = f"Error: Goal with name '{goal_name}' does not exist."
-        msg += f" Valid goal names: {valid_goal_names}" if valid_goal_names else " No goals have been created yet"
-        super().__init__(msg)
-
-
 class Provider(enum.Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
@@ -100,7 +88,7 @@ GEMINI_PREFIX = "gemini"
 AZURE_PREFIX = "azure"
 
 CLAUDE_3_5_SONNET = "claude-3-5-sonnet-20241022"
-GPT_4O = "gpt-4o"
+GPT_5 = "gpt-5"
 GEMINI_2_0_FLASH = "gemini/gemini-2.0-flash"
 TEXT_EMBEDDING_3_SMALL = "text-embedding-3-small"
 GEMINI_TEXT_EMBEDDING_004 = "gemini/text-embedding-004"
@@ -116,37 +104,9 @@ KNOWN_MODELS: Dict[Provider, List[str]] = {
         "o1-mini",
         "o1-mini-2024-09-12",
         # GPT-4O Models
-        GPT_4O,
-        "gpt-4o-2024-11-20",
-        "gpt-4o-2024-08-06",
-        "gpt-4o-2024-05-13",
-        "gpt-4o-realtime-preview",
-        "gpt-4o-mini-realtime-preview",
-        "gpt-4o-realtime-preview-2024-12-17",
-        "gpt-4o-mini-realtime-preview-2024-12-17",
-        "gpt-4o-realtime-preview-2024-10-01",
-        "gpt-4o-mini",
-        "gpt-4o-mini-2024-07-18",
-        # GPT-4 Models
-        "gpt-4-turbo-preview",
-        "gpt-4-turbo",
-        "gpt-4-turbo-2024-04-09",
-        "gpt-4-0613",
-        "gpt-4-32k-0613",
-        "gpt-4-0314",
-        "gpt-4-32k-0314",
-        "gpt-4",
-        "gpt-4-32k",
-        "gpt-4-1106-preview",
-        "gpt-4-0125-preview",
-        # GPT-3.5 Models
-        "gpt-3.5-turbo-1106",
-        "gpt-3.5-turbo-0613",
-        "gpt-3.5-turbo-16k-0613",
-        "gpt-3.5-turbo-0301",
-        "gpt-3.5-turbo-0125",
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-16k",
+        GPT_5,
+        "GPT-5-mini",
+        "GPT-5-nano",
         TEXT_EMBEDDING_3_SMALL,
         "text-embedding-3-large,",
     ],
@@ -180,7 +140,7 @@ Include in your response internal thoughts. Indicate internal thought content wi
 
 An example response might look like:
 
-<internal thought> This is a good opportunity to ask about a due goal</internal thought> What are your thoughts on the upcoming project deadline?"
+<internal thought> This is a good opportunity to ask about a due reminder</internal thought> What are your thoughts on the upcoming project deadline?"
 </formatting>
 """
 

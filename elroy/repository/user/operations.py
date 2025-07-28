@@ -1,6 +1,6 @@
 import typer
 from sqlmodel import Session, select
-from toolz import do, pipe
+from toolz import do
 from toolz.curried import do
 
 from ...core.constants import user_only_tool
@@ -14,13 +14,10 @@ logger = get_logger()
 
 
 def create_user_id(db: DbSession, user_token: str) -> int:
-    return pipe(
-        User(token=user_token),
-        do(db.add),
-        do(lambda _: db.commit()),
-        do(db.refresh),
-        lambda user: user.id,
-    )  # type: ignore
+    user = db.persist(User(token=user_token))
+    user_id = user.id
+    assert user_id
+    return user_id
 
 
 def get_or_create_user_preference(ctx: ElroyContext) -> UserPreference:

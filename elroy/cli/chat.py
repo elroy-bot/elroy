@@ -15,7 +15,7 @@ from toolz import pipe
 
 from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
 from ..core.async_tasks import schedule_task
-from ..core.constants import EXIT, SYSTEM, USER
+from ..core.constants import EXIT, USER
 from ..core.ctx import ElroyContext
 from ..core.tracing import tracer
 from ..db.db_models import Message
@@ -25,21 +25,22 @@ from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
 from ..llm.stream_parser import collect
 from ..messenger.messenger import process_message
 from ..messenger.slash_commands import invoke_slash_command
-from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import (
+    add_context_messages,
     eject_irrelevant_memories,
     get_refreshed_system_message,
     refresh_context_if_needed,
     replace_context_messages,
 )
 from ..repository.context_messages.queries import get_context_messages
+from ..repository.context_messages.tools import to_synthetic_tool_call
 from ..repository.context_messages.transforms import (
     get_time_since_most_recent_user_message,
 )
 from ..repository.context_messages.validations import Validator
-from ..repository.goals.operations import create_onboarding_goal
-from ..repository.goals.queries import get_active_goals
 from ..repository.memories.queries import get_active_memories
+from ..repository.reminders.operations import create_onboarding_reminder
+from ..repository.reminders.queries import get_active_reminders
 from ..repository.user.queries import (
     do_get_user_preferred_name,
     get_assistant_name,
@@ -105,6 +106,8 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
 
     print_title_ruler(io, get_assistant_name(ctx))
 
+    add_context_messages(ctx, to_synthetic_tool_call("get_login_message", get_user_logged_in_message(ctx)))
+
     context_messages = Validator(ctx, get_context_messages(ctx)).validated_msgs()
 
     if not enable_greeting:
@@ -113,12 +116,11 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
         logger.info(f"User has interacted within {ctx.min_convo_age_for_greeting}, skipping greeting.")
     else:
         print_model_selection(io, ctx)
-        do_get_user_preferred_name(ctx.db.session, ctx.user_id)
         process_and_deliver_msg(
             io,
-            SYSTEM,
+            USER,
             ctx,
-            get_user_logged_in_message(ctx),
+            "<Empty user response>",
             False,
         )
     if io.show_memory_panel:
@@ -126,8 +128,8 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
 
     while True:
         io.update_completer(
-            get_active_goals(ctx),
             get_active_memories(ctx),
+            get_active_reminders(ctx),
             list(get_context_messages(ctx)),
         )
 
@@ -203,25 +205,22 @@ def onboard_interactive(io: CliIO, ctx: ElroyContext):
 
     set_user_preferred_name(ctx, preferred_name)
 
-    create_onboarding_goal(ctx, preferred_name)
+    create_onboarding_reminder(ctx, preferred_name)
 
     replace_context_messages(
         ctx,
-        [
-            get_refreshed_system_message(ctx, []),
-            ContextMessage(
-                role=SYSTEM,
-                content=ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name),
-                chat_model=None,
-            ),
-        ],
+        [get_refreshed_system_message(ctx, [])]
+        + to_synthetic_tool_call(
+            "get_onboarding_instructions",
+            ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name),
+        ),
     )
 
     process_and_deliver_msg(
         io,
-        SYSTEM,
+        USER,
         ctx,
-        f"User {preferred_name} has been onboarded. Say hello and introduce yourself.",
+        f"<User {preferred_name} has been onboarded. Say hello and introduce yourself.>",
         False,
     )
 

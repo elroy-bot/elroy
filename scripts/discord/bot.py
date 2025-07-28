@@ -3,15 +3,15 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Optional, Union
+from typing import Union
 
 import discord
 from discord import app_commands
 from discord.app_commands import CommandTree
 
 from elroy.api import Elroy
-from elroy.config.constants import USER
 from elroy.config.personas import DISCORD_GROUP_CHAT_PERSONA
+from elroy.core.constants import USER
 from elroy.io.formatters.markdown_formatter import MarkdownFormatter
 from elroy.repository.user.tools import get_user_preferred_name, set_user_preferred_name
 
@@ -64,13 +64,11 @@ class DMResponder(DiscordResponder):
 
     @cached_property
     def ai(self) -> Elroy:
-        from elroy.tools.developer import tail_elroy_logs
 
         return Elroy(
             token=self.user_token,
             show_internal_thought=True,
             formatter=MarkdownFormatter(),
-            exclude_tools=[tail_elroy_logs.__name__],
         )
 
 
@@ -201,57 +199,8 @@ def get_elroy(interaction: discord.Interaction):
     return get_discord_responder(interaction).ai
 
 
-@tree.command(description="Creates a specific and measurable goal")
-@app_commands.describe(
-    goal_name="Name of the goal",
-    strategy="Strategy to achieve the goal (max 100 words)",
-    description="Brief description of the goal (max 100 words)",
-    end_condition="Observable condition that indicates goal completion",
-    time_to_completion="Time until completion (e.g. '1 DAYS', '2 WEEKS')",
-    priority="Priority from 0-4 (0 highest, 4 lowest)",
-)
-async def create_goal(
-    interaction: discord.Interaction,
-    goal_name: str,
-    strategy: Optional[str] = None,
-    description: Optional[str] = None,
-    end_condition: Optional[str] = None,
-    time_to_completion: Optional[str] = None,
-    priority: Optional[app_commands.Range[int, 0, 4]] = None,
-):
-
-    await interaction.response.send_message(
-        get_elroy(interaction).create_goal(goal_name, strategy, description, end_condition, time_to_completion, priority)
-    )
-
-
-@tree.command(description="Add a status update or note to an existing goal")
-@app_commands.describe(goal_name="Name of the goal to update", status_update_or_note="Status update or note to add (max 100 words)")
-async def add_goal_status_update(interaction: discord.Interaction, goal_name: str, status_update_or_note: str):
-    await interaction.response.send_message(get_elroy(interaction).add_goal_status_update(goal_name, status_update_or_note))
-
-
-@tree.command(description="Mark a goal as completed")
-@app_commands.describe(goal_name="Name of the goal to mark as completed", closing_comments="Final comments about the goal completion")
-async def mark_goal_completed(interaction: discord.Interaction, goal_name: str, closing_comments: Optional[str] = None):
-    await interaction.response.send_message(get_elroy(interaction).mark_goal_completed(goal_name, closing_comments))
-
-
-@tree.command(description="Get a list of all active goals")
-async def get_active_goal_names(interaction: discord.Interaction):
-    names = get_elroy(interaction).get_active_goal_names()
-    await interaction.response.send_message("\n".join(names) if names else "No active goals")
-
-
-@tree.command(description="Get details about a specific goal")
-@app_commands.describe(goal_name="Name of the goal to look up")
-async def get_goal_by_name(interaction: discord.Interaction, goal_name: str):
-    result = get_elroy(interaction).get_goal_by_name(goal_name)
-    await interaction.response.send_message(result if result else "Goal not found")
-
-
-@tree.command(description="Search through memories and goals")
-@app_commands.describe(query="Search query to find relevant memories and goals")
+@tree.command(description="Search through memories and reminders")
+@app_commands.describe(query="Search query to find relevant memories and reminders")
 async def query_memory(interaction: discord.Interaction, query: str):
     await interaction.response.send_message(get_elroy(interaction).query_memory(query))
 

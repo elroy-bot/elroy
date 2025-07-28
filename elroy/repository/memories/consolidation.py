@@ -12,7 +12,7 @@ from ...core.logging import get_logger
 from ...core.tracing import tracer
 from ...db.db_models import Memory
 from ...llm.client import query_llm_with_response_format
-from .models import MemoryResponse
+from ...models import MemoryResponse
 from .prompts import MEMORY_CONSOLIDATION
 
 logger = get_logger()
@@ -210,4 +210,4 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
     )
 
     for memory in response.memories:
-        create_consolidated_memory(ctx, memory.title, memory.text, cluster.memories)
+        create_consolidated_memory(ctx, memory.name, memory.text, cluster.memories)

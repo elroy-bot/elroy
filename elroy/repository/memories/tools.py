@@ -7,14 +7,14 @@ from toolz.curried import map
 
 from ...core.constants import RecoverableToolError, tool, user_only_tool
 from ...core.ctx import ElroyContext
-from ...db.db_models import Goal, Memory
+from ...db.db_models import Memory, Reminder
 from ...utils.clock import db_time_to_local
 from .operations import do_create_memory, do_create_memory_from_ctx_msgs
 from .queries import (
     db_get_memory_source_by_name,
     db_get_source_list_for_memory,
     get_memory_by_name,
-    get_relevant_memories_and_goals,
+    get_relevant_memories_and_reminders,
 )
 
 
@@ -91,9 +91,9 @@ def examine_memories(ctx: ElroyContext, question: str) -> List[str]:
         str: A list of relevant memories and goals, formatted for the LLM.
     """
 
-    recalled_items = get_relevant_memories_and_goals(ctx, question)
+    recalled_items = get_relevant_memories_and_reminders(ctx, question)
     relevant_memories = [item for item in recalled_items if isinstance(item, Memory)]
-    relevant_goals = [item for item in recalled_items if isinstance(item, Goal)]
+    relevant_reminders = [item for item in recalled_items if isinstance(item, Reminder)]
 
     # Format context for LLM
     output = []
@@ -108,9 +108,9 @@ def examine_memories(ctx: ElroyContext, question: str) -> List[str]:
 {memory.text}"""
             )
 
-    if relevant_goals:
-        for goal in relevant_goals:
-            output.append(goal.to_fact())
+    if relevant_reminders:
+        for reminder in relevant_reminders:
+            output.append(reminder.to_fact())
 
     return output
 
@@ -175,7 +175,7 @@ def search_memories(ctx: ElroyContext, query: str) -> Union[str, Table]:
         str: A natural language response synthesizing relevant memories
     """
 
-    items = get_relevant_memories_and_goals(ctx, query)
+    items = get_relevant_memories_and_reminders(ctx, query)
 
     if not items:
         return "No relevant memories found"

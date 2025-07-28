@@ -1,10 +1,7 @@
 import json
-from functools import partial
 from typing import Iterable, List, Optional, Tuple
 
 from sqlmodel import select
-from toolz import concat, juxt, pipe
-from toolz.curried import filter
 
 from ...core.async_tasks import schedule_task
 from ...core.constants import MAX_MEMORY_LENGTH, SYSTEM, user_only_tool
@@ -17,17 +14,14 @@ from ...db.db_models import (
     MemoryOperationTracker,
     MemorySource,
 )
-from ...llm.client import get_embedding, query_llm, query_llm_with_response_format
+from ...llm.client import query_llm
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
 )
-from ..recall.queries import get_most_relevant_goals, get_most_relevant_memories
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
 from .consolidation import consolidate_memories
-from .models import MemoryResponse
-from .queries import filter_for_relevance
 
 logger = get_logger()
 
@@ -41,53 +35,6 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
         # Create a new tracker for the user if it doesn't exist
         tracker = MemoryOperationTracker(user_id=ctx.user_id, memories_since_consolidation=0)
         return tracker
-
-
-def augment_memory(ctx: ElroyContext, content: str) -> MemoryResponse:
-    memories: List[EmbeddableSqlModel] = pipe(
-        content,
-        partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goals, get_most_relevant_memories)(ctx, x),
-        concat,
-        list,
-        filter(lambda x: x is not None),
-        list,
-        lambda mems: filter_for_relevance(
-            ctx.chat_model,
-            content,
-            mems,
-            lambda m: m.to_fact(),
-        ),
-        list,
-    )
-
-    if len(memories) > 0:
-        mem_str = "\n".join([m.to_fact() for m in memories])
-        return query_llm_with_response_format(
-            ctx.chat_model,
-            system="""
-            Your job is to augment text representing a memory. You will be provided with the initial text, as well as memories from storage which have been deemed to be relevant. Use this information to augment the text with enough context such that future readers can better understand the memory.
-
-            This could include information about how subjects relate to the user.
-
-            If there is still unknown information, simply omit that context, do not add any content about how you don't know.
-
-            Respond with both augmented text, and a short title for the memory.
-            """,
-            prompt=f"""
-            # Original Text
-
-            {content}
-
-            # Relevant memories
-
-            {mem_str}
-            """,
-            response_format=MemoryResponse,
-        )
-
-    else:
-        return MemoryResponse(title=content[:25], text=content)
 
 
 @log_execution_time
@@ -108,7 +55,7 @@ def remember_convo(ctx: ElroyContext):
     yield from process_message(
         role=SYSTEM,
         ctx=ctx,
-        msg="The use has triggered a remember_convo command. Through goals in context or via a new memory, capture information about the current converstaion",
+        msg="The use has triggered a remember_convo command. Through reminders in context or via a new memory, capture information about the current converstaion",
         force_tool=create_memory.__name__,
         enable_tools=True,
     )
@@ -189,18 +136,17 @@ def do_create_memory(
 ) -> Memory:
     from ..recall.operations import add_to_context, upsert_embedding_if_needed
 
-    memory = Memory(
-        user_id=ctx.user_id,
-        name=name,
-        text=text,
-        source_metadata=json.dumps(
-            [x.to_memory_source_d() for x in source_metadata],
-        ),
+    memory = ctx.db.persist(
+        Memory(
+            user_id=ctx.user_id,
+            name=name,
+            text=text,
+            source_metadata=json.dumps(
+                [x.to_memory_source_d() for x in source_metadata],
+            ),
+        )
     )
 
-    ctx.db.add(memory)
-    ctx.db.commit()
-    ctx.db.refresh(memory)
     upsert_embedding_if_needed(ctx, memory)
     if add_mem_to_context:
         add_to_context(ctx, memory)
