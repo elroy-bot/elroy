@@ -10,7 +10,7 @@ from ..core.constants import (
     CLAUDE_3_5_SONNET,
     GEMINI_2_0_FLASH,
     GEMINI_PREFIX,
-    GPT_4O,
+    GPT_5,
     KNOWN_MODELS,
     Provider,
 )
@@ -62,7 +62,7 @@ def infer_chat_model_name() -> str:
     if os.environ.get("ANTHROPIC_API_KEY"):
         return CLAUDE_3_5_SONNET
     elif os.environ.get("OPENAI_API_KEY"):
-        return GPT_4O
+        return GPT_5
     elif os.environ.get("GEMINI_API_KEY"):
         return GEMINI_2_0_FLASH
     else:

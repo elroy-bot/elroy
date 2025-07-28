@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta, tzinfo
+import re
+from datetime import datetime, tzinfo
 
 import pytz
 from pytz import UTC
@@ -34,34 +35,75 @@ def utc_now():
     return datetime.now(UTC)
 
 
-def string_to_timedelta(time_to_completion: str) -> timedelta:
-    # validate that the time_to_completion is in the form of NUMBER TIME_UNIT
-    # where TIME_UNIT is one of HOUR, DAY, WEEK, MONTH
-    # return the timedelta
-
-    logger.debug("Converting time to completion string to timedelta: '%s'", time_to_completion)
-
-    time_amount, time_unit = time_to_completion.lower().strip().split()
-
-    if time_unit[-1] != "s":
-        time_unit += "s"
-
-    if not time_amount.isdigit():
-        raise ValueError(f"Invalid time number {time_to_completion.split()[0]}. Must be an integer")
-
-    if time_unit in ["hours", "days", "weeks"]:
-        return timedelta(**{time_unit: int(time_amount)})
-    elif time_unit == "months":
-        return timedelta(days=int(time_amount) * 30)  # approximate
-    elif time_unit == "years":
-        return timedelta(days=int(time_amount) * 365)  # approximate
-    else:
-        raise ValueError(f"Invalid time unit: {time_to_completion.split()[1]}. Must be one of HOURS, DAYS, WEEKS, MONTHS, or YEARS.")
-
-
 def ensure_utc(dt: datetime) -> datetime:
     """Convert a datetime object to UTC if it contains time; leave date-only as naive."""
     if dt.tzinfo is None:
         return pytz.utc.localize(dt)
     else:
         return dt.astimezone(pytz.UTC)
+
+
+def string_to_datetime(date_string: str) -> datetime:
+    """Convert a date/time string to a UTC datetime object.
+
+    Supports formats:
+    - "YYYY-MM-DD HH:MM" (e.g., "2024-12-25 09:00")
+    - "YYYY-MM-DD HH:MM:SS" (e.g., "2024-12-25 09:00:00")
+    - "YYYY-MM-DD" (defaults to 00:00:00)
+    - ISO 8601 with timezone: "YYYY-MM-DDTHH:MM:SS±HH:MM" (e.g., "2025-12-01T09:00:00-07:00")
+    - ISO 8601 without timezone: "YYYY-MM-DDTHH:MM:SS" (e.g., "2025-12-01T09:00:00")
+
+    Args:
+        date_string (str): The date/time string to parse
+
+    Returns:
+        datetime: A UTC datetime object
+
+    Raises:
+        ValueError: If the date string format is invalid
+    """
+    date_string = date_string.strip()
+
+    # First try to handle ISO 8601 format with timezone
+    iso_pattern = r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2}|Z)?$"
+    iso_match = re.match(iso_pattern, date_string)
+
+    if iso_match:
+        try:
+            if iso_match.group(7) == "Z":
+                # UTC timezone
+                dt = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
+                return dt.replace(tzinfo=UTC)
+            elif iso_match.group(7):
+                # Has timezone offset
+                dt = datetime.fromisoformat(date_string)
+                return dt.astimezone(UTC)
+            else:
+                # No timezone, assume local
+                dt = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S")
+                local_dt = dt.replace(tzinfo=local_tz())
+                return local_dt.astimezone(UTC)
+        except ValueError:
+            pass
+
+    # Try different datetime formats (legacy support)
+    formats = [
+        "%Y-%m-%d %H:%M:%S",  # 2024-12-25 09:00:00
+        "%Y-%m-%d %H:%M",  # 2024-12-25 09:00
+        "%Y-%m-%d",  # 2024-12-25
+    ]
+
+    for fmt in formats:
+        try:
+            # Parse as naive datetime first
+            naive_dt = datetime.strptime(date_string, fmt)
+            # Assume input is in local timezone, then convert to UTC
+            local_dt = naive_dt.replace(tzinfo=local_tz())
+            return local_dt.astimezone(UTC)
+        except ValueError:
+            continue
+
+    # If none of the formats worked, raise an error
+    raise ValueError(
+        f"Invalid datetime format: '{date_string}'. Expected formats: 'YYYY-MM-DD HH:MM:SS', 'YYYY-MM-DD HH:MM', 'YYYY-MM-DD', or ISO 8601 format"
+    )

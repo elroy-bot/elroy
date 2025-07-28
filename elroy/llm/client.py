@@ -112,6 +112,7 @@ def generate_chat_completion_message(
                 tool_schemas = None  # type: ignore
 
     try:
+
         completion_kwargs = _build_completion_kwargs(
             model=chat_model,
             messages=context_message_dicts,  # type: ignore

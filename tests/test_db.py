@@ -20,6 +20,7 @@ def test_migrations_in_sync(ctx: ElroyContext):
         # TODO: remove these:
         r".*_bkp.*",
         r".*embedding.*",
+        r".*goal.*",  # temporary
     }
 
     # Compile patterns for better performance

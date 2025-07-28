@@ -20,8 +20,8 @@ from elroy.llm.stream_parser import SystemInfo
 from elroy.messenger.messenger import process_message
 from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.goals.queries import get_active_goals
 from elroy.repository.recall.queries import query_vector
+from elroy.repository.reminders.queries import get_active_reminders
 from elroy.utils.utils import first_or_none
 
 
@@ -49,15 +49,6 @@ class MockCliIO(CliIO):
             response = "".join(self._sys_messages)
             self._sys_messages.clear()
             return response
-
-    def add_user_response(self, response: str) -> None:
-        """Add a response to the queue of responses"""
-        self._user_responses.append(response)
-
-    def add_user_responses(self, *responses: str) -> None:
-        """Add multiple responses at once"""
-        for response in responses:
-            self.add_user_response(response)
 
     def warning(self, message: Union[str, RenderableType]):
         self._warnings.append(message)
@@ -172,17 +163,16 @@ def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str)
     assert bool_answer == expected_answer, f"Expected {expected_answer}, got {bool_answer}. Full response: {full_response}"
 
 
-def get_active_goals_summary(ctx: ElroyContext) -> str:
+def get_active_reminders_summary(ctx: ElroyContext) -> str:
     """
-    Retrieve a summary of active goals for a given user.
+    Retrieve a summary of active reminders for a given user.
     Args:
-        session (Session): The database session.
-        user_id (int): The ID of the user.
+        ctx (ElroyContext): The Elroy context.
     Returns:
-        str: A formatted string summarizing the active goals.
+        str: A formatted string summarizing the active reminders.
     """
     return pipe(
-        get_active_goals(ctx),
+        get_active_reminders(ctx),
         map(lambda x: x.to_fact()),
         list,
         "\n\n".join,

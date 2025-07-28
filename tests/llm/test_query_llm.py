@@ -1,3 +1,4 @@
+import pytest
 from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 
 from elroy.core.ctx import ElroyContext
@@ -15,6 +16,7 @@ def test_query_hello_world(ctx: ElroyContext):
     assert "hello world" in response.lower()
 
 
+@pytest.mark.skip(reason="Defer functionality to litellm")
 def test_model_fallback(ctx: ElroyContext, mocker):
     from litellm.exceptions import RateLimitError
 

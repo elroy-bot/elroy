@@ -16,9 +16,9 @@ from elroy.core.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     ContextMessageSet,
-    Goal,
     Memory,
     Message,
+    Reminder,
     User,
     UserPreference,
 )
@@ -28,7 +28,7 @@ from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
-from elroy.repository.goals.operations import do_create_goal
+from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.user.operations import create_user_id
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
@@ -42,7 +42,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--chat-models",
         action="store",
-        default="gpt-4o-mini",
+        default="gpt-5-nano",
         help="Comma-separated list of chat models to test",
     )
     parser.addoption(
@@ -104,7 +104,7 @@ def db_manager(
     db_manager.migrate()
 
     with db_manager.open_session() as db:
-        for table in [Message, Goal, User, UserPreference, Memory, ContextMessageSet]:
+        for table in [Message, Reminder, User, UserPreference, Memory, ContextMessageSet]:
             db.exec(delete(table))  # type: ignore
         db.commit()
 
@@ -184,24 +184,20 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
 
     add_context_messages(ctx, messages)
 
-    do_create_goal(
+    do_create_reminder(
         ctx,
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
-        "George is working to improve his basketball game, in particular his shooting form.",
-        "George acknowledges my reminder that he needs to follow through on basketball shots.",
-        "7 DAYS",
-        0,
+        None,
+        "Whenever George mentions basketball",
     )
 
-    do_create_goal(
+    do_create_reminder(
         ctx,
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",
-        "George has a loan that he needs to pay off by the end of the year.",
-        "George confirms that he has paid off his loan.",
-        "1 YEAR",
-        0,
+        None,
+        "when george mentions bills",
     )
 
     yield ctx

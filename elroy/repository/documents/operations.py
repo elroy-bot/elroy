@@ -202,28 +202,25 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
             extracted_at=utc_now(),
         )
 
-    ctx.db.add(source_doc)
-    ctx.db.commit()
-    ctx.db.refresh(source_doc)
+    source_doc = ctx.db.persist(source_doc)
     source_doc_id = source_doc.id
     assert source_doc_id
 
     logger.info(f"Breaking source document into chunks for storage: {address}")
     for chunk in excerpts_from_doc(address, content):
         title = f"Excerpt {chunk.chunk_index} from doc {address}"
-        doc_excerpt = DocumentExcerpt(
-            source_document_id=source_doc_id,
-            chunk_index=chunk.chunk_index,
-            content=chunk.content,
-            is_active=True,
-            user_id=ctx.user_id,
-            name=title,
-            content_md5=hashlib.md5(chunk.content.encode()).hexdigest(),
+        doc_excerpt = ctx.db.persist(
+            DocumentExcerpt(
+                source_document_id=source_doc_id,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                is_active=True,
+                user_id=ctx.user_id,
+                name=title,
+                content_md5=hashlib.md5(chunk.content.encode()).hexdigest(),
+            )
         )
 
-        ctx.db.add(doc_excerpt)
-        ctx.db.commit()
-        ctx.db.refresh(doc_excerpt)
         upsert_embedding_if_needed(ctx, doc_excerpt)
 
         logger.info(f"Creating memory from excerpt of document {address} (chunk {chunk.chunk_index})")

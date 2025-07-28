@@ -8,7 +8,7 @@ from typing import Any, Dict
 from toolz import pipe
 from toolz.curried import assoc, dissoc, itemfilter, keymap, valfilter, valmap
 
-from ..api import Elroy
+from ..api.main import Elroy
 from ..cli.options import get_env_var_name
 from ..config.paths import get_home_dir
 from ..core.ctx import ElroyContext

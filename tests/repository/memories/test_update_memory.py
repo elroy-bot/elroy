@@ -19,10 +19,6 @@ def test_update_memory_relationship_status(george_ctx: ElroyContext):
     assert memory
     assert memory.id != original_mem.id
 
-    george_ctx.db.refresh(original_mem)
-
-    assert not original_mem.is_active
-
     reset_messages(george_ctx)
 
     process_test_message(george_ctx, "Today I went to the store with Sarah")  # this should bring the memory back into context

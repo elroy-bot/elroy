@@ -47,15 +47,12 @@ def test_memory_creation_trigger(mem_op_ctx: ElroyContext, dummy_msgs: List[Cont
     tracker = mem_op_ctx.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == mem_op_ctx.user_id)).one_or_none()
 
     if not tracker:
-        tracker = MemoryOperationTracker(user_id=mem_op_ctx.user_id, messages_since_memory=0)
+        tracker = mem_op_ctx.db.persist(MemoryOperationTracker(user_id=mem_op_ctx.user_id, messages_since_memory=0))
+    else:
+        tracker.messages_since_memory = 0
         mem_op_ctx.db.add(tracker)
         mem_op_ctx.db.commit()
         mem_op_ctx.db.refresh(tracker)
-
-    # Reset the counter to ensure we start from a known state
-    tracker.messages_since_memory = 0
-    mem_op_ctx.db.add(tracker)
-    mem_op_ctx.db.commit()
 
     memory_ct = len(get_active_memories(mem_op_ctx))
 
@@ -103,6 +100,6 @@ def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: List[C
 
     add_context_messages(mem_op_ctx, dummy_msgs[2:])
 
-    mem_op_ctx.db.refresh(tracker)
+    tracker = get_or_create_memory_op_tracker(mem_op_ctx)
     assert tracker.messages_since_memory == 2
     assert len(get_active_memories(mem_op_ctx)) == new_memory_ct

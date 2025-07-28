@@ -20,6 +20,7 @@ from ..repository.context_messages.queries import (
     get_current_system_instruct,
 )
 from ..repository.context_messages.transforms import format_context_messages
+from ..repository.memo import do_ingest_memo
 from ..repository.user.queries import do_get_user_preferred_name, get_assistant_name
 
 logger = get_logger()
@@ -76,6 +77,21 @@ def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
         )
 
     return table
+
+
+@user_only_tool
+def memo(ctx: ElroyContext, text: str) -> str:
+    """Ingests a memo from the user. This could result in a memory or reminder being created.
+
+    Args:
+        text (str): Content of memo
+
+    Returns:
+        str: The result of the memo ingestion
+    """
+
+    res = do_ingest_memo(ctx, text)
+    return str(res)
 
 
 @user_only_tool

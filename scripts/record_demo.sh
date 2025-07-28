@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# maximize screen!
 # best screen size: Rows: 27, Columns: 118
 
 

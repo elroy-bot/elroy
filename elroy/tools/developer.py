@@ -55,7 +55,7 @@ def run_shell_command(ctx: ElroyContext, command: str) -> ShellCommandOutput:
     )
 
 
-@tool
+@user_only_tool
 def tail_elroy_logs(lines: int = 10) -> str:
     """
     Returns the last `lines` of the Elroy logs.

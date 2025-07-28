@@ -59,10 +59,7 @@ def persist_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> I
         elif msg.id:
             yield msg.id
         else:
-            db_message = context_message_to_db_message(ctx.user_id, msg)
-            ctx.db.add(db_message)
-            ctx.db.commit()
-            ctx.db.refresh(db_message)
+            db_message = ctx.db.persist(context_message_to_db_message(ctx.user_id, msg))
             assert db_message.id
             yield db_message.id
 
@@ -141,9 +138,7 @@ def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) 
     if user_and_asst_msgs_ct > 0:
         tracker = get_or_create_memory_op_tracker(ctx)
         tracker.messages_since_memory += user_and_asst_msgs_ct
-        ctx.db.add(tracker)
-        ctx.db.commit()
-        ctx.db.refresh(tracker)
+        tracker = ctx.db.persist(tracker)
 
         if tracker.messages_since_memory >= ctx.messages_between_memory:
             schedule_task(create_mem_from_current_context, ctx)

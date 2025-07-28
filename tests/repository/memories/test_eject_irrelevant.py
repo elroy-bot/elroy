@@ -15,7 +15,7 @@ from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.memories.queries import is_memory_message
 
 
-def test_assistant_goal_in_context(io: MockCliIO, ctx: ElroyContext):
+def test_assistant_memory_in_context(io: MockCliIO, ctx: ElroyContext):
     add_context_messages(
         ctx,
         [

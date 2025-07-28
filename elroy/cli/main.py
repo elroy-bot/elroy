@@ -18,6 +18,7 @@ from ..core.constants import KNOWN_MODELS, MODEL_SELECTION_CONFIG_PANEL
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger, setup_core_logging, setup_file_logging
 from ..core.session import init_elroy_session
+from ..db.db_models import Reminder
 from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
 from ..io.formatters.rich_formatter import RichFormatter
@@ -524,7 +525,7 @@ def user_stats(
     with init_elroy_session(ctx, io, True, False):
         from sqlmodel import func, select
 
-        from ..db.db_models import DocumentExcerpt, Goal, Memory, Message, VectorStorage
+        from ..db.db_models import DocumentExcerpt, Memory, Message, VectorStorage
 
         # Get counts for all data types
         total_messages = ctx.db.exec(select(func.count(col(Message.id))).where(Message.user_id == ctx.user_id)).first() or 0
@@ -534,10 +535,6 @@ def user_stats(
         active_memories = (
             ctx.db.exec(select(func.count(col(Memory.id))).where(Memory.user_id == ctx.user_id, Memory.is_active == True)).first() or 0
         )
-
-        total_goals = ctx.db.exec(select(func.count(col(Goal.id))).where(Goal.user_id == ctx.user_id)).first() or 0
-
-        active_goals = ctx.db.exec(select(func.count(col(Goal.id))).where(Goal.user_id == ctx.user_id, Goal.is_active == True)).first() or 0
 
         total_document_excerpts = (
             ctx.db.exec(select(func.count(col(DocumentExcerpt.id))).where(DocumentExcerpt.user_id == ctx.user_id)).first() or 0
@@ -550,24 +547,19 @@ def user_stats(
             or 0
         )
 
+        total_reminders = ctx.db.exec(select(func.count(col(Reminder.id))).where(Reminder.user_id == ctx.user_id)).first() or 0
+
+        active_reminders = (
+            ctx.db.exec(select(func.count(col(Reminder.id))).where(Reminder.user_id == ctx.user_id, Reminder.is_active == True)).first()
+            or 0
+        )
+
         # Count vectors for this user's entities
         vectors_for_memories = (
             ctx.db.exec(
                 select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == "Memory",
+                    VectorStorage.source_type == Memory.__class__.__name__,
                     col(VectorStorage.source_id).in_(select(col(Memory.id)).where(Memory.user_id == ctx.user_id)),
-                )
-            ).first()
-            or 0
-        )
-
-        vectors_for_goals = (
-            ctx.db.exec(
-                select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == "Goal",
-                    col(VectorStorage.source_id).in_(
-                        select(col(Goal.id)).where(Goal.user_id == ctx.user_id),
-                    ),
                 )
             ).first()
             or 0
@@ -576,14 +568,24 @@ def user_stats(
         vectors_for_documents = (
             ctx.db.exec(
                 select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == "DocumentExcerpt",
+                    VectorStorage.source_type == DocumentExcerpt.__class__.__name__,
                     col(VectorStorage.source_id).in_(select(col(DocumentExcerpt.id)).where(DocumentExcerpt.user_id == ctx.user_id)),
                 )
             ).first()
             or 0
         )
 
-        total_vectors = vectors_for_memories + vectors_for_goals + vectors_for_documents
+        vectors_for_reminders = (
+            ctx.db.exec(
+                select(func.count(col(VectorStorage.id))).where(
+                    VectorStorage.source_type == Reminder.__class__.__name__,
+                    col(VectorStorage.source_id).in_(select(col(Reminder.id)).where(Reminder.user_id == ctx.user_id)),
+                )
+            ).first()
+            or 0
+        )
+
+        total_vectors = vectors_for_memories + vectors_for_documents + vectors_for_reminders
 
         # Create and display the table
         table = Table(title=f"User Statistics (Token: {ctx.user_token})")
@@ -593,10 +595,10 @@ def user_stats(
         table.add_row("Total Messages", str(total_messages))
         table.add_row("Total Memories", str(total_memories))
         table.add_row("Active Memories", str(active_memories))
-        table.add_row("Total Goals", str(total_goals))
-        table.add_row("Active Goals", str(active_goals))
         table.add_row("Total Document Excerpts", str(total_document_excerpts))
         table.add_row("Active Document Excerpts", str(active_document_excerpts))
+        table.add_row("Total Reminders", str(total_reminders))
+        table.add_row("Active Reminders", str(active_reminders))
         table.add_row("Total Vectors Stored", str(total_vectors))
 
         io.console.print(table)
