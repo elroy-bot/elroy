@@ -1,25 +1,15 @@
-from datetime import datetime
-from typing import Optional, Union
-
-from pydantic import BaseModel, Field
+from typing import Optional
 from sqlmodel import select
 
 from ...core.constants import SYSTEM, RecoverableToolError
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import Reminder
-from ...llm.client import query_llm_with_response_format
-from ...utils.clock import string_to_datetime
-from ...utils.utils import is_blank
-from ..context_messages.data_models import ContextMessage
-from ..context_messages.operations import add_context_message
 from ..recall.operations import (
     remove_from_context,
     upsert_embedding_if_needed,
 )
-from ..recall.transforms import to_recalled_memory_metadata
 from .queries import get_active_reminders, get_db_reminder_by_name
-from .tools import create_reminder as create_reminder_tool
 
 logger = get_logger()
 
@@ -34,55 +24,6 @@ class ReminderDoesNotExistError(RecoverableToolError):
         super().__init__(f"{reminder_type} reminder '{reminder_name}' not found. Available: {', '.join(available_names)}")
 
 
-def do_create_reminder(ctx: ElroyContext, name: str, description: str) -> Reminder:
-
-    class CreateTimedReminderRequest(BaseModel):
-        name: str = Field(description="Short name for the reminder")
-        text: str = Field(description="Content of the reminder")
-        trigger_time: str = Field(
-            description="Time the reminder should be sent, in ISO 8601 format without timezone. Be as specific as is appropriate. Assume datetime is in user's time zone."
-        )
-
-    class CreateContextualReminderRequest(BaseModel):
-        name: str = Field(description="Short name for the reminder")
-        text: str = Field(description="Content of the reminder")
-        reminder_context: str = Field(description="A description of the situation in which the reminder should be sent.")
-
-    class CreateReminderRequest(BaseModel):
-        timed_reminder_request: Optional[CreateTimedReminderRequest] = Field(description="Request for a timed reminder")
-        contextual_reminder_request: Optional[CreateContextualReminderRequest] = Field(description="Request for a contextual reminder")
-
-    req = query_llm_with_response_format(
-        ctx.chat_model,
-        system="""Your task is to translate user text into API call params. The reminder should be either a timed reminder, which should be sent to the user at a specific time, or a contextual remidner, which should be sent to the user when a certain situation arises. Your response should contain ONE OF CreateTimedReminderRequest, or CreateContextualReminderRequest""",
-        prompt=f"#{name}\n#{description}",
-        response_format=CreateReminderRequest,
-    )
-
-    if req.timed_reminder_request:
-        # parse time assuming ISO 8601 format
-        reminder_time = string_to_datetime(req.timed_reminder_request.trigger_time)
-
-        create_reminder_tool(
-            ctx=ctx, name=req.timed_reminder_request.name, text=req.timed_reminder_request.text, trigger_time=reminder_time.strftime("%Y-%m-%d %H:%M")
-        )
-        
-        # Return the created reminder
-        return get_db_reminder_by_name(ctx, req.timed_reminder_request.name)
-
-    elif req.contextual_reminder_request:
-        create_reminder_tool(
-            ctx=ctx,
-            name=req.contextual_reminder_request.name,
-            text=req.contextual_reminder_request.text,
-            reminder_context=req.contextual_reminder_request.reminder_context,
-        )
-        
-        # Return the created reminder
-        return get_db_reminder_by_name(ctx, req.contextual_reminder_request.name)
-
-    else:
-        raise ValueError("Request must contain either a timed or contextual reminder")
 
 
 
