@@ -53,6 +53,17 @@ from ..repository.memories.tools import (
     update_outdated_or_incorrect_memory,
 )
 from ..repository.recall.queries import search_documents
+from ..repository.reminders.queries import (
+    print_active_reminders,
+    print_inactive_reminders,
+)
+from ..repository.reminders.tools import (
+    create_reminder,
+    delete_reminder,
+    print_reminder,
+    rename_reminder,
+    update_reminder_text,
+)
 from ..repository.user.operations import set_assistant_name
 from ..repository.user.tools import (
     get_user_full_name,
@@ -89,9 +100,16 @@ ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     print_memory,
     update_outdated_or_incorrect_memory,
 }
+ALL_ACTIVE_REMINDER_COMMANDS: Set[Callable] = {
+    delete_reminder,
+    print_reminder,
+    rename_reminder,
+    update_reminder_text,
+}
 NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_source_content_for_memory,
     create_goal,
+    create_reminder,
     create_memory,
     contemplate,
     examine_memories,
@@ -121,6 +139,8 @@ USER_ONLY_COMMANDS = {
     print_complete_goals,
     print_memories,
     search_memories,
+    print_active_reminders,
+    print_inactive_reminders,
     create_bug_report,
     set_assistant_name,
     remember_convo,
@@ -135,6 +155,7 @@ ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = {
         | IN_CONTEXT_MEMORY_COMMANDS
         | NON_CONTEXT_MEMORY_COMMANDS
         | ALL_ACTIVE_MEMORY_COMMANDS
+        | ALL_ACTIVE_REMINDER_COMMANDS
     )
     if getattr(f, IS_ENABLED, True)
 }

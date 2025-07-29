@@ -122,6 +122,30 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return f"#{self.name}\n{self.text}"
 
 
+class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    user_id: int = Field(..., description="Elroy user for context")
+    name: str = Field(..., description="The name of the reminder")
+    text: str = Field(..., description="The text of the reminder")
+    trigger_datetime: Optional[datetime] = Field(default=None, description="When the reminder should trigger (for timed reminders)")
+    reminder_context: Optional[str] = Field(default=None, description="When the reminder should be triggered (for contextual reminders)")
+    is_active: Optional[bool] = Field(default=True, description="Whether the reminder is active")
+
+    def get_name(self) -> str:
+        return self.name
+
+    def to_fact(self) -> str:
+        if self.trigger_datetime:
+            return f"#{self.name} (Timed: {self.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')})\n{self.text}"
+        elif self.reminder_context:
+            return f"#{self.name} (Context: {self.reminder_context})\n{self.text}"
+        else:
+            return f"#{self.name}\n{self.text}"
+
+
 class SourceDocument(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "address"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)

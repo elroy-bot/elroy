@@ -18,6 +18,7 @@ from ..repository.memories.queries import (
     get_relevant_memory_context_msgs,
     is_memory_check_needed,
 )
+from ..repository.reminders.queries import get_due_reminder_context_msgs
 from .tools import exec_function_call
 
 logger = get_logger()
@@ -53,6 +54,11 @@ def process_message(
 
     if is_memory_check_needed(ctx, context_messages + new_msgs):
         new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
+
+    # Check for due timed reminders and surface them
+    due_reminder_msgs = get_due_reminder_context_msgs(ctx)
+    if due_reminder_msgs:
+        new_msgs += due_reminder_msgs
 
     if ctx.show_internal_thought:
         for new_msg in new_msgs[1:]:
