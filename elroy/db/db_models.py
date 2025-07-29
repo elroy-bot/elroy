@@ -133,7 +133,6 @@ class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     trigger_datetime: Optional[datetime] = Field(default=None, description="When the reminder should trigger (for timed reminders)")
     reminder_context: Optional[str] = Field(default=None, description="When the reminder should be triggered (for contextual reminders)")
     is_active: Optional[bool] = Field(default=True, description="Whether the reminder is active")
-    is_recurring: Optional[bool] = Field(default=False, description="Whether the reminder is recurring (for contextual reminders)")
 
     def get_name(self) -> str:
         return self.name
@@ -142,8 +141,7 @@ class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         if self.trigger_datetime:
             return f"#{self.name} (Timed: {self.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')})\n{self.text}"
         elif self.reminder_context:
-            recurring_text = " (Recurring)" if self.is_recurring else ""
-            return f"#{self.name} (Context: {self.reminder_context}){recurring_text}\n{self.text}"
+            return f"#{self.name} (Context: {self.reminder_context})\n{self.text}"
         else:
             return f"#{self.name}\n{self.text}"
 

@@ -19,6 +19,7 @@ from ..recall.operations import (
 )
 from ..recall.transforms import to_recalled_memory_metadata
 from .queries import get_active_reminders, get_db_reminder_by_name
+from .tools import create_reminder as create_reminder_tool
 
 logger = get_logger()
 
@@ -62,107 +63,28 @@ def do_create_reminder(ctx: ElroyContext, name: str, description: str) -> Remind
         # parse time assuming ISO 8601 format
         reminder_time = string_to_datetime(req.timed_reminder_request.trigger_time)
 
-        return create_reminder(
-            ctx=ctx, name=req.timed_reminder_request.name, text=req.timed_reminder_request.text, trigger_time=reminder_time
+        create_reminder_tool(
+            ctx=ctx, name=req.timed_reminder_request.name, text=req.timed_reminder_request.text, trigger_time=reminder_time.strftime("%Y-%m-%d %H:%M")
         )
+        
+        # Return the created reminder
+        return get_db_reminder_by_name(ctx, req.timed_reminder_request.name)
 
     elif req.contextual_reminder_request:
-        return create_reminder(
+        create_reminder_tool(
             ctx=ctx,
             name=req.contextual_reminder_request.name,
             text=req.contextual_reminder_request.text,
             reminder_context=req.contextual_reminder_request.reminder_context,
         )
+        
+        # Return the created reminder
+        return get_db_reminder_by_name(ctx, req.contextual_reminder_request.name)
 
     else:
         raise ValueError("Request must contain either a timed or contextual reminder")
 
 
-def create_reminder(
-    ctx: ElroyContext,
-    name: str,
-    text: str,
-    trigger_time: Optional[Union[str, datetime]] = None,
-    reminder_context: Optional[str] = None,
-    is_recurring: bool = False,
-) -> Reminder:
-    """Create a new reminder (timed, contextual, or both)
-
-    Args:
-        ctx (ElroyContext): The Elroy context
-        name (str): Name of the reminder
-        text (str): The reminder text
-        trigger_time (Optional[Union[str, datetime]]): When the reminder should trigger
-        reminder_context (Optional[str]): Context that should trigger this reminder
-        is_recurring (bool): Whether this reminder should recur
-
-    Returns:
-        Reminder: The created reminder
-
-    Raises:
-        ValueError: If name is empty or neither trigger_time nor reminder_context is provided
-        ReminderAlreadyExistsError: If a reminder with the same name already exists
-    """
-    if is_blank(name):
-        raise ValueError("Reminder name cannot be empty")
-
-    if not trigger_time and not reminder_context:
-        raise ValueError("Either trigger_time or reminder_context must be provided")
-
-    existing_reminder = ctx.db.exec(
-        select(Reminder).where(
-            Reminder.user_id == ctx.user_id,
-            Reminder.name == name,
-            Reminder.is_active == True,
-        )
-    ).one_or_none()
-
-    if existing_reminder:
-        reminder_type = "Timed" if trigger_time else "Contextual"
-        raise ReminderAlreadyExistsError(name, reminder_type)
-
-    # Parse the trigger time if provided
-    trigger_datetime = None
-    if trigger_time:
-        if isinstance(trigger_time, datetime):
-            trigger_datetime = trigger_time
-        elif isinstance(trigger_time, str):
-            trigger_datetime = string_to_datetime(trigger_time)
-
-    reminder = Reminder(
-        user_id=ctx.user_id,
-        name=name,
-        text=text,
-        trigger_datetime=trigger_datetime,
-        reminder_context=reminder_context,
-        is_recurring=is_recurring,
-    )  # type: ignore
-
-    ctx.db.add(reminder)
-    ctx.db.commit()
-    ctx.db.refresh(reminder)
-
-    # Create appropriate context message
-    if trigger_datetime and reminder_context:
-        content = f"New reminder created: '{name}' - Timed: {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}, Context: {reminder_context}"
-    elif trigger_datetime:
-        content = f"New timed reminder created: '{name}' at {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}"
-    else:
-        recurring_text = " (recurring)" if is_recurring else ""
-        content = f"New contextual reminder created: '{name}' triggered by context: {reminder_context}{recurring_text}"
-
-    add_context_message(
-        ctx,
-        ContextMessage(
-            role=SYSTEM,
-            content=content,
-            memory_metadata=[to_recalled_memory_metadata(reminder)],
-            chat_model=ctx.chat_model.name,
-        ),
-    )
-
-    upsert_embedding_if_needed(ctx, reminder)
-    return reminder
 
 
 def deactivate_reminder(ctx: ElroyContext, reminder_name: str) -> None:
@@ -224,11 +146,9 @@ def trigger_reminder(ctx: ElroyContext, reminder: Reminder) -> str:
         ),
     )
 
-    # Deactivate non-recurring reminders after triggering
-    # Timed reminders are always deactivated, contextual only if not recurring
-    if reminder.trigger_datetime or not reminder.is_recurring:
-        reminder.is_active = False
-        ctx.db.commit()
-        ctx.db.refresh(reminder)
+    # Deactivate reminders after triggering
+    reminder.is_active = False
+    ctx.db.commit()
+    ctx.db.refresh(reminder)
 
     return reminder.text
