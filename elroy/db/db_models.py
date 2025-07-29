@@ -122,29 +122,30 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return f"#{self.name}\n{self.text}"
 
 
-class TimedReminder(EmbeddableSqlModel, SQLModel, table=True):
+class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
-    name: str = Field(..., description="The name of the context")
-    text: str = Field(..., description="The text of the message")
-    trigger_datetime: datetime = Field(default_factory=utc_now, nullable=True)
-    is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
+    name: str = Field(..., description="The name of the reminder")
+    text: str = Field(..., description="The text of the reminder")
+    trigger_datetime: Optional[datetime] = Field(default=None, description="When the reminder should trigger (for timed reminders)")
+    reminder_context: Optional[str] = Field(default=None, description="When the reminder should be triggered (for contextual reminders)")
+    is_active: Optional[bool] = Field(default=True, description="Whether the reminder is active")
+    is_recurring: Optional[bool] = Field(default=False, description="Whether the reminder is recurring (for contextual reminders)")
 
+    def get_name(self) -> str:
+        return self.name
 
-class ContextualReminder(EmbeddableSqlModel, SQLModel, table=True):
-    __table_args__ = {"extend_existing": True}
-    id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
-    user_id: int = Field(..., description="Elroy user for context")
-    name: str = Field(..., description="The name of the context")
-    text: str = Field(..., description="The text of the message")
-    reminder_context: str = Field(..., description="When the reminder should be triggered")
-    is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
-    is_recurring: bool = Field(..., description="whether the reminder is recurring")
+    def to_fact(self) -> str:
+        if self.trigger_datetime:
+            return f"#{self.name} (Timed: {self.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')})\n{self.text}"
+        elif self.reminder_context:
+            recurring_text = " (Recurring)" if self.is_recurring else ""
+            return f"#{self.name} (Context: {self.reminder_context}){recurring_text}\n{self.text}"
+        else:
+            return f"#{self.name}\n{self.text}"
 
 
 class SourceDocument(SQLModel, table=True):
