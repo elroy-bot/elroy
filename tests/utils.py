@@ -22,6 +22,7 @@ from elroy.repository.context_messages.operations import replace_context_message
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.goals.queries import get_active_goals
 from elroy.repository.recall.queries import query_vector
+from elroy.repository.reminders.queries import get_active_reminders
 from elroy.utils.utils import first_or_none
 
 
@@ -183,6 +184,22 @@ def get_active_goals_summary(ctx: ElroyContext) -> str:
     """
     return pipe(
         get_active_goals(ctx),
+        map(lambda x: x.to_fact()),
+        list,
+        "\n\n".join,
+    )  # type: ignore
+
+
+def get_active_reminders_summary(ctx: ElroyContext) -> str:
+    """
+    Retrieve a summary of active reminders for a given user.
+    Args:
+        ctx (ElroyContext): The Elroy context.
+    Returns:
+        str: A formatted string summarizing the active reminders.
+    """
+    return pipe(
+        get_active_reminders(ctx),
         map(lambda x: x.to_fact()),
         list,
         "\n\n".join,
