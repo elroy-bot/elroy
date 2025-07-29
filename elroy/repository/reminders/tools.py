@@ -1,16 +1,20 @@
 from typing import Optional
 
+from sqlmodel import select
+
 from ...core.constants import SYSTEM, RecoverableToolError, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...utils.clock import utc_now
+from ...db.db_models import Reminder
+from ...utils.clock import string_to_datetime, utc_now
+from ...utils.utils import is_blank
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.operations import add_context_message
 from ..recall.operations import upsert_embedding_if_needed
 from ..recall.transforms import to_recalled_memory_metadata
-from .operations import create_reminder as create_reminder_op
 from .operations import (
     deactivate_reminder,
+    ReminderAlreadyExistsError,
 )
 from .queries import (
     get_active_reminder_names,
@@ -27,7 +31,6 @@ def create_reminder(
     text: str,
     trigger_time: Optional[str] = None,
     reminder_context: Optional[str] = None,
-    is_recurring: bool = False,
 ) -> str:
     """Creates a reminder that can be triggered by time and/or context.
 
@@ -36,7 +39,6 @@ def create_reminder(
         text (str): The reminder message to display when triggered
         trigger_time (Optional[str]): When the reminder should trigger in format "YYYY-MM-DD HH:MM" (e.g., "2024-12-25 09:00"). If provided, creates a timed reminder.
         reminder_context (Optional[str]): Description of the context/situation when this reminder should be triggered (e.g., "when user mentions work stress", "when user asks about exercise"). If provided, creates a contextual reminder.
-        is_recurring (bool): Whether this reminder should trigger multiple times (True) or just once (False). Only applies to contextual reminders. Default is False.
 
     Returns:
         str: A confirmation message that the reminder was created.
@@ -47,24 +49,75 @@ def create_reminder(
 
     Note:
         - You can provide trigger_time only (timed reminder)
-        - You can provide reminder_context only (contextual reminder)
+        - You can provide reminder_context only (contextual reminder)  
         - You can provide both trigger_time and reminder_context (hybrid reminder that triggers on both conditions)
         - You must provide at least one of trigger_time or reminder_context
     """
-    reminder = create_reminder_op(ctx, name, text, trigger_time=trigger_time, reminder_context=reminder_context, is_recurring=is_recurring)
+    # Validation
+    if is_blank(name):
+        raise ValueError("Reminder name cannot be empty")
+    
+    if not trigger_time and not reminder_context:
+        raise ValueError("Either trigger_time or reminder_context must be provided")
+
+    # Check for existing reminder with same name
+    existing_reminder = ctx.db.exec(
+        select(Reminder).where(
+            Reminder.user_id == ctx.user_id,
+            Reminder.name == name,
+            Reminder.is_active == True,
+        )
+    ).one_or_none()
+
+    if existing_reminder:
+        reminder_type = "Timed" if trigger_time else "Contextual"
+        raise ReminderAlreadyExistsError(name, reminder_type)
+
+    # Parse the trigger time if provided
+    trigger_datetime = None
+    if trigger_time:
+        trigger_datetime = string_to_datetime(trigger_time)
+
+    # Create the reminder
+    reminder = Reminder(
+        user_id=ctx.user_id,
+        name=name,
+        text=text,
+        trigger_datetime=trigger_datetime,
+        reminder_context=reminder_context,
+    )  # type: ignore
+
+    ctx.db.add(reminder)
+    ctx.db.commit()
+    ctx.db.refresh(reminder)
+
+    # Create appropriate context message
+    if trigger_datetime and reminder_context:
+        content = f"New reminder created: '{name}' - Timed: {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}, Context: {reminder_context}"
+    elif trigger_datetime:
+        content = f"New timed reminder created: '{name}' at {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}"
+    else:
+        content = f"New contextual reminder created: '{name}' triggered by context: {reminder_context}"
+
+    add_context_message(
+        ctx,
+        ContextMessage(
+            role=SYSTEM,
+            content=content,
+            memory_metadata=[to_recalled_memory_metadata(reminder)],
+            chat_model=ctx.chat_model.name,
+        ),
+    )
+
+    upsert_embedding_if_needed(ctx, reminder)
 
     # Generate appropriate confirmation message
     if trigger_time and reminder_context:
-        recurring_text = " (recurring)" if is_recurring else ""
-        return f"Hybrid reminder '{name}' has been created for {trigger_time} and context: {reminder_context}{recurring_text}."
+        return f"Hybrid reminder '{name}' has been created for {trigger_time} and context: {reminder_context}."
     elif trigger_time:
         return f"Timed reminder '{name}' has been created for {trigger_time}."
-    elif reminder_context:
-        recurring_text = " (recurring)" if is_recurring else " (one-time)"
-        return f"Contextual reminder '{name}' has been created{recurring_text}."
     else:
-        # This should not happen due to validation in create_reminder_op, but just in case
-        raise ValueError("Either trigger_time or reminder_context must be provided")
+        return f"Contextual reminder '{name}' has been created."
 
 
 @tool
@@ -151,8 +204,6 @@ def print_reminder(ctx: ElroyContext, name: str) -> str:
 
         if reminder.reminder_context:
             details.append(f"Context: {reminder.reminder_context}")
-            recurring_text = "Yes" if reminder.is_recurring else "No"
-            details.append(f"Recurring: {recurring_text}")
 
         details.append(f"Text: {reminder.text}")
 

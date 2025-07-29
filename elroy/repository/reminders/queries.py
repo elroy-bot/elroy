@@ -127,14 +127,12 @@ def _print_all_reminders(ctx: ElroyContext, active: bool, n: Optional[int] = Non
     table.add_column("Trigger Time", justify="left", style="green")
     table.add_column("Context", justify="left", style="green")
     table.add_column("Text", justify="left", style="green")
-    table.add_column("Recurring", justify="left", style="green")
     table.add_column("Created At", justify="left", style="green")
 
     for reminder in list(reminders)[:n]:
         reminder_type = "Timed" if reminder.trigger_datetime else "Contextual"
         trigger_time = db_time_to_local(reminder.trigger_datetime).strftime("%Y-%m-%d %H:%M:%S") if reminder.trigger_datetime else "N/A"
         context = reminder.reminder_context if reminder.reminder_context else "N/A"
-        recurring = "Yes" if reminder.is_recurring else "No"
 
         table.add_row(
             reminder.name,
@@ -142,7 +140,6 @@ def _print_all_reminders(ctx: ElroyContext, active: bool, n: Optional[int] = Non
             trigger_time,
             context,
             reminder.text,
-            recurring,
             db_time_to_local(reminder.created_at).strftime("%Y-%m-%d %H:%M:%S"),
         )
     return table
