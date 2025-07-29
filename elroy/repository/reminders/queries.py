@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 
 from rich.table import Table
-from sqlmodel import select
+from sqlmodel import col, select
 
 from ...core.constants import RecoverableToolError, allow_unused, user_only_tool
 from ...core.ctx import ElroyContext
@@ -29,7 +29,7 @@ def get_active_reminders(ctx: ElroyContext) -> List[Reminder]:
                 Reminder.user_id == ctx.user_id,
                 Reminder.is_active == True,
             )
-            .order_by(Reminder.created_at)
+            .order_by(col(Reminder.created_at))
         ).all()
     )
 
