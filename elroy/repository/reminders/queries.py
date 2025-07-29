@@ -9,8 +9,6 @@ from ...db.db_models import Reminder
 from ...utils.clock import db_time_to_local, utc_now
 
 
-
-
 def get_db_reminder_by_name(ctx: ElroyContext, name: str) -> Optional[Reminder]:
     """Get any reminder (timed or contextual) by name"""
     return ctx.db.exec(
@@ -24,12 +22,16 @@ def get_db_reminder_by_name(ctx: ElroyContext, name: str) -> Optional[Reminder]:
 
 def get_active_reminders(ctx: ElroyContext) -> List[Reminder]:
     """Get all active reminders"""
-    return list(ctx.db.exec(
-        select(Reminder).where(
-            Reminder.user_id == ctx.user_id,
-            Reminder.is_active == True,
-        ).order_by(Reminder.created_at)
-    ).all())
+    return list(
+        ctx.db.exec(
+            select(Reminder)
+            .where(
+                Reminder.user_id == ctx.user_id,
+                Reminder.is_active == True,
+            )
+            .order_by(Reminder.created_at)
+        ).all()
+    )
 
 
 def get_active_reminder_names(ctx: ElroyContext) -> List[str]:
@@ -77,8 +79,6 @@ def get_reminder_by_name(ctx: ElroyContext, reminder_name: str) -> Optional[str]
         raise RecoverableToolError(f"Reminder '{reminder_name}' not found")
 
 
-
-
 @user_only_tool
 def print_active_reminders(ctx: ElroyContext, n: Optional[int] = None) -> Union[str, Table]:
     """Prints the last n active reminders (both timed and contextual). If n is None, prints all active reminders.
@@ -99,8 +99,6 @@ def print_inactive_reminders(ctx: ElroyContext, n: Optional[int] = None) -> Unio
     return _print_all_reminders(ctx, False, n)
 
 
-
-
 def _print_all_reminders(ctx: ElroyContext, active: bool, n: Optional[int] = None) -> Union[Table, str]:
     """Prints the last n reminders (both timed and contextual). If n is None, prints all reminders.
 
@@ -110,10 +108,12 @@ def _print_all_reminders(ctx: ElroyContext, active: bool, n: Optional[int] = Non
         n (Optional[int], optional): Number of reminders to print. Defaults to None.
     """
     reminders = ctx.db.exec(
-        select(Reminder).where(
+        select(Reminder)
+        .where(
             Reminder.user_id == ctx.user_id,
             Reminder.is_active == active,
-        ).order_by(Reminder.created_at.desc())
+        )
+        .order_by(Reminder.created_at.desc())
     ).all()
 
     if not reminders:
@@ -135,7 +135,7 @@ def _print_all_reminders(ctx: ElroyContext, active: bool, n: Optional[int] = Non
         trigger_time = db_time_to_local(reminder.trigger_datetime).strftime("%Y-%m-%d %H:%M:%S") if reminder.trigger_datetime else "N/A"
         context = reminder.reminder_context if reminder.reminder_context else "N/A"
         recurring = "Yes" if reminder.is_recurring else "No"
-        
+
         table.add_row(
             reminder.name,
             reminder_type,
