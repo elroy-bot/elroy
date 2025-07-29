@@ -40,6 +40,7 @@ from ..repository.context_messages.validations import Validator
 from ..repository.goals.operations import create_onboarding_goal
 from ..repository.goals.queries import get_active_goals
 from ..repository.memories.queries import get_active_memories
+from ..repository.reminders.queries import get_active_reminders
 from ..repository.user.queries import (
     do_get_user_preferred_name,
     get_assistant_name,
@@ -128,6 +129,7 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
         io.update_completer(
             get_active_goals(ctx),
             get_active_memories(ctx),
+            get_active_reminders(ctx),
             list(get_context_messages(ctx)),
         )
 

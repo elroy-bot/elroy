@@ -1,10 +1,6 @@
-from typing import Optional
-from sqlmodel import select
-
-from ...core.constants import SYSTEM, RecoverableToolError
+from ...core.constants import RecoverableToolError
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...db.db_models import Reminder
 from ..recall.operations import (
     remove_from_context,
     upsert_embedding_if_needed,
@@ -22,10 +18,6 @@ class ReminderAlreadyExistsError(RecoverableToolError):
 class ReminderDoesNotExistError(RecoverableToolError):
     def __init__(self, reminder_name: str, reminder_type: str, available_names: list):
         super().__init__(f"{reminder_type} reminder '{reminder_name}' not found. Available: {', '.join(available_names)}")
-
-
-
-
 
 
 def deactivate_reminder(ctx: ElroyContext, reminder_name: str) -> None:
@@ -54,4 +46,3 @@ def deactivate_reminder(ctx: ElroyContext, reminder_name: str) -> None:
     ctx.db.refresh(reminder)
 
     upsert_embedding_if_needed(ctx, reminder)
-
