@@ -13,8 +13,8 @@ from ..context_messages.operations import add_context_message
 from ..recall.operations import upsert_embedding_if_needed
 from ..recall.transforms import to_recalled_memory_metadata
 from .operations import (
-    deactivate_reminder,
     ReminderAlreadyExistsError,
+    deactivate_reminder,
 )
 from .queries import (
     get_active_reminder_names,
@@ -49,14 +49,14 @@ def create_reminder(
 
     Note:
         - You can provide trigger_time only (timed reminder)
-        - You can provide reminder_context only (contextual reminder)  
+        - You can provide reminder_context only (contextual reminder)
         - You can provide both trigger_time and reminder_context (hybrid reminder that triggers on both conditions)
         - You must provide at least one of trigger_time or reminder_context
     """
     # Validation
     if is_blank(name):
         raise ValueError("Reminder name cannot be empty")
-    
+
     if not trigger_time and not reminder_context:
         raise ValueError("Either trigger_time or reminder_context must be provided")
 

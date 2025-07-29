@@ -122,11 +122,12 @@ class CliIO(ElroyIO):
     async def _prompt_user(self, prompt=">", prefill: str = "") -> str:
         return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), default=prefill, style=self.style)
 
-    def update_completer(self, goals: List[Goal], memories: List[Memory], context_messages: List[ContextMessage]) -> None:
+    def update_completer(self, goals: List[Goal], memories: List[Memory], reminders: List, context_messages: List[ContextMessage]) -> None:
         from ..repository.recall.queries import is_in_context
         from ..tools.tools_and_commands import (
             ALL_ACTIVE_GOAL_COMMANDS,
             ALL_ACTIVE_MEMORY_COMMANDS,
+            ALL_ACTIVE_REMINDER_COMMANDS,
             IN_CONTEXT_GOAL_COMMANDS,
             IN_CONTEXT_MEMORY_COMMANDS,
             NON_ARG_PREFILL_COMMANDS,
@@ -141,6 +142,8 @@ class CliIO(ElroyIO):
         in_context_memories = sorted([m.get_name() for m in memories if is_in_context(context_messages, m)])
         non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
 
+        reminder_names = sorted([r.get_name() for r in reminders])
+
         self.prompt_session.completer = pipe(  # type: ignore # noqa F841
             concatv(
                 product(IN_CONTEXT_GOAL_COMMANDS, in_context_goal_names),
@@ -149,6 +152,7 @@ class CliIO(ElroyIO):
                 product(IN_CONTEXT_MEMORY_COMMANDS, in_context_memories),
                 product(NON_CONTEXT_MEMORY_COMMANDS, non_context_memories),
                 product(ALL_ACTIVE_MEMORY_COMMANDS, [m.get_name() for m in memories]),
+                product(ALL_ACTIVE_REMINDER_COMMANDS, reminder_names),
             ),
             map(lambda x: f"/{x[0].__name__} {x[1]}"),
             list,
