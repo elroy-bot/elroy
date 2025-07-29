@@ -166,26 +166,6 @@ def create_reminder(
     return reminder
 
 
-# Legacy functions for backward compatibility
-def do_create_timed_reminder(
-    ctx: ElroyContext,
-    name: str,
-    text: str,
-    trigger_time: Union[str, datetime],
-) -> Reminder:
-    """Legacy function - use create_reminder instead"""
-    return create_reminder(ctx, name, text, trigger_time=trigger_time)
-
-
-def do_create_contextual_reminder(
-    ctx: ElroyContext,
-    name: str,
-    text: str,
-    reminder_context: str,
-    is_recurring: bool = False,
-) -> Reminder:
-    """Legacy function - use create_reminder instead"""
-    return create_reminder(ctx, name, text, reminder_context=reminder_context, is_recurring=is_recurring)
 
 
 def deactivate_reminder(ctx: ElroyContext, reminder_name: str) -> None:
@@ -216,15 +196,6 @@ def deactivate_reminder(ctx: ElroyContext, reminder_name: str) -> None:
     upsert_embedding_if_needed(ctx, reminder)
 
 
-# Legacy functions for backward compatibility
-def deactivate_timed_reminder(ctx: ElroyContext, reminder_name: str) -> None:
-    """Legacy function - use deactivate_reminder instead"""
-    deactivate_reminder(ctx, reminder_name)
-
-
-def deactivate_contextual_reminder(ctx: ElroyContext, reminder_name: str) -> None:
-    """Legacy function - use deactivate_reminder instead"""
-    deactivate_reminder(ctx, reminder_name)
 
 
 def trigger_reminder(ctx: ElroyContext, reminder: Reminder) -> str:
@@ -268,12 +239,3 @@ def trigger_reminder(ctx: ElroyContext, reminder: Reminder) -> str:
     return reminder.text
 
 
-# Legacy functions for backward compatibility
-def trigger_timed_reminder(ctx: ElroyContext, reminder: Reminder) -> str:
-    """Legacy function - use trigger_reminder instead"""
-    return trigger_reminder(ctx, reminder)
-
-
-def trigger_contextual_reminder(ctx: ElroyContext, reminder: Reminder) -> str:
-    """Legacy function - use trigger_reminder instead"""
-    return trigger_reminder(ctx, reminder)
