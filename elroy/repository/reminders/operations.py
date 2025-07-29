@@ -1,9 +1,14 @@
+from datetime import datetime
+from typing import Optional, Union
+
+from pydantic import BaseModel
 from sqlmodel import select
 
 from ...core.constants import SYSTEM, RecoverableToolError
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import ContextualReminder, TimedReminder
+from ...llm.client import query_llm_with_response_format
 from ...utils.clock import string_to_datetime, utc_now
 from ...utils.utils import is_blank
 from ..context_messages.data_models import ContextMessage
@@ -28,11 +33,52 @@ class ReminderDoesNotExistError(RecoverableToolError):
         super().__init__(f"{reminder_type} reminder '{reminder_name}' not found. Available: {', '.join(available_names)}")
 
 
+def do_create_reminder(ctx: ElroyContext, name: str, description: str) -> Union[TimedReminder, ContextualReminder]:
+
+    class CreateTimedReminderRequest(BaseModel):
+        name: str  # description: short name for the reminder
+        text: str  # content of the reminder
+        trigger_time: str  # Time the reminder should be sent, in ISO 8601 format without timezone. Be as specific as is appropriate. Assume datetime is in user's time zone.
+
+    class CreateContextualReminderRequest(BaseModel):
+        name: str  # description: short name for the reminder
+        text: str  # content of the reminder
+        reminder_context: str  # A description of the situation in which the reminder should be sent.
+
+    class CreateReminderRequest(BaseModel):
+        timed_reminder_request: Optional[CreateTimedReminderRequest]
+        contextual_reminder_request: Optional[CreateContextualReminderRequest]
+
+    req = query_llm_with_response_format(
+        ctx.chat_model,
+        system="""Your task is to translate user text into API call params. The reminder should be either a timed reminder, which should be sent to the user at a specific time, or a contextual remidner, which should be sent to the user when a certain situation arises. Your response should contain ONE OF CreateTimedReminderRequest, or CreateContextualReminderRequest""",
+        prompt=f"#{name}\n#{description}",
+        response_format=CreateReminderRequest,
+    )
+
+    if req.timed_reminder_request:
+        # parse time assuming ISO 8601 format
+        reminder_time = string_to_datetime(req.timed_reminder_request.trigger_time)
+
+        return do_create_timed_reminder(ctx, req.timed_reminder_request.name, req.timed_reminder_request.text, reminder_time)
+
+    elif req.contextual_reminder_request:
+        return do_create_contextual_reminder(
+            ctx,
+            req.contextual_reminder_request.name,
+            req.contextual_reminder_request.text,
+            req.contextual_reminder_request.reminder_context,
+        )
+
+    else:
+        raise ValueError("Request must contain either a timed or contextual reminder")
+
+
 def do_create_timed_reminder(
     ctx: ElroyContext,
     name: str,
     text: str,
-    trigger_time: str,
+    trigger_time: Union[str, datetime],
 ) -> TimedReminder:
     """Create a new timed reminder
 
@@ -40,7 +86,7 @@ def do_create_timed_reminder(
         ctx (ElroyContext): The Elroy context
         name (str): Name of the reminder
         text (str): The reminder text
-        trigger_time (str): When the reminder should trigger (e.g., "2024-12-25 09:00")
+        trigger_time (Union[str, datetime]): When the reminder should trigger (e.g., "2024-12-25 09:00" or datetime object)
 
     Returns:
         TimedReminder: The created reminder
@@ -64,7 +110,12 @@ def do_create_timed_reminder(
         raise ReminderAlreadyExistsError(name, "Timed")
 
     # Parse the trigger time
-    trigger_datetime = string_to_datetime(trigger_time) if trigger_time else utc_now()
+    if isinstance(trigger_time, datetime):
+        trigger_datetime = trigger_time
+    elif isinstance(trigger_time, str):
+        trigger_datetime = string_to_datetime(trigger_time) if trigger_time else utc_now()
+    else:
+        trigger_datetime = utc_now()
 
     reminder = TimedReminder(
         user_id=ctx.user_id,
