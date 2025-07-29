@@ -106,7 +106,7 @@ def deactivate_reminder(ctx: ElroyContext, reminder_name: str) -> None:
     reminder_type = "Timed" if reminder.trigger_datetime else "Contextual"
     logger.info(f"Deactivating {reminder_type.lower()} reminder {reminder_name} for user {ctx.user_id}")
 
-    reminder.is_active = False
+    reminder.is_active = None
     remove_from_context(ctx, reminder)
 
     ctx.db.commit()
@@ -147,7 +147,7 @@ def trigger_reminder(ctx: ElroyContext, reminder: Reminder) -> str:
     )
 
     # Deactivate reminders after triggering
-    reminder.is_active = False
+    reminder.is_active = None
     ctx.db.commit()
     ctx.db.refresh(reminder)
 
