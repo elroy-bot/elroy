@@ -32,7 +32,8 @@ def upgrade() -> None:
         sa.Column('reminder_context', sa.String(), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=True),
         sa.Column('is_recurring', sa.Boolean(), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('user_id', 'name', 'is_active')
     )
 
 

@@ -123,7 +123,7 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
 
 
 class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
