@@ -5,7 +5,7 @@ from toolz.curried import filter
 from ...core.constants import SYSTEM, RecoverableToolError, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...db.db_models import ContextualReminder, TimedReminder
+from ...db.db_models import Reminder
 from ...utils.clock import utc_now
 from ...utils.utils import first_or_none
 from ..context_messages.data_models import ContextMessage
@@ -13,16 +13,13 @@ from ..context_messages.operations import add_context_message
 from ..recall.operations import upsert_embedding_if_needed
 from ..recall.transforms import to_recalled_memory_metadata
 from .operations import (
-    deactivate_contextual_reminder,
-    deactivate_timed_reminder,
-    do_create_contextual_reminder,
-    do_create_timed_reminder,
+    create_reminder,
+    deactivate_reminder,
 )
 from .queries import (
-    get_active_contextual_reminder_names,
-    get_active_contextual_reminders,
-    get_active_timed_reminder_names,
-    get_active_timed_reminders,
+    get_active_reminders,
+    get_active_reminder_names,
+    get_db_reminder_by_name,
 )
 
 logger = get_logger()
@@ -49,7 +46,7 @@ def create_timed_reminder(
         ValueError: If name is empty or trigger_time format is invalid
         ReminderAlreadyExistsError: If a timed reminder with the same name already exists
     """
-    do_create_timed_reminder(ctx, name, text, trigger_time)
+    create_reminder(ctx, name, text, trigger_time=trigger_time)
     return f"Timed reminder '{name}' has been created for {trigger_time}."
 
 
@@ -76,7 +73,7 @@ def create_contextual_reminder(
         ValueError: If name is empty
         ReminderAlreadyExistsError: If a contextual reminder with the same name already exists
     """
-    do_create_contextual_reminder(ctx, name, text, reminder_context, is_recurring)
+    create_reminder(ctx, name, text, reminder_context=reminder_context, is_recurring=is_recurring)
     recurring_text = " (recurring)" if is_recurring else " (one-time)"
     return f"Contextual reminder '{name}' has been created{recurring_text}."
 
@@ -94,7 +91,7 @@ def delete_timed_reminder(ctx: ElroyContext, name: str) -> str:
     Raises:
         ReminderDoesNotExistError: If the reminder doesn't exist
     """
-    deactivate_timed_reminder(ctx, name)
+    deactivate_reminder(ctx, name)
     return f"Timed reminder '{name}' has been deleted."
 
 
@@ -111,7 +108,7 @@ def delete_contextual_reminder(ctx: ElroyContext, name: str) -> str:
     Raises:
         ReminderDoesNotExistError: If the reminder doesn't exist
     """
-    deactivate_contextual_reminder(ctx, name)
+    deactivate_reminder(ctx, name)
     return f"Contextual reminder '{name}' has been deleted."
 
 
@@ -130,26 +127,18 @@ def rename_timed_reminder(ctx: ElroyContext, old_name: str, new_name: str) -> st
         Exception: If the reminder with old_name doesn't exist or new_name already exists
     """
     # Check if the old reminder exists and is active
-    active_reminders = get_active_timed_reminders(ctx)
-    old_reminder = pipe(
-        active_reminders,
-        filter(lambda r: r.name == old_name),
-        first_or_none,
-    )
-
-    assert isinstance(old_reminder, TimedReminder)
+    old_reminder = get_db_reminder_by_name(ctx, old_name)
+    if old_reminder and not old_reminder.trigger_datetime:
+        old_reminder = None  # Not a timed reminder
 
     if not old_reminder:
+        active_names = get_active_reminder_names(ctx)
         raise Exception(
             f"Active timed reminder '{old_name}' not found for user {ctx.user_id}. Active reminders: "
-            + ", ".join([r.name for r in active_reminders])
+            + ", ".join(active_names)
         )
 
-    existing_reminder_with_new_name = pipe(
-        active_reminders,
-        filter(lambda r: r.name == new_name),
-        first_or_none,
-    )
+    existing_reminder_with_new_name = get_db_reminder_by_name(ctx, new_name)
 
     if existing_reminder_with_new_name:
         raise Exception(f"Active timed reminder '{new_name}' already exists for user {ctx.user_id}")
@@ -190,26 +179,18 @@ def rename_contextual_reminder(ctx: ElroyContext, old_name: str, new_name: str) 
         Exception: If the reminder with old_name doesn't exist or new_name already exists
     """
     # Check if the old reminder exists and is active
-    active_reminders = get_active_contextual_reminders(ctx)
-    old_reminder = pipe(
-        active_reminders,
-        filter(lambda r: r.name == old_name),
-        first_or_none,
-    )
-
-    assert isinstance(old_reminder, ContextualReminder)
+    old_reminder = get_db_reminder_by_name(ctx, old_name)
+    if old_reminder and not old_reminder.reminder_context:
+        old_reminder = None  # Not a contextual reminder
 
     if not old_reminder:
+        active_names = get_active_reminder_names(ctx)
         raise Exception(
             f"Active contextual reminder '{old_name}' not found for user {ctx.user_id}. Active reminders: "
-            + ", ".join([r.name for r in active_reminders])
+            + ", ".join(active_names)
         )
 
-    existing_reminder_with_new_name = pipe(
-        active_reminders,
-        filter(lambda r: r.name == new_name),
-        first_or_none,
-    )
+    existing_reminder_with_new_name = get_db_reminder_by_name(ctx, new_name)
 
     if existing_reminder_with_new_name:
         raise Exception(f"Active contextual reminder '{new_name}' already exists for user {ctx.user_id}")
@@ -245,18 +226,14 @@ def print_timed_reminder(ctx: ElroyContext, name: str) -> str:
     Returns:
         str: The reminder's details if found, or an error message if not found
     """
-    reminder = ctx.db.exec(
-        select(TimedReminder).where(
-            TimedReminder.user_id == ctx.user_id,
-            TimedReminder.name == name,
-            TimedReminder.is_active == True,
-        )
-    ).first()
-    if reminder:
+    reminder = get_db_reminder_by_name(ctx, name)
+    if reminder and reminder.trigger_datetime:
         trigger_time = reminder.trigger_datetime.strftime("%Y-%m-%d %H:%M:%S") if reminder.trigger_datetime else "Not set"
         return f"Timed Reminder '{name}':\nTrigger Time: {trigger_time}\nText: {reminder.text}"
     else:
-        valid_reminders = ",".join(sorted(get_active_timed_reminder_names(ctx)))
+        # Filter for timed reminders only
+        timed_reminders = [r for r in get_active_reminders(ctx) if r.trigger_datetime]
+        valid_reminders = ",".join(sorted([r.name for r in timed_reminders]))
         raise RecoverableToolError(f"Timed reminder '{name}' not found. Valid reminders: {valid_reminders}")
 
 
@@ -270,18 +247,14 @@ def print_contextual_reminder(ctx: ElroyContext, name: str) -> str:
     Returns:
         str: The reminder's details if found, or an error message if not found
     """
-    reminder = ctx.db.exec(
-        select(ContextualReminder).where(
-            ContextualReminder.user_id == ctx.user_id,
-            ContextualReminder.name == name,
-            ContextualReminder.is_active == True,
-        )
-    ).first()
-    if reminder:
+    reminder = get_db_reminder_by_name(ctx, name)
+    if reminder and reminder.reminder_context:
         recurring_text = "Yes" if reminder.is_recurring else "No"
         return f"Contextual Reminder '{name}':\nContext: {reminder.reminder_context}\nText: {reminder.text}\nRecurring: {recurring_text}"
     else:
-        valid_reminders = ",".join(sorted(get_active_contextual_reminder_names(ctx)))
+        # Filter for contextual reminders only
+        contextual_reminders = [r for r in get_active_reminders(ctx) if r.reminder_context]
+        valid_reminders = ",".join(sorted([r.name for r in contextual_reminders]))
         raise RecoverableToolError(f"Contextual reminder '{name}' not found. Valid reminders: {valid_reminders}")
 
 
@@ -299,16 +272,11 @@ def update_timed_reminder_text(ctx: ElroyContext, name: str, new_text: str) -> s
     Raises:
         RecoverableToolError: If the reminder doesn't exist
     """
-    reminder = ctx.db.exec(
-        select(TimedReminder).where(
-            TimedReminder.user_id == ctx.user_id,
-            TimedReminder.name == name,
-            TimedReminder.is_active == True,
-        )
-    ).first()
-
-    if not reminder:
-        valid_reminders = ",".join(sorted(get_active_timed_reminder_names(ctx)))
+    reminder = get_db_reminder_by_name(ctx, name)
+    if not reminder or not reminder.trigger_datetime:
+        # Filter for timed reminders only
+        timed_reminders = [r for r in get_active_reminders(ctx) if r.trigger_datetime]
+        valid_reminders = ",".join(sorted([r.name for r in timed_reminders]))
         raise RecoverableToolError(f"Timed reminder '{name}' not found. Valid reminders: {valid_reminders}")
 
     old_text = reminder.text
@@ -346,16 +314,11 @@ def update_contextual_reminder_text(ctx: ElroyContext, name: str, new_text: str)
     Raises:
         RecoverableToolError: If the reminder doesn't exist
     """
-    reminder = ctx.db.exec(
-        select(ContextualReminder).where(
-            ContextualReminder.user_id == ctx.user_id,
-            ContextualReminder.name == name,
-            ContextualReminder.is_active == True,
-        )
-    ).first()
-
-    if not reminder:
-        valid_reminders = ",".join(sorted(get_active_contextual_reminder_names(ctx)))
+    reminder = get_db_reminder_by_name(ctx, name)
+    if not reminder or not reminder.reminder_context:
+        # Filter for contextual reminders only
+        contextual_reminders = [r for r in get_active_reminders(ctx) if r.reminder_context]
+        valid_reminders = ",".join(sorted([r.name for r in contextual_reminders]))
         raise RecoverableToolError(f"Contextual reminder '{name}' not found. Valid reminders: {valid_reminders}")
 
     old_text = reminder.text
