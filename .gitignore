@@ -15,7 +15,6 @@ db.dump
 *.DS_Store*
 celerybeat-schedule
 dist/
-uv.lock
 .aider.chat.history.md
 benchmarking_data
 .coverage
