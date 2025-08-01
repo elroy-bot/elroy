@@ -11,6 +11,12 @@ app = FastAPI(title="Elroy API", version="1.0.0", log_level="info")
 # Style note: do not catch and reraise errors, outside of specific error handling, let regular errors propagate.
 
 
+@app.get("/")
+async def root():
+    """Root endpoint that returns status ok."""
+    return {"status": "ok"}
+
+
 class MessageResponse(BaseModel):
     role: str
     content: str
