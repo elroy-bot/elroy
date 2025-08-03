@@ -100,6 +100,8 @@ class User(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     token: str = Field(..., description="The unique token for the user")
+    email: Optional[str] = Field(None, description="User email address", unique=True)
+    password_hash: Optional[str] = Field(None, description="Hashed password for authentication")
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
 
