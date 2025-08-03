@@ -1,10 +1,12 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 from elroy.api import Elroy
 from elroy.repository.memories.models import MemoryResponse
+from elroy.repository.reminders.queries import get_due_timed_reminders
+from elroy.repository.reminders.tools import create_reminder
 
 app = FastAPI(title="Elroy API", version="1.0.0", log_level="info")
 
@@ -36,6 +38,21 @@ class MemoryRequest(BaseModel):
 
 class ApiResponse(BaseModel):
     result: str
+
+
+class CreateReminderRequest(BaseModel):
+    name: str
+    text: str
+    trigger_time: Optional[str] = None
+    reminder_context: Optional[str] = None
+
+
+class ReminderResponse(BaseModel):
+    id: int
+    name: str
+    text: str
+    trigger_datetime: Optional[str] = None
+    reminder_context: Optional[str] = None
 
 
 @app.get("/get_current_messages", response_model=List[MessageResponse])
@@ -82,6 +99,35 @@ async def chat(request: ChatRequest):
             messages.append(MessageResponse(role=msg.role, content=msg.content or ""))
 
     return ChatResponse(messages=messages)
+
+
+@app.post("/create_reminder", response_model=ApiResponse)
+async def create_reminder_endpoint(request: CreateReminderRequest):
+    """Create a new reminder (timed, contextual, or hybrid)."""
+    elroy = Elroy()
+    result = create_reminder(elroy.ctx, request.name, request.text, request.trigger_time, request.reminder_context)
+    return ApiResponse(result=result)
+
+
+@app.get("/get_due_timed_reminders", response_model=List[ReminderResponse])
+async def get_due_timed_reminders_endpoint():
+    """Get all timed reminders that are currently due."""
+    elroy = Elroy()
+    due_reminders = get_due_timed_reminders(elroy.ctx)
+
+    reminder_responses = []
+    for reminder in due_reminders:
+        reminder_responses.append(
+            ReminderResponse(
+                id=reminder.id,
+                name=reminder.name,
+                text=reminder.text,
+                trigger_datetime=reminder.trigger_datetime.isoformat() if reminder.trigger_datetime else None,
+                reminder_context=reminder.reminder_context,
+            )
+        )
+
+    return reminder_responses
 
 
 if __name__ == "__main__":
