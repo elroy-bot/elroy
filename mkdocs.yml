@@ -1,6 +1,6 @@
 site_name: Elroy
 site_url: https://elroy.bot
-site_description: An AI assistant that remembers and sets goals
+site_description: An AI memory and reminder assistant
 site_author: Elroy Team
 
 # Repository
@@ -87,6 +87,7 @@ nav:
   - Tools:
     - Tools Guide: tools_guide.md
     - Tools Schema: tools_schema.md
+  - Roadmap: roadmap.md
   - Blog:
     - blog/index.md
 
