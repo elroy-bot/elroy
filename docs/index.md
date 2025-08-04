@@ -2,7 +2,7 @@
   <img src="images/logo_circle.png" alt="Elroy Logo" width="200"/>
 </div>
 
-# Elroy: An AI assistant that remembers and sets goals
+# Elroy: An AI memory and reminder assistant
 
 [![Discord](https://img.shields.io/discord/1200684659277832293?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/5PJUY4eMce)
 [![GitHub](https://img.shields.io/github/stars/elroy-bot/elroy?style=social)](https://github.com/elroy-bot/elroy)
@@ -37,7 +37,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv pip install elroy
 ```
 
-For detailed installation instructions including Docker and source installation options, see our [Installation Guide](installation.md).
+For detailed installation instructions including Docker and source installation options, see the [Installation Guide](installation.md).
 
 ## Elroy from your terminal
 

@@ -33,7 +33,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv pip install elroy
 ```
 
-For detailed installation instructions including Docker and source installation options, see our [Installation Guide](docs/installation.md).
+For detailed installation instructions including Docker and source installation options, see the [Installation Guide](docs/installation.md).
 
 ## Basic Usage
 
@@ -135,7 +135,16 @@ To configure an MCP client to use Elroy:
 
 MCP support is experimental, please file issues if you encounter problems!
 
+## Roadmap
+
+For information about upcoming features, planned changes, and project direction, see the [roadmap](docs/roadmap.md).
 
 ## License
 
 Distributed under the Apache 2.0 license. See LICENSE for more information.
+
+## Contact
+
+Bug reports and feature requests are welcome via [GitHub](https://github.com/elroy-bot/elroy/issues)
+
+Get in touch on [Discord](https://discord.gg/5PJUY4eMce) or via [email](hello@elroy.bot)
