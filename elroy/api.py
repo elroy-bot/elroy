@@ -1,3 +1,4 @@
+from datetime import datetime
 from functools import partial, wraps
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
@@ -5,6 +6,8 @@ from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar
 from pydantic import BaseModel
 from toolz import concat, pipe
 from toolz.curried import do, filter, map
+
+from elroy.db.db_models import Reminder
 
 from .core.constants import USER
 from .core.ctx import ElroyContext
@@ -37,6 +40,13 @@ from .repository.memories.operations import augment_memory
 from .repository.memories.queries import get_memories
 from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
+from .repository.reminders.queries import (
+    get_active_reminders as do_get_active_reminders,
+)
+from .repository.reminders.queries import (
+    get_due_timed_reminders as do_get_due_timed_reminders,
+)
+from .repository.reminders.tools import create_reminder as do_create_reminder
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 
@@ -202,6 +212,18 @@ class Elroy:
             str: A response synthesizing relevant memories and goals that match the query
         """
         return do_query_memory(self.ctx, query)
+
+    @db
+    def get_due_timed_reminders(self) -> List[Reminder]:
+        return do_get_due_timed_reminders(self.ctx)
+
+    @db
+    def get_active_reminders(self) -> List[Reminder]:
+        return do_get_active_reminders(self.ctx)
+
+    @db
+    def create_reminder(self, name: str, text: str, trigger_time: Optional[Union[str, datetime]], reminder_context: Optional[str]):
+        return do_create_reminder(self.ctx, name, text, trigger_time, reminder_context)
 
     @db
     def remember(self, name: str, text: str) -> str:

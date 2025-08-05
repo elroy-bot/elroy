@@ -5,8 +5,6 @@ from pydantic import BaseModel
 
 from elroy.api import Elroy
 from elroy.repository.memories.models import MemoryResponse
-from elroy.repository.reminders.queries import get_due_timed_reminders
-from elroy.repository.reminders.tools import create_reminder
 
 app = FastAPI(title="Elroy API", version="1.0.0", log_level="info")
 
@@ -105,7 +103,7 @@ async def chat(request: ChatRequest):
 async def create_reminder_endpoint(request: CreateReminderRequest):
     """Create a new reminder (timed, contextual, or hybrid)."""
     elroy = Elroy()
-    result = create_reminder(elroy.ctx, request.name, request.text, request.trigger_time, request.reminder_context)
+    result = elroy.create_reminder(request.name, request.text, request.trigger_time, request.reminder_context)
     return ApiResponse(result=result)
 
 
@@ -113,13 +111,15 @@ async def create_reminder_endpoint(request: CreateReminderRequest):
 async def get_due_timed_reminders_endpoint():
     """Get all timed reminders that are currently due."""
     elroy = Elroy()
-    due_reminders = get_due_timed_reminders(elroy.ctx)
+    due_reminders = elroy.get_due_timed_reminders()
 
     reminder_responses = []
     for reminder in due_reminders:
+        reminder_id = reminder.id
+        assert reminder_id
         reminder_responses.append(
             ReminderResponse(
-                id=reminder.id,
+                id=reminder_id,
                 name=reminder.name,
                 text=reminder.text,
                 trigger_datetime=reminder.trigger_datetime.isoformat() if reminder.trigger_datetime else None,
