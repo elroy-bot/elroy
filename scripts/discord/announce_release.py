@@ -14,8 +14,9 @@ from discord.ext import commands
 ANNOUNCEMENTS_CHANNEL_ID = 1309680926745169930
 TEST_CHANNEL_ID = 1308566429779492874
 
-# parent dir of script is the root of the project
-CHANGELOG_LOCATION = os.path.join(os.path.dirname(os.path.dirname(__file__)), "CHANGELOG.md")
+# Find project root (3 levels up from this script)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+CHANGELOG_LOCATION = os.path.join(PROJECT_ROOT, "CHANGELOG.md")
 
 
 class ReleaseBot:
@@ -71,42 +72,59 @@ class ReleaseBot:
 
         if not os.path.exists(CHANGELOG_LOCATION):
             print(f"Warning: CHANGELOG.md not found at {CHANGELOG_LOCATION}", file=sys.stderr)
-            return "No release notes available."
+            sys.exit(1)
 
         try:
             with open(CHANGELOG_LOCATION, "r") as f:
                 content = f.read()
 
             # Find the section for this version
-            sections = content.split("\n## [")
+            # Look for "## [version]" pattern
+            version_pattern = f"## [{version}]"
+            start_idx = content.find(version_pattern)
 
-            for section in sections:
-                if section.startswith(version):
-                    # Extract everything up to the next section or end
-                    notes = section.split("\n", 1)[1].strip()
+            if start_idx == -1:
+                return None
 
-                    # Format the notes nicely
-                    formatted_notes = ""
-                    current_section = ""
+            # Find the start of the next version section or end of file
+            next_version_idx = content.find("\n## [", start_idx + 1)
+            if next_version_idx == -1:
+                section_content = content[start_idx:]
+            else:
+                section_content = content[start_idx:next_version_idx]
 
-                    for line in notes.split("\n"):
-                        line = line.strip()
-                        if line.startswith("###"):
-                            if current_section:
-                                formatted_notes += "\n"
-                            current_section = line.replace("###", "").strip()
-                        elif line and not line.startswith("["):  # Skip links
-                            if line.startswith("-"):
-                                formatted_notes += f"• {line[1:].strip()}\n"
-                            else:
-                                formatted_notes += f"{line}\n"
+            # Extract lines after the version header
+            lines = section_content.split("\n")[1:]  # Skip the version line
 
-                    return formatted_notes.strip()
+            formatted_notes = ""
+            current_section = ""
 
-            return None
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                if line.startswith("### "):
+                    # Section header (Added, Improved, Fixed, etc.)
+                    if formatted_notes and not formatted_notes.endswith("\n\n"):
+                        formatted_notes += "\n"
+                    current_section = line.replace("### ", "**") + "**\n"
+                    formatted_notes += current_section
+                elif line.startswith("- "):
+                    # Bullet point
+                    formatted_notes += f"• {line[2:]}\n"
+                elif line.startswith("    - "):
+                    # Sub-bullet point (indented)
+                    formatted_notes += f"  ◦ {line[6:]}\n"
+                elif not line.startswith("##") and not line.startswith("["):
+                    # Regular text (but skip other section headers and links)
+                    formatted_notes += f"{line}\n"
+
+            return formatted_notes.strip() if formatted_notes.strip() else None
+
         except Exception as e:
             print(f"Warning: Could not read release notes: {e}", file=sys.stderr)
-            return None
+            sys.exit(1)
 
     def run(self):
         """Run the bot"""

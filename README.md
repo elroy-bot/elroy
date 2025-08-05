@@ -139,6 +139,14 @@ MCP support is experimental, please file issues if you encounter problems!
 
 For information about upcoming features, planned changes, and project direction, see the [roadmap](docs/roadmap.md).
 
+## Branches
+
+`main` comes with backwards compatibility and automatic database migrations.
+
+`stable` is sync'd with the latest release branch.
+
+`experimental` is a test branch with upcoming changes. These may contain breaking changes and/or changes that do not come with automatic database migrations.
+
 ## License
 
 Distributed under the Apache 2.0 license. See LICENSE for more information.

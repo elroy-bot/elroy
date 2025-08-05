@@ -26,8 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p>
                     I'm an engineering manager and author of
                     <a href="https://github.com/elroy-bot/elroy" target="_blank" rel="noopener">Elroy</a>,
-                    an AI memory assistant. Get in touch at
+                    an AI memory assistant. <br>Get in touch at
                     <a href="mailto:hello@elroy.bot">hello@elroy.bot</a>
+                    or on <a href="https://discord.gg/5PJUY4eMce">Discord</a>
                 </p>
             `;
 
