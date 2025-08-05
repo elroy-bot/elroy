@@ -7,11 +7,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
 
-from aider.coders import Coder
-from aider.io import InputOutput
-from aider.models import Model
 from semantic_version import Version
 
 from elroy import __version__
@@ -33,54 +29,6 @@ NEXT_PATCH = str(Version(current_version).next_patch())
 @dataclass
 class Errors:
     messages: list[str]
-
-
-def retrieve_feedback(elroy: Elroy, instruction: str) -> str:
-    return elroy.message(
-        f"""The following is instructions for a task. Search your memory to determine if there is any relevant feedback to the task in the past, and output a synthesis of this feedback.
-            The following is the original instruction:
-            {instruction}
-        """
-    )
-
-
-def make_edit(elroy: Elroy, instruction: str, rw_files: List[str], ro_files: List[str] = []) -> None:
-    print(f"# Original instruction:\n{instruction}")
-    memory_augmented_instructions = instruction + "\n\n#Feedback from past runs:\n" + retrieve_feedback(elroy, instruction)
-    print(f"# Memory Augmented instruction:\n{memory_augmented_instructions}")
-    os.chdir(REPO_ROOT)
-
-    Coder.create(
-        main_model=Model("sonnet"),
-        fnames=rw_files,
-        read_only_fnames=ro_files,
-        io=InputOutput(yes=True),
-        auto_commits=False,
-    ).run(memory_augmented_instructions)
-
-
-def update_changelog(elroy: Elroy):
-    last_tag = os.popen("git describe --tags --abbrev=0 2>/dev/null || echo").read().strip()
-    commits = os.popen(f'git log {last_tag}..HEAD --name-only --pretty=format:"- %s%n%b%nFiles changed:"').read()
-
-    instruction = f"""
-    Update CHANGELOG.md to add version {NEXT_PATCH}. Here are the commits since the last release:
-
-    {commits}
-
-    Please:
-    1. Add a new entry at the top of the changelog for version {NEXT_PATCH} dated {datetime.now().strftime("%Y-%m-%d")}. Note that changelog header should be of format: ## [MAJOR.MINOR.PATCH] - YYYY-MM-DD. There should be an empty line before and after the version header.
-    2. Group the commits into appropriate sections (Added, Fixed, Improved, Infrastructure, etc.) based on their content. These should all be ### headers.
-    3. Clean up and standardize the commit messages to be more readable
-    4. Maintain the existing changelog format
-
-    Do NOT remove any existing entries.
-
-    Note that not all housekeeping updates need to be mentioned. Only those changes that a maintainer or user would be interested in should be included.
-
-    """
-
-    make_edit(elroy, instruction, ["CHANGELOG.md"])
 
 
 def check_main_up_to_date(errors: Errors):
@@ -345,7 +293,11 @@ if __name__ == "__main__":
     os.chdir(repo_root)
 
     next_tag = Version(__version__).next_patch()
-    update_changelog(elroy)
+
+    # Call write_release_notes.sh script to generate changelog
+    print("Generating release notes...")
+    write_notes_script = os.path.join(os.path.dirname(__file__), "write_release_notes.sh")
+    subprocess.run([write_notes_script, "--type", "patch"], check=True)
 
     print("Please provide feedback on the changes made in this release")
     feedback = input()
