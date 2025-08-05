@@ -1,0 +1,8 @@
+tombedor:
+  name: Tom Bedor
+  title: Creator of Elroy
+  url: https://github.com/elroy-bot/elroy
+  image_url: https://github.com/tombedor.png
+  page: true
+  socials:
+    github: tombedor

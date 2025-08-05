@@ -1,0 +1,44 @@
+ai:
+  label: AI
+  permalink: /ai
+  description: Posts about artificial intelligence and machine learning
+
+learning:
+  label: Learning
+  permalink: /learning
+  description: Posts about learning and education with AI
+
+productivity:
+  label: Productivity
+  permalink: /productivity
+  description: Posts about productivity and efficiency
+
+programming:
+  label: Programming
+  permalink: /programming
+  description: Posts about programming and software development
+
+llm:
+  label: LLM
+  permalink: /llm
+  description: Posts about large language models
+
+architecture:
+  label: Architecture
+  permalink: /architecture
+  description: Posts about software architecture and design
+
+testing:
+  label: Testing
+  permalink: /testing
+  description: Posts about testing strategies and methodologies
+
+reliability:
+  label: Reliability
+  permalink: /reliability
+  description: Posts about building reliable software systems
+
+software-engineering:
+  label: Software Engineering
+  permalink: /software-engineering
+  description: Posts about software engineering practices

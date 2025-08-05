@@ -1,7 +1,12 @@
 # Blog
 
-<div style="display: flex; gap: 10px; margin-bottom: 2rem; align-items: center;">
-    <a href="/feed_rss_created.xml" target="_blank">
-        <img src="https://www.mozilla.org/media/img/trademarks/feed-icon-28x28.png" alt="RSS Feed" style="width: 28px; height: 28px;">
-    </a>
-</div>
+Welcome to the Elroy blog! Here you'll find articles about AI development, architecture decisions, and insights from building a memory-enabled AI assistant.
+
+<!-- truncate -->
+
+Recent posts explore topics like:
+- The "autonomy last" approach to building reliable AI applications
+- How AI functions as a "floor raiser" rather than a "ceiling raiser" for learning
+- Testing strategies for LLM-based applications
+
+Browse the posts below or use the tags to find topics that interest you!

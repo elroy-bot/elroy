@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Serve Elroy documentation locally using Docusaurus
+# This script starts the Docusaurus development server
+
+set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+DOCS_DIR="$PROJECT_ROOT/docs"
+
+echo "🚀 Starting Elroy documentation server..."
+echo "📁 Documentation directory: $DOCS_DIR"
+
+# Check if docs directory exists
+if [ ! -d "$DOCS_DIR" ]; then
+    echo "❌ Error: Documentation directory not found at $DOCS_DIR"
+    exit 1
+fi
+
+# Check if package.json exists
+if [ ! -f "$DOCS_DIR/package.json" ]; then
+    echo "❌ Error: package.json not found in $DOCS_DIR"
+    echo "Make sure Docusaurus is properly initialized."
+    exit 1
+fi
+
+# Change to docs directory
+cd "$DOCS_DIR"
+
+# Check if node_modules exists, if not install dependencies
+if [ ! -d "node_modules" ]; then
+    echo "📦 Installing dependencies..."
+    npm install
+fi
+
+echo "🌐 Starting development server..."
+echo "📖 Documentation will be available at: http://localhost:3000"
+echo "🔄 The server will automatically reload when you make changes"
+echo ""
+echo "Press Ctrl+C to stop the server"
+
+# Start the development server
+npm start
