@@ -15,9 +15,9 @@ from ...core.logging import get_logger, log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import (
     EmbeddableSqlModel,
-    Goal,
     Memory,
     MemorySource,
+    Reminder,
     get_memory_source_class,
 )
 from ...llm.client import get_embedding, query_llm, query_llm_with_response_format
@@ -27,7 +27,6 @@ from ..context_messages.transforms import (
     format_context_messages,
 )
 from ..recall.queries import (
-    get_most_relevant_goals,
     get_most_relevant_memories,
     get_most_relevant_reminders,
     is_in_context,
@@ -84,7 +83,7 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
 
 
 @tracer.chain
-def get_relevant_memories_and_goals(ctx: ElroyContext, query: str) -> List[Union[Goal, Memory]]:
+def get_relevant_memories_and_reminders(ctx: ElroyContext, query: str) -> List[Union[Reminder, Memory]]:
     query_embedding = get_embedding(ctx.embedding_model, query)
 
     relevant_memories = [
@@ -93,13 +92,13 @@ def get_relevant_memories_and_goals(ctx: ElroyContext, query: str) -> List[Union
         if isinstance(memory, Memory)
     ]
 
-    relevant_goals = [
-        goal
-        for goal in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Goal, ctx.user_id, query_embedding)
-        if isinstance(goal, Goal)
+    relevant_reminders = [
+        reminder
+        for reminder in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Reminder, ctx.user_id, query_embedding)
+        if isinstance(reminder, Reminder)
     ]
 
-    return relevant_memories + relevant_goals
+    return relevant_memories + relevant_reminders
 
 
 def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Optional[Memory]:
@@ -234,7 +233,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goals, get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
+        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
         concat,
         list,
         filter(lambda x: x is not None),

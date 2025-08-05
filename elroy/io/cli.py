@@ -19,7 +19,7 @@ from elroy.io.completer import SlashCompleter
 from ..config.paths import get_prompt_history_path
 from ..core.constants import EXIT
 from ..core.logging import get_logger
-from ..db.db_models import Goal, Memory
+from ..db.db_models import Memory
 from ..io.base import ElroyIO
 from ..llm.stream_parser import AssistantInternalThought, TextOutput
 from ..repository.context_messages.data_models import ContextMessage
@@ -122,22 +122,16 @@ class CliIO(ElroyIO):
     async def _prompt_user(self, prompt=">", prefill: str = "") -> str:
         return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), default=prefill, style=self.style)
 
-    def update_completer(self, goals: List[Goal], memories: List[Memory], reminders: List, context_messages: List[ContextMessage]) -> None:
+    def update_completer(self, memories: List[Memory], reminders: List, context_messages: List[ContextMessage]) -> None:
         from ..repository.recall.queries import is_in_context
         from ..tools.tools_and_commands import (
-            ALL_ACTIVE_GOAL_COMMANDS,
             ALL_ACTIVE_MEMORY_COMMANDS,
             ALL_ACTIVE_REMINDER_COMMANDS,
-            IN_CONTEXT_GOAL_COMMANDS,
             IN_CONTEXT_MEMORY_COMMANDS,
             NON_ARG_PREFILL_COMMANDS,
-            NON_CONTEXT_GOAL_COMMANDS,
             NON_CONTEXT_MEMORY_COMMANDS,
             USER_ONLY_COMMANDS,
         )
-
-        in_context_goal_names = sorted([g.get_name() for g in goals if is_in_context(context_messages, g)])
-        non_context_goal_names = sorted([g.get_name() for g in goals if g.get_name() not in in_context_goal_names])
 
         in_context_memories = sorted([m.get_name() for m in memories if is_in_context(context_messages, m)])
         non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
@@ -146,9 +140,6 @@ class CliIO(ElroyIO):
 
         self.prompt_session.completer = pipe(  # type: ignore # noqa F841
             concatv(
-                product(IN_CONTEXT_GOAL_COMMANDS, in_context_goal_names),
-                product(NON_CONTEXT_GOAL_COMMANDS, non_context_goal_names),
-                product(ALL_ACTIVE_GOAL_COMMANDS, [g.get_name() for g in goals]),
                 product(IN_CONTEXT_MEMORY_COMMANDS, in_context_memories),
                 product(NON_CONTEXT_MEMORY_COMMANDS, non_context_memories),
                 product(ALL_ACTIVE_MEMORY_COMMANDS, [m.get_name() for m in memories]),

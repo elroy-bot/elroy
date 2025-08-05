@@ -21,9 +21,7 @@ from ..repository.context_messages.operations import (
     save,
 )
 from ..repository.context_messages.tools import (
-    add_goal_to_current_context,
     add_memory_to_current_context,
-    drop_goal_from_current_context,
     drop_memory_from_current_context,
 )
 from ..repository.documents.tools import (
@@ -32,15 +30,6 @@ from ..repository.documents.tools import (
     get_source_documents,
     ingest_doc,
     reingest_doc,
-)
-from ..repository.goals.queries import print_active_goals, print_complete_goals
-from ..repository.goals.tools import (
-    add_goal_status_update,
-    create_goal,
-    delete_goal_permanently,
-    mark_goal_completed,
-    print_goal,
-    rename_goal,
 )
 from ..repository.memories.operations import remember_convo
 from ..repository.memories.tools import (
@@ -77,19 +66,6 @@ from .developer import (
     tail_elroy_logs,
 )
 
-IN_CONTEXT_GOAL_COMMANDS: Set[Callable] = {
-    drop_goal_from_current_context,
-}
-NON_CONTEXT_GOAL_COMMANDS: Set[Callable] = {
-    add_goal_to_current_context,
-}
-ALL_ACTIVE_GOAL_COMMANDS: Set[Callable] = {
-    rename_goal,
-    print_goal,
-    add_goal_status_update,
-    mark_goal_completed,
-    delete_goal_permanently,
-}
 IN_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
     drop_memory_from_current_context,
 }
@@ -108,7 +84,6 @@ ALL_ACTIVE_REMINDER_COMMANDS: Set[Callable] = {
 }
 NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_source_content_for_memory,
-    create_goal,
     create_reminder,
     create_memory,
     contemplate,
@@ -135,8 +110,6 @@ USER_ONLY_COMMANDS = {
     save,
     rewrite,
     refresh_system_instructions,
-    print_active_goals,
-    print_complete_goals,
     print_memories,
     search_memories,
     print_active_reminders,
@@ -149,9 +122,6 @@ ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = {
     f
     for f in (
         NON_ARG_PREFILL_COMMANDS
-        | IN_CONTEXT_GOAL_COMMANDS
-        | NON_CONTEXT_GOAL_COMMANDS
-        | ALL_ACTIVE_GOAL_COMMANDS
         | IN_CONTEXT_MEMORY_COMMANDS
         | NON_CONTEXT_MEMORY_COMMANDS
         | ALL_ACTIVE_MEMORY_COMMANDS

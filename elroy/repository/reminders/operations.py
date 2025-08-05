@@ -6,6 +6,7 @@ from ..recall.operations import (
     upsert_embedding_if_needed,
 )
 from .queries import get_active_reminders, get_db_reminder_by_name
+from .tools import create_reminder
 
 logger = get_logger()
 
@@ -18,6 +19,15 @@ class ReminderAlreadyExistsError(RecoverableToolError):
 class ReminderDoesNotExistError(RecoverableToolError):
     def __init__(self, reminder_name: str, reminder_type: str, available_names: list):
         super().__init__(f"{reminder_type} reminder '{reminder_name}' not found. Available: {', '.join(available_names)}")
+
+
+def create_onboarding_reminder(ctx: ElroyContext, preferred_name: str) -> None:
+    create_reminder(
+        ctx=ctx,
+        name=f"Introduce myself to {preferred_name}",
+        text="Introduce myself - a few things that make me unique are my ability to form long term memories, and the ability to set and create reminders",
+        reminder_context="When user logs in for the first time",
+    )
 
 
 def deactivate_reminder(ctx: ElroyContext, reminder_name: str) -> None:

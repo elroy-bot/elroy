@@ -187,10 +187,10 @@ def test_due_reminder_context_messages(ctx: ElroyContext):
 
     # Check message content
     msg_content = context_msgs[0].content
-    assert "⏰ REMINDER DUE" in msg_content, "Context message missing reminder due indicator."
-    assert "context_msg_test" in msg_content, "Context message missing reminder name."
-    assert "This generates context message" in msg_content, "Context message missing reminder text."
-    assert "delete_reminder" in msg_content, "Context message missing instruction to delete."
+    assert "⏰ REMINDER DUE" in msg_content, "Context message missing reminder due indicator."  # type: ignore
+    assert "context_msg_test" in msg_content, "Context message missing reminder name."  # type: ignore
+    assert "This generates context message" in msg_content, "Context message missing reminder text."  # type: ignore
+    assert "delete_reminder" in msg_content, "Context message missing instruction to delete."  # type: ignore
     assert context_msgs[0].role == SYSTEM, "Context message should be from system."
 
 
@@ -210,7 +210,7 @@ def test_future_reminder_not_due(ctx: ElroyContext):
 
     # Check no context messages are generated
     context_msgs = get_due_reminder_context_msgs(ctx)
-    assert not any("future_test" in msg.content for msg in context_msgs), "Context message generated for future reminder."
+    assert not any("future_test" in msg.content for msg in context_msgs), "Context message generated for future reminder."  # type: ignore
 
 
 def test_contextual_reminder_not_due(ctx: ElroyContext):

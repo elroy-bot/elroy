@@ -24,7 +24,6 @@ from ..context_messages.queries import (
     get_or_create_context_message_set,
 )
 from ..recall.queries import (
-    get_most_relevant_goals,
     get_most_relevant_memories,
     get_most_relevant_reminders,
 )
@@ -51,7 +50,7 @@ def augment_memory(ctx: ElroyContext, content: str) -> MemoryResponse:
     memories: List[EmbeddableSqlModel] = pipe(
         content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_goals, get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
+        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
         concat,
         list,
         filter(lambda x: x is not None),
@@ -112,7 +111,7 @@ def remember_convo(ctx: ElroyContext):
     yield from process_message(
         role=SYSTEM,
         ctx=ctx,
-        msg="The use has triggered a remember_convo command. Through goals in context or via a new memory, capture information about the current converstaion",
+        msg="The use has triggered a remember_convo command. Through reminders in context or via a new memory, capture information about the current converstaion",
         force_tool=create_memory.__name__,
         enable_tools=True,
     )

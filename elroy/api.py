@@ -31,11 +31,6 @@ from .repository.context_messages.operations import reset_messages as do_reset_m
 from .repository.context_messages.queries import get_context_messages
 from .repository.context_messages.transforms import is_context_refresh_needed
 from .repository.documents.operations import DocIngestStatus, do_ingest, do_ingest_dir
-from .repository.goals.operations import do_create_goal
-from .repository.goals.queries import get_active_goal_names as do_get_active_goal_names
-from .repository.goals.queries import get_goal_by_name as do_get_goal_by_name
-from .repository.goals.tools import add_goal_status_update as do_add_goal_status_update
-from .repository.goals.tools import mark_goal_completed as do_mark_goal_completed
 from .repository.memories.operations import augment_memory
 from .repository.memories.queries import get_memories
 from .repository.memories.tools import create_memory as do_create_memory
@@ -104,46 +99,6 @@ class Elroy:
                 set_assistant_name(self.ctx, assistant_name)
 
     @db
-    def create_goal(
-        self,
-        goal_name: str,
-        strategy: Optional[str] = None,
-        description: Optional[str] = None,
-        end_condition: Optional[str] = None,
-        time_to_completion: Optional[str] = None,
-        priority: Optional[int] = None,
-    ) -> str:
-        """Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.
-        Goals should be *specific* and *measurable*. They should be based on the user's needs and desires, and should
-        be achievable within a reasonable timeframe.
-
-        Args:
-            goal_name (str): Name of the goal
-            strategy (str): The strategy to achieve the goal. Your strategy should detail either how you (the personal assistant) will achieve the goal, or how you will assist your user to solve the goal. Limit to 100 words.
-            description (str): A brief description of the goal. Limit to 100 words.
-            end_condition (str): The condition that indicate to you (the personal assistant) that the goal is achieved or terminated. It is critical that this end condition be OBSERVABLE BY YOU (the assistant). For example, the end_condition may be that you've asked the user about the goal status.
-            time_to_completion (str): The amount of time from now until the goal can be completed. Should be in the form of NUMBER TIME_UNIT, where TIME_UNIT is one of HOURS, DAYS, WEEKS, MONTHS. For example, "1 DAYS" would be a goal that should be completed within 1 day.
-            priority (int, optional): The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest.
-
-        Returns:
-            str: A confirmation message that the goal was created.
-
-        Raises:
-            ValueError: If goal_name is empty
-            GoalAlreadyExistsError: If a goal with the same name already exists
-        """
-        do_create_goal(
-            self.ctx,
-            goal_name,
-            strategy,
-            description,
-            end_condition,
-            time_to_completion,
-            priority,
-        )
-        return f"Goal '{goal_name}' has been created."
-
-    @db
     def get_current_messages(self) -> List[ContextMessage]:  # noqa F841
         """Retrieves messages currently in context"""
         return pipe(
@@ -152,64 +107,14 @@ class Elroy:
         )  # type: ignore
 
     @db
-    def add_goal_status_update(self, goal_name: str, status_update_or_note: str) -> str:
-        """Captures either a progress update or note relevant to the goal.
-
-        Args:
-            goal_name (str): Name of the goal
-            status_update_or_note (str): A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words.
-
-        Returns:
-            str: Confirmation message that the status update was added.
-        """
-        return do_add_goal_status_update(self.ctx, goal_name, status_update_or_note)
-
-    @db
-    def mark_goal_completed(self, goal_name: str, closing_comments: Optional[str] = None) -> str:
-        """Marks a goal as completed, with closing comments.
-
-        Args:
-            goal_name (str): The name of the goal
-            closing_comments (Optional[str]): Updated status with a short account of how the goal was completed and what was learned
-
-        Returns:
-            str: Confirmation message that the goal was marked as completed
-
-        Raises:
-            GoalDoesNotExistError: If the goal doesn't exist
-        """
-        return do_mark_goal_completed(self.ctx, goal_name, closing_comments)
-
-    @db
-    def get_active_goal_names(self) -> List[str]:
-        """Gets the list of names for all active goals
-
-        Returns:
-            List[str]: List of names for all active goals
-        """
-        return do_get_active_goal_names(self.ctx)
-
-    @db
-    def get_goal_by_name(self, goal_name: str) -> Optional[str]:
-        """Get the fact for a goal by name
-
-        Args:
-            goal_name (str): Name of the goal
-
-        Returns:
-            Optional[str]: The fact for the goal with the given name
-        """
-        return do_get_goal_by_name(self.ctx, goal_name)
-
-    @db
     def query_memory(self, query: str) -> str:
-        """Search through memories and goals using semantic search.
+        """Search through memories using semantic search.
 
         Args:
-            query (str): The search query text to find relevant memories and goals
+            query (str): The search query text to find relevant memories
 
         Returns:
-            str: A response synthesizing relevant memories and goals that match the query
+            str: A response synthesizing relevant memories that match the query
         """
         return do_query_memory(self.ctx, query)
 

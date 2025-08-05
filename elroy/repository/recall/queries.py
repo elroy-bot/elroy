@@ -4,7 +4,7 @@ from ...core.constants import tool
 from ...core.ctx import ElroyContext
 from ...core.logging import log_execution_time
 from ...core.tracing import tracer
-from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Goal, Memory, Reminder
+from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Memory, Reminder
 from ...llm.client import get_embedding
 from ..context_messages.data_models import ContextMessage
 
@@ -86,12 +86,6 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
 def get_most_relevant_memories(ctx: ElroyContext, query: List[float]) -> List[Memory]:
     """Get the most relevant memory for the given query."""
     return list(query_vector(Memory, ctx, query))[:2]
-
-
-@tracer.chain
-@log_execution_time
-def get_most_relevant_goals(ctx: ElroyContext, query: List[float]) -> List[Goal]:
-    return list(query_vector(Goal, ctx, query))[:2]
 
 
 @tracer.chain

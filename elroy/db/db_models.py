@@ -8,8 +8,6 @@ from pgvector.sqlalchemy import Vector
 from pydantic import BaseModel
 from sqlalchemy import Column, Text, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
-from toolz import pipe
-from toolz.curried import filter
 
 from ..core.constants import EMBEDDING_SIZE, RecoverableToolError
 from ..utils.clock import utc_now
@@ -51,7 +49,7 @@ class VectorStorage(SQLModel, table=True):
 
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
-    source_type: str = Field(..., description="The type of model this embedding is for (e.g. Memory, Goal)")
+    source_type: str = Field(..., description="The type of model this embedding is for (e.g. Memory, Reminder)")
     source_id: int = Field(..., description="The ID of the source model")
     user_id: int = Field(..., description="The user ID for the vector")
     embedding_data: List[float] = Field(
@@ -177,58 +175,6 @@ class DocumentExcerpt(EmbeddableSqlModel, MemorySource, table=True):
 
     def to_fact(self) -> str:
         return f"#{self.name}\n{self.content}"
-
-
-class Goal(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
-    id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
-    user_id: int = Field(..., description="Elroy user whose assistant is being reminded")
-    name: str = Field(..., description="The name of the goal")
-    status_updates: str = Field(
-        sa_column=Column(Text, nullable=False, server_default="[]"),
-        default="[]",
-        description="Status update reports from the goal as JSON string",
-    )
-
-    def to_fact(self) -> str:
-        from ..repository.goals.tools import add_goal_status_update, mark_goal_completed
-
-        status_updates = self.get_status_updates()
-
-        return pipe(
-            [
-                f"# {self.__class__.__name__}: {self.name}",
-                self.description if self.description else None,
-                f"## Strategy\n{self.strategy}" if self.strategy else None,
-                f"## End Condition\n{self.end_condition}" if self.end_condition else None,
-                f"## Target Completion Time\n{self.target_completion_time}" if self.target_completion_time else None,
-                "## Status Updates\n" + ("\n".join(status_updates) if status_updates else "No status updates"),
-                f"## Priority\n{self.priority}" if self.priority else None,
-                f"### Note for assistant:\nInformation about this goal should be kept up to date via AI assistant functions: {add_goal_status_update.__name__}, and {mark_goal_completed.__name__}",
-            ],
-            filter(lambda x: x is not None),
-            "\n\n".join,
-        )  # type: ignore
-
-    def get_status_updates(self) -> List[str]:
-        """Get deserialized status updates"""
-        return json.loads(self.status_updates)
-
-    def set_status_updates(self, updates: List[str]) -> None:
-        """Set status updates with JSON serialization"""
-        self.status_updates = json.dumps(updates)
-
-    description: Optional[str] = Field(..., description="The description of the goal")
-    strategy: Optional[str] = Field(..., description="The strategy to achieve the goal")
-    end_condition: Optional[str] = Field(..., description="The condition that will end the goal")
-    is_active: Optional[bool] = Field(default=True, description="Whether the goal is complete")
-    priority: Optional[int] = Field(4, description="The priority of the goal")
-    target_completion_time: Optional[datetime] = Field(default=None, description="The datetime of the targeted completion for the goal.")
-
-    def get_name(self) -> str:
-        return self.name
 
 
 class MemoryOperationTracker(SQLModel, table=True):

@@ -7,12 +7,12 @@
 Elroy is a scriptable, memory augmented AI personal assistant, accessible from the command line. It features:
 
 - **Long-term Memory**: Automatic memory recall of past conversations
-- **Goal Tracking**: Track and manage personal/professional goals
+- **Reminders** Track context based and timing based reminders
 - **Simple scripting interface**: Script Elroy with minimal configuration overhead
 - **CLI Tool interface**: Quickly review memories Elroy creates for you, or jot quick notes for Elroy to remember.
 - **MCP server**: Surface conversation memories to other tools via MCP
 
-![Goals Demo](images/goals_demo.gif)
+[TODO: Reminder demo]
 
 
 ## Quickstart
@@ -49,18 +49,18 @@ elroy
 elroy message "Say hello world"
 
 # Force use of a specific tool
-elroy message "Create a goal" --tool create_goal
+elroy message "Create a reminder" --tool create_reminder
 
 # Elroy also accepts stdin
 echo "Say hello world" | elroy
 ```
 
-## Memory and Goal Tools
+## Memory and Reminder Tools
 ![Slash commands](images/slash_commands.gif)
 
-Elroy's tools allow it to create and manager memories and goals. In the background, redundant memories are consolidated.
+Elroy's tools allow it to create and manager memories and reminders. In the background, redundant memories are consolidated.
 
-As goals or memories become relevant to the conversation, they are recalled into context. A `Relevant Context` panel makes all information being surfaced to the assistant available to the user.
+As reminders or memories become relevant to the conversation, they are recalled into context. A `Relevant Context` panel makes all information being surfaced to the assistant available to the user.
 
 All commands available to the assisstant are available to the user via `/` commands.
 
@@ -122,7 +122,7 @@ echo "What is 2+2?" | elroy chat
 cat meeting_notes.txt | elroy remember
 
 # Use a specific tool with piped input
-echo "Buy groceries" | elroy message --tool create_goal
+echo "Buy groceries" | elroy message --tool create_reminder
 ```
 
 ## MCP Server

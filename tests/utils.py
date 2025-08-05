@@ -20,7 +20,6 @@ from elroy.llm.stream_parser import SystemInfo
 from elroy.messenger.messenger import process_message
 from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.goals.queries import get_active_goals
 from elroy.repository.recall.queries import query_vector
 from elroy.repository.reminders.queries import get_active_reminders
 from elroy.utils.utils import first_or_none
@@ -171,23 +170,6 @@ def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str)
     bool_answer = get_boolean(full_response)
 
     assert bool_answer == expected_answer, f"Expected {expected_answer}, got {bool_answer}. Full response: {full_response}"
-
-
-def get_active_goals_summary(ctx: ElroyContext) -> str:
-    """
-    Retrieve a summary of active goals for a given user.
-    Args:
-        session (Session): The database session.
-        user_id (int): The ID of the user.
-    Returns:
-        str: A formatted string summarizing the active goals.
-    """
-    return pipe(
-        get_active_goals(ctx),
-        map(lambda x: x.to_fact()),
-        list,
-        "\n\n".join,
-    )  # type: ignore
 
 
 def get_active_reminders_summary(ctx: ElroyContext) -> str:

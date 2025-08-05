@@ -76,18 +76,6 @@ class RecoverableToolError(Exception):
     """Exceptions in tool calls that the assistant can learn from and correct"""
 
 
-class GoalAlreadyExistsError(RecoverableToolError):
-    def __init__(self, goal_name: str):
-        super().__init__(f"Error: Goal with name '{goal_name}' already exists")
-
-
-class GoalDoesNotExistError(RecoverableToolError):
-    def __init__(self, goal_name: str, valid_goal_names: List[str]):
-        msg = f"Error: Goal with name '{goal_name}' does not exist."
-        msg += f" Valid goal names: {valid_goal_names}" if valid_goal_names else " No goals have been created yet"
-        super().__init__(msg)
-
-
 class Provider(enum.Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
@@ -180,7 +168,7 @@ Include in your response internal thoughts. Indicate internal thought content wi
 
 An example response might look like:
 
-<internal thought> This is a good opportunity to ask about a due goal</internal thought> What are your thoughts on the upcoming project deadline?"
+<internal thought> This is a good opportunity to ask about a due reminder</internal thought> What are your thoughts on the upcoming project deadline?"
 </formatting>
 """
 

@@ -37,9 +37,8 @@ from ..repository.context_messages.transforms import (
     get_time_since_most_recent_user_message,
 )
 from ..repository.context_messages.validations import Validator
-from ..repository.goals.operations import create_onboarding_goal
-from ..repository.goals.queries import get_active_goals
 from ..repository.memories.queries import get_active_memories
+from ..repository.reminders.operations import create_onboarding_reminder
 from ..repository.reminders.queries import get_active_reminders
 from ..repository.user.queries import (
     do_get_user_preferred_name,
@@ -127,7 +126,6 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
 
     while True:
         io.update_completer(
-            get_active_goals(ctx),
             get_active_memories(ctx),
             get_active_reminders(ctx),
             list(get_context_messages(ctx)),
@@ -205,7 +203,7 @@ def onboard_interactive(io: CliIO, ctx: ElroyContext):
 
     set_user_preferred_name(ctx, preferred_name)
 
-    create_onboarding_goal(ctx, preferred_name)
+    create_onboarding_reminder(ctx, preferred_name)
 
     replace_context_messages(
         ctx,

@@ -163,7 +163,7 @@ def get_due_reminder_context_msgs(ctx: ElroyContext) -> List[ContextMessage]:
     context_messages = []
     for reminder in due_reminders:
         # Create a context message for each due reminder
-        content = f"⏰ REMINDER DUE: '{reminder.name}' - {reminder.text}\n\nThis reminder was scheduled for {reminder.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')} and is now due. Please inform the user about this reminder and then use the delete_reminder tool to remove it from active reminders."
+        content = f"⏰ REMINDER DUE: '{reminder.name}' - {reminder.text}\n\nThis reminder was scheduled for {reminder.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')} and is now due. Please inform the user about this reminder and then use the delete_reminder tool to remove it from active reminders."  # type: ignore
 
         context_messages.append(
             ContextMessage(
