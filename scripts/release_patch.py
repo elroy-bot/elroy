@@ -11,7 +11,6 @@ from datetime import datetime
 from semantic_version import Version
 
 from elroy import __version__
-from elroy.api import Elroy
 from elroy.tools.registry import get_system_tool_schemas
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -252,8 +251,6 @@ def handle_errors(errors):
 
 
 if __name__ == "__main__":
-    elroy = Elroy(token="docs-prep")
-
     parser = argparse.ArgumentParser(description="Release a new patch version")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
     parser.add_argument("--skip-docker", action="store_true", help="Skip running docker build test")
@@ -298,10 +295,6 @@ if __name__ == "__main__":
     print("Generating release notes...")
     write_notes_script = os.path.join(os.path.dirname(__file__), "write_release_notes.sh")
     subprocess.run([write_notes_script, "--type", "patch"], check=True)
-
-    print("Please provide feedback on the changes made in this release")
-    feedback = input()
-    elroy.create_memory(name=f"Feedback for release {next_tag}", text=feedback)
 
     # if local git state is not clean, await for user confirmation
     if not is_local_git_clean():
