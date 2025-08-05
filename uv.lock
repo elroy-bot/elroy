@@ -652,7 +652,7 @@ wheels = [
 
 [[package]]
 name = "elroy"
-version = "0.0.81"
+version = "0.0.82"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },

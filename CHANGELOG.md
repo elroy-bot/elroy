@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.0.82] - 2025-08-05
+
+### Added
+- [Roadmap doc](https://github.com/elroy-bot/elroy/blob/main/docs/roadmap.md)
+- Web API with endpoints for memory augmentation and querying
+- User ID support for vector storage, enabling multi-user memory isolation
+- Root API route for health checks and service status
+
+### Improved
+- Enhanced CLI header display with better formatting
+- Updater now supports uv tool installation with fallback to pip for more reliable package management
+- Memory augmentation operations now available through API endpoints
+
+### Infrastructure
+- Added web API infrastructure with FastAPI integration
+- Database migrations for user ID support in vector storage tables
+
 ## [0.0.81] - 2025-07-10
 
 ### Added
