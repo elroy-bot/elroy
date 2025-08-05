@@ -30,7 +30,7 @@ from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.user.operations import create_user_id
 
-from ..elroy.repository.reminders.tools import create_reminder
+from elroy.repository.reminders.tools import create_reminder
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
