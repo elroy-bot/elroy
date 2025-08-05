@@ -1,0 +1,194 @@
+{
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_Fz8Xg4AmTbhUASwN0XJWyLAY",
+      "function": {
+        "arguments": "",
+        "name": "create_memory"
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "{\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "name",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "User",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "'s",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " experience",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " of",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " swimming",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " on",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " today's",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " date",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\",\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "text",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "Today",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " I",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " went",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " swimming",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": ".\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "}",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    }
+  ]
+}
