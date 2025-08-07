@@ -2,13 +2,14 @@
 
 
 from functools import partial
-from typing import List, Union
+from typing import List, Optional, Union
 
 from pydantic import BaseModel
 from toolz import concat, juxt, pipe
 from toolz.curried import filter
 
 from ..core.ctx import ElroyContext
+from ..core.logging import get_logger
 from ..db.db_models import EmbeddableSqlModel, Memory, Reminder
 from ..llm.client import get_embedding, query_llm, query_llm_with_response_format
 from ..models import CreateMemoryRequest, CreateReminderRequest
@@ -17,6 +18,8 @@ from .memories.operations import do_create_memory
 from .memories.queries import filter_for_relevance
 from .recall.queries import get_most_relevant_memories, get_most_relevant_reminders
 from .reminders.operations import do_create_reminder
+
+logger = get_logger()
 
 
 def augment_text(ctx: ElroyContext, text: str) -> str:
@@ -69,8 +72,8 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
 
 def do_ingest_memo(ctx: ElroyContext, text: str) -> List[Union[Reminder, Memory]]:  # noqa F841
     class MemoResponse(BaseModel):
-        create_reminder_request: CreateReminderRequest
-        create_memory_request: CreateMemoryRequest
+        create_reminder_request: Optional[CreateReminderRequest] = None
+        create_memory_request: Optional[CreateMemoryRequest] = None
 
     augmented = augment_text(ctx, text)
 
@@ -80,9 +83,12 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> List[Union[Reminder, Memory]
 
         A memory is a generic note, without a specific time or context that it should be recalled.
 
-        A reminder should recalled at a specific time, or conversational context.
+        A reminder is similar to a memory, but it should be something the user wants or needs to remember in a specific context or time.
 
         Where possible, convert any relative dates or times to ISO 8601 format. Note the local time is {local_now()}
+
+        You should provide EITHER a create_reminder_request OR a create_memory_request, not both.
+        Set the field you don't need to null.
         """,
         prompt=augmented,
         response_format=MemoResponse,
@@ -91,6 +97,7 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> List[Union[Reminder, Memory]
     resp = []
 
     if req.create_memory_request:
+        logger.info("Creating memory")
         resp.append(
             do_create_memory(
                 ctx,
@@ -101,7 +108,7 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> List[Union[Reminder, Memory]
             )
         )
     if req.create_reminder_request:
-        breakpoint()
+        logger.info("Creating reminder")
         resp.append(
             do_create_reminder(
                 ctx,
