@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from toolz import concat, juxt, pipe
 from toolz.curried import filter
 
-from ..api.models import CreateMemoryRequest, CreateReminderRequest
 from ..core.ctx import ElroyContext
 from ..db.db_models import EmbeddableSqlModel, Memory, Reminder
 from ..llm.client import get_embedding, query_llm, query_llm_with_response_format
+from ..models import CreateMemoryRequest, CreateReminderRequest
 from ..utils.clock import local_now
 from .memories.operations import do_create_memory
 from .memories.queries import filter_for_relevance

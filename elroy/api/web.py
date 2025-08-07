@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from elroy.api.main import Elroy
 from elroy.utils.clock import string_to_datetime
 
-from .models import (
+from ..models import (
     ApiResponse,
     ChatRequest,
     ChatResponse,

@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from ..utils.clock import string_to_datetime
+from .utils.clock import string_to_datetime
 
 
 class MessageResponse(BaseModel):
