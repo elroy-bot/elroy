@@ -1,1 +1,3 @@
-# TODO: Add exports for Elroy class, so user can do from elroy.api import Elroy
+from .main import Elroy
+
+__all__ = ["Elroy"]

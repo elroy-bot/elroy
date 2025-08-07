@@ -547,6 +547,13 @@ def user_stats(
             or 0
         )
 
+        total_reminders = ctx.db.exec(select(func.count(col(Reminder.id))).where(Reminder.user_id == ctx.user_id)).first() or 0
+
+        active_reminders = (
+            ctx.db.exec(select(func.count(col(Reminder.id))).where(Reminder.user_id == ctx.user_id, Reminder.is_active == True)).first()
+            or 0
+        )
+
         # Count vectors for this user's entities
         vectors_for_memories = (
             ctx.db.exec(
@@ -580,8 +587,6 @@ def user_stats(
 
         total_vectors = vectors_for_memories + vectors_for_documents + vectors_for_reminders
 
-        # TODO: fix the rest of this function to include info about reminders
-
         # Create and display the table
         table = Table(title=f"User Statistics (Token: {ctx.user_token})")
         table.add_column("Metric", style="bold")
@@ -592,6 +597,8 @@ def user_stats(
         table.add_row("Active Memories", str(active_memories))
         table.add_row("Total Document Excerpts", str(total_document_excerpts))
         table.add_row("Active Document Excerpts", str(active_document_excerpts))
+        table.add_row("Total Reminders", str(total_reminders))
+        table.add_row("Active Reminders", str(active_reminders))
         table.add_row("Total Vectors Stored", str(total_vectors))
 
         io.console.print(table)

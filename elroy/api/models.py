@@ -1,49 +1,47 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..utils.clock import string_to_datetime
 
-# TODO: Update all basemodel, refine fields as fields, with descriptions.
-
 
 class MessageResponse(BaseModel):
-    role: str
-    content: str
+    role: str = Field(description="The role of the message sender (e.g., 'user' or 'assistant')")
+    content: str = Field(description="The content/text of the message")
 
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(description="The message text to send to the assistant")
 
 
 class ChatResponse(BaseModel):
-    messages: List[MessageResponse]
+    messages: List[MessageResponse] = Field(description="List of messages in the conversation")
 
 
 class IngestMemoRequest(BaseModel):
-    text: str
+    text: str = Field(description="The text content of the memo to ingest")
 
 
 class CreateMemoryRequest(BaseModel):
-    name: str
-    text: str
+    name: str = Field(description="Name/title for the memory - should be specific and describe one topic")
+    text: str = Field(description="The detailed text content of the memory")
 
 
 class MemoryResponse(BaseModel):
-    name: str
-    text: str
+    name: str = Field(description="The name/title of the memory")
+    text: str = Field(description="The text content of the memory")
 
 
 class ApiResponse(BaseModel):
-    result: str
+    result: str = Field(description="The result or response from the API operation")
 
 
 class CreateReminderRequest(BaseModel):
-    name: str
-    text: str
-    trigger_time: Optional[str] = None
-    reminder_context: Optional[str] = None
+    name: str = Field(description="Name/title for the reminder")
+    text: str = Field(description="The text content of the reminder")
+    trigger_time: Optional[str] = Field(None, description="When the reminder should trigger (ISO format string)")
+    reminder_context: Optional[str] = Field(None, description="Additional context for when this reminder should be shown")
 
     @property
     def trigger_datetime(self) -> Optional[datetime]:
@@ -54,8 +52,8 @@ class CreateReminderRequest(BaseModel):
 
 
 class ReminderResponse(BaseModel):
-    id: int
-    name: str
-    text: str
-    trigger_datetime: Optional[str] = None
-    reminder_context: Optional[str] = None
+    id: int = Field(description="Unique identifier for the reminder")
+    name: str = Field(description="Name/title of the reminder")
+    text: str = Field(description="The text content of the reminder")
+    trigger_datetime: Optional[str] = Field(None, description="When the reminder triggers (ISO format string)")
+    reminder_context: Optional[str] = Field(None, description="Additional context for the reminder")
