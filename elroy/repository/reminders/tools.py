@@ -1,11 +1,8 @@
 from typing import Optional
 
-from sqlmodel import select
-
 from ...core.constants import SYSTEM, RecoverableToolError, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...db.db_models import Reminder
 from ...utils.clock import string_to_datetime, utc_now
 from ...utils.utils import is_blank
 from ..context_messages.data_models import ContextMessage
@@ -13,8 +10,8 @@ from ..context_messages.operations import add_context_message
 from ..recall.operations import upsert_embedding_if_needed
 from ..recall.transforms import to_recalled_memory_metadata
 from .operations import (
-    ReminderAlreadyExistsError,
-    deactivate_reminder,
+    do_create_reminder,
+    do_deactivate_reminder,
 )
 from .queries import (
     get_active_reminder_names,
@@ -53,45 +50,16 @@ def create_reminder(
         - You can provide both trigger_time and reminder_context (hybrid reminder that triggers on both conditions)
         - You must provide at least one of trigger_time or reminder_context
     """
-    # Validation
-    if is_blank(name):
-        raise ValueError("Reminder name cannot be empty")
 
-    if not trigger_time and not reminder_context:
-        raise ValueError("Either trigger_time or reminder_context must be provided")
-
-    # Check for existing reminder with same name
-    existing_reminder = ctx.db.exec(
-        select(Reminder).where(
-            Reminder.user_id == ctx.user_id,
-            Reminder.name == name,
-            Reminder.is_active == True,
-        )
-    ).one_or_none()
-
-    if existing_reminder:
-        reminder_type = "Timed" if trigger_time else "Contextual"
-        raise ReminderAlreadyExistsError(name, reminder_type)
-
-    # Parse the trigger time if provided
     trigger_datetime = None
     if trigger_time:
         trigger_datetime = string_to_datetime(trigger_time)
 
-    # Create the reminder
-    reminder = Reminder(
-        user_id=ctx.user_id,
-        name=name,
-        text=text,
-        trigger_datetime=trigger_datetime,
-        reminder_context=reminder_context,
-    )  # type: ignore
+    reminder = do_create_reminder(ctx, name, text, trigger_datetime, reminder_context)
+    # Validation
+    if is_blank(name):
+        raise ValueError("Reminder name cannot be empty")
 
-    ctx.db.add(reminder)
-    ctx.db.commit()
-    ctx.db.refresh(reminder)
-
-    # Create appropriate context message
     if trigger_datetime and reminder_context:
         content = f"New reminder created: '{name}' - Timed: {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}, Context: {reminder_context}"
     elif trigger_datetime:
@@ -121,7 +89,7 @@ def create_reminder(
 
 
 @tool
-def delete_reminder(ctx: ElroyContext, name: str) -> str:
+def deactivate_reminder(ctx: ElroyContext, name: str) -> str:
     """Permanently deletes a reminder (timed, contextual, or hybrid).
 
     Args:
@@ -133,7 +101,7 @@ def delete_reminder(ctx: ElroyContext, name: str) -> str:
     Raises:
         ReminderDoesNotExistError: If the reminder doesn't exist
     """
-    deactivate_reminder(ctx, name)
+    do_deactivate_reminder(ctx, name)
     return f"Reminder '{name}' has been deleted."
 
 
@@ -165,7 +133,7 @@ def rename_reminder(ctx: ElroyContext, old_name: str, new_name: str) -> str:
 
     # Rename the reminder
     old_reminder.name = new_name
-    old_reminder.updated_at = utc_now()
+    old_reminder.updated_at = utc_now()  # noqa F841
 
     ctx.db.commit()
     ctx.db.refresh(old_reminder)
@@ -234,7 +202,7 @@ def update_reminder_text(ctx: ElroyContext, name: str, new_text: str) -> str:
 
     old_text = reminder.text
     reminder.text = new_text
-    reminder.updated_at = utc_now()
+    reminder.updated_at = utc_now()  # noqa F841
 
     ctx.db.commit()
     ctx.db.refresh(reminder)

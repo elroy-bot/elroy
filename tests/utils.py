@@ -50,15 +50,6 @@ class MockCliIO(CliIO):
             self._sys_messages.clear()
             return response
 
-    def add_user_response(self, response: str) -> None:
-        """Add a response to the queue of responses"""
-        self._user_responses.append(response)
-
-    def add_user_responses(self, *responses: str) -> None:
-        """Add multiple responses at once"""
-        for response in responses:
-            self.add_user_response(response)
-
     def warning(self, message: Union[str, RenderableType]):
         self._warnings.append(message)
         super().warning(message)

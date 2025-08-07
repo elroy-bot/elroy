@@ -35,13 +35,13 @@ from .repository.memories.operations import augment_memory
 from .repository.memories.queries import get_memories
 from .repository.memories.tools import create_memory as do_create_memory
 from .repository.memories.tools import examine_memories as do_query_memory
+from .repository.reminders.operations import do_create_reminder
 from .repository.reminders.queries import (
     get_active_reminders as do_get_active_reminders,
 )
 from .repository.reminders.queries import (
     get_due_timed_reminders as do_get_due_timed_reminders,
 )
-from .repository.reminders.tools import create_reminder as do_create_reminder
 from .repository.user.operations import set_assistant_name, set_persona
 from .repository.user.queries import get_persona as do_get_persona
 

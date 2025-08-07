@@ -13,13 +13,13 @@ from elroy.core.ctx import ElroyContext
 from elroy.db.db_models import Reminder
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.recall.queries import is_in_context
+from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.reminders.queries import (
     get_due_reminder_context_msgs,
     get_due_timed_reminders,
 )
 from elroy.repository.reminders.tools import (
-    create_reminder,
-    delete_reminder,
+    deactivate_reminder,
 )
 from elroy.utils.clock import utc_now
 
@@ -77,7 +77,7 @@ def test_create_hybrid_reminder(ctx: ElroyContext):
 def test_delete_reminder(ctx: ElroyContext):
     """Test deleting a reminder"""
     # Create a reminder first
-    create_reminder(ctx, "test_reminder", "Test reminder text")
+    do_create_reminder(ctx, "test_reminder", "Test reminder text")
 
     # Verify it exists
     assert "test_reminder" in get_active_reminders_summary(ctx), "Test reminder not created."
@@ -92,7 +92,7 @@ def test_delete_reminder(ctx: ElroyContext):
 def test_rename_reminder(ctx: ElroyContext):
     """Test renaming a reminder"""
     # Create a reminder first
-    create_reminder(ctx, "old_name", "Reminder to test renaming")
+    do_create_reminder(ctx, "old_name", "Reminder to test renaming")
 
     # Rename through assistant
     process_test_message(ctx, "Please rename my reminder 'old_name' to 'new_name' without any clarifying questions.")
@@ -105,7 +105,7 @@ def test_rename_reminder(ctx: ElroyContext):
 def test_update_reminder_text(ctx: ElroyContext):
     """Test updating reminder text"""
     # Create a reminder first
-    create_reminder(ctx, "update_test", "Original text")
+    do_create_reminder(ctx, "update_test", "Original text")
 
     # Update text through assistant
     process_test_message(ctx, "Please update the text of my reminder 'update_test' to 'Updated text' without any clarifying questions.")
@@ -120,11 +120,11 @@ def test_print_reminder(ctx: ElroyContext):
     """Test printing reminder details"""
     # Create a reminder with specific details
     tomorrow = utc_now() + timedelta(days=1)
-    create_reminder(
+    do_create_reminder(
         ctx,
         "detailed_reminder",
         "Take vitamins",
-        trigger_time=tomorrow.strftime("%Y-%m-%d %H:%M"),
+        trigger_time=tomorrow,
         reminder_context="when I mention health",
     )
 
@@ -149,7 +149,7 @@ def test_reminder_in_context_when_active(io: MockCliIO, ctx: ElroyContext):
     assert is_in_context(get_context_messages(ctx), reminder), "Active reminder should be in context."
 
     # Delete the reminder
-    delete_reminder(ctx, "context_test")
+    deactivate_reminder(ctx, "context_test")
 
     # Refresh and check it's no longer in context
     ctx.db.refresh(reminder)
@@ -234,7 +234,7 @@ def test_contextual_reminder_not_due(ctx: ElroyContext):
 def test_duplicate_reminder_name(io: MockCliIO, ctx: ElroyContext):
     """Test that creating a reminder with duplicate name is handled properly"""
     # Create first reminder
-    create_reminder(ctx, "duplicate_test", "First reminder")
+    do_create_reminder(ctx, "duplicate_test", "First reminder")
 
     # Try to create another with same name
     process_test_message(
@@ -300,7 +300,7 @@ def test_reminder_deactivation_sets_is_active_to_none(ctx: ElroyContext):
     original_id = reminder.id
 
     # Delete the reminder
-    delete_reminder(ctx, "deactivation_test")
+    deactivate_reminder(ctx, "deactivation_test")
 
     # Refresh and check is_active is None, not False
     ctx.db.refresh(reminder)

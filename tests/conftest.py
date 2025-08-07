@@ -28,9 +28,8 @@ from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
+from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.user.operations import create_user_id
-
-from elroy.repository.reminders.tools import create_reminder
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
@@ -185,7 +184,7 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
 
     add_context_messages(ctx, messages)
 
-    create_reminder(
+    do_create_reminder(
         ctx,
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
@@ -193,7 +192,7 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
         "Whenever George mentions basketball",
     )
 
-    create_reminder(
+    do_create_reminder(
         ctx,
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",

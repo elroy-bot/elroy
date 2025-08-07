@@ -104,7 +104,7 @@ async def create_reminder_endpoint(request: CreateReminderRequest):
     """Create a new reminder (timed, contextual, or hybrid)."""
     elroy = Elroy()
     result = elroy.create_reminder(request.name, request.text, request.trigger_time, request.reminder_context)
-    return ApiResponse(result=result)
+    return ApiResponse(result=result.to_fact())
 
 
 @app.get("/get_due_timed_reminders", response_model=List[ReminderResponse])
