@@ -7,6 +7,7 @@ from ...core.constants import RecoverableToolError
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import Reminder
+from ...utils.clock import utc_now
 from ...utils.utils import is_blank
 from ..recall.operations import (
     remove_from_context,
@@ -70,6 +71,11 @@ def do_create_reminder(
 
     if not trigger_time and not reminder_context:
         raise ValueError("Either trigger_time or reminder_context must be provided")
+
+    if trigger_time and trigger_time < utc_now():
+        raise RecoverableToolError(
+            f"Attempted to create reminder for {trigger_time}, which is in the past. The current time is {utc_now()}"
+        )
 
     # Check for existing reminder with same name
     existing_reminder = ctx.db.exec(
