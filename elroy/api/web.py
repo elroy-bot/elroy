@@ -1,10 +1,20 @@
-from typing import List, Optional
+from typing import List
 
 from fastapi import FastAPI
-from pydantic import BaseModel
 
-from elroy.api import Elroy
+from elroy.api.main import Elroy
 from elroy.repository.memories.models import MemoryResponse
+from elroy.utils.clock import string_to_datetime
+
+from .models import (
+    ApiResponse,
+    ChatRequest,
+    ChatResponse,
+    CreateReminderRequest,
+    IngestMemoRequest,
+    MessageResponse,
+    ReminderResponse,
+)
 
 app = FastAPI(title="Elroy API", version="1.0.0", log_level="info")
 
@@ -15,42 +25,6 @@ app = FastAPI(title="Elroy API", version="1.0.0", log_level="info")
 async def root():
     """Root endpoint that returns status ok."""
     return {"status": "ok"}
-
-
-class MessageResponse(BaseModel):
-    role: str
-    content: str
-
-
-class ChatRequest(BaseModel):
-    message: str
-
-
-class ChatResponse(BaseModel):
-    messages: List[MessageResponse]
-
-
-class MemoryRequest(BaseModel):
-    text: str
-
-
-class ApiResponse(BaseModel):
-    result: str
-
-
-class CreateReminderRequest(BaseModel):
-    name: str
-    text: str
-    trigger_time: Optional[str] = None
-    reminder_context: Optional[str] = None
-
-
-class ReminderResponse(BaseModel):
-    id: int
-    name: str
-    text: str
-    trigger_datetime: Optional[str] = None
-    reminder_context: Optional[str] = None
 
 
 @app.get("/get_current_messages", response_model=List[MessageResponse])
@@ -66,11 +40,11 @@ async def get_current_messages():
     return messages
 
 
-@app.post("/create_augmented_memory", response_model=ApiResponse)
-async def create_augmented_memory(request: MemoryRequest):
+@app.post("/ingest_memo", response_model=ApiResponse)
+async def create_augmented_memory(request: IngestMemoRequest):
     elroy = Elroy()
-    result = elroy.create_augmented_memory(request.text)
-    return ApiResponse(result=result)
+    result = elroy.ingest_memo(request.text)
+    return ApiResponse(result="\n".join([m.to_fact() for m in result]))
 
 
 @app.get("/get_current_memories", response_model=List[MemoryResponse])
@@ -103,7 +77,12 @@ async def chat(request: ChatRequest):
 async def create_reminder_endpoint(request: CreateReminderRequest):
     """Create a new reminder (timed, contextual, or hybrid)."""
     elroy = Elroy()
-    result = elroy.create_reminder(request.name, request.text, request.trigger_time, request.reminder_context)
+
+    if request.trigger_time:
+        trigger_time = string_to_datetime(request.trigger_time)
+    else:
+        trigger_time = None
+    result = elroy.create_reminder(request.name, request.text, trigger_time, request.reminder_context)
     return ApiResponse(result=result.to_fact())
 
 

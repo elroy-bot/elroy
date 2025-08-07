@@ -1,6 +1,6 @@
 from docstring_parser import parse
 
-from elroy.api import Elroy
+from elroy.api.main import Elroy
 from mcp.server.fastmcp import FastMCP
 
 ai = Elroy()

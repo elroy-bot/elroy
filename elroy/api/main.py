@@ -9,41 +9,41 @@ from toolz.curried import do, filter, map
 
 from elroy.db.db_models import Reminder
 
-from .core.constants import USER
-from .core.ctx import ElroyContext
-from .core.logging import setup_core_logging
-from .core.session import dbsession, init_elroy_session
-from .core.tracing import tracer
-from .db.db_models import FunctionCall, Memory
-from .io.base import PlainIO
-from .io.formatters.base import StringFormatter
-from .io.formatters.plain_formatter import PlainFormatter
-from .llm.stream_parser import AssistantInternalThought, AssistantToolResult, collect
-from .messenger.messenger import process_message
-from .repository.context_messages.data_models import ContextMessage
-from .repository.context_messages.operations import (
+from ..core.constants import USER
+from ..core.ctx import ElroyContext
+from ..core.logging import setup_core_logging
+from ..core.session import dbsession, init_elroy_session
+from ..core.tracing import tracer
+from ..db.db_models import FunctionCall, Memory
+from ..io.base import PlainIO
+from ..io.formatters.base import StringFormatter
+from ..io.formatters.plain_formatter import PlainFormatter
+from ..llm.stream_parser import AssistantInternalThought, AssistantToolResult, collect
+from ..messenger.messenger import process_message
+from ..repository.context_messages.data_models import ContextMessage
+from ..repository.context_messages.operations import (
     add_context_message,
 )
-from .repository.context_messages.operations import (
+from ..repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
-from .repository.context_messages.operations import reset_messages as do_reset_messages
-from .repository.context_messages.queries import get_context_messages
-from .repository.context_messages.transforms import is_context_refresh_needed
-from .repository.documents.operations import DocIngestStatus, do_ingest, do_ingest_dir
-from .repository.memories.operations import augment_memory
-from .repository.memories.queries import get_memories
-from .repository.memories.tools import create_memory as do_create_memory
-from .repository.memories.tools import examine_memories as do_query_memory
-from .repository.reminders.operations import do_create_reminder
-from .repository.reminders.queries import (
+from ..repository.context_messages.operations import reset_messages as do_reset_messages
+from ..repository.context_messages.queries import get_context_messages
+from ..repository.context_messages.transforms import is_context_refresh_needed
+from ..repository.documents.operations import DocIngestStatus, do_ingest, do_ingest_dir
+from ..repository.memo import do_ingest_memo
+from ..repository.memories.queries import get_memories
+from ..repository.memories.tools import create_memory as do_create_memory
+from ..repository.memories.tools import examine_memories as do_query_memory
+from ..repository.reminders.operations import do_create_reminder
+from ..repository.reminders.queries import (
     get_active_reminders as do_get_active_reminders,
 )
-from .repository.reminders.queries import (
+from ..repository.reminders.queries import (
     get_due_timed_reminders as do_get_due_timed_reminders,
 )
-from .repository.user.operations import set_assistant_name, set_persona
-from .repository.user.queries import get_persona as do_get_persona
+from ..repository.user.operations import set_assistant_name, set_persona
+from ..repository.user.queries import get_persona as do_get_persona
 
 T = TypeVar("T")
 
@@ -127,8 +127,12 @@ class Elroy:
         return do_get_active_reminders(self.ctx)
 
     @db
-    def create_reminder(self, name: str, text: str, trigger_time: Optional[Union[str, datetime]], reminder_context: Optional[str]):
+    def create_reminder(self, name: str, text: str, trigger_time: Optional[datetime], reminder_context: Optional[str]):
         return do_create_reminder(self.ctx, name, text, trigger_time, reminder_context)
+
+    @db
+    def ingest_memo(self, text: str) -> List[Reminder | Memory]:
+        return do_ingest_memo(self.ctx, text)
 
     @db
     def remember(self, name: str, text: str) -> str:
@@ -143,23 +147,6 @@ class Elroy:
             str: The result of the memory creation
         """
         return self.create_memory(name, text)
-
-    @db
-    def create_augmented_memory(self, text: str) -> str:
-        """Creates an augmented memory by processing raw text through AI enhancement.
-
-        This method takes raw text input and uses AI to improve and structure it before
-        creating a memory. The AI enhancement process typically includes improving clarity,
-        adding context, and generating an appropriate title.
-
-        Args:
-            text (str): The raw text to be processed and stored as memory.
-
-        Returns:
-            str: The result of the memory creation process.
-        """
-        mem = augment_memory(self.ctx, text)
-        return self.create_memory(mem.title, mem.text)
 
     @db
     def create_memory(self, name: str, text: str) -> str:

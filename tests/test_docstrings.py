@@ -2,7 +2,7 @@ import inspect
 
 from docstring_parser import parse
 
-from elroy.api import Elroy
+from elroy.api.main import Elroy
 from elroy.core.ctx import ElroyContext
 
 
