@@ -76,6 +76,20 @@ class Elroy:
         exclude_tools: List[str] = [],  # any tools which should not be loaded
         **kwargs,
     ):
+        """Initialize an Elroy instance.
+
+        Args:
+            token (Optional[str]): User authentication token
+            formatter (StringFormatter): Formatter for output messages
+            config_path (Optional[str]): Path to configuration file
+            persona (Optional[str]): Assistant persona to set
+            assistant_name (Optional[str]): Name for the assistant
+            database_url (Optional[str]): URL for database connection
+            check_db_migration (bool): Whether to check database migrations
+            show_tool_calls (bool): Whether to show tool calls in output
+            exclude_tools (List[str]): List of tools to exclude from loading
+            **kwargs: Additional configuration parameters
+        """
 
         setup_core_logging()
         self.formatter = formatter
@@ -120,18 +134,47 @@ class Elroy:
 
     @db
     def get_due_timed_reminders(self) -> List[Reminder]:
+        """Get all reminders that are due based on their trigger time.
+
+        Returns:
+            List[Reminder]: List of reminders that are currently due
+        """
         return do_get_due_timed_reminders(self.ctx)
 
     @db
     def get_active_reminders(self) -> List[Reminder]:
+        """Get all active reminders for the current user.
+
+        Returns:
+            List[Reminder]: List of all active reminders
+        """
         return do_get_active_reminders(self.ctx)
 
     @db
     def create_reminder(self, name: str, text: str, trigger_time: Optional[datetime], reminder_context: Optional[str]):
+        """Create a new reminder.
+
+        Args:
+            name (str): Name/title for the reminder
+            text (str): The content of the reminder
+            trigger_time (Optional[datetime]): When the reminder should trigger
+            reminder_context (Optional[str]): Additional context for the reminder
+
+        Returns:
+            The created reminder object
+        """
         return do_create_reminder(self.ctx, name, text, trigger_time, reminder_context)
 
     @db
     def ingest_memo(self, text: str) -> List[Reminder | Memory]:
+        """Ingest a memo text and extract memories and reminders from it.
+
+        Args:
+            text (str): The memo text to process
+
+        Returns:
+            List[Reminder | Memory]: List of extracted reminders and memories
+        """
         return do_ingest_memo(self.ctx, text)
 
     @db
@@ -340,8 +383,15 @@ class Elroy:
             if self._should_return_chunk(chunk):
                 yield from self.formatter.format(chunk)
 
-    def _should_return_chunk(self, chunk: BaseModel):
-        """filter for whether assistant output chunks should be returned to caller"""
+    def _should_return_chunk(self, chunk: BaseModel) -> bool:
+        """Filter for whether assistant output chunks should be returned to caller.
+
+        Args:
+            chunk (BaseModel): The output chunk to evaluate
+
+        Returns:
+            bool: True if chunk should be returned to caller
+        """
 
         if isinstance(chunk, AssistantInternalThought):
             return self.ctx.show_internal_thought
