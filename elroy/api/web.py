@@ -41,7 +41,7 @@ async def get_current_messages():
 
 
 @app.post("/ingest_memo", response_model=ApiResponse)
-async def create_augmented_memory(request: IngestMemoRequest):
+async def ingest_memo(request: IngestMemoRequest):
     elroy = Elroy()
     result = elroy.ingest_memo(request.text)
     return ApiResponse(result="\n".join([m.to_fact() for m in result]))
