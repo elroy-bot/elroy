@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 from ..utils.clock import string_to_datetime
 
+# TODO: Update all basemodel, refine fields as fields, with descriptions.
+
 
 class MessageResponse(BaseModel):
     role: str
@@ -24,6 +26,11 @@ class IngestMemoRequest(BaseModel):
 
 
 class CreateMemoryRequest(BaseModel):
+    name: str
+    text: str
+
+
+class MemoryResponse(BaseModel):
     name: str
     text: str
 

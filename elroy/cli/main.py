@@ -18,6 +18,7 @@ from ..core.constants import KNOWN_MODELS, MODEL_SELECTION_CONFIG_PANEL
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger, setup_core_logging, setup_file_logging
 from ..core.session import init_elroy_session
+from ..db.db_models import Reminder
 from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
 from ..io.formatters.rich_formatter import RichFormatter
@@ -550,7 +551,7 @@ def user_stats(
         vectors_for_memories = (
             ctx.db.exec(
                 select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == "Memory",
+                    VectorStorage.source_type == Memory.__class__.__name__,
                     col(VectorStorage.source_id).in_(select(col(Memory.id)).where(Memory.user_id == ctx.user_id)),
                 )
             ).first()
@@ -560,14 +561,26 @@ def user_stats(
         vectors_for_documents = (
             ctx.db.exec(
                 select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == "DocumentExcerpt",
+                    VectorStorage.source_type == DocumentExcerpt.__class__.__name__,
                     col(VectorStorage.source_id).in_(select(col(DocumentExcerpt.id)).where(DocumentExcerpt.user_id == ctx.user_id)),
                 )
             ).first()
             or 0
         )
 
-        total_vectors = vectors_for_memories + vectors_for_documents
+        vectors_for_reminders = (
+            ctx.db.exec(
+                select(func.count(col(VectorStorage.id))).where(
+                    VectorStorage.source_type == Reminder.__class__.__name__,
+                    col(VectorStorage.source_id).in_(select(col(Reminder.id)).where(Reminder.user_id == ctx.user_id)),
+                )
+            ).first()
+            or 0
+        )
+
+        total_vectors = vectors_for_memories + vectors_for_documents + vectors_for_reminders
+
+        # TODO: fix the rest of this function to include info about reminders
 
         # Create and display the table
         table = Table(title=f"User Statistics (Token: {ctx.user_token})")

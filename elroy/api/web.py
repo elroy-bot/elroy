@@ -3,7 +3,6 @@ from typing import List
 from fastapi import FastAPI
 
 from elroy.api.main import Elroy
-from elroy.repository.memories.models import MemoryResponse
 from elroy.utils.clock import string_to_datetime
 
 from .models import (
@@ -12,6 +11,7 @@ from .models import (
     ChatResponse,
     CreateReminderRequest,
     IngestMemoRequest,
+    MemoryResponse,
     MessageResponse,
     ReminderResponse,
 )
@@ -55,7 +55,7 @@ async def get_current_memories():
 
     memories = []
     for memory in elroy.get_current_memories():
-        memories.append(MemoryResponse(title=memory.name, text=memory.text))
+        memories.append(MemoryResponse(name=memory.name, text=memory.text))
 
     return memories
 
