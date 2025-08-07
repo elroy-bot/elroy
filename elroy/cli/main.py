@@ -524,7 +524,7 @@ def user_stats(
     with init_elroy_session(ctx, io, True, False):
         from sqlmodel import func, select
 
-        from ..db.db_models import DocumentExcerpt, Goal, Memory, Message, VectorStorage
+        from ..db.db_models import DocumentExcerpt, Memory, Message, VectorStorage
 
         # Get counts for all data types
         total_messages = ctx.db.exec(select(func.count(col(Message.id))).where(Message.user_id == ctx.user_id)).first() or 0
@@ -534,10 +534,6 @@ def user_stats(
         active_memories = (
             ctx.db.exec(select(func.count(col(Memory.id))).where(Memory.user_id == ctx.user_id, Memory.is_active == True)).first() or 0
         )
-
-        total_goals = ctx.db.exec(select(func.count(col(Goal.id))).where(Goal.user_id == ctx.user_id)).first() or 0
-
-        active_goals = ctx.db.exec(select(func.count(col(Goal.id))).where(Goal.user_id == ctx.user_id, Goal.is_active == True)).first() or 0
 
         total_document_excerpts = (
             ctx.db.exec(select(func.count(col(DocumentExcerpt.id))).where(DocumentExcerpt.user_id == ctx.user_id)).first() or 0
@@ -561,18 +557,6 @@ def user_stats(
             or 0
         )
 
-        vectors_for_goals = (
-            ctx.db.exec(
-                select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == "Goal",
-                    col(VectorStorage.source_id).in_(
-                        select(col(Goal.id)).where(Goal.user_id == ctx.user_id),
-                    ),
-                )
-            ).first()
-            or 0
-        )
-
         vectors_for_documents = (
             ctx.db.exec(
                 select(func.count(col(VectorStorage.id))).where(
@@ -583,7 +567,7 @@ def user_stats(
             or 0
         )
 
-        total_vectors = vectors_for_memories + vectors_for_goals + vectors_for_documents
+        total_vectors = vectors_for_memories + vectors_for_documents
 
         # Create and display the table
         table = Table(title=f"User Statistics (Token: {ctx.user_token})")
@@ -593,8 +577,6 @@ def user_stats(
         table.add_row("Total Messages", str(total_messages))
         table.add_row("Total Memories", str(total_memories))
         table.add_row("Active Memories", str(active_memories))
-        table.add_row("Total Goals", str(total_goals))
-        table.add_row("Active Goals", str(active_goals))
         table.add_row("Total Document Excerpts", str(total_document_excerpts))
         table.add_row("Active Document Excerpts", str(active_document_excerpts))
         table.add_row("Total Vectors Stored", str(total_vectors))

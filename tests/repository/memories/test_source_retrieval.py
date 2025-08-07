@@ -1,7 +1,6 @@
 from tests.utils import process_test_message
 
 from elroy.core.ctx import ElroyContext
-from elroy.repository.goals.tools import create_goal, mark_goal_completed
 from elroy.repository.memories.consolidation import consolidate_memories
 from elroy.repository.memories.queries import get_active_memories
 from elroy.repository.memories.tools import (
@@ -9,18 +8,6 @@ from elroy.repository.memories.tools import (
     get_source_content_for_memory,
     get_source_list_for_memory,
 )
-
-
-def test_goal_source(ctx: ElroyContext):
-    create_goal(ctx, "Run a marathon")
-    mark_goal_completed(ctx, "Run a marathon")
-    memory = get_active_memories(ctx)[-1]
-
-    source_list = get_source_list_for_memory(ctx, memory.name)
-    assert source_list == [("Goal", "Run a marathon")], "Source list not as expected"
-
-    source_content = get_source_content_for_memory(ctx, memory.name, 0)
-    assert "Goal: Run a marathon" in source_content, "Source content not as expected"
 
 
 def test_memory_source(ctx: ElroyContext):

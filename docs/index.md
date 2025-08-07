@@ -8,13 +8,13 @@
 [![GitHub](https://img.shields.io/github/stars/elroy-bot/elroy?style=social)](https://github.com/elroy-bot/elroy)
 [![PyPI](https://img.shields.io/pypi/v/elroy)](https://pypi.org/project/elroy/)
 
-Elroy is an AI assistant that runs in your terminal, with memory and powerful goal tracking. It remembers everything you tell it, can learn from your documents, and helps you stay organized.
+Elroy is an AI assistant that runs in your terminal, with memory and reminder tracking. It remembers everything you tell it, can learn from your documents, and helps you stay organized.
 
-![Goals Demo](images/goals_demo.gif)
+[TODO: Reminder demo]
 
 ## Features
 
-- **Goal Tracking System**: Create, update, and track personal and professional goals
+- **Reminders**: Create, update, and track reminders, based on timing or context
 - **Memory**: Elroy automatically recalls relevant information from past conversations
 - **Document Understanding**: Ingest your docs to give Elroy context about your projects
 - **Simple Scripting**: Automate tasks with minimal configuration overhead
@@ -43,11 +43,11 @@ For detailed installation instructions including Docker and source installation 
 
 ![Remember Command](images/remember_command.gif)
 
-Elroy runs in your terminal helps you with goals while maintaining memory of your interactions. As you chat with Elroy, it automatically:
+Elroy runs in your terminal helps you with reminders while maintaining memory of your interactions. As you chat with Elroy, it automatically:
 
 1. **Creates memories** of important information
 2. **Recalls relevant context** when needed
-3. **Tracks goals** you set together
+3. **Tracks reminders** you set together
 4. **Consolidates redundant information** to keep context clean
 
 ## Quickstart
@@ -80,14 +80,14 @@ Elroy's CLI supports slash commands for quick actions. Some examples (run `/help
 # Create a memory
 /create_memory This is important information I want to save
 
-# Create a goal
-/create_goal Learn how to use Elroy effectively
+# Create a reminder
+/create_reminder Learn how to use Elroy effectively
 
 # Process a single message and exit
 elroy message "Say hello world"
 
 # Force use of a specific tool
-elroy message "Create a goal" --tool create_goal
+elroy message "Create a reminder" --tool create_reminder
 ```
 
 ## Scripting with Elroy

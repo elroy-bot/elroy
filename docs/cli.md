@@ -30,8 +30,8 @@ Elroy supports powerful slash commands for quick actions:
 # Create a memory
 /create_memory This is important information I want to save
 
-# Create a goal
-/create_goal Learn how to use Elroy effectively
+# Create a reminder
+/create_reminder Learn how to use Elroy effectively
 
 ```
 
@@ -91,5 +91,5 @@ echo "What is 2+2?" | elroy chat
 cat meeting_notes.txt | elroy remember
 
 # Use a specific tool with piped input
-echo "Buy groceries" | elroy message --tool create_goal
+echo "Buy groceries" | elroy message --tool create_reminder
 ```

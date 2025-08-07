@@ -16,9 +16,9 @@ If Elroy finds that the text of a memory is no longer accurate, it appends an up
 
 In the background, Elroy's memory consolidation system combines and reorganizes memories, to make sure they are concise and unique as possible.
 
-### Goals
+### Reminders
 
-Elroy is designed to help you *DO THINGS*! To help this along, Elroy creates and manages *goals* from your conversation. When a goal is complete, it is copied into memory (where it can be consolidated and reorganized with other knowledge), and the goal is archived.
+Elroy is designed to help you *DO THINGS*! To help this along, Elroy creates and manages *reminders* from your conversation.
 
 
 ### Document Awareness
