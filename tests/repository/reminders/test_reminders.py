@@ -77,7 +77,7 @@ def test_create_hybrid_reminder(ctx: ElroyContext):
 def test_delete_reminder(ctx: ElroyContext):
     """Test deleting a reminder"""
     # Create a reminder first
-    do_create_reminder(ctx, "test_reminder", "Test reminder text")
+    do_create_reminder(ctx, "test_reminder", "Test reminder text", reminder_context="whenever")
 
     # Verify it exists
     assert "test_reminder" in get_active_reminders_summary(ctx), "Test reminder not created."
@@ -105,7 +105,7 @@ def test_rename_reminder(ctx: ElroyContext):
 def test_update_reminder_text(ctx: ElroyContext):
     """Test updating reminder text"""
     # Create a reminder first
-    do_create_reminder(ctx, "update_test", "Original text")
+    do_create_reminder(ctx, "update_test", "Original text", reminder_context="whenever")
 
     # Update text through assistant
     process_test_message(ctx, "Please update the text of my reminder 'update_test' to 'Updated text' without any clarifying questions.")
@@ -234,7 +234,7 @@ def test_contextual_reminder_not_due(ctx: ElroyContext):
 def test_duplicate_reminder_name(io: MockCliIO, ctx: ElroyContext):
     """Test that creating a reminder with duplicate name is handled properly"""
     # Create first reminder
-    do_create_reminder(ctx, "duplicate_test", "First reminder")
+    do_create_reminder(ctx, "duplicate_test", "First reminder", reminder_context="whenever")
 
     # Try to create another with same name
     process_test_message(
