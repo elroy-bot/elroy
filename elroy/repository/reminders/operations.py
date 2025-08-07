@@ -46,6 +46,8 @@ def do_create_reminder(
 ) -> Reminder:
     """Creates a reminder that can be triggered by time and/or context.
 
+    Note: Either trigger_time or reminder_context should be set!
+
     Args:
         name (str): Name of the reminder (must be unique)
         text (str): The reminder message to display when triggered
@@ -70,7 +72,8 @@ def do_create_reminder(
         raise ValueError("Reminder name cannot be empty")
 
     if not trigger_time and not reminder_context:
-        raise ValueError("Either trigger_time or reminder_context must be provided")
+
+        raise RecoverableToolError("Either trigger_time or reminder_context must be provided for reminders")
 
     if trigger_time and trigger_time < utc_now():
         raise RecoverableToolError(

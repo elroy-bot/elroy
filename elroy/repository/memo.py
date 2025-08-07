@@ -101,6 +101,7 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> List[Union[Reminder, Memory]
             )
         )
     if req.create_reminder_request:
+        breakpoint()
         resp.append(
             do_create_reminder(
                 ctx,

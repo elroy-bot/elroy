@@ -8,6 +8,7 @@ from toolz.curried import map
 from ..cli.slash_commands import (
     add_internal_thought,
     contemplate,
+    memo,
     print_context_messages,
     print_system_instruction,
 )
@@ -103,6 +104,7 @@ USER_ONLY_COMMANDS = {
     reingest_doc,
     print_config,
     add_internal_thought,
+    memo,
     reset_messages,
     print_context_messages,
     print_system_instruction,
