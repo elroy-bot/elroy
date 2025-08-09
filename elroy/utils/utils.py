@@ -1,4 +1,6 @@
 import asyncio
+import secrets
+import string
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -25,6 +27,12 @@ def run_async(thread_pool: ThreadPoolExecutor, coro):
     """
 
     return thread_pool.submit(asyncio.run, coro).result()
+
+
+def generate_random_string(length: int = 32) -> str:
+    """Generate a cryptographically secure random string."""
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def is_blank(input: Optional[str]) -> bool:
