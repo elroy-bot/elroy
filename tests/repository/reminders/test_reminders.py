@@ -140,10 +140,7 @@ def test_print_reminder(ctx: ElroyContext):
 def test_reminder_in_context_when_active(io: MockCliIO, ctx: ElroyContext):
     """Test that reminders appear in context when active"""
     # Create a reminder directly
-    reminder = Reminder(user_id=ctx.user_id, name="context_test", text="Test reminder in context", is_active=True)
-    ctx.db.add(reminder)
-    ctx.db.commit()
-    ctx.db.refresh(reminder)
+    reminder = ctx.db.persist(Reminder(user_id=ctx.user_id, name="context_test", text="Test reminder in context", is_active=True))
 
     # Check if it's in context
     assert is_in_context(get_context_messages(ctx), reminder), "Active reminder should be in context."

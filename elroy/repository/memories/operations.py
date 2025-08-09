@@ -136,18 +136,17 @@ def do_create_memory(
 ) -> Memory:
     from ..recall.operations import add_to_context, upsert_embedding_if_needed
 
-    memory = Memory(
-        user_id=ctx.user_id,
-        name=name,
-        text=text,
-        source_metadata=json.dumps(
-            [x.to_memory_source_d() for x in source_metadata],
-        ),
+    memory = ctx.db.persist(
+        Memory(
+            user_id=ctx.user_id,
+            name=name,
+            text=text,
+            source_metadata=json.dumps(
+                [x.to_memory_source_d() for x in source_metadata],
+            ),
+        )
     )
 
-    ctx.db.add(memory)
-    ctx.db.commit()
-    ctx.db.refresh(memory)
     upsert_embedding_if_needed(ctx, memory)
     if add_mem_to_context:
         add_to_context(ctx, memory)

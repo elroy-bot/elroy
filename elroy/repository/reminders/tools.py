@@ -134,9 +134,7 @@ def rename_reminder(ctx: ElroyContext, old_name: str, new_name: str) -> str:
     # Rename the reminder
     old_reminder.name = new_name
     old_reminder.updated_at = utc_now()  # noqa F841
-
-    ctx.db.commit()
-    ctx.db.refresh(old_reminder)
+    old_reminder = ctx.db.persist(old_reminder)
 
     upsert_embedding_if_needed(ctx, old_reminder)
 
@@ -204,9 +202,7 @@ def update_reminder_text(ctx: ElroyContext, name: str, new_text: str) -> str:
     reminder.text = new_text
     reminder.updated_at = utc_now()  # noqa F841
 
-    ctx.db.commit()
-    ctx.db.refresh(reminder)
-
+    reminder = ctx.db.persist(reminder)
     upsert_embedding_if_needed(ctx, reminder)
 
     add_context_message(

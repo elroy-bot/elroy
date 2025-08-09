@@ -19,10 +19,7 @@ def get_or_create_context_message_set(ctx: ElroyContext) -> ContextMessageSetWit
     if db_entry:
         return ContextMessageSetWithMessages.from_context_message_set(ctx.db.session, db_entry)
     else:
-        db_entry = ContextMessageSet(user_id=ctx.user_id, message_ids="[]", is_active=True)
-        ctx.db.add(db_entry)
-        ctx.db.commit()
-        ctx.db.refresh(db_entry)
+        db_entry = ctx.db.persist(ContextMessageSet(user_id=ctx.user_id, message_ids="[]", is_active=True))
         return ContextMessageSetWithMessages.from_context_message_set(ctx.db.session, db_entry)
 
 

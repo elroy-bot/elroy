@@ -10,8 +10,8 @@ from discord import app_commands
 from discord.app_commands import CommandTree
 
 from elroy.api import Elroy
-from elroy.config.constants import USER
 from elroy.config.personas import DISCORD_GROUP_CHAT_PERSONA
+from elroy.core.constants import USER
 from elroy.io.formatters.markdown_formatter import MarkdownFormatter
 from elroy.repository.user.tools import get_user_preferred_name, set_user_preferred_name
 

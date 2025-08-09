@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Iterable, List, Optional, Type
 
 from sqlmodel import Session, select
+from toolz import compose
+from toolz.curried import do
 
 from .db_models import EmbeddableSqlModel, VectorStorage
 
@@ -26,6 +28,15 @@ class DbSession(ABC):
     @property
     def commit(self):
         return self.session.commit
+
+    @property
+    def persist(self):
+        return compose(
+            do(self.session.expunge),
+            do(self.session.refresh),
+            do(lambda x: self.session.commit()),
+            do(self.session.add),
+        )
 
     @property
     def refresh(self):

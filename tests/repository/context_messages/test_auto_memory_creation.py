@@ -103,6 +103,6 @@ def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: List[C
 
     add_context_messages(mem_op_ctx, dummy_msgs[2:])
 
-    mem_op_ctx.db.refresh(tracker)
+    tracker = get_or_create_memory_op_tracker(mem_op_ctx)
     assert tracker.messages_since_memory == 2
     assert len(get_active_memories(mem_op_ctx)) == new_memory_ct

@@ -151,7 +151,7 @@ class Elroy:
         return do_get_active_reminders(self.ctx)
 
     @db
-    def create_reminder(self, name: str, text: str, trigger_time: Optional[datetime], reminder_context: Optional[str]):
+    def create_reminder(self, name: str, text: str, trigger_time: Optional[datetime], reminder_context: Optional[str]) -> Reminder:
         """Create a new reminder.
 
         Args:

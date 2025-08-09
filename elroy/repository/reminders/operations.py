@@ -94,17 +94,15 @@ def do_create_reminder(
         raise ReminderAlreadyExistsError(name, reminder_type)
 
     # Create the reminder
-    reminder = Reminder(
-        user_id=ctx.user_id,
-        name=name,
-        text=text,
-        trigger_datetime=trigger_time,
-        reminder_context=reminder_context,
-    )  # type: ignore
-
-    ctx.db.add(reminder)
-    ctx.db.commit()
-    ctx.db.refresh(reminder)
+    reminder = ctx.db.persist(
+        Reminder(
+            user_id=ctx.user_id,
+            name=name,
+            text=text,
+            trigger_datetime=trigger_time,
+            reminder_context=reminder_context,
+        )
+    )
 
     upsert_embedding_if_needed(ctx, reminder)
 
@@ -133,7 +131,6 @@ def do_deactivate_reminder(ctx: ElroyContext, reminder_name: str) -> None:
     reminder.is_active = None
     remove_from_context(ctx, reminder)
 
-    ctx.db.commit()
-    ctx.db.refresh(reminder)
+    reminder = ctx.db.persist(reminder)
 
     upsert_embedding_if_needed(ctx, reminder)
