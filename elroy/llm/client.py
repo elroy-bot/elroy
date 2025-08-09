@@ -111,26 +111,17 @@ def generate_chat_completion_message(
                 tool_schemas = None  # type: ignore
 
     try:
-        from .cache import cache_completion_call
-
-        def _generate_completion_impl(chat_model, context_messages, tool_schemas, enable_tools, force_tool):
-            completion_kwargs = _build_completion_kwargs(
-                model=chat_model,
-                messages=context_message_dicts,  # type: ignore
-                stream=True,
-                tool_choice=tool_choice,
-                tools=tool_schemas,
-            )
-            from litellm import completion
-
-            return completion(**completion_kwargs)  # type: ignore
-
-        # Convert context_message_dicts back for caching (it's already processed)
-        cached_stream = cache_completion_call(
-            chat_model, context_message_dicts, tool_schemas, enable_tools, force_tool, _generate_completion_impl  # type: ignore
+        completion_kwargs = _build_completion_kwargs(
+            model=chat_model,
+            messages=context_message_dicts,  # type: ignore
+            stream=True,
+            tool_choice=tool_choice,
+            tools=tool_schemas,
         )
+        from litellm import completion
 
-        return StreamParser(chat_model, cached_stream)
+        stream = completion(**completion_kwargs)  # type: ignore
+        return StreamParser(chat_model, stream)
 
     except Exception as e:
         if isinstance(e, BadRequestError):
@@ -203,39 +194,34 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     Returns:
         List[float]: The generated embedding as a list of floats.
     """
-    from .cache import cache_embedding_call
+    from litellm import embedding
+    from litellm.exceptions import ContextWindowExceededError
 
-    def _get_embedding_impl(model: EmbeddingModel, text: str) -> List[float]:
-        from litellm import embedding
-        from litellm.exceptions import ContextWindowExceededError
+    if not text:
+        raise ValueError("Text cannot be empty")
+    embedding_kwargs = {
+        "model": model.name,
+        "input": [text],
+        "caching": model.enable_caching,
+    }
 
-        if not text:
-            raise ValueError("Text cannot be empty")
-        embedding_kwargs = {
-            "model": model.name,
-            "input": [text],
-            "caching": model.enable_caching,
-        }
+    if model.api_key:
+        embedding_kwargs["api_key"] = model.api_key
 
-        if model.api_key:
-            embedding_kwargs["api_key"] = model.api_key
+    if model.api_base:
+        embedding_kwargs["api_base"] = model.api_base
 
-        if model.api_base:
-            embedding_kwargs["api_base"] = model.api_base
-
-        max_attempts = 5
-        for attempt in range(max_attempts):
-            try:
-                response = embedding(**embedding_kwargs)
-                return response.data[0]["embedding"]  # type: ignore
-            except ContextWindowExceededError:
-                new_length = int(len(text) / 2)
-                text = text[-new_length:]
-                embedding_kwargs["input"] = [text]
-                logger.info(f"Context window exceeded, retrying with shorter message of length {new_length}")
-        raise RuntimeError(f"Context window exceeded despite {max_attempts} attempt to shorten input")
-
-    return cache_embedding_call(model, text, _get_embedding_impl)
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        try:
+            response = embedding(**embedding_kwargs)
+            return response.data[0]["embedding"]  # type: ignore
+        except ContextWindowExceededError:
+            new_length = int(len(text) / 2)
+            text = text[-new_length:]
+            embedding_kwargs["input"] = [text]
+            logger.info(f"Context window exceeded, retrying with shorter message of length {new_length}")
+    raise RuntimeError(f"Context window exceeded despite {max_attempts} attempt to shorten input")
 
 
 def _build_completion_kwargs(
@@ -267,20 +253,15 @@ def _build_completion_kwargs(
 
 
 def _query_llm(model: ChatModel, prompt: str, system: str, response_format: Optional[Type[BaseModel]]) -> str:
-    from .cache import cache_query_llm_call
+    from litellm import completion
 
-    def _query_llm_impl(model: ChatModel, prompt: str, system: str, response_format: Optional[Type[BaseModel]]) -> str:
-        from litellm import completion
-
-        messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
-        completion_kwargs = _build_completion_kwargs(
-            model=model,
-            messages=messages,
-            stream=False,
-            tool_choice=None,
-            tools=None,
-            response_format=response_format,
-        )
-        return completion(**completion_kwargs).choices[0].message.content.strip()  # type: ignore
-
-    return cache_query_llm_call(model, prompt, system, response_format, _query_llm_impl)
+    messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
+    completion_kwargs = _build_completion_kwargs(
+        model=model,
+        messages=messages,
+        stream=False,
+        tool_choice=None,
+        tools=None,
+        response_format=response_format,
+    )
+    return completion(**completion_kwargs).choices[0].message.content.strip()  # type: ignore
