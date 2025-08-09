@@ -1,0 +1,68 @@
+{
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_8A5puHZmA2nQ4ErgBZIfkfc1",
+      "function": {
+        "arguments": "",
+        "name": "set_user_preferred_name"
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "{\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "preferred",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "_name",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "Jimmy",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\"}",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    }
+  ]
+}

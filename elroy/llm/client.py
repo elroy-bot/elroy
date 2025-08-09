@@ -48,7 +48,6 @@ def generate_chat_completion_message(
     if force_tool and not tool_schemas:
         raise ValueError(f"Requested tool {force_tool}, but no tools available")
 
-    from litellm import completion
     from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
 
     if context_messages[-1].role == ASSISTANT:
@@ -119,8 +118,10 @@ def generate_chat_completion_message(
             tool_choice=tool_choice,
             tools=tool_schemas,
         )
+        from litellm import completion
 
-        return StreamParser(chat_model, completion(**completion_kwargs))  # type: ignore
+        stream = completion(**completion_kwargs)  # type: ignore
+        return StreamParser(chat_model, stream)
 
     except Exception as e:
         if isinstance(e, BadRequestError):

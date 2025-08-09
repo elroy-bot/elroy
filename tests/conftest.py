@@ -5,6 +5,7 @@ from typing import Any, Generator
 
 import pytest
 from sqlmodel import delete
+from tests.llm_cache_helper import enable_llm_caching
 from tests.utils import MockCliIO
 from toolz import pipe
 from toolz.curried import do
@@ -239,6 +240,13 @@ def rich_formatter():
         warning_color="yellow",
         internal_thought_color="magenta",
     )
+
+
+@pytest.fixture(autouse=True)
+def enable_test_llm_caching():
+    """Automatically enable LLM caching for all tests."""
+    with enable_llm_caching():
+        yield
 
 
 def is_docker_running():

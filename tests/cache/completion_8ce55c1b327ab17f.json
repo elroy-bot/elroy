@@ -1,0 +1,599 @@
+{
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_90k9REUfqdVISvwFf835BVdm",
+      "function": {
+        "arguments": "",
+        "name": "create_goal"
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "{\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "goal",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "_name",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "go",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " to",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " the",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " store",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\",\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "strategy",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "Make",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " a",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " shopping",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " list",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " and",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " allocate",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " time",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " to",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " visit",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " the",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " store",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " by",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " this",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " weekend",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": ".\",\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "description",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "Visit",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " the",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " local",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " grocery",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " store",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " to",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " buy",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " essential",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " items",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " for",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " the",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " week",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": ".\",\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "end",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "_condition",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "George",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " confirms",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " that",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " he",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " has",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " gone",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " to",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " the",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " store",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": ".\",\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "time",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "_to",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "_completion",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "2",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": " DAYS",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\",\"",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "priority",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "\":",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "2",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    },
+    {
+      "id": null,
+      "function": {
+        "arguments": "}",
+        "name": null
+      },
+      "type": "function",
+      "index": 0
+    }
+  ]
+}

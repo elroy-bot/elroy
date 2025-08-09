@@ -1,0 +1,2 @@
+# This directory stores cached LLM responses for tests
+# Cache files should be committed to version control to speed up test runs
