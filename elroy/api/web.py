@@ -5,12 +5,14 @@ from fastapi import FastAPI
 from elroy.api.main import Elroy
 from elroy.utils.clock import string_to_datetime
 
+from ..db.db_models import Memory, Reminder
 from ..models import (
     ApiResponse,
     ChatRequest,
     ChatResponse,
     CreateReminderRequest,
     IngestMemoRequest,
+    IngestMemoResponse,
     MemoryResponse,
     MessageResponse,
     ReminderResponse,
@@ -40,11 +42,14 @@ async def get_current_messages():
     return messages
 
 
-@app.post("/ingest_memo", response_model=ApiResponse)
+@app.post("/ingest_memo", response_model=IngestMemoResponse)
 async def ingest_memo(request: IngestMemoRequest):
     elroy = Elroy()
-    facts = elroy.ingest_memo(request.text)
-    return ApiResponse(result="\n".join(facts))
+    results = elroy.ingest_memo(request.text)
+
+    return IngestMemoResponse(
+        reminders=[m.name for m in results if isinstance(m, Reminder)], memories=[m.name for m in results if isinstance(m, Memory)]
+    )
 
 
 @app.get("/get_current_memories", response_model=List[MemoryResponse])

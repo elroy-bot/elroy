@@ -23,6 +23,11 @@ class IngestMemoRequest(BaseModel):
     text: str = Field(description="The text content of the memo to ingest")
 
 
+class IngestMemoResponse(BaseModel):
+    reminders: List[str] = Field(description="The names of the reminder that was created")
+    memories: List[str] = Field(description="The names of the memory that was created")
+
+
 class CreateMemoryRequest(BaseModel):
     name: str = Field(description="Name/title for the memory - should be specific and describe one topic")
     text: str = Field(description="The detailed text content of the memory")

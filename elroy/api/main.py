@@ -166,7 +166,7 @@ class Elroy:
         return do_create_reminder(self.ctx, name, text, trigger_time, reminder_context)
 
     @db
-    def ingest_memo(self, text: str) -> List[str]:
+    def ingest_memo(self, text: str) -> List[Reminder | Memory]:
         """Ingest a memo text and extract memories and reminders from it.
 
         Args:
@@ -175,9 +175,7 @@ class Elroy:
         Returns:
             List[str]: List of facts from extracted reminders and memories
         """
-        result = do_ingest_memo(self.ctx, text)
-        # Convert to facts while objects are still attached to the session
-        return [m.to_fact() for m in result]
+        return do_ingest_memo(self.ctx, text)
 
     @db
     def remember(self, name: str, text: str) -> str:
