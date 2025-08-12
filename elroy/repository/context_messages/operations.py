@@ -6,7 +6,7 @@ from typing import Any, Callable, Iterable, Iterator, List, TypeVar
 
 from sqlmodel import select
 from toolz import concatv, pipe
-from toolz.curried import filter, tail
+from toolz.curried import tail
 
 from ...config.paths import get_save_dir
 from ...core.async_tasks import schedule_task
@@ -30,11 +30,6 @@ from ..memories.operations import (
     create_mem_from_current_context,
     formulate_memory,
     get_or_create_memory_op_tracker,
-)
-from ..memories.queries import (
-    filter_for_relevance,
-    get_message_content,
-    is_memory_message,
 )
 from ..memories.tools import create_memory
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
@@ -206,25 +201,6 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
             ctx.max_in_context_message_age,
         ),
         partial(replace_context_messages, ctx),
-    )
-
-
-def eject_irrelevant_memories(ctx: ElroyContext) -> None:
-    context_messages = list(get_context_messages(ctx))
-
-    relevant_memory_messages = pipe(
-        context_messages,
-        filter(is_memory_message),
-        list,
-        lambda x: filter_for_relevance(ctx.chat_model, get_message_content(context_messages, 6), x, lambda y: y.content),
-    )
-
-    pipe(
-        context_messages,
-        filter(is_memory_message),
-        filter(lambda m: m not in relevant_memory_messages),
-        list,
-        partial(remove_context_messages, ctx),
     )
 
 

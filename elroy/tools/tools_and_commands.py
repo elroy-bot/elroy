@@ -7,7 +7,6 @@ from toolz.curried import map
 
 from ..cli.slash_commands import (
     add_internal_thought,
-    contemplate,
     memo,
     print_context_messages,
     print_system_instruction,
@@ -32,7 +31,6 @@ from ..repository.documents.tools import (
     ingest_doc,
     reingest_doc,
 )
-from ..repository.memories.operations import remember_convo
 from ..repository.memories.tools import (
     create_memory,
     examine_memories,
@@ -87,7 +85,6 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_source_content_for_memory,
     create_reminder,
     create_memory,
-    contemplate,
     examine_memories,
     get_user_full_name,
     set_user_full_name,
@@ -118,7 +115,6 @@ USER_ONLY_COMMANDS = {
     print_inactive_reminders,
     create_bug_report,
     set_assistant_name,
-    remember_convo,
 }
 ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = {
     f

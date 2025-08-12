@@ -3,11 +3,12 @@ from typing import List, Optional, Union
 from rich.table import Table
 from sqlmodel import col, select
 
-from ...core.constants import SYSTEM, allow_unused, user_only_tool
+from ...core.constants import allow_unused, user_only_tool
 from ...core.ctx import ElroyContext
 from ...db.db_models import Reminder
 from ...utils.clock import db_time_to_local, utc_now
 from ..context_messages.data_models import ContextMessage
+from ..context_messages.tools import to_synthetic_tool_call
 
 
 def get_db_reminder_by_name(ctx: ElroyContext, name: str) -> Optional[Reminder]:
@@ -160,17 +161,7 @@ def get_due_reminder_context_msgs(ctx: ElroyContext) -> List[ContextMessage]:
     if not due_reminders:
         return []
 
-    context_messages = []
-    for reminder in due_reminders:
-        # Create a context message for each due reminder
-        content = f"⏰ REMINDER DUE: '{reminder.name}' - {reminder.text}\n\nThis reminder was scheduled for {reminder.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')} and is now due. Please inform the user about this reminder and then use the delete_reminder tool to remove it from active reminders."  # type: ignore
-
-        context_messages.append(
-            ContextMessage(
-                role=SYSTEM,
-                content=content,
-                chat_model=ctx.chat_model.name,
-            )
-        )
-
-    return context_messages
+    return to_synthetic_tool_call(
+        "get_due_reminders",
+        "\n".join([f"⏰ REMINDER DUE: '{reminder.name}' - {reminder.text}\n\nThis reminder was scheduled for {reminder.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')} and is now due. Please inform the user about this reminder and then use the delete_reminder tool to remove it from active reminders." for reminder in due_reminders]),  # type: ignore
+    )

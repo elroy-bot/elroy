@@ -8,7 +8,7 @@ from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
 from ...config.llm import ChatModel
-from ...core.constants import SYSTEM
+from ...core.constants import SYSTEM, TOOL
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger, log_execution_time
 from ...core.tracing import tracer
@@ -152,6 +152,7 @@ def get_message_content(context_messages: List[ContextMessage], n: int) -> str:
     return pipe(
         context_messages,
         remove(lambda x: x.role == SYSTEM),
+        remove(lambda x: x.role == TOOL),
         remove(is_memory_message),
         tail(4),
         map(lambda x: f"{x.role}: {x.content}" if x.content else None),

@@ -9,19 +9,15 @@ from rich.table import Table
 from toolz import pipe
 from toolz.curried import map, tail
 
-from ..core.constants import ASSISTANT, SYSTEM, TOOL, USER, tool, user_only_tool
+from ..core.constants import ASSISTANT, SYSTEM, TOOL, USER, user_only_tool
 from ..core.ctx import ElroyContext
-from ..llm.client import query_llm
-from ..llm.prompts import contemplate_prompt
-from ..repository.context_messages.data_models import ContextMessage
-from ..repository.context_messages.operations import add_context_message
+from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import (
     get_context_messages,
     get_current_system_instruct,
 )
-from ..repository.context_messages.transforms import format_context_messages
+from ..repository.context_messages.tools import to_synthetic_tool_call
 from ..repository.memo import do_ingest_memo
-from ..repository.user.queries import do_get_user_preferred_name, get_assistant_name
 
 logger = get_logger()
 
@@ -106,55 +102,14 @@ def add_internal_thought(ctx: ElroyContext, thought: str) -> str:
         str: The result of the internal thought addition
     """
 
-    add_context_message(
-        ctx,
-        ContextMessage(
-            role=SYSTEM,
-            content=thought,
-            chat_model=ctx.chat_model.name,
-        ),
+    add_context_messages(
+        to_synthetic_tool_call(
+            "user_added_internal_thought",
+            thought,
+        )
     )
 
     return f"Internal thought added: {thought}"
-
-
-@tool
-def contemplate(ctx: ElroyContext, contemplation_prompt: Optional[str] = None) -> str:
-    """Contemplate the current context and return a response.
-
-    Args:
-        contemplation_prompt (Optional[str]): Custom prompt to guide the contemplation.
-            If not provided, will contemplate the current conversation context.
-
-    Returns:
-        str: A thoughtful response analyzing the current context and any provided prompt.
-    """
-
-    logger.info("Contemplating...")
-    user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
-    assistant_name = get_assistant_name(ctx)
-
-    msgs_input: str = pipe(
-        get_context_messages(ctx),
-        lambda x: format_context_messages(x, user_preferred_name, assistant_name),
-    )  # type: ignore
-
-    response = query_llm(
-        model=ctx.chat_model,
-        prompt=msgs_input,
-        system=contemplate_prompt(user_preferred_name, contemplation_prompt),
-    )
-
-    add_context_message(
-        ctx,
-        ContextMessage(
-            role=SYSTEM,
-            content=response,
-            chat_model=ctx.chat_model.name,
-        ),
-    )
-
-    return response
 
 
 @user_only_tool
