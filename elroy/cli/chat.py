@@ -21,13 +21,12 @@ from ..core.tracing import tracer
 from ..db.db_models import Message
 from ..io.base import ElroyIO
 from ..io.cli import CliIO
-from ..llm.prompts import ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT
+from ..llm.prompts import ONBOARDING_SUPPLEMENT_INSTRUCT
 from ..llm.stream_parser import collect
 from ..messenger.messenger import process_message
 from ..messenger.slash_commands import invoke_slash_command
 from ..repository.context_messages.operations import (
     add_context_messages,
-    eject_irrelevant_memories,
     get_refreshed_system_message,
     refresh_context_if_needed,
     replace_context_messages,
@@ -148,7 +147,6 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
                 io.rule()
                 print_memory_panel(io, ctx)
             schedule_task(refresh_context_if_needed, ctx, replace=True, delay_seconds=5)
-            schedule_task(eject_irrelevant_memories, ctx, replace=True, delay_seconds=30)
 
 
 @tracer.agent
@@ -212,7 +210,7 @@ def onboard_interactive(io: CliIO, ctx: ElroyContext):
         [get_refreshed_system_message(ctx, [])]
         + to_synthetic_tool_call(
             "get_onboarding_instructions",
-            ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT(preferred_name),
+            ONBOARDING_SUPPLEMENT_INSTRUCT(preferred_name),
         ),
     )
 

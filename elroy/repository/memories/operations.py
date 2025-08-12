@@ -4,7 +4,7 @@ from typing import Iterable, List, Optional, Tuple
 from sqlmodel import select
 
 from ...core.async_tasks import schedule_task
-from ...core.constants import MAX_MEMORY_LENGTH, SYSTEM, user_only_tool
+from ...core.constants import MAX_MEMORY_LENGTH
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger, log_execution_time
 from ...core.tracing import tracer
@@ -44,21 +44,6 @@ def create_mem_from_current_context(ctx: ElroyContext):
         list(get_context_messages(ctx)),
     )
     do_create_memory_from_ctx_msgs(ctx, memory_title, memory_text)
-
-
-@user_only_tool
-def remember_convo(ctx: ElroyContext):
-    """Creates a memory of the current conversation, and refreshes the context. Good for topic changes."""
-    from ...messenger.messenger import process_message
-    from .tools import create_memory
-
-    yield from process_message(
-        role=SYSTEM,
-        ctx=ctx,
-        msg="The use has triggered a remember_convo command. Through reminders in context or via a new memory, capture information about the current converstaion",
-        force_tool=create_memory.__name__,
-        enable_tools=True,
-    )
 
 
 def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:

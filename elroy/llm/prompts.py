@@ -6,7 +6,7 @@ from ..core.tracing import tracer
 from ..llm.client import query_llm, query_llm_with_word_limit
 from ..llm.parsing import extract_title_and_body
 
-ONBOARDING_SYSTEM_SUPPLEMENT_INSTRUCT = (
+ONBOARDING_SUPPLEMENT_INSTRUCT = (
     lambda preferred_name: f"""
 This is the first exchange between you and your primary user, {preferred_name}.
 
@@ -72,30 +72,3 @@ Today, {user_noun} went for a 5 mile run. They plan to run a marathon in the spr
     )
 
     return extract_title_and_body(response)
-
-
-DEFAULT_CONTEMPLATE_PROMPT = "Think about the conversation you're in the middle of having. What are important facts to remember?"
-"What conclusions can you draw?"
-"Also consider if any functions might be appropriate to invoke, and why"
-
-
-def contemplate_prompt(user_preferred_name: Optional[str], prompt: Optional[str]) -> str:
-    prompt = prompt or DEFAULT_CONTEMPLATE_PROMPT
-
-    return f"""
-You are the internal thought monologue of an AI personal assistant, forming a memory from a conversation.
-
-Given a conversation summary with your user, {user_preferred_name}, your will reflect on a prompt.
-
-In your reflection, focus on the more recent messages within the conversation.
-
-Your prompt is:
-
-{prompt}
-
-Style guidance:
-- Above all be concise, your response should be no more than 30 words, or 1-3 sentences.
-- If you refer to dates and times, use ISO 8601 format, rather than relative references.
-- Your response should be in the first person voice of the assistant internal thought monolgoue, and should be understood to be as part of an ongoing conversation.
-- "Don't say things like 'finally, we talked about', or 'in conclusion', as this is not the end of the conversation."
-"""
