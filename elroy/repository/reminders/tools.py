@@ -1,14 +1,13 @@
 from typing import Optional
 
-from ...core.constants import SYSTEM, RecoverableToolError, tool
+from ...core.constants import RecoverableToolError, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...utils.clock import string_to_datetime, utc_now
 from ...utils.utils import is_blank
-from ..context_messages.data_models import ContextMessage
-from ..context_messages.operations import add_context_message
+from ..context_messages.operations import add_context_messages
+from ..memories.transforms import to_fast_recall_tool_call
 from ..recall.operations import upsert_embedding_if_needed
-from ..recall.transforms import to_recalled_memory_metadata
 from .operations import (
     do_create_reminder,
     do_deactivate_reminder,
@@ -67,14 +66,9 @@ def create_reminder(
     else:
         content = f"New contextual reminder created: '{name}' triggered by context: {reminder_context}"
 
-    add_context_message(
+    add_context_messages(
         ctx,
-        ContextMessage(
-            role=SYSTEM,
-            content=content,
-            memory_metadata=[to_recalled_memory_metadata(reminder)],
-            chat_model=ctx.chat_model.name,
-        ),
+        to_fast_recall_tool_call(reminder),
     )
 
     upsert_embedding_if_needed(ctx, reminder)
@@ -138,15 +132,6 @@ def rename_reminder(ctx: ElroyContext, old_name: str, new_name: str) -> str:
 
     upsert_embedding_if_needed(ctx, old_reminder)
 
-    add_context_message(
-        ctx,
-        ContextMessage(
-            role=SYSTEM,
-            content=f"Reminder '{old_name}' has been renamed to '{new_name}'",
-            memory_metadata=[to_recalled_memory_metadata(old_reminder)],
-            chat_model=ctx.chat_model.name,
-        ),
-    )
     return f"Reminder '{old_name}' has been renamed to '{new_name}'."
 
 
@@ -198,20 +183,11 @@ def update_reminder_text(ctx: ElroyContext, name: str, new_text: str) -> str:
         valid_reminders = ",".join(sorted(get_active_reminder_names(ctx)))
         raise RecoverableToolError(f"Reminder '{name}' not found. Valid reminders: {valid_reminders}")
 
-    old_text = reminder.text
+    reminder.text
     reminder.text = new_text
     reminder.updated_at = utc_now()  # noqa F841
 
     reminder = ctx.db.persist(reminder)
     upsert_embedding_if_needed(ctx, reminder)
 
-    add_context_message(
-        ctx,
-        ContextMessage(
-            role=SYSTEM,
-            content=f"Updated reminder '{name}' text from '{old_text}' to '{new_text}'",
-            memory_metadata=[to_recalled_memory_metadata(reminder)],
-            chat_model=ctx.chat_model.name,
-        ),
-    )
     return f"Reminder '{name}' text has been updated."

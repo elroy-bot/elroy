@@ -20,7 +20,7 @@ from ...db.db_models import (
     get_memory_source_class,
 )
 from ...llm.client import get_embedding, query_llm_with_response_format
-from ...models import RecallMetadata, ReflectiveRecallResonse
+from ...models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.tools import to_synthetic_tool_call
 from ..context_messages.transforms import (
@@ -33,6 +33,7 @@ from ..recall.queries import (
     is_in_context,
 )
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
+from .transforms import to_fast_recall_tool_call
 
 logger = get_logger()
 
@@ -153,17 +154,12 @@ def get_message_content(context_messages: List[ContextMessage], n: int) -> str:
         context_messages,
         remove(lambda x: x.role == SYSTEM),
         remove(lambda x: x.role == TOOL),
-        remove(is_memory_message),
         tail(4),
         map(lambda x: f"{x.role}: {x.content}" if x.content else None),
         remove(lambda x: x is None),
         list,
         "\n".join,
     )
-
-
-def is_memory_message(context_message: ContextMessage) -> bool:
-    return context_message.memory_metadata is not None and context_message.memory_metadata != []
 
 
 @tracer.chain
@@ -193,10 +189,7 @@ def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessa
     if not memories:
         return []
 
-    return to_synthetic_tool_call(
-        func_name="get_fast_recall",
-        func_response="\n\n".join(x.to_fact() for x in memories),
-    )
+    return to_fast_recall_tool_call(list(memories))
 
 
 @tracer.chain
@@ -266,7 +259,7 @@ def get_reflective_recall(
         assert output.content
         return to_synthetic_tool_call(
             "get_reflective_recall",
-            ReflectiveRecallResonse(
+            RecallResponse(
                 content=output.content,
                 memory_metadata=[RecallMetadata(memory_type=x.__class__.__name__, memory_id=str(x.id)) for x in memories],
             ),

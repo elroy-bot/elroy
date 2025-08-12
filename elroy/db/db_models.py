@@ -199,7 +199,6 @@ class Message(SQLModel, table=True):
     model: Optional[str] = Field(None, description="The model used to generate the message")
     tool_calls: Optional[str] = Field(sa_column=Column(Text), description="Tool calls as JSON string")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call")
-    memory_metadata: Optional[str] = Field(sa_column=Column(Text), description="Metadata for which memory entities as JSON string")
 
 
 class UserPreference(SQLModel, table=True):

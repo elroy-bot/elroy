@@ -1,18 +1,39 @@
+import json
 from typing import Iterable, List, Type, TypeVar
 
-from ...core.constants import tool
+from toolz import pipe
+from toolz.curried import filter, map
+
+from ...core.constants import TOOL, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Memory, Reminder
 from ...llm.client import get_embedding
+from ...models import RECALL_METADATA_KEY, RecallMetadata
 from ..context_messages.data_models import ContextMessage
 
 
 def is_in_context_message(memory: EmbeddableSqlModel, context_message: ContextMessage) -> bool:
-    if not context_message.memory_metadata:
+    if context_message.role != TOOL:
         return False
-    return any(x.memory_type == memory.__class__.__name__ and x.id == memory.id for x in context_message.memory_metadata)
+    else:
+        try:
+            if not context_message.content:
+                return False
+            ans = pipe(
+                context_message.content,
+                json.loads,
+                lambda d: d.get(RECALL_METADATA_KEY, []),
+                map(RecallMetadata.model_validate),
+                filter(lambda r: r.memory_id == memory.id and r.memory_type == memory.__class__.__name__),
+                any,
+            )  # type: ignore
+            assert isinstance(ans, bool)
+            return ans
+
+        except json.JSONDecodeError:
+            return False
 
 
 def is_in_context(context_messages: Iterable[ContextMessage], memory: EmbeddableSqlModel) -> bool:

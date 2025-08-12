@@ -9,6 +9,7 @@ from toolz.curried import filter
 from elroy.db.db_models import Reminder
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.queries import get_context_messages
+from elroy.repository.recall.queries import is_in_context_message
 
 
 def test_reminder_relevance(george_ctx):
@@ -34,28 +35,24 @@ def test_reminder_in_context(george_ctx):
         )
     ).one_or_none()
     assert reminder
-    reminder_id = reminder.id
 
     process_test_message(george_ctx, "I'm off to go play basketball!")
 
     context_messages = list(get_context_messages(george_ctx))
 
-    assert len(messages_with_reminder_id(context_messages, reminder_id)) == 1
+    assert len(messages_with_reminder(context_messages, reminder)) == 1
 
     # Ensure we do not redundantly add the same reminder to the context
     process_test_message(george_ctx, "I'm in the car, heading over to play basketball")
 
     context_messages = list(get_context_messages(george_ctx))
 
-    assert len(messages_with_reminder_id(context_messages, reminder_id)) == 1
+    assert len(messages_with_reminder(context_messages, reminder)) == 1
 
 
-def messages_with_reminder_id(context_messages: List[ContextMessage], reminder_id) -> List[ContextMessage]:
+def messages_with_reminder(context_messages: List[ContextMessage], reminder: Reminder) -> List[ContextMessage]:
     return pipe(
         context_messages,
-        filter(
-            lambda m: m.memory_metadata
-            and any(metadata.id == reminder_id and metadata.memory_type == Reminder.__name__ for metadata in m.memory_metadata)
-        ),
+        filter(lambda msg: is_in_context_message(reminder, msg)),
         list,
     )

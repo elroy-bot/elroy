@@ -7,15 +7,12 @@ from toolz import dissoc, pipe
 from toolz.curried import keyfilter, map
 
 from ..config.llm import ChatModel, EmbeddingModel
-from ..config.models_aliases import get_fallback_model
 from ..core.constants import (
     ASSISTANT,
-    MAX_CHAT_COMPLETION_RETRY_COUNT,
     SYSTEM,
     TOOL,
     USER,
     InvalidForceToolError,
-    MaxRetriesExceededError,
     MissingToolCallMessageError,
     Provider,
 )
@@ -34,7 +31,6 @@ def generate_chat_completion_message(
     tool_schemas: List[Dict[str, Any]],
     enable_tools: bool = True,
     force_tool: Optional[str] = None,
-    retry_number: int = 0,
 ) -> StreamParser:
     """
     Generates a chat completion message.
@@ -49,7 +45,7 @@ def generate_chat_completion_message(
         raise ValueError(f"Requested tool {force_tool}, but no tools available")
 
     from litellm import completion
-    from litellm.exceptions import BadRequestError, InternalServerError, RateLimitError
+    from litellm.exceptions import BadRequestError
 
     if context_messages[-1].role == ASSISTANT:
         if force_tool:
@@ -124,31 +120,8 @@ def generate_chat_completion_message(
         return StreamParser(chat_model, completion(**completion_kwargs))  # type: ignore
 
     except Exception as e:
-        if isinstance(e, BadRequestError):
-            if "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
-                raise MissingToolCallMessageError
-            else:
-                raise e
-        elif isinstance(e, InternalServerError) or isinstance(e, RateLimitError):
-            if retry_number >= MAX_CHAT_COMPLETION_RETRY_COUNT:
-                raise MaxRetriesExceededError()
-            else:
-                fallback_model = get_fallback_model(chat_model)
-                if fallback_model:
-                    logger.info(
-                        f"Rate limit or internal server error for model {chat_model.name}, falling back to model {fallback_model.name}"
-                    )
-                    return generate_chat_completion_message(
-                        fallback_model,
-                        context_messages,
-                        tool_schemas,
-                        enable_tools,
-                        force_tool,
-                        retry_number + 1,
-                    )
-                else:
-                    logging.error(f"No fallback model available for {chat_model.name}, aborting")
-                    raise e
+        if isinstance(e, BadRequestError) and "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
+            raise MissingToolCallMessageError
         else:
             raise e
 

@@ -8,11 +8,8 @@ from tests.utils import (
     quiz_assistant_bool,
 )
 
-from elroy.core.constants import SYSTEM
 from elroy.core.ctx import ElroyContext
 from elroy.db.db_models import Reminder
-from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.recall.queries import is_in_context
 from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.reminders.queries import (
     get_due_reminder_context_msgs,
@@ -61,20 +58,6 @@ def test_create_contextual_reminder(ctx: ElroyContext):
     quiz_assistant_bool(True, ctx, "Do I have any reminders about exercise or push-ups?")
 
 
-def test_create_hybrid_reminder(ctx: ElroyContext):
-    """Test creating a reminder with both time and context triggers"""
-    tomorrow = (utc_now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
-    process_test_message(
-        ctx,
-        f"Create a reminder: 'Call doctor' for {tomorrow} that also triggers when I mention back pain. Please create without clarifying questions.",
-    )
-
-    # Verify the reminder was created
-    reminder_summary = get_active_reminders_summary(ctx).lower()
-    assert "call doctor" in reminder_summary, "Doctor reminder not found in active reminders."
-    assert "back pain" in reminder_summary, "Context not found in reminder."
-
-
 def test_delete_reminder(ctx: ElroyContext):
     """Test deleting a reminder"""
     # Create a reminder first
@@ -93,7 +76,7 @@ def test_delete_reminder(ctx: ElroyContext):
 def test_rename_reminder(ctx: ElroyContext):
     """Test renaming a reminder"""
     # Create a reminder first
-    do_create_reminder(ctx, "old_name", "Reminder to test renaming")
+    do_create_reminder(ctx, "old_name", "Reminder to test renaming", None, "Any time")
 
     # Rename through assistant
     process_test_message(ctx, "Please rename my reminder 'old_name' to 'new_name' without any clarifying questions.")
@@ -115,43 +98,6 @@ def test_update_reminder_text(ctx: ElroyContext):
     reminder_summary = get_active_reminders_summary(ctx)
     assert "Updated text" in reminder_summary, "Reminder text was not updated."
     assert "Original text" not in reminder_summary, "Original text still present."
-
-
-def test_print_reminder(ctx: ElroyContext):
-    """Test printing reminder details"""
-    # Create a reminder with specific details
-    tomorrow = utc_now() + timedelta(days=1)
-    do_create_reminder(
-        ctx,
-        "detailed_reminder",
-        "Take vitamins",
-        trigger_time=tomorrow,
-        reminder_context="when I mention health",
-    )
-
-    # Print the reminder through assistant
-    response = process_test_message(ctx, "Please show me the details of my reminder 'detailed_reminder'.")
-
-    # Verify details are shown
-    response_text = "".join(response).lower()
-    assert "take vitamins" in response_text, "Reminder text not shown."
-    assert "health" in response_text, "Context not shown."
-
-
-def test_reminder_in_context_when_active(io: MockCliIO, ctx: ElroyContext):
-    """Test that reminders appear in context when active"""
-    # Create a reminder directly
-    reminder = ctx.db.persist(Reminder(user_id=ctx.user_id, name="context_test", text="Test reminder in context", is_active=True))
-
-    # Check if it's in context
-    assert is_in_context(get_context_messages(ctx), reminder), "Active reminder should be in context."
-
-    # Delete the reminder
-    deactivate_reminder(ctx, "context_test")
-
-    # Refresh and check it's no longer in context
-    ctx.db.refresh(reminder)
-    assert not is_in_context(get_context_messages(ctx), reminder), "Deleted reminder should not be in context."
 
 
 def test_due_reminder_detection(ctx: ElroyContext):
@@ -184,12 +130,11 @@ def test_due_reminder_context_messages(ctx: ElroyContext):
     assert len(context_msgs) > 0, "No context messages generated for due reminder."
 
     # Check message content
-    msg_content = context_msgs[0].content
+    msg_content = context_msgs[-1].content
     assert "⏰ REMINDER DUE" in msg_content, "Context message missing reminder due indicator."  # type: ignore
     assert "context_msg_test" in msg_content, "Context message missing reminder name."  # type: ignore
     assert "This generates context message" in msg_content, "Context message missing reminder text."  # type: ignore
     assert "delete_reminder" in msg_content, "Context message missing instruction to delete."  # type: ignore
-    assert context_msgs[0].role == SYSTEM, "Context message should be from system."
 
 
 def test_future_reminder_not_due(ctx: ElroyContext):

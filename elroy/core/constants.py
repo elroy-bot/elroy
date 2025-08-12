@@ -35,8 +35,6 @@ MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
 EXIT = "exit"
 
-MAX_CHAT_COMPLETION_RETRY_COUNT = 2
-
 IS_TOOL = "_is_tool"
 IS_ENABLED = "_is_enabled"
 IS_USER_ONLY_TOOL = "_is_user_only_tool"
@@ -65,10 +63,6 @@ class MissingToolCallMessageError(Exception):
 
 
 class InvalidForceToolError(Exception):
-    pass
-
-
-class MaxRetriesExceededError(Exception):
     pass
 
 
