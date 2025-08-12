@@ -6,14 +6,13 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from ...core.constants import SYSTEM
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import EmbeddableSqlModel
 from ...llm.client import get_embedding
-from ..context_messages.data_models import ContextMessage, RecalledMemoryMetadata
-from ..context_messages.operations import add_context_message, remove_context_messages
+from ..context_messages.operations import add_context_messages, remove_context_messages
 from ..context_messages.queries import get_context_messages
+from ..memories.transforms import to_fast_recall_tool_call
 from .queries import is_in_context, is_in_context_message
 
 logger = get_logger()
@@ -48,15 +47,7 @@ def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
     if is_in_context(context_messages, memory):
         logger.info(f"Memory of type {memory.__class__.__name__} with id {memory_id} already in context.")
     else:
-        add_context_message(
-            ctx,
-            ContextMessage(
-                role=SYSTEM,
-                memory_metadata=[RecalledMemoryMetadata(memory_type=memory.__class__.__name__, id=memory_id, name=memory.get_name())],
-                content=memory.to_fact(),
-                chat_model=None,
-            ),
-        )
+        add_context_messages(ctx, to_fast_recall_tool_call([memory]))
 
 
 def remove_from_context(ctx: ElroyContext, memory: EmbeddableSqlModel):

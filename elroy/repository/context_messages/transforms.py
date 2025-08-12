@@ -18,7 +18,7 @@ from ...llm.utils import count_tokens
 from ...utils.clock import ensure_utc, utc_now
 from ...utils.utils import datetime_to_string, last_or_none
 from ..user.queries import do_get_assistant_name, do_get_user_preferred_name
-from .data_models import ContextMessage, RecalledMemoryMetadata
+from .data_models import ContextMessage
 
 logger = get_logger()
 
@@ -54,11 +54,6 @@ def db_message_to_context_message(db_message: Message) -> ContextMessage:
         ),
         tool_call_id=db_message.tool_call_id,
         chat_model=db_message.model,
-        memory_metadata=pipe(
-            json.loads(db_message.memory_metadata or "[]") or [],
-            map(lambda x: RecalledMemoryMetadata(**x)),
-            list,
-        ),
     )
 
 
@@ -73,7 +68,6 @@ def context_message_to_db_message(user_id: int, context_message: ContextMessage)
         model=context_message.chat_model,
         tool_calls=json.dumps([asdict(t) for t in context_message.tool_calls]) if context_message.tool_calls else None,
         tool_call_id=context_message.tool_call_id,
-        memory_metadata=json.dumps([asdict(m) for m in context_message.memory_metadata]),
     )
 
 

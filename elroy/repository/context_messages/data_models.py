@@ -1,17 +1,10 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
 from ...core.constants import ASSISTANT, TOOL
 from ...db.db_models import ToolCall
 from ...utils.clock import utc_now
-
-
-@dataclass
-class RecalledMemoryMetadata:
-    memory_type: str
-    id: int
-    name: str
 
 
 @dataclass
@@ -23,7 +16,6 @@ class ContextMessage:
     created_at: datetime = field(default_factory=utc_now)
     tool_calls: Optional[List[ToolCall]] = None
     tool_call_id: Optional[str] = None
-    memory_metadata: List[RecalledMemoryMetadata] = field(default_factory=list)
 
     def as_dict(self):
         return {
@@ -34,7 +26,6 @@ class ContextMessage:
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at is not None else None,
             "tool_calls": [tc.to_json() for tc in self.tool_calls] if self.tool_calls is not None else None,
             "tool_call_id": self.tool_call_id,
-            "memory_metadata": [asdict(mm) for mm in self.memory_metadata],
         }
 
     def __post_init__(self):
