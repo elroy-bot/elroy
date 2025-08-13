@@ -226,6 +226,16 @@ class ContextMessageSet(SQLModel, table=True):
     is_active: Optional[bool] = Field(True, description="Whether the context is active")
 
 
+class WaitlistSignup(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("email"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    email: str = Field(..., description="Email address of the waitlist signup")
+    use_case: Optional[str] = Field(default=None, description="Use case provided by the user")
+    platform: Optional[str] = Field(default=None, description="Platform preference (iOS/Android)")
+
+
 def get_mem_source_options() -> Dict[str, Type[MemorySource]]:
     # Note, this is brittle! Should be replaced in the future with a registration process.
     from ..repository.context_messages.transforms import ContextMessageSetWithMessages

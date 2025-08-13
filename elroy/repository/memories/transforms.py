@@ -15,6 +15,6 @@ def to_fast_recall_tool_call(memories: Union[EmbeddableSqlModel, List[Embeddable
         func_name="get_fast_recall",
         func_response=RecallResponse(
             content="\n".join([m.to_fact() for m in memories]),
-            memory_metadata=[RecallMetadata(memory_type=m.__class__.__name__, memory_id=str(m.id)) for m in memories],
+            memory_metadata=[RecallMetadata(memory_type=m.__class__.__name__, memory_id=m.id) for m in memories],  # type: ignore
         ),  # type: ignore
     )
