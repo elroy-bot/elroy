@@ -78,6 +78,8 @@ class Provider(enum.Enum):
     OTHER = "other"
 
 
+ELROY_DATABASE_URL = "ELROY_DATABASE_URL"
+
 GEMINI_PREFIX = "gemini"
 AZURE_PREFIX = "azure"
 

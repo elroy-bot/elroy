@@ -6,6 +6,7 @@ from alembic import context
 from toolz import pipe
 from toolz.curried import do, keymap
 
+from elroy.core.constants import ELROY_DATABASE_URL
 from elroy.db.migrate import run_migrations_offline, run_migrations_online
 
 # this is the Alembic Config object, which provides
@@ -19,7 +20,7 @@ if not database_url:
         context.get_x_argument(as_dictionary=True),
         keymap(str.lower),
         keymap(lambda x: x.replace("-", "_")),
-        lambda x: x.get("database_url") or os.environ.get("ELROY_DATABASE_URL"),
+        lambda x: x.get("database_url") or os.environ.get(ELROY_DATABASE_URL),
         do(partial(config.set_main_option, "sqlalchemy.url")),
     )
 

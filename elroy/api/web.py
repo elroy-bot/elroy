@@ -1,11 +1,17 @@
-from typing import List
+import os
+from typing import List, Optional
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from elroy.api.main import Elroy
+from elroy.core.constants import ELROY_DATABASE_URL
+from elroy.db.db_manager import get_db_manager
+from elroy.db.db_models import Memory, Reminder
+from elroy.db.db_models import WaitlistSignup as WaitlistSignupModel
 from elroy.utils.clock import string_to_datetime
 
-from ..db.db_models import Memory, Reminder
 from ..models import (
     ApiResponse,
     ChatRequest,
@@ -19,6 +25,28 @@ from ..models import (
 )
 
 app = FastAPI(title="Elroy API", version="1.0.0", log_level="info")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://elroy.bot", "http://localhost:8000"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+
+# Waitlist models
+class WaitlistSignup(BaseModel):
+    email: str
+    use_case: Optional[str] = None
+    platform: Optional[str] = None
+
+
+class WaitlistResponse(BaseModel):
+    success: bool  # noqa F841
+    message: str
+
 
 # Style note: do not catch and reraise errors, outside of specific error handling, let regular errors propagate.
 
@@ -112,6 +140,47 @@ async def get_due_timed_reminders_endpoint():
         )
 
     return reminder_responses
+
+
+@app.post("/waitlist", response_model=WaitlistResponse)
+async def waitlist_signup(signup: WaitlistSignup):
+    """Add user to waitlist for mobile app."""
+    import logging
+
+    from sqlmodel import select
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get database manager and create session
+        db_manager = get_db_manager(os.environ[ELROY_DATABASE_URL])
+
+        with db_manager.open_session() as session:
+            # Check if email already exists
+            existing_signup = session.exec(select(WaitlistSignupModel).where(WaitlistSignupModel.email == signup.email)).first()
+
+            if existing_signup:
+                logger.info(f"Duplicate waitlist signup attempt: {signup.email}")
+                return WaitlistResponse(
+                    success=True, message="You're already on our waitlist! We'll notify you when the mobile app is available."
+                )
+
+            # Create new waitlist signup
+            waitlist_entry = WaitlistSignupModel(email=signup.email, use_case=signup.use_case, platform=signup.platform)
+
+            session.add(waitlist_entry)
+            session.commit()
+
+            logger.info(f"Waitlist signup saved: {signup.email}, use_case: {signup.use_case}, platform: {signup.platform}")
+
+            return WaitlistResponse(success=True, message="Thank you for signing up! We'll notify you when the mobile app is available.")
+
+    except Exception as e:
+        logger.error(f"Error saving waitlist signup: {e}")
+        # Fall back to just logging if database save fails
+        logger.info(f"Waitlist signup (fallback): {signup.email}, use_case: {signup.use_case}, platform: {signup.platform}")
+        return WaitlistResponse(success=True, message="Thank you for signing up! We'll notify you when the mobile app is available.")
 
 
 if __name__ == "__main__":

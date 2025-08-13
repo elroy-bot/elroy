@@ -261,7 +261,7 @@ def get_reflective_recall(
             "get_reflective_recall",
             RecallResponse(
                 content=output.content,
-                memory_metadata=[RecallMetadata(memory_type=x.__class__.__name__, memory_id=str(x.id)) for x in memories],
+                memory_metadata=[RecallMetadata(memory_type=x.__class__.__name__, memory_id=x.id) for x in memories],  # type: ignore
             ),
         )
 
