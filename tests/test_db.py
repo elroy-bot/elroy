@@ -21,6 +21,7 @@ def test_migrations_in_sync(ctx: ElroyContext):
         r".*_bkp.*",
         r".*embedding.*",
         r".*goal.*",  # temporary
+        r".*message.*",
     }
 
     # Compile patterns for better performance

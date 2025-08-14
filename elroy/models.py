@@ -75,4 +75,4 @@ class RecallMetadata(BaseModel):
 
 class RecallResponse(BaseModel):
     content: str
-    memory_metadata: List[RecallMetadata]  # noqa F841
+    recall_metadata: List[RecallMetadata]  # noqa F841
