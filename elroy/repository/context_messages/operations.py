@@ -123,7 +123,9 @@ def add_context_message(ctx: ElroyContext, message: ContextMessage) -> None:
 @retry_on_integrity_error
 def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> None:
     msgs_list = list(messages)
-    user_and_asst_msgs_ct = len([msg for msg in msgs_list if msg.role in {USER, ASSISTANT}])
+    user_and_asst_msgs_ct = len(
+        [msg for msg in msgs_list if msg.role == USER and msg.content]
+    )  # critical to filter no-content assistant messages, to prevent infinite loops for memory creation triggers
 
     pipe(
         concatv(get_context_messages(ctx), msgs_list),

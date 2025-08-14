@@ -32,6 +32,10 @@ def dummy_msgs():
         ContextMessage(role=ASSISTANT, content="Test response 1", chat_model=None),
         ContextMessage(role=USER, content="Test message 2", chat_model=None),
         ContextMessage(role=ASSISTANT, content="Test response 2", chat_model=None),
+        ContextMessage(role=USER, content="Test message 3", chat_model=None),
+        ContextMessage(role=ASSISTANT, content="Test response 3", chat_model=None),
+        ContextMessage(role=USER, content="Test message 4", chat_model=None),
+        ContextMessage(role=ASSISTANT, content="Test response 4", chat_model=None),
     ]
 
 
@@ -98,7 +102,7 @@ def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: List[C
     new_memory_ct = len(get_active_memories(mem_op_ctx))
     assert new_memory_ct == memory_ct + 1
 
-    add_context_messages(mem_op_ctx, dummy_msgs[2:])
+    add_context_messages(mem_op_ctx, dummy_msgs[-4:])
 
     tracker = get_or_create_memory_op_tracker(mem_op_ctx)
     assert tracker.messages_since_memory == 2

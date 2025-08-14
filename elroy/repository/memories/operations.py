@@ -153,6 +153,7 @@ def do_create_op_tracked_memory(
     logger.info("Checking memory consolidation")
     tracker.messages_since_memory = 0
     tracker.memories_since_consolidation += 1
+    tracker = ctx.db.persist(tracker)
     logger.info(f"{tracker.memories_since_consolidation} memories since last consolidation")
 
     if tracker.memories_since_consolidation >= ctx.memories_between_consolidation:
@@ -162,7 +163,7 @@ def do_create_op_tracked_memory(
         logger.info("Running memory consolidation")
         schedule_task(consolidate_memories, ctx)
         tracker.memories_since_consolidation = 0
+        tracker = ctx.db.persist(tracker)
     else:
         logger.info("Not running memory consolidation")
-    ctx.db.persist(tracker)
     return memory

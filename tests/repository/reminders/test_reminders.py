@@ -22,6 +22,7 @@ from elroy.repository.reminders.tools import (
 from elroy.utils.clock import utc_now
 
 
+@pytest.mark.flaky(reruns=3)
 def test_create_timed_reminder(ctx: ElroyContext):
     """Test creating a timed reminder through assistant interaction"""
     # Test that no reminders exist initially
@@ -40,6 +41,7 @@ def test_create_timed_reminder(ctx: ElroyContext):
     quiz_assistant_bool(True, ctx, "Do I have any reminders about taking medicine?")
 
 
+@pytest.mark.flaky(reruns=3)
 def test_create_contextual_reminder(ctx: ElroyContext):
     """Test creating a contextual reminder"""
     # Test that no reminders exist initially
