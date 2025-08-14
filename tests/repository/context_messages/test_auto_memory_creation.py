@@ -94,7 +94,7 @@ def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: List[C
     add_context_messages(mem_op_ctx, dummy_msgs[:2])
     tracker = get_or_create_memory_op_tracker(mem_op_ctx)
     memory_ct = len(get_active_memories(mem_op_ctx))
-    do_create_op_tracked_memory(mem_op_ctx, "Test memory", "Here's a test memory", [], tracker, False)
+    do_create_op_tracked_memory(mem_op_ctx, "Test memory", "Here's a test memory", [], False)
     new_memory_ct = len(get_active_memories(mem_op_ctx))
     assert new_memory_ct == memory_ct + 1
 

@@ -39,6 +39,7 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
 
 @log_execution_time
 def create_mem_from_current_context(ctx: ElroyContext):
+    logger.info("Creating memory from current context")
     memory_title, memory_text = formulate_memory(
         ctx,
         list(get_context_messages(ctx)),
@@ -69,7 +70,7 @@ def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str
             prompt=text,
         )
 
-    do_create_memory_from_ctx_msgs(ctx, name, text)
+    do_create_memory(ctx, name, text, [], True)
 
 
 def formulate_memory(ctx: ElroyContext, context_messages: List[ContextMessage]) -> Tuple[str, str]:
@@ -106,7 +107,6 @@ def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> M
         name,
         text,
         [get_or_create_context_message_set(ctx)],
-        get_or_create_memory_op_tracker(ctx),
         True,
     )
 
@@ -143,11 +143,12 @@ def do_create_op_tracked_memory(
     name: str,
     text: str,
     source_metadata: Iterable[MemorySource],
-    tracker: MemoryOperationTracker,
     add_mem_to_context: bool,
 ) -> Memory:
 
     memory = do_create_memory(ctx, name, text, source_metadata, add_mem_to_context)
+
+    tracker = get_or_create_memory_op_tracker(ctx)
 
     logger.info("Checking memory consolidation")
     tracker.messages_since_memory = 0
@@ -163,6 +164,5 @@ def do_create_op_tracked_memory(
         tracker.memories_since_consolidation = 0
     else:
         logger.info("Not running memory consolidation")
-    ctx.db.add(tracker)
-    ctx.db.commit()
+    ctx.db.persist(tracker)
     return memory

@@ -35,6 +35,7 @@ from ..repository.memo import do_ingest_memo
 from ..repository.memories.queries import get_memories
 from ..repository.memories.tools import create_memory as do_create_memory
 from ..repository.memories.tools import examine_memories as do_query_memory
+from ..repository.recall.queries import get_recall_metadata
 from ..repository.reminders.operations import do_create_reminder
 from ..repository.reminders.queries import (
     get_active_reminders as do_get_active_reminders,
@@ -231,8 +232,7 @@ class Elroy:
         """Retrieves the list of memories currently in context"""
         return pipe(
             self.get_current_messages(),
-            map(lambda m: m.memory_metadata),
-            filter(lambda m: m is not None),
+            map(get_recall_metadata),
             concat,
             filter(lambda m: m.memory_type == Memory.__name__),
             map(lambda m: m.id),

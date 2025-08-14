@@ -70,8 +70,9 @@ RECALL_METADATA_KEY = "recall_metadata"
 class RecallMetadata(BaseModel):
     memory_type: str
     memory_id: int
+    name: str
 
 
 class RecallResponse(BaseModel):
     content: str
-    memory_metadata: List[RecallMetadata]
+    memory_metadata: List[RecallMetadata]  # noqa F841
