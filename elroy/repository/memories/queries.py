@@ -30,6 +30,7 @@ from ..context_messages.transforms import (
 from ..recall.queries import (
     get_most_relevant_memories,
     get_most_relevant_reminders,
+    get_recall_metadata,
     is_in_context,
 )
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
@@ -261,7 +262,14 @@ def get_reflective_recall(
             "get_reflective_recall",
             RecallResponse(
                 content=output.content,
-                memory_metadata=[RecallMetadata(memory_type=x.__class__.__name__, memory_id=x.id) for x in memories],  # type: ignore
+                memory_metadata=[
+                    RecallMetadata(
+                        memory_type=x.__class__.__name__,
+                        memory_id=x.id,
+                        name=x.get_name(),
+                    )
+                    for x in memories
+                ],  # type: ignore
             ),
         )
 
@@ -269,8 +277,7 @@ def get_reflective_recall(
 def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> List[str]:
     return pipe(
         context_messages,
-        map(lambda m: m.memory_metadata),
-        filter(lambda m: m is not None),
+        map(get_recall_metadata),
         concat,
         map(lambda m: f"{m.memory_type}: {m.name}"),
         unique,

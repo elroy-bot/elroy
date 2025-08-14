@@ -1,7 +1,7 @@
 import json
-from typing import Iterable, List, Type, TypeVar
+from typing import Iterable, List, Optional, Type, TypeVar
 
-from toolz import pipe
+from toolz import identity, pipe
 from toolz.curried import filter, map
 
 from ...core.constants import TOOL, tool
@@ -14,26 +14,25 @@ from ...models import RECALL_METADATA_KEY, RecallMetadata
 from ..context_messages.data_models import ContextMessage
 
 
-def is_in_context_message(memory: EmbeddableSqlModel, context_message: ContextMessage) -> bool:
-    if context_message.role != TOOL:
-        return False
+def get_recall_metadata(context_message: ContextMessage, recall_type: Optional[Type[EmbeddableSqlModel]] = None) -> List[RecallMetadata]:
+    if context_message.role != TOOL or not context_message.content:
+        return []
     else:
         try:
-            if not context_message.content:
-                return False
-            ans = pipe(
+            return pipe(
                 context_message.content,
                 json.loads,
                 lambda d: d.get(RECALL_METADATA_KEY, []),
                 map(RecallMetadata.model_validate),
-                filter(lambda r: r.memory_id == memory.id and r.memory_type == memory.__class__.__name__),
-                any,
+                filter(lambda m: m.memory_type == recall_type.__name__) if recall_type else identity,
+                list,
             )  # type: ignore
-            assert isinstance(ans, bool)
-            return ans
-
         except json.JSONDecodeError:
-            return False
+            return []
+
+
+def is_in_context_message(memory: EmbeddableSqlModel, context_message: ContextMessage) -> bool:
+    return any(r.memory_id == memory.id and r.memory_type == memory.__class__.__name__ for r in get_recall_metadata(context_message))
 
 
 def is_in_context(context_messages: Iterable[ContextMessage], memory: EmbeddableSqlModel) -> bool:

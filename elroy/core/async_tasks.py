@@ -56,9 +56,6 @@ def schedule_task(
     **kwargs,
 ) -> Optional[Job]:
     """
-    Schedule a task to run in the background using APScheduler.
-    This is a replacement for the run_in_background function.
-
     Args:
         fn: The function to run
         ctx: The ElroyContext instance
