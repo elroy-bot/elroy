@@ -49,7 +49,7 @@ def autoflake_files():
 
 def run_vulture():
     print("Running vulture...")
-    run_command("""uv run vulture --exclude ".venv,alembic/,examples/,scripts/,api/main.py,mcp/,markdown_formatter.py" --ignore-decorators="@pytest.fixture,@allow_unused,@mcp_app.command,@app.command,@app.get,@app.post,@field_validator" .""", True)
+    run_command("""uv run vulture --exclude ".venv,alembic/,examples/,scripts/,api/main.py,mcp/,markdown_formatter.py" --ignore-decorators="@pytest.fixture,@allow_unused,@mcp_app.command,@app.command,@app.get,@app.post,@field_validator,@app.exception_handler" .""", True)
 
 def ensure_not_main():
     protected_branch = "main"
