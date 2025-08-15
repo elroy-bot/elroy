@@ -40,9 +40,6 @@ from ..repository.reminders.operations import do_complete_reminder, do_create_re
 from ..repository.reminders.queries import (
     get_active_reminders as do_get_active_reminders,
 )
-from ..repository.reminders.queries import (
-    get_due_timed_reminders as do_get_due_timed_reminders,
-)
 from ..repository.reminders.queries import get_reminders as do_get_reminders
 from ..repository.user.operations import set_assistant_name, set_persona
 from ..repository.user.queries import get_persona as do_get_persona
@@ -133,15 +130,6 @@ class Elroy:
             str: A response synthesizing relevant memories that match the query
         """
         return do_query_memory(self.ctx, query)
-
-    @db
-    def get_due_timed_reminders(self) -> List[Reminder]:
-        """Get all reminders that are due based on their trigger time.
-
-        Returns:
-            List[Reminder]: List of reminders that are currently due
-        """
-        return do_get_due_timed_reminders(self.ctx)
 
     @db
     def get_active_reminders(self) -> List[Reminder]:
