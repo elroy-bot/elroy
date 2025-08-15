@@ -15,7 +15,7 @@ from elroy.core.constants import USER
 from elroy.io.formatters.markdown_formatter import MarkdownFormatter
 from elroy.repository.user.tools import get_user_preferred_name, set_user_preferred_name
 
-# TODO:
+# Possible improvements:
 # - limit responses to 2000 characters
 # - adjust system instruct to let elroy know when it's a dm or group dm
 

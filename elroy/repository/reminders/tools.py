@@ -9,8 +9,9 @@ from ..context_messages.operations import add_context_messages
 from ..memories.transforms import to_fast_recall_tool_call
 from ..recall.operations import upsert_embedding_if_needed
 from .operations import (
+    do_complete_reminder,
     do_create_reminder,
-    do_deactivate_reminder,
+    do_delete_reminder,
 )
 from .queries import (
     get_active_reminder_names,
@@ -83,20 +84,31 @@ def create_reminder(
 
 
 @tool
-def deactivate_reminder(ctx: ElroyContext, name: str) -> str:
+def complete_reminder(ctx: ElroyContext, name: str, closing_comment: Optional[str] = None) -> str:
+    """Marks a reminder as completed.
+
+    Args:
+        name (str): The name of the reminder to mark complete
+        closing_comment (Optional[str]): Optional comment on why the reminder was completed
+
+    Returns:
+        str: Confirmation message that the reminder was completed
+    """
+    return do_complete_reminder(ctx, name, closing_comment)
+
+
+@tool
+def delete_reminder(ctx: ElroyContext, name: str, closing_comment: Optional[str] = None) -> str:
     """Permanently deletes a reminder (timed, contextual, or hybrid).
 
     Args:
         name (str): The name of the reminder to delete
+        closing_comment (Optional[str]): Optional comment on why the reminder was deleted
 
     Returns:
         str: Confirmation message that the reminder was deleted
-
-    Raises:
-        ReminderDoesNotExistError: If the reminder doesn't exist
     """
-    do_deactivate_reminder(ctx, name)
-    return f"Reminder '{name}' has been deleted."
+    return do_delete_reminder(ctx, name, closing_comment)
 
 
 @tool

@@ -3,25 +3,25 @@
 from datetime import timedelta
 
 import pytest
-from tests.utils import MockCliIO, process_test_message, quiz_assistant_bool
+from tests.utils import (
+    MockCliIO,
+    create_reminder_in_past,
+    process_test_message,
+    quiz_assistant_bool,
+)
 
 from elroy.core.ctx import ElroyContext
-from elroy.db.db_models import Reminder
+from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.reminders.queries import get_due_reminder_context_msgs
 from elroy.utils.clock import utc_now
 
 
 def test_due_reminder_surfaces_in_conversation(io: MockCliIO, ctx: ElroyContext):
     """Test that due reminders automatically surface in conversation"""
-    # Create a reminder that's already due
-    past_time = utc_now() - timedelta(minutes=5)
-    due_reminder = Reminder(
-        user_id=ctx.user_id, name="medicine_reminder", text="Take your daily medicine", trigger_datetime=past_time, is_active=True
-    )
-    ctx.db.add(due_reminder)
-    ctx.db.commit()
+    # Create a reminder for 5 minutes from now
+    create_reminder_in_past(ctx=ctx, name="medicine_reminder", text="Take your daily medicine")
 
-    # Start a conversation - the due reminder should be surfaced
+    # Start a conversation - the due reminder should be surfaced (time is now 10 minutes ahead)
     response = process_test_message(ctx, "Hi, how are you doing today?")
 
     response_text = "".join(response).lower()
@@ -35,17 +35,10 @@ def test_due_reminder_surfaces_in_conversation(io: MockCliIO, ctx: ElroyContext)
 
 def test_multiple_due_reminders_all_surface(io: MockCliIO, ctx: ElroyContext):
     """Test that multiple due reminders all surface in conversation"""
-    past_time = utc_now() - timedelta(minutes=10)
 
     # Create multiple due reminders
-    reminders = [
-        Reminder(user_id=ctx.user_id, name="reminder1", text="First due reminder", trigger_datetime=past_time, is_active=True),
-        Reminder(user_id=ctx.user_id, name="reminder2", text="Second due reminder", trigger_datetime=past_time, is_active=True),
-    ]
-
-    for reminder in reminders:
-        ctx.db.add(reminder)
-    ctx.db.commit()
+    create_reminder_in_past(ctx=ctx, name="reminder1", text="First due reminder")
+    create_reminder_in_past(ctx=ctx, name="reminder2", text="Second due reminder")
 
     # Get context messages - should have one for each due reminder
     context_msgs = get_due_reminder_context_msgs(ctx)
@@ -64,12 +57,7 @@ def test_multiple_due_reminders_all_surface(io: MockCliIO, ctx: ElroyContext):
 def test_assistant_uses_delete_reminder_for_due_reminders(io: MockCliIO, ctx: ElroyContext):
     """Test that assistant uses delete_reminder tool when handling due reminders"""
     # Create a due reminder
-    past_time = utc_now() - timedelta(minutes=5)
-    due_reminder = Reminder(
-        user_id=ctx.user_id, name="cleanup_test", text="This should be cleaned up", trigger_datetime=past_time, is_active=True
-    )
-    ctx.db.add(due_reminder)
-    ctx.db.commit()
+    create_reminder_in_past(ctx=ctx, name="cleanup_test", text="This should be cleaned up")
 
     # Start a conversation where the assistant should handle the due reminder
     process_test_message(ctx, "Hello, please handle any due reminders and clean them up.")
@@ -82,11 +70,11 @@ def test_no_due_reminders_no_extra_context(io: MockCliIO, ctx: ElroyContext):
     """Test that when no reminders are due, no extra context is added"""
     # Create a future reminder (not due)
     future_time = utc_now() + timedelta(days=1)
-    future_reminder = Reminder(
-        user_id=ctx.user_id, name="future_reminder", text="This is for tomorrow", trigger_datetime=future_time, is_active=True
-    )
-    ctx.db.add(future_reminder)
-    ctx.db.commit()
+    future_reminder = do_create_reminder(ctx=ctx, name="future_reminder", text="This is for tomorrow", trigger_time=future_time)
+    # Mark it as completed for the test
+    future_reminder.status = "completed"
+    future_reminder.is_active = False
+    ctx.db.persist(future_reminder)
 
     # Get context messages - should be empty for due reminders
     context_msgs = get_due_reminder_context_msgs(ctx)
@@ -104,11 +92,7 @@ def test_no_due_reminders_no_extra_context(io: MockCliIO, ctx: ElroyContext):
 def test_contextual_reminders_not_auto_surfaced(io: MockCliIO, ctx: ElroyContext):
     """Test that contextual-only reminders are not automatically surfaced by time"""
     # Create a contextual reminder
-    contextual_reminder = Reminder(
-        user_id=ctx.user_id, name="stress_reminder", text="Take deep breaths", reminder_context="when user mentions stress", is_active=True
-    )
-    ctx.db.add(contextual_reminder)
-    ctx.db.commit()
+    do_create_reminder(ctx=ctx, name="stress_reminder", text="Take deep breaths", reminder_context="when user mentions stress")
 
     # Get context messages - should be empty for contextual reminders
     context_msgs = get_due_reminder_context_msgs(ctx)
@@ -124,17 +108,12 @@ def test_contextual_reminders_not_auto_surfaced(io: MockCliIO, ctx: ElroyContext
 def test_hybrid_reminder_surfaces_when_time_due(io: MockCliIO, ctx: ElroyContext):
     """Test that hybrid reminders surface when their time component is due"""
     # Create a hybrid reminder that's time-due
-    past_time = utc_now() - timedelta(minutes=5)
-    hybrid_reminder = Reminder(
-        user_id=ctx.user_id,
+    create_reminder_in_past(
+        ctx=ctx,
         name="hybrid_test",
         text="Hybrid reminder text",
-        trigger_datetime=past_time,
         reminder_context="when user mentions work",
-        is_active=True,
     )
-    ctx.db.add(hybrid_reminder)
-    ctx.db.commit()
 
     # Should be detected as due
     context_msgs = get_due_reminder_context_msgs(ctx)
@@ -150,19 +129,12 @@ def test_hybrid_reminder_surfaces_when_time_due(io: MockCliIO, ctx: ElroyContext
 @pytest.mark.flaky(reruns=3)
 def test_reminder_workflow_through_messenger(io: MockCliIO, ctx: ElroyContext):
     """Test complete reminder workflow through natural conversation"""
-    # Create a timed reminder for "now" (slightly in the past)
-    past_time = utc_now() - timedelta(seconds=30)
-
-    # Process message to create the reminder first
+    # Process message to create the reminder first (this is not time-dependent)
     tomorrow = (utc_now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
     process_test_message(ctx, f"Create a reminder: 'Call mom' for {tomorrow}. Create without questions.")
 
-    # Now manually create a due reminder to test the surfacing
-    due_reminder = Reminder(
-        user_id=ctx.user_id, name="urgent_call", text="Call back the client urgently", trigger_datetime=past_time, is_active=True
-    )
-    ctx.db.add(due_reminder)
-    ctx.db.commit()
+    # Create a timed reminder that will be due
+    create_reminder_in_past(ctx=ctx, name="urgent_call", text="Call back the client urgently")
 
     # Start a conversation - should surface the due reminder
     response = process_test_message(ctx, "Hi, what should I focus on right now?")
@@ -178,5 +150,5 @@ def test_reminder_workflow_through_messenger(io: MockCliIO, ctx: ElroyContext):
     # The urgent reminder should be cleaned up
     quiz_assistant_bool(False, ctx, "Do I still have an active reminder about calling back a client urgently?")
 
-    # But the future reminder should still exist
+    # But the future reminder should still exist (check outside the time mock)
     quiz_assistant_bool(True, ctx, "Do I still have a reminder about calling mom?")

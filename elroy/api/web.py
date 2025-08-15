@@ -16,6 +16,7 @@ from ..models import (
     ApiResponse,
     ChatRequest,
     ChatResponse,
+    CompleteReminderRequest,
     CreateReminderRequest,
     IngestMemoRequest,
     IngestMemoResponse,
@@ -117,6 +118,37 @@ async def create_reminder_endpoint(request: CreateReminderRequest):
         trigger_time = None
     result = elroy.create_reminder(request.name, request.text, trigger_time, request.reminder_context)
     return ApiResponse(result=result.to_fact())
+
+
+@app.post("/mark_reminder_completed", response_model=ApiResponse)
+async def mark_reminder_completed_endpoint(request: CompleteReminderRequest):
+    """Mark a reminder as completed."""
+    elroy = Elroy()
+    result = elroy.complete_reminder(request.name, request.closing_comment)
+    return ApiResponse(result=result)
+
+
+@app.get("/get_reminders", response_model=List[ReminderResponse])
+async def get_reminders_endpoint(include_completed: bool = False):
+    """Get reminders, optionally including completed ones."""
+    elroy = Elroy()
+    reminders = elroy.get_reminders(include_completed=include_completed)
+
+    reminder_responses = []
+    for reminder in reminders:
+        reminder_id = reminder.id
+        assert reminder_id
+        reminder_responses.append(
+            ReminderResponse(
+                id=reminder_id,
+                name=reminder.name,
+                text=reminder.text,
+                trigger_datetime=reminder.trigger_datetime.isoformat() if reminder.trigger_datetime else None,
+                reminder_context=reminder.reminder_context,
+            )
+        )
+
+    return reminder_responses
 
 
 @app.get("/get_due_timed_reminders", response_model=List[ReminderResponse])

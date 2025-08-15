@@ -17,7 +17,7 @@ def test_migrations_in_sync(ctx: ElroyContext):
     IGNORED_TABLE_PATTERNS = {
         r".*vectorstorage.*",  # anything starting with vectorstorage
         r".*sqlite_.*",
-        # TODO: remove these:
+        # In future: remove these:
         r".*_bkp.*",
         r".*embedding.*",
         r".*goal.*",  # temporary

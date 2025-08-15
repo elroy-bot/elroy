@@ -20,7 +20,7 @@ USER, ASSISTANT, TOOL, SYSTEM = ["user", "assistant", "tool", "system"]
 
 ### Model parameters ###
 
-# TODO: make this dynamic
+# In future, consider making this param dynamic
 EMBEDDING_SIZE = 1536
 
 

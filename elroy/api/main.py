@@ -36,13 +36,14 @@ from ..repository.memories.queries import get_memories
 from ..repository.memories.tools import create_memory as do_create_memory
 from ..repository.memories.tools import examine_memories as do_query_memory
 from ..repository.recall.queries import get_recall_metadata
-from ..repository.reminders.operations import do_create_reminder
+from ..repository.reminders.operations import do_complete_reminder, do_create_reminder
 from ..repository.reminders.queries import (
     get_active_reminders as do_get_active_reminders,
 )
 from ..repository.reminders.queries import (
     get_due_timed_reminders as do_get_due_timed_reminders,
 )
+from ..repository.reminders.queries import get_reminders as do_get_reminders
 from ..repository.user.operations import set_assistant_name, set_persona
 from ..repository.user.queries import get_persona as do_get_persona
 
@@ -150,6 +151,31 @@ class Elroy:
             List[Reminder]: List of all active reminders
         """
         return do_get_active_reminders(self.ctx)
+
+    @db
+    def get_reminders(self, include_completed: bool = False) -> List[Reminder]:
+        """Get reminders, optionally including completed ones.
+
+        Args:
+            include_completed (bool): Whether to include completed reminders
+
+        Returns:
+            List[Reminder]: List of reminders
+        """
+        return do_get_reminders(self.ctx, include_completed)
+
+    @db
+    def complete_reminder(self, name: str, closing_comment: Optional[str] = None) -> str:
+        """Mark a reminder as completed.
+
+        Args:
+            name (str): The name of the reminder to complete
+            closing_comment (Optional[str]): Optional comment on completion
+
+        Returns:
+            str: Confirmation message
+        """
+        return do_complete_reminder(self.ctx, name, closing_comment)
 
     @db
     def create_reminder(self, name: str, text: str, trigger_time: Optional[datetime], reminder_context: Optional[str]) -> Reminder:

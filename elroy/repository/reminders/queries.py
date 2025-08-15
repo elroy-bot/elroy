@@ -36,6 +36,21 @@ def get_active_reminders(ctx: ElroyContext) -> List[Reminder]:
     )
 
 
+def get_reminders(ctx: ElroyContext, include_completed: bool = False) -> List[Reminder]:
+    """Get reminders, optionally including completed ones"""
+    conditions: List = [Reminder.user_id == ctx.user_id]
+
+    if include_completed:
+        # Include both active (status="created") and completed (status="completed")
+        conditions.append(col(Reminder.status).in_(["created", "completed"]))
+    else:
+        # Only active reminders
+        conditions.append(Reminder.status == "created")
+        conditions.append(Reminder.is_active == True)
+
+    return list(ctx.db.exec(select(Reminder).where(*conditions).order_by(col(Reminder.created_at))).all())
+
+
 def get_active_reminder_names(ctx: ElroyContext) -> List[str]:
     """Gets the list of names for all active reminders"""
     return [reminder.name for reminder in get_active_reminders(ctx)]

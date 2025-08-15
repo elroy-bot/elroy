@@ -46,8 +46,9 @@ from ..repository.reminders.queries import (
     print_inactive_reminders,
 )
 from ..repository.reminders.tools import (
+    complete_reminder,
     create_reminder,
-    deactivate_reminder,
+    delete_reminder,
     print_reminder,
     rename_reminder,
     update_reminder_text,
@@ -76,7 +77,8 @@ ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
     update_outdated_or_incorrect_memory,
 }
 ALL_ACTIVE_REMINDER_COMMANDS: Set[Callable] = {
-    deactivate_reminder,
+    delete_reminder,
+    complete_reminder,
     print_reminder,
     rename_reminder,
     update_reminder_text,

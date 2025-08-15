@@ -57,7 +57,6 @@ def include_object(object, name, type_, reflected, compare_to):
     return True
 
 
-# TODO: enable extension
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     import sqlite3
