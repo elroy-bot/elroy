@@ -1,3 +1,4 @@
+import json
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from itertools import product
@@ -21,7 +22,11 @@ from ..core.constants import EXIT
 from ..core.logging import get_logger
 from ..db.db_models import Memory
 from ..io.base import ElroyIO
-from ..llm.stream_parser import AssistantInternalThought, TextOutput
+from ..llm.stream_parser import (
+    AssistantInternalThought,
+    AssistantToolResult,
+    TextOutput,
+)
 from ..repository.context_messages.data_models import ContextMessage
 from .formatters.base import ElroyPrintable
 from .formatters.rich_formatter import RichFormatter
@@ -82,14 +87,23 @@ class CliIO(ElroyIO):
             self.console.print()
 
     def print(self, message: ElroyPrintable, end: str = "\n") -> None:
-        if isinstance(message, AssistantInternalThought) and not self.show_internal_thought:
-            logger.debug(f"Internal thought: {message}")
-            return
+        if isinstance(message, AssistantInternalThought):
+            if not self.show_internal_thought:
+                logger.debug(f"Internal thought: {message}")
+                return
+            try:
+                d = json.loads(message.content)
+                message = AssistantInternalThought(content=d["content"])
+            except json.JSONDecodeError:
+                pass
 
         if not self.last_output_type and isinstance(message, TextOutput):
             message.content = message.content.lstrip()
         elif self.last_output_type and not self.last_output_type == type(message):
             self.console.print("\n\n", end="")
+
+        if isinstance(message, AssistantToolResult) and len(message.content) > 500:
+            message = AssistantToolResult(content=f"< {len(message.content)} char tool result >", is_error=message.is_error)
 
         for output in self.formatter.format(message):
             self.console.print(output, end=end)
