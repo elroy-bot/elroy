@@ -64,9 +64,6 @@ class ReminderResponse(BaseModel):
     reminder_context: Optional[str] = Field(None, description="Additional context for the reminder")
 
 
-RECALL_METADATA_KEY = "recall_metadata"
-
-
 class RecallMetadata(BaseModel):
     memory_type: str
     memory_id: int

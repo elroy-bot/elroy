@@ -1,8 +1,8 @@
-import json
 from typing import Iterable, List, Optional, Type, TypeVar
 
+from pydantic import ValidationError
 from toolz import identity, pipe
-from toolz.curried import filter, map
+from toolz.curried import filter
 
 from ...core.constants import TOOL, tool
 from ...core.ctx import ElroyContext
@@ -10,7 +10,7 @@ from ...core.logging import log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Memory, Reminder
 from ...llm.client import get_embedding
-from ...models import RECALL_METADATA_KEY, RecallMetadata
+from ...models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
 
 
@@ -21,13 +21,12 @@ def get_recall_metadata(context_message: ContextMessage, recall_type: Optional[T
         try:
             return pipe(
                 context_message.content,
-                json.loads,
-                lambda d: d.get(RECALL_METADATA_KEY, []),
-                map(RecallMetadata.model_validate),
+                RecallResponse.model_validate_json,
+                lambda x: x.recall_metadata,
                 filter(lambda m: m.memory_type == recall_type.__name__) if recall_type else identity,
                 list,
             )  # type: ignore
-        except json.JSONDecodeError:
+        except ValidationError:
             return []
 
 
