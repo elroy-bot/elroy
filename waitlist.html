@@ -714,19 +714,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Waitlist
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="waitlist.html" class="md-nav__link md-nav__link--active">
         
   
@@ -738,43 +725,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#why-join-the-waitlist" class="md-nav__link">
-    <span class="md-ellipsis">
-      Why Join the Waitlist?
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-to-expect" class="md-nav__link">
-    <span class="md-ellipsis">
-      What to Expect
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -857,32 +807,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#why-join-the-waitlist" class="md-nav__link">
-    <span class="md-ellipsis">
-      Why Join the Waitlist?
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-to-expect" class="md-nav__link">
-    <span class="md-ellipsis">
-      What to Expect
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -903,23 +827,23 @@
 <h1 id="mobile-app-waitlist">Mobile App Waitlist<a class="headerlink" href="#mobile-app-waitlist" title="Permanent link">&para;</a></h1>
 <p>Join the waitlist to be notified when the Elroy mobile app becomes available!</p>
 <div id="waitlist-form">
-    <form id="waitlist-signup" style="max-width: 500px; margin: 0 auto; padding: 20px;">
+    <form id="waitlist-signup" style="max-width: 500px; padding: 20px 0;">
         <div style="margin-bottom: 15px;">
             <label for="email" style="display: block; margin-bottom: 5px; font-weight: bold;">Email Address *</label>
-            <input type="email" id="email" name="email" required 
+            <input type="email" id="email" name="email" required
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
         </div>
 
         <div style="margin-bottom: 15px;">
             <label for="use_case" style="display: block; margin-bottom: 5px; font-weight: bold;">What would you like to do with a memory assistant mobile app?</label>
-            <textarea id="use_case" name="use_case" rows="4" 
+            <textarea id="use_case" name="use_case" rows="4"
                       placeholder="e.g., Remember important conversations, track daily insights, manage reminders..."
                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; resize: vertical;"></textarea>
         </div>
 
         <div style="margin-bottom: 20px;">
             <label for="platform" style="display: block; margin-bottom: 5px; font-weight: bold;">Preferred Mobile Platform</label>
-            <select id="platform" name="platform" 
+            <select id="platform" name="platform"
                     style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
                 <option value="">Select platform (optional)</option>
                 <option value="iOS">iOS</option>
@@ -928,7 +852,7 @@
             </select>
         </div>
 
-        <button type="submit" 
+        <button type="submit"
                 style="width: 100%; padding: 12px; background-color: #B4B0CC; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;">
             Join Waitlist
         </button>
@@ -943,7 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const messageDiv = document.getElementById('form-message');
 
     // Get API base URL from MkDocs config
-    const apiBaseUrl = '{{ config.extra.api_base_url }}';
+    const apiBaseUrl = 'https://elroy-pf72y.ondigitalocean.app';
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -997,21 +921,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<h2 id="why-join-the-waitlist">Why Join the Waitlist?<a class="headerlink" href="#why-join-the-waitlist" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Early Access</strong>: Be among the first to try the Elroy mobile app</li>
-<li><strong>Seamless Memory</strong>: Access your AI assistant's memory on the go</li>
-<li><strong>Cross-Platform Sync</strong>: Your conversations and memories will sync across devices</li>
-<li><strong>Mobile-Optimized</strong>: Designed specifically for mobile interaction patterns</li>
-</ul>
-<h2 id="what-to-expect">What to Expect<a class="headerlink" href="#what-to-expect" title="Permanent link">&para;</a></h2>
-<p>The mobile app will bring Elroy's powerful memory and reminder capabilities to your phone, allowing you to:</p>
-<ul>
-<li>Continue conversations started on desktop</li>
-<li>Add memories and reminders while mobile</li>
-<li>Get contextual notifications based on your location and schedule</li>
-<li>Quick voice input for faster interaction</li>
-</ul>
 <p>Stay tuned for updates!</p>
 
 
@@ -1033,7 +942,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="August 13, 2025 23:37:52 UTC">August 13, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="August 15, 2025 18:35:27 UTC">August 15, 2025</span>
   </span>
 
     
