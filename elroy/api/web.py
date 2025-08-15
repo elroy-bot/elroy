@@ -1,8 +1,9 @@
 import os
 from typing import List, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from elroy.api.main import Elroy
@@ -50,6 +51,12 @@ class WaitlistResponse(BaseModel):
 
 
 # Style note: do not catch and reraise errors, outside of specific error handling, let regular errors propagate.
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler that returns 500 JSON response instead of HTML."""
+    return JSONResponse(status_code=500, content={"error": "Internal server error", "message": str(exc)})
 
 
 @app.get("/")
