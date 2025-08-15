@@ -94,7 +94,7 @@ class CliIO(ElroyIO):
             try:
                 d = json.loads(message.content)
                 message = AssistantInternalThought(content=d["content"])
-            except json.JSONDecodeError:
+            except Exception:
                 pass
 
         if not self.last_output_type and isinstance(message, TextOutput):
