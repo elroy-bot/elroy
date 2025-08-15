@@ -3,23 +3,23 @@
 Join the waitlist to be notified when the Elroy mobile app becomes available!
 
 <div id="waitlist-form">
-    <form id="waitlist-signup" style="max-width: 500px; margin: 0 auto; padding: 20px;">
+    <form id="waitlist-signup" style="max-width: 500px; padding: 20px 0;">
         <div style="margin-bottom: 15px;">
             <label for="email" style="display: block; margin-bottom: 5px; font-weight: bold;">Email Address *</label>
-            <input type="email" id="email" name="email" required 
+            <input type="email" id="email" name="email" required
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
         </div>
-        
+
         <div style="margin-bottom: 15px;">
             <label for="use_case" style="display: block; margin-bottom: 5px; font-weight: bold;">What would you like to do with a memory assistant mobile app?</label>
-            <textarea id="use_case" name="use_case" rows="4" 
+            <textarea id="use_case" name="use_case" rows="4"
                       placeholder="e.g., Remember important conversations, track daily insights, manage reminders..."
                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; resize: vertical;"></textarea>
         </div>
-        
+
         <div style="margin-bottom: 20px;">
             <label for="platform" style="display: block; margin-bottom: 5px; font-weight: bold;">Preferred Mobile Platform</label>
-            <select id="platform" name="platform" 
+            <select id="platform" name="platform"
                     style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
                 <option value="">Select platform (optional)</option>
                 <option value="iOS">iOS</option>
@@ -27,12 +27,12 @@ Join the waitlist to be notified when the Elroy mobile app becomes available!
                 <option value="Both">Both iOS and Android</option>
             </select>
         </div>
-        
-        <button type="submit" 
+
+        <button type="submit"
                 style="width: 100%; padding: 12px; background-color: #B4B0CC; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;">
             Join Waitlist
         </button>
-        
+
         <div id="form-message" style="margin-top: 15px; padding: 10px; border-radius: 4px; display: none;"></div>
     </form>
 </div>
@@ -41,26 +41,26 @@ Join the waitlist to be notified when the Elroy mobile app becomes available!
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('waitlist-signup');
     const messageDiv = document.getElementById('form-message');
-    
+
     // Get API base URL from MkDocs config
     const apiBaseUrl = '{{ config.extra.api_base_url }}';
-    
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
         const formData = new FormData(form);
         const data = {
             email: formData.get('email'),
             use_case: formData.get('use_case'),
             platform: formData.get('platform') || null
         };
-        
+
         try {
             // Disable submit button
             const submitButton = form.querySelector('button[type="submit"]');
             submitButton.disabled = true;
             submitButton.textContent = 'Submitting...';
-            
+
             const response = await fetch(`${apiBaseUrl}/waitlist`, {
                 method: 'POST',
                 headers: {
@@ -68,9 +68,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify(data)
             });
-            
+
             const result = await response.json();
-            
+
             if (response.ok && result.success) {
                 messageDiv.style.display = 'block';
                 messageDiv.style.backgroundColor = '#d4edda';
@@ -96,21 +96,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
-## Why Join the Waitlist?
-
-- **Early Access**: Be among the first to try the Elroy mobile app
-- **Seamless Memory**: Access your AI assistant's memory on the go
-- **Cross-Platform Sync**: Your conversations and memories will sync across devices
-- **Mobile-Optimized**: Designed specifically for mobile interaction patterns
-
-## What to Expect
-
-The mobile app will bring Elroy's powerful memory and reminder capabilities to your phone, allowing you to:
-
-- Continue conversations started on desktop
-- Add memories and reminders while mobile
-- Get contextual notifications based on your location and schedule
-- Quick voice input for faster interaction
 
 Stay tuned for updates!

@@ -66,6 +66,7 @@ docs = [
     "mkdocs-rss-plugin" ,
     "mkdocs-blog-plugin",
     "mkdocs-material",
+    "mkdocs-macros-plugin",
 ]
 
 tracing = [

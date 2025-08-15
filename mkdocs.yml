@@ -35,6 +35,7 @@ theme:
 # Plugins
 plugins:
   - search
+  - macros
   - blog:
       archive: false
   - rss:
