@@ -29,7 +29,7 @@ def do_get_assistant_name(session: Session, user_id: int) -> str:
     if user_preference.assistant_name:
         return user_preference.assistant_name
     else:
-        return "ASSISTANT"  # TODO: this is inconsistent if there's a config value for default_assistant_name
+        return "ASSISTANT"  # This is inconsistent if there's a config value for default_assistant_name, consider updating
 
 
 def get_persona(ctx: ElroyContext):

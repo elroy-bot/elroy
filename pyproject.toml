@@ -97,8 +97,8 @@ exclude = [
 ]
 pythonVersion = "3.11"
 verboseOutput = true
-reportImportCycles = false # TODO: enable this
-reportUnusedImport = false # TODO: enable this
+reportImportCycles = false # In future, consider enabling this
+reportUnusedImport = false # In the future, consider enabling this
 
 [tool.black]
 line-length = 140

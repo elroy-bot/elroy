@@ -15,4 +15,4 @@ def test_context_refresh(george_ctx):
 
 def test_user_login_msg(ctx):
     get_user_logged_in_message(ctx)
-    # TODO: more specific test that takes context into account (with test clock)
+    # Future improvement: more specific test that takes context into account (with test clock)

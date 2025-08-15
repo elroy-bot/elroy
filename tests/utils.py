@@ -1,6 +1,7 @@
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from functools import partial
 from typing import Any, List, Optional, Type, Union
 
@@ -11,7 +12,7 @@ from toolz.curried import do, map
 from elroy.core.constants import USER, RecoverableToolError
 from elroy.core.ctx import ElroyContext
 from elroy.core.tracing import tracer
-from elroy.db.db_models import EmbeddableSqlModel
+from elroy.db.db_models import EmbeddableSqlModel, Reminder
 from elroy.io.cli import CliIO
 from elroy.io.formatters.base import ElroyPrintable
 from elroy.io.formatters.rich_formatter import RichFormatter
@@ -22,6 +23,7 @@ from elroy.repository.context_messages.operations import replace_context_message
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.recall.queries import query_vector
 from elroy.repository.reminders.queries import get_active_reminders
+from elroy.utils.clock import utc_now
 from elroy.utils.utils import first_or_none
 
 
@@ -177,3 +179,18 @@ def get_active_reminders_summary(ctx: ElroyContext) -> str:
         list,
         "\n\n".join,
     )  # type: ignore
+
+
+def create_reminder_in_past(ctx: ElroyContext, name: str, text: str, reminder_context: Optional[str] = None):
+
+    ctx.db.persist(
+        Reminder(
+            user_id=ctx.user_id,
+            name=name,
+            text="text",
+            trigger_datetime=utc_now() - timedelta(minutes=5),
+            is_active=True,
+            status="created",
+            reminder_context=reminder_context,
+        )
+    )

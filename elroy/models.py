@@ -56,6 +56,11 @@ class CreateReminderRequest(BaseModel):
             return None
 
 
+class CompleteReminderRequest(BaseModel):
+    name: str = Field(description="Name of the reminder to mark complete")
+    closing_comment: Optional[str] = Field(None, description="Optional comment on why the reminder was completed")
+
+
 class ReminderResponse(BaseModel):
     id: int = Field(description="Unique identifier for the reminder")
     name: str = Field(description="Name/title of the reminder")

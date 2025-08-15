@@ -677,7 +677,7 @@ def show_persona(typer_ctx: typer.Context):
         raise typer.Exit()
 
 
-# TODO: better duplicate detection:
+# Future improvements: better duplicate detection:
 # - docs that have the same content
 # - if the location is different, take the one with the more recent timestamp
 # - need a mark_source_doc_inactive function

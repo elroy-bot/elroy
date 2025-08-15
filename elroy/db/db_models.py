@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Type
 
 from pgvector.sqlalchemy import Vector
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import Column, Text, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
 
@@ -121,7 +121,10 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
 
 
 class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "name", "is_active"), {"extend_existing": True})
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", "is_active", "trigger_datetime", "status", "reminder_context"),
+        {"extend_existing": True},
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
@@ -131,6 +134,16 @@ class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     trigger_datetime: Optional[datetime] = Field(default=None, description="When the reminder should trigger (for timed reminders)")
     reminder_context: Optional[str] = Field(default=None, description="When the reminder should be triggered (for contextual reminders)")
     is_active: Optional[bool] = Field(default=True, description="Whether the reminder is active")
+    status: str = Field(..., description="Status of reminder")
+    closing_comment: Optional[str] = Field(default=None, description="Comment on why the reminder was deleted or marked complete.")
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        allowed_statuses = {"created", "deleted", "completed"}
+        if v not in allowed_statuses:
+            raise ValueError(f"Status must be one of {allowed_statuses}, got {v}")
+        return v
 
     def get_name(self) -> str:
         return self.name

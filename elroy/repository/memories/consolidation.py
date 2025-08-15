@@ -123,7 +123,7 @@ def consolidate_memories(ctx: ElroyContext):
     logger.info(f"Found {len(clusters)} memory clusters to consolidate")
 
     for cluster in clusters:
-        # TODO: parallelize this
+        # In future, consider parallelizing this
         assert isinstance(cluster, MemoryCluster)
         consolidate_memory_cluster(ctx, cluster)
 

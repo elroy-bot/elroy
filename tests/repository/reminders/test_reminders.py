@@ -3,22 +3,20 @@ from datetime import timedelta
 import pytest
 from tests.utils import (
     MockCliIO,
+    create_reminder_in_past,
     get_active_reminders_summary,
     process_test_message,
     quiz_assistant_bool,
 )
 
 from elroy.core.ctx import ElroyContext
-from elroy.db.db_models import Reminder
 from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.reminders.queries import (
     get_due_reminder_context_msgs,
     get_due_timed_reminders,
     get_reminder_by_name,
 )
-from elroy.repository.reminders.tools import (
-    deactivate_reminder,
-)
+from elroy.repository.reminders.tools import delete_reminder
 from elroy.utils.clock import utc_now
 
 
@@ -105,10 +103,11 @@ def test_update_reminder_text(ctx: ElroyContext):
 def test_due_reminder_detection(ctx: ElroyContext):
     """Test that due timed reminders are properly detected"""
     # Create a reminder that's already due
-    past_time = utc_now() - timedelta(minutes=5)
-    due_reminder = Reminder(user_id=ctx.user_id, name="due_test", text="This reminder is due", trigger_datetime=past_time, is_active=True)
-    ctx.db.add(due_reminder)
-    ctx.db.commit()
+    create_reminder_in_past(
+        ctx=ctx,
+        name="due_test",
+        text="This reminder is due",
+    )
 
     # Check that it's detected as due
     due_reminders = get_due_timed_reminders(ctx)
@@ -119,12 +118,11 @@ def test_due_reminder_detection(ctx: ElroyContext):
 def test_due_reminder_context_messages(ctx: ElroyContext):
     """Test that due reminders generate proper context messages"""
     # Create a reminder that's already due
-    past_time = utc_now() - timedelta(minutes=5)
-    due_reminder = Reminder(
-        user_id=ctx.user_id, name="context_msg_test", text="This generates context message", trigger_datetime=past_time, is_active=True
+    create_reminder_in_past(
+        ctx=ctx,
+        name="context_msg_test",
+        text="This generates context message",
     )
-    ctx.db.add(due_reminder)
-    ctx.db.commit()
 
     # Get context messages for due reminders
     context_msgs = get_due_reminder_context_msgs(ctx)
@@ -143,11 +141,12 @@ def test_future_reminder_not_due(ctx: ElroyContext):
     """Test that future reminders are not considered due"""
     # Create a reminder for tomorrow
     future_time = utc_now() + timedelta(days=1)
-    future_reminder = Reminder(
-        user_id=ctx.user_id, name="future_test", text="This reminder is for tomorrow", trigger_datetime=future_time, is_active=True
+    future_reminder = do_create_reminder(
+        ctx=ctx,
+        name="future_test",
+        text="This reminder is for tomorrow",
+        trigger_time=future_time,
     )
-    ctx.db.add(future_reminder)
-    ctx.db.commit()
 
     # Check that it's not considered due
     due_reminders = get_due_timed_reminders(ctx)
@@ -161,15 +160,12 @@ def test_future_reminder_not_due(ctx: ElroyContext):
 def test_contextual_reminder_not_due(ctx: ElroyContext):
     """Test that contextual-only reminders are not considered due by time"""
     # Create a contextual reminder
-    contextual_reminder = Reminder(
-        user_id=ctx.user_id,
+    do_create_reminder(
+        ctx=ctx,
         name="contextual_test",
         text="Context-only reminder",
         reminder_context="when user mentions work",
-        is_active=True,
     )
-    ctx.db.add(contextual_reminder)
-    ctx.db.commit()
 
     # Check that it's not in due timed reminders
     due_reminders = get_due_timed_reminders(ctx)
@@ -239,21 +235,25 @@ def test_reminder_integration_workflow(ctx: ElroyContext):
 def test_reminder_deactivation_sets_is_active_to_none(ctx: ElroyContext):
     """Test that reminder deactivation sets is_active to None (not False) for unique constraint"""
     # Create a reminder
-    reminder = Reminder(user_id=ctx.user_id, name="deactivation_test", text="Test deactivation", is_active=True)
-    ctx.db.add(reminder)
-    ctx.db.commit()
+    reminder = do_create_reminder(
+        ctx=ctx,
+        name="deactivation_test",
+        text="Test deactivation",
+    )
     original_id = reminder.id
 
     # Delete the reminder
-    deactivate_reminder(ctx, "deactivation_test")
+    delete_reminder(ctx, "deactivation_test")
 
     # Refresh and check is_active is None, not False
     assert get_reminder_by_name(ctx, "deactivation_test") is None, "Reminder should not be returned since it should be inactive"
 
     # Should be able to create a new reminder with the same name
-    new_reminder = Reminder(user_id=ctx.user_id, name="deactivation_test", text="New reminder with same name", is_active=True)
-    ctx.db.add(new_reminder)
-    ctx.db.commit()
+    new_reminder = do_create_reminder(
+        ctx=ctx,
+        name="deactivation_test",
+        text="New reminder with same name",
+    )
 
     # Should succeed because old reminder has is_active=None
     assert new_reminder.id != original_id, "New reminder should have different ID"
