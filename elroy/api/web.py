@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from elroy.api.main import Elroy
-from elroy.core.constants import ELROY_DATABASE_URL
+from elroy.core.constants import ELROY_DATABASE_URL, TOOL
 from elroy.db.db_manager import get_db_manager
 from elroy.db.db_models import Memory, Reminder
 from elroy.db.db_models import WaitlistSignup as WaitlistSignupModel
@@ -97,11 +97,11 @@ async def get_current_memories():
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Process a user message and return the updated conversation."""
-    elroy = Elroy()
+    elroy = Elroy(show_internal_thought=False, show_tool_calls=False)
     elroy.message(request.message)
     messages = []
     for msg in elroy.get_current_messages():
-        if msg.content:
+        if msg.content and msg.role != TOOL:
             messages.append(MessageResponse(role=msg.role, content=msg.content or ""))
 
     return ChatResponse(messages=messages)
@@ -136,29 +136,6 @@ async def get_reminders_endpoint(include_completed: bool = False):
 
     reminder_responses = []
     for reminder in reminders:
-        reminder_id = reminder.id
-        assert reminder_id
-        reminder_responses.append(
-            ReminderResponse(
-                id=reminder_id,
-                name=reminder.name,
-                text=reminder.text,
-                trigger_datetime=reminder.trigger_datetime.isoformat() if reminder.trigger_datetime else None,
-                reminder_context=reminder.reminder_context,
-            )
-        )
-
-    return reminder_responses
-
-
-@app.get("/get_due_timed_reminders", response_model=List[ReminderResponse])
-async def get_due_timed_reminders_endpoint():
-    """Get all timed reminders that are currently due."""
-    elroy = Elroy()
-    due_reminders = elroy.get_due_timed_reminders()
-
-    reminder_responses = []
-    for reminder in due_reminders:
         reminder_id = reminder.id
         assert reminder_id
         reminder_responses.append(

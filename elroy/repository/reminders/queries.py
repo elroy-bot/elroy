@@ -48,7 +48,9 @@ def get_reminders(ctx: ElroyContext, include_completed: bool = False) -> List[Re
         conditions.append(Reminder.status == "created")
         conditions.append(Reminder.is_active == True)
 
-    return list(ctx.db.exec(select(Reminder).where(*conditions).order_by(col(Reminder.created_at))).all())
+    reminders = list(ctx.db.exec(select(Reminder).where(*conditions).order_by(col(Reminder.created_at))).all())
+    ctx.db.session.expunge_all()
+    return reminders
 
 
 def get_active_reminder_names(ctx: ElroyContext) -> List[str]:
