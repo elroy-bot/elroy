@@ -7,6 +7,7 @@ from ..db.db_models import FunctionCall
 from ..llm.stream_parser import (
     AssistantInternalThought,
     AssistantResponse,
+    AssistantToolResult,
     SystemInfo,
     SystemWarning,
 )
@@ -69,6 +70,8 @@ class PlainIO(ElroyIO):
         elif isinstance(message, FunctionCall):
             logger.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
         elif isinstance(message, SystemInfo):
+            logger.info(message)
+        elif isinstance(message, AssistantToolResult):
             logger.info(message)
         else:
             raise NotImplementedError(f"Invalid message type: {type(message)}")
