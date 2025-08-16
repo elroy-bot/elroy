@@ -8,49 +8,6 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
-      "name": "add_goal_status_update",
-      "description": "Captures either a progress update or note relevant to the goal.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "goal_name": {
-            "type": "string",
-            "description": "Name of the goal"
-          },
-          "status_update_or_note": {
-            "type": "string",
-            "description": "A brief status update or note about either progress or learnings relevant to the goal. Limit to 100 words."
-          }
-        },
-        "required": [
-          "goal_name",
-          "status_update_or_note"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "add_goal_to_current_context",
-      "description": "Adds goal with the given name to the current conversation context.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "goal_name": {
-            "type": "string",
-            "description": "The name of the goal to add to context"
-          }
-        },
-        "required": [
-          "goal_name"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "add_memory_to_current_context",
       "description": "Adds memory with the given name to the current conversation context.",
       "parameters": {
@@ -70,58 +27,22 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
-      "name": "contemplate",
-      "description": "Contemplate the current context and return a response.",
+      "name": "complete_reminder",
+      "description": "Marks a reminder as completed.",
       "parameters": {
         "type": "object",
         "properties": {
-          "contemplation_prompt": {
+          "name": {
             "type": "string",
-            "description": "Custom prompt to guide the contemplation.
-If not provided, will contemplate the current conversation context."
-          }
-        },
-        "required": []
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "create_goal",
-      "description": "Creates a goal. The goal can be for the AI user, or for the assistant in relation to helping the user somehow.
-Goals should be *specific* and *measurable*. They should be based on the user's needs and desires, and should
-be achievable within a reasonable timeframe.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "goal_name": {
-            "type": "string",
-            "description": "Name of the goal"
+            "description": "The name of the reminder to mark complete"
           },
-          "strategy": {
+          "closing_comment": {
             "type": "string",
-            "description": "The strategy to achieve the goal. Your strategy should detail either how you (the personal assistant) will achieve the goal, or how you will assist your user to solve the goal. Limit to 100 words."
-          },
-          "description": {
-            "type": "string",
-            "description": "A brief description of the goal. Limit to 100 words."
-          },
-          "end_condition": {
-            "type": "string",
-            "description": "The condition that indicate to you (the personal assistant) that the goal is achieved or terminated. It is critical that this end condition be OBSERVABLE BY YOU (the assistant). For example, the end_condition may be that you've asked the user about the goal status."
-          },
-          "time_to_completion": {
-            "type": "string",
-            "description": "The amount of time from now until the goal can be completed. Should be in the form of NUMBER TIME_UNIT, where TIME_UNIT is one of HOURS, DAYS, WEEKS, MONTHS. For example, \"1 DAYS\" would be a goal that should be completed within 1 day."
-          },
-          "priority": {
-            "type": "integer",
-            "description": "The priority of the goal, from 0-4. Priority 0 is the highest priority, and 4 is the lowest."
+            "description": "Optional comment on why the reminder was completed"
           }
         },
         "required": [
-          "goal_name"
+          "name"
         ]
       }
     }
@@ -175,18 +96,31 @@ BETTER:
   {
     "type": "function",
     "function": {
-      "name": "delete_goal_permanently",
-      "description": "Permanently deletes a goal.",
+      "name": "create_reminder",
+      "description": "Creates a reminder that can be triggered by time and/or context.",
       "parameters": {
         "type": "object",
         "properties": {
-          "goal_name": {
+          "name": {
             "type": "string",
-            "description": "The name of the goal to delete"
+            "description": "Name of the reminder (must be unique)"
+          },
+          "text": {
+            "type": "string",
+            "description": "The reminder message to display when triggered"
+          },
+          "trigger_time": {
+            "type": "string",
+            "description": "When the reminder should trigger in format \"YYYY-MM-DD HH:MM\" (e.g., \"2024-12-25 09:00\"). If provided, creates a timed reminder."
+          },
+          "reminder_context": {
+            "type": "string",
+            "description": "Description of the context/situation when this reminder should be triggered (e.g., \"when user mentions work stress\", \"when user asks about exercise\"). If provided, creates a contextual reminder."
           }
         },
         "required": [
-          "goal_name"
+          "name",
+          "text"
         ]
       }
     }
@@ -194,18 +128,22 @@ BETTER:
   {
     "type": "function",
     "function": {
-      "name": "drop_goal_from_current_context",
-      "description": "Drops the goal with the given name from current context. Does NOT delete or mark the goal completed.",
+      "name": "delete_reminder",
+      "description": "Permanently deletes a reminder (timed, contextual, or hybrid).",
       "parameters": {
         "type": "object",
         "properties": {
-          "goal_name": {
+          "name": {
             "type": "string",
-            "description": "Name of the goal to remove from context"
+            "description": "The name of the reminder to delete"
+          },
+          "closing_comment": {
+            "type": "string",
+            "description": "Optional comment on why the reminder was deleted"
           }
         },
         "required": [
-          "goal_name"
+          "name"
         ]
       }
     }
@@ -344,48 +282,6 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
-      "name": "mark_goal_completed",
-      "description": "Marks a goal as completed, with closing comments.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "goal_name": {
-            "type": "string",
-            "description": "The name of the goal"
-          },
-          "closing_comments": {
-            "type": "string",
-            "description": "Updated status with a short account of how the goal was completed and what was learned"
-          }
-        },
-        "required": [
-          "goal_name"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "print_goal",
-      "description": "Prints the goal with the given name. This does NOT create a goal, it only prints the existing goal with the given name if it has been created already.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "goal_name": {
-            "type": "string",
-            "description": "Name of the goal to retrieve"
-          }
-        },
-        "required": [
-          "goal_name"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "print_memory",
       "description": "Retrieve and return a memory by its exact name.",
       "parameters": {
@@ -405,23 +301,42 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
-      "name": "rename_goal",
-      "description": "Renames an existing active goal.",
+      "name": "print_reminder",
+      "description": "Prints the reminder with the given name.",
       "parameters": {
         "type": "object",
         "properties": {
-          "old_goal_name": {
+          "name": {
             "type": "string",
-            "description": "The current name of the goal"
-          },
-          "new_goal_name": {
-            "type": "string",
-            "description": "The new name for the goal"
+            "description": "Name of the reminder to retrieve"
           }
         },
         "required": [
-          "old_goal_name",
-          "new_goal_name"
+          "name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "rename_reminder",
+      "description": "Renames an existing reminder.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "old_name": {
+            "type": "string",
+            "description": "The current name of the reminder"
+          },
+          "new_name": {
+            "type": "string",
+            "description": "The new name for the reminder"
+          }
+        },
+        "required": [
+          "old_name",
+          "new_name"
         ]
       }
     }
@@ -498,24 +413,6 @@ Guidance for usage:
   {
     "type": "function",
     "function": {
-      "name": "tail_elroy_logs",
-      "description": "Returns the last `lines` of the Elroy logs.
-Useful for troubleshooting in cases where errors occur (especially with tool calling).",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "lines": {
-            "type": "integer",
-            "description": "Number of lines to return from the end of the log file. Defaults to 10."
-          }
-        },
-        "required": []
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "update_outdated_or_incorrect_memory",
       "description": "Updates an existing memory with new information.
 In general, when new information arises, new memories should be created rather than updating.
@@ -535,6 +432,30 @@ Reserve use of this tool for cases in which the information in a memory changes 
         "required": [
           "memory_name",
           "update_text"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "update_reminder_text",
+      "description": "Updates the text of an existing reminder.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the reminder to update"
+          },
+          "new_text": {
+            "type": "string",
+            "description": "The new reminder text"
+          }
+        },
+        "required": [
+          "name",
+          "new_text"
         ]
       }
     }
