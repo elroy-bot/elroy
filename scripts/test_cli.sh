@@ -83,7 +83,7 @@ run_test "Model alias resolution" \
 # Model listing test
 run_test "Model listing" \
     "elroy list-models" \
-    "gpt-4o-mini"
+    "gpt-5"
 
 # Persona tests
 run_test "Default persona display" \

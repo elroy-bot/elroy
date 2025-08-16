@@ -34,8 +34,8 @@ def upgrade() -> None:
         sa.UniqueConstraint("email"),
     )
     op.drop_table("goal")
-    op.drop_table("timedreminder")
-    op.drop_table("contextualreminder")
+    op.drop_table("timedreminder", if_exists=True)
+    op.drop_table("contextualreminder", if_exists=True)
     op.drop_column("message", "memory_metadata")
     # ### end Alembic commands ###
 

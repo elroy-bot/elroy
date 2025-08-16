@@ -99,10 +99,9 @@ KNOWN_MODELS: Dict[Provider, List[str]] = {
         "o1-preview-2024-09-12",
         "o1-mini",
         "o1-mini-2024-09-12",
-        # GPT-4O Models
         GPT_5,
-        "GPT-5-mini",
-        "GPT-5-nano",
+        "gpt-5-mini",
+        "gpt-5-nano",
         TEXT_EMBEDDING_3_SMALL,
         "text-embedding-3-large,",
     ],
