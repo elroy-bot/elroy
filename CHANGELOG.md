@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.0] - 2025-08-16
+
+### Added
+- Major reminders system replacing goals for better task and event management
+- Waitlist functionality for user management
+- New document ingestion improvements with better memory consolidation
+
+### Improved
+- Enhanced memory parsing and consolidation system
+- Updated context window to 100k tokens by default for better conversation handling
+- Better error handling for API endpoints
+- Improved CLI interface and user experience
+
+### Infrastructure
+- Replaced system messages with synthetic tool calls for better LLM interaction
+- Database schema updates for unified reminders system
+- Enhanced testing and error recovery mechanisms
+
 ## [0.0.82] - 2025-08-05
 
 ### Added
