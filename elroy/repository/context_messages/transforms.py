@@ -156,18 +156,15 @@ def format_context_messages(
         lambda l: f"Messages from {datetime_to_string(min(l))} to {datetime_to_string(max(l))}" if l else "No messages in context",
     )
 
-    return (
-        pipe(
-            context_messages,
-            filter(lambda _: _.content or _.tool_calls or _.role != ASSISTANT),
-            map(lambda msg: format_message(msg, user_preferred_name, assistant_name)),
-            concat,
-            list,
-            "\n".join,
-            str,
-        )
-        + convo_range
-    )  # type: ignore
+    return pipe(
+        context_messages,
+        filter(lambda _: _.content is not None),
+        map(lambda msg: format_message(msg, user_preferred_name, assistant_name)),
+        concat,
+        list,
+        lambda x: ["Conversation Summary"] + x + [convo_range],
+        "\n\n".join,
+    )
 
 
 def compress_context_messages(
