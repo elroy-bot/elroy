@@ -32,8 +32,6 @@ def resolve_model_alias(alias: str) -> Optional[str]:
         "claude-3.5": CLAUDE_3_5_SONNET,
         "opus": "claude-3-opus-20240229",
         "haiku": "claude-3-5-haiku-20241022",
-        "gpt4o": "openai/gpt-4o",
-        "gpt4o_mini": "openai/gpt-4o-mini",
         "o1": "openai/o1",
         "o1_mini": "openai/o1-mini",
         "gpt-5": "openai/gpt-5",
