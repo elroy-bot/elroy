@@ -45,7 +45,9 @@ class ApiResponse(BaseModel):
 class CreateReminderRequest(BaseModel):
     name: str = Field(description="Name/title for the reminder")
     text: str = Field(description="The text content of the reminder")
-    trigger_time: Optional[str] = Field(None, description="When the reminder should trigger (ISO format string)")
+    trigger_time: Optional[str] = Field(
+        None, description="When the reminder should trigger (ISO format string). Must be a date in the future, or null"
+    )
     reminder_context: Optional[str] = Field(None, description="Additional context for when this reminder should be shown")
 
     @property

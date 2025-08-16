@@ -45,8 +45,8 @@ class DocIngestStatus(Enum):
     UPDATED = "Document has been re-ingested successfully."
     UNCHANGED = "Document not ingested as it has not changed."
     TOO_LONG = "Document exceeds the configured max_ingested_doc_lines, and was not ingested."
-    FAILED = "Document ingestion failed."
     PENDING = "Document is queued for ingestion"
+    UNSUPPORTED_FORMAT = "Document format is not supported"
 
 
 def should_process_file(path: Path, include: List[str], exclude: List[str]) -> bool:
@@ -126,8 +126,8 @@ def do_ingest_dir(
             statuses[result] = statuses.get(result, 0) + 1
 
         except Exception as e:
-            statuses[DocIngestStatus.FAILED] = statuses.get(DocIngestStatus.FAILED, 0) + 1
-            logger.warning(f"Failed to ingest {file_path}: {str(e)}")
+            logger.error(f"Failed to ingest {file_path}: {str(e)}", exc_info=True)
+            raise
         statuses[DocIngestStatus.PENDING] = len(file_paths) - (idx + 1)
         yield statuses
 
@@ -160,8 +160,12 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
             logger.info(f"Converting relative path {address} to absolute path.")
             address = address.resolve()
 
-    with open(address, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+    try:
+        with open(address, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except UnicodeDecodeError:
+        logger.warning(f"Cannot decode file {address} as utf-8, skipping")
+        return DocIngestStatus.UNSUPPORTED_FORMAT
 
     if len(lines) > ctx.max_ingested_doc_lines:
         logger.info(f"Document {address} exceeds max_ingested_doc_lines ({ctx.max_ingested_doc_lines}), skipping")
@@ -294,7 +298,9 @@ def chunk_generic(address: Path, content: str, max_chars: int = 3000, overlap: i
         )
 
 
-def chunk_markdown(address: Path, content: str, max_chars: int = 3000, overlap: int = 200) -> Iterator[DocumentChunk]:
+def chunk_markdown(address: Path, content: str, max_tokens: int = 8000, overlap: int = 200) -> Iterator[DocumentChunk]:
+    from litellm.utils import token_counter
+
     # Split on markdown headers or double newlines
     splits = re.split(r"(#{1,6}\s.*?\n|(?:\n\n))", content)
 
@@ -302,7 +308,7 @@ def chunk_markdown(address: Path, content: str, max_chars: int = 3000, overlap: 
     current_chunk = ""
 
     for split in splits:
-        if len(current_chunk) + len(split) < max_chars:
+        if token_counter(text=current_chunk) + token_counter(text=split) < max_tokens:
             current_chunk += split
         else:
             if last_emitted_chunk and overlap:

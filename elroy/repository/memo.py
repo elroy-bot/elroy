@@ -8,12 +8,13 @@ from pydantic import BaseModel
 from toolz import concat, juxt, pipe
 from toolz.curried import filter
 
+from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..db.db_models import EmbeddableSqlModel, Memory, Reminder
 from ..llm.client import get_embedding, query_llm, query_llm_with_response_format
 from ..models import CreateMemoryRequest, CreateReminderRequest
-from ..utils.clock import local_now
+from ..utils.clock import local_now, utc_now
 from .memories.operations import do_create_memory
 from .memories.queries import filter_for_relevance
 from .recall.queries import get_most_relevant_memories, get_most_relevant_reminders
@@ -71,51 +72,72 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
 
 
 def do_ingest_memo(ctx: ElroyContext, text: str) -> List[Union[Reminder, Memory]]:  # noqa F841
-    class MemoResponse(BaseModel):
-        create_reminder_request: Optional[CreateReminderRequest] = None
-        create_memory_request: Optional[CreateMemoryRequest] = None
+    def _inner(
+        ctx: ElroyContext, text: str, attempt: int = 1, prev_attempt_error_info: Optional[str] = None
+    ) -> List[Union[Reminder, Memory]]:
+        try:
 
-    augmented = augment_text(ctx, text)
+            class MemoResponse(BaseModel):
+                create_reminder_request: Optional[CreateReminderRequest] = None
+                create_memory_request: Optional[CreateMemoryRequest] = None
 
-    req = query_llm_with_response_format(
-        model=ctx.chat_model,
-        system=f"""Your task is to convert text into either a reminder or a memory.
+            augmented = augment_text(ctx, text)
 
-        A memory is a generic note, without a specific time or context that it should be recalled.
+            req = query_llm_with_response_format(
+                model=ctx.chat_model,
+                system=(
+                    f"""Your task is to convert text into either a reminder or a memory.
 
-        A reminder is similar to a memory, but it should be something the user wants or needs to remember in a specific context or time.
+                A memory is a generic note, without a specific time or context that it should be recalled.
 
-        Where possible, convert any relative dates or times to ISO 8601 format. Note the local time is {local_now()}
+                A reminder is similar to a memory, but it should be something the user wants or needs to remember in a specific context or time.
 
-        You should provide EITHER a create_reminder_request OR a create_memory_request, not both.
-        Set the field you don't need to null.
-        """,
-        prompt=augmented,
-        response_format=MemoResponse,
-    )
+                Where possible, convert any relative dates or times to ISO 8601 format. Note the local time is {local_now()}, or {utc_now()} UTC.
 
-    resp = []
+                If creating a reminder with a trigger_time, note that reminders cannot be created for time in the past.
 
-    if req.create_memory_request:
-        logger.info("Creating memory")
-        resp.append(
-            do_create_memory(
-                ctx,
-                req.create_memory_request.name,
-                req.create_memory_request.text,
-                [],
-                True,
+                You should provide EITHER a create_reminder_request OR a create_memory_request, not both.
+                Set the field you don't need to null.
+                """
+                    + f"\n\n{prev_attempt_error_info}"
+                    if prev_attempt_error_info
+                    else ""
+                ),
+                prompt=augmented,
+                response_format=MemoResponse,
             )
-        )
-    if req.create_reminder_request:
-        logger.info("Creating reminder")
-        resp.append(
-            do_create_reminder(
-                ctx,
-                req.create_reminder_request.name,
-                req.create_reminder_request.text,
-                req.create_reminder_request.trigger_datetime,
-                req.create_reminder_request.reminder_context,
-            )
-        )
-    return resp
+
+            resp = []
+
+            if req.create_memory_request:
+                logger.info("Creating memory")
+                resp.append(
+                    do_create_memory(
+                        ctx,
+                        req.create_memory_request.name,
+                        req.create_memory_request.text,
+                        [],
+                        True,
+                    )
+                )
+            if req.create_reminder_request:
+                logger.info("Creating reminder")
+                resp.append(
+                    do_create_reminder(
+                        ctx,
+                        req.create_reminder_request.name,
+                        req.create_reminder_request.text,
+                        req.create_reminder_request.trigger_datetime,
+                        req.create_reminder_request.reminder_context,
+                    )
+                )
+            return resp
+        except RecoverableToolError as e:
+            if attempt >= 3:
+                logger.warning(f"Abandoinging ingest_memo after {attempt} attempts", exc_info=True)
+                raise
+            else:
+                attempt += 1
+                return _inner(ctx, text, attempt, f"A previous attempt at this task failed with error: {str(e)}")
+
+    return _inner(ctx, text, 1, None)
