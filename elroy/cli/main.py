@@ -23,6 +23,9 @@ from ..io.base import ElroyIO, PlainIO
 from ..io.cli import CliIO
 from ..io.formatters.rich_formatter import RichFormatter
 from ..repository.documents.operations import do_ingest, do_ingest_dir
+from ..repository.memories.consolidation import (
+    consolidate_memories as do_consolidate_memories,
+)
 from ..repository.memories.operations import manually_record_user_memory
 from ..repository.user.operations import reset_system_persona
 from ..repository.user.operations import set_persona as do_set_persona
@@ -478,6 +481,18 @@ def cli_remember(
         raise typer.Exit()
 
 
+@app.command(name="consolidate-memories")
+def consolidate_memories(
+    typer_ctx: typer.Context,
+    limit: int = typer.Argument(100, help="maximum number of memory clusters to consolidate"),
+):
+    assert typer_ctx.parent
+    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
+    io = get_io(**typer_ctx.parent.params)
+    with init_elroy_session(ctx, io, True, False):
+        do_consolidate_memories(ctx, limit, io)
+
+
 @app.command(name="list-models")
 def list_models():
     """Lists supported chat models and exits."""
@@ -750,8 +765,12 @@ def ingest_doc(
             # Use Rich's Live display to update the table in real-time
             with Live(generate_status_table({s: 0 for s in DocIngestStatus}), refresh_per_second=8) as live:
                 # Consume the generator and update the display
+                total_docs = 0
                 for status_update in do_ingest_dir(ctx, path, force_refresh, recursive, include, exclude):
+                    total_docs += 1
                     live.update(generate_status_table(status_update))
+                io.info("Consolidating memories...")
+                do_consolidate_memories(ctx, int(total_docs / 5), io)
         else:
             io.warning(f"Path {path} is neither a file nor a directory")
 

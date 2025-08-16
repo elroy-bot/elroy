@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property, partial
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from pydantic import BaseModel
@@ -11,6 +11,7 @@ from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...core.tracing import tracer
 from ...db.db_models import Memory
+from ...io.base import ElroyIO
 from ...llm.client import query_llm_with_response_format
 from ...models import MemoryResponse
 from .prompts import MEMORY_CONSOLIDATION
@@ -109,41 +110,60 @@ class MemoryCluster:
 
 
 @tracer.chain
-def consolidate_memories(ctx: ElroyContext):
+def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: Optional[ElroyIO] = None):
     """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
     from .queries import get_active_memories
 
     clusters = pipe(
         get_active_memories(ctx),
-        partial(_find_clusters, ctx),
-        take(3),
+        lambda x: _find_clusters(ctx, x, io),
+        take(cluster_limit),
         list,
     )
 
     logger.info(f"Found {len(clusters)} memory clusters to consolidate")
 
-    for cluster in clusters:
-        # In future, consider parallelizing this
+    if io:
+        from rich.progress import track
+
+        items = track(clusters, "Consolidating memory clusters")
+    else:
+        items = iter(clusters)
+
+    for cluster in items:
         assert isinstance(cluster, MemoryCluster)
         consolidate_memory_cluster(ctx, cluster)
 
 
-def _find_clusters(ctx: ElroyContext, memories: List[Memory]) -> List[MemoryCluster]:
+def _find_clusters(ctx: ElroyContext, memories: List[Memory], io: Optional[ElroyIO] = None) -> List[MemoryCluster]:
+
     embeddings = []
     valid_memories = []
-    for memory in memories:
+
+    if io:
+        from rich.progress import track
+
+        items = track(memories, "Gathering embeddings")
+    else:
+        logger.info("Gathering embeddings")
+        items = iter(memories)
+
+    for memory in items:
         embedding = ctx.db.get_embedding(memory)
         if embedding is not None:
             embeddings.append(embedding)
             valid_memories.append(memory)
+    logger.info(f"Got {len(embeddings)} embeddings")
 
     if not embeddings:
         raise ValueError("No embeddings found for memories")
 
+    logger.info(f"Creating np array")
     embeddings_array = np.array(embeddings)
 
     from sklearn.cluster import DBSCAN  # lazy load
 
+    logger.info("Calculating clusters")
     clustering = DBSCAN(
         eps=ctx.memory_cluster_similarity_threshold,
         metric="cosine",
@@ -205,6 +225,8 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
         memories: List[MemoryResponse]
 
     logger.info(f"Consolidating memories {len(cluster)} memories in cluster.")
+    for memory in cluster.memories:
+        logger.info(f"Will consolidate: {memory.name}")
     response = query_llm_with_response_format(
         system=MEMORY_CONSOLIDATION, prompt=str(cluster), model=ctx.chat_model, response_format=ConsolidationResponse
     )

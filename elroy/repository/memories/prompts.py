@@ -1,4 +1,5 @@
 from ...core.constants import MEMORY_WORD_COUNT_LIMIT
+from ...utils.clock import local_now, utc_now
 
 MEMORY_CONSOLIDATION = f"""# Memory Consolidation Task
 
@@ -10,10 +11,16 @@ Each excerpt has the following characteristics:
 
 If the excerpts cover the same topic, consolidate them into a single, cohesive memory. If they address distinct topics, create separate, reorganized memories for each.
 
+## Dates and times
+
+The memories being consolidated can be from any time in the past. Note that the current time is {local_now()}, or {utc_now()} UTC
+
+Use ISO 8601 format for dates and times to ensure references remain unambiguous in future retrievals.
+
+
 ## Style Guidelines
 
 - Limit each new memory excerpt to {MEMORY_WORD_COUNT_LIMIT} words.
-- Use ISO 8601 format for dates and times to ensure references remain unambiguous in future retrievals.
 
 ## Memory Title Guidelines
 
