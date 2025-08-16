@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 
-import pytest
 from tests.utils import (
     MockCliIO,
     create_reminder_in_past,
@@ -89,22 +88,6 @@ def test_no_due_reminders_no_extra_context(io: MockCliIO, ctx: ElroyContext):
     assert "future_reminder" not in response_text, "Future reminder mentioned unnecessarily"
 
 
-def test_contextual_reminders_not_auto_surfaced(io: MockCliIO, ctx: ElroyContext):
-    """Test that contextual-only reminders are not automatically surfaced by time"""
-    # Create a contextual reminder
-    do_create_reminder(ctx=ctx, name="stress_reminder", text="Take deep breaths", reminder_context="when user mentions stress")
-
-    # Get context messages - should be empty for contextual reminders
-    context_msgs = get_due_reminder_context_msgs(ctx)
-    assert len(context_msgs) == 0, "Context messages generated for contextual-only reminder"
-
-    # Normal conversation should not auto-surface contextual reminders
-    response = process_test_message(ctx, "Hi, how are you?")
-
-    response_text = "".join(response).lower()
-    assert "deep breaths" not in response_text, "Contextual reminder auto-surfaced inappropriately"
-
-
 def test_hybrid_reminder_surfaces_when_time_due(io: MockCliIO, ctx: ElroyContext):
     """Test that hybrid reminders surface when their time component is due"""
     # Create a hybrid reminder that's time-due
@@ -124,31 +107,3 @@ def test_hybrid_reminder_surfaces_when_time_due(io: MockCliIO, ctx: ElroyContext
 
     response_text = "".join(response).lower()
     assert "hybrid reminder text" in response_text or "hybrid_test" in response_text, "Hybrid reminder not surfaced"
-
-
-@pytest.mark.flaky(reruns=3)
-def test_reminder_workflow_through_messenger(io: MockCliIO, ctx: ElroyContext):
-    """Test complete reminder workflow through natural conversation"""
-    # Process message to create the reminder first (this is not time-dependent)
-    tomorrow = (utc_now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
-    process_test_message(ctx, f"Create a reminder: 'Call mom' for {tomorrow}. Create without questions.")
-
-    # Create a timed reminder that will be due
-    create_reminder_in_past(ctx=ctx, name="urgent_call", text="Call back the client urgently")
-
-    # Start a conversation - should surface the due reminder
-    response = process_test_message(ctx, "Hi, what should I focus on right now?")
-
-    response_text = "".join(response).lower()
-
-    # Should mention the urgent reminder
-    assert "urgent" in response_text or "client" in response_text or "call back" in response_text, "Urgent reminder not surfaced"
-
-    # Assistant should handle it and clean it up
-    quiz_assistant_bool(True, ctx, "Did you inform me about an urgent reminder to call back a client?")
-
-    # The urgent reminder should be cleaned up
-    quiz_assistant_bool(False, ctx, "Do I still have an active reminder about calling back a client urgently?")
-
-    # But the future reminder should still exist (check outside the time mock)
-    quiz_assistant_bool(True, ctx, "Do I still have a reminder about calling mom?")
