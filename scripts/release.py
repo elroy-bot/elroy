@@ -10,7 +10,6 @@ from datetime import datetime
 
 from semantic_version import Version
 
-from elroy import __version__
 from elroy.tools.registry import get_system_tool_schemas
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,12 +21,23 @@ with open(os.path.join(REPO_ROOT, "elroy", "__init__.py"), "r") as f:
     else:
         raise ValueError("Version not found in __init__.py")
 
-NEXT_PATCH = str(Version(current_version).next_patch())
-
 
 @dataclass
 class Errors:
     messages: list[str]
+
+
+def get_next_version(release_type: str) -> str:
+    """Calculate the next version based on release type"""
+    version = Version(current_version)
+    if release_type == "major":
+        return str(version.next_major())
+    elif release_type == "minor":
+        return str(version.next_minor())
+    elif release_type == "patch":
+        return str(version.next_patch())
+    else:
+        raise ValueError(f"Invalid release type: {release_type}")
 
 
 def check_main_up_to_date(errors: Errors):
@@ -251,10 +261,15 @@ def handle_errors(errors):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Release a new patch version")
+    parser = argparse.ArgumentParser(description="Release a new version")
+    parser.add_argument("release_type", choices=["major", "minor", "patch"], help="Type of release (major, minor, or patch)")
     parser.add_argument("--skip-tests", action="store_true", help="Skip running tests")
     parser.add_argument("--skip-docker", action="store_true", help="Skip running docker build test")
     args = parser.parse_args()
+
+    # Calculate next version
+    next_version = get_next_version(args.release_type)
+    print(f"Preparing {args.release_type} release: {current_version} -> {next_version}")
 
     errors = Errors([])
     print("Ensuring tags are consistent and up to date...")
@@ -278,10 +293,10 @@ if __name__ == "__main__":
     errors = Errors([])
 
     # checkout branch for new release
-    subprocess.run(["git", "checkout", "-b", f"release-{NEXT_PATCH}"], check=True)
+    subprocess.run(["git", "checkout", "-b", f"release-{next_version}"], check=True)
 
     print("Running bumpversion...")
-    subprocess.run(["bumpversion", "--new-version", NEXT_PATCH, "patch"], check=True)
+    subprocess.run(["bumpversion", "--new-version", next_version, args.release_type], check=True)
 
     print("Updating docs...")
     update_schema_doc()
@@ -289,12 +304,10 @@ if __name__ == "__main__":
     repo_root = os.popen("git rev-parse --show-toplevel").read().strip()
     os.chdir(repo_root)
 
-    next_tag = Version(__version__).next_patch()
-
     # Call write_release_notes.sh script to generate changelog
     print("Generating release notes...")
     write_notes_script = os.path.join(os.path.dirname(__file__), "write_release_notes.sh")
-    subprocess.run([write_notes_script, "--type", "patch"], check=True)
+    subprocess.run([write_notes_script, "--type", args.release_type], check=True)
 
     # if local git state is not clean, await for user confirmation
     if not is_local_git_clean():
@@ -302,7 +315,7 @@ if __name__ == "__main__":
         input()
 
     os.system("git add .")
-    os.system(f"git commit -m 'Release {next_tag}'")
+    os.system(f"git commit -m 'Release {next_version}'")
     os.system("git push")
 
     # verify again that state is clean
@@ -330,5 +343,5 @@ if __name__ == "__main__":
 
     # create and push tag on main
     print("Creating and pushing tag...")
-    subprocess.run(["git", "tag", f"v{NEXT_PATCH}"], check=True)
-    subprocess.run(["git", "push", "origin", f"v{NEXT_PATCH}"], check=True)
+    subprocess.run(["git", "tag", f"v{next_version}"], check=True)
+    subprocess.run(["git", "push", "origin", f"v{next_version}"], check=True)
