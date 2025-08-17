@@ -136,7 +136,12 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def query_llm_with_response_format(model: ChatModel, prompt: str, system: str, response_format: Type[T]) -> T:
-    response = _query_llm(model=model, prompt=prompt, system=system, response_format=response_format)
+    response = _query_llm(
+        model=model,
+        prompt=prompt,
+        system=system,
+        response_format=response_format,
+    )
 
     return response_format.model_validate_json(response)
 

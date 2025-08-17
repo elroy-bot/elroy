@@ -1,10 +1,10 @@
-from typing import Optional, Tuple
+from typing import Optional
 
 from ..config.llm import ChatModel
 from ..core.constants import MEMORY_WORD_COUNT_LIMIT
 from ..core.tracing import tracer
-from ..llm.client import query_llm, query_llm_with_word_limit
-from ..llm.parsing import extract_title_and_body
+from ..llm.client import query_llm_with_response_format, query_llm_with_word_limit
+from ..models import MemoryResponse
 
 ONBOARDING_SUPPLEMENT_INSTRUCT = (
     lambda preferred_name: f"""
@@ -38,10 +38,10 @@ Only output the summary, do NOT include anything else in your output.
 
 
 @tracer.chain
-def summarize_for_memory(model: ChatModel, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
+def summarize_for_memory(model: ChatModel, conversation_summary: str, user_preferred_name: Optional[str]) -> MemoryResponse:
     user_noun = user_preferred_name or "the user"
 
-    response = query_llm(
+    return query_llm_with_response_format(
         model=model,
         prompt=conversation_summary,
         system=f"""
@@ -69,6 +69,5 @@ An example response might look like this:
 Today, {user_noun} went for a 5 mile run. They plan to run a marathon in the spring.
 
 """,
+        response_format=MemoryResponse,
     )
-
-    return extract_title_and_body(response)

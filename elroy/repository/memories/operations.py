@@ -1,5 +1,5 @@
 import json
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional
 
 from sqlmodel import select
 
@@ -15,6 +15,7 @@ from ...db.db_models import (
     MemorySource,
 )
 from ...llm.client import query_llm
+from ...models import MemoryResponse
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.queries import (
     get_context_messages,
@@ -40,11 +41,11 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
 @log_execution_time
 def create_mem_from_current_context(ctx: ElroyContext):
     logger.info("Creating memory from current context")
-    memory_title, memory_text = formulate_memory(
+    resp = formulate_memory(
         ctx,
         list(get_context_messages(ctx)),
     )
-    do_create_memory_from_ctx_msgs(ctx, memory_title, memory_text)
+    do_create_memory_from_ctx_msgs(ctx, resp.name, resp.text)
 
 
 def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:
@@ -73,7 +74,7 @@ def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str
     do_create_memory(ctx, name, text, [], True)
 
 
-def formulate_memory(ctx: ElroyContext, context_messages: List[ContextMessage]) -> Tuple[str, str]:
+def formulate_memory(ctx: ElroyContext, context_messages: List[ContextMessage]) -> MemoryResponse:
     from ...llm.prompts import summarize_for_memory
     from ..context_messages.transforms import format_context_messages
 
