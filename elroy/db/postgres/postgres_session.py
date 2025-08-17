@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional, Type
+from typing import Iterable, List, Optional, Tuple, Type
 
 from sqlalchemy import select
 from sqlmodel import and_, select
@@ -18,6 +18,46 @@ class PostgresSession(DbSession):
                 VectorStorage.source_id == row.id, VectorStorage.source_type == row.__class__.__name__
             )  # type: ignore
         ).first()  # type: ignore
+
+    def get_embeddings(self, rows: List[EmbeddableSqlModel]) -> List[Tuple[EmbeddableSqlModel, Optional[List[float]]]]:
+        if not rows:
+            return []
+
+        # Group rows by source_type for efficiency
+        rows_by_type = {}
+        for row in rows:
+            source_type = row.__class__.__name__
+            if source_type not in rows_by_type:
+                rows_by_type[source_type] = []
+            rows_by_type[source_type].append(row)
+
+        # Build conditions for all rows
+        conditions = []
+        for source_type, type_rows in rows_by_type.items():
+            ids = [row.id for row in type_rows if row.id is not None]
+            if ids:
+                conditions.append(and_(VectorStorage.source_type == source_type, VectorStorage.source_id.in_(ids)))
+
+        if not conditions:
+            return [(row, None) for row in rows]
+
+        # Combine all conditions with OR
+        from sqlmodel import or_
+
+        combined_condition = or_(*conditions)
+
+        results = self.session.exec(
+            select(VectorStorage.source_type, VectorStorage.source_id, VectorStorage.embedding_data).where(combined_condition)
+        )
+
+        # Create a lookup map from results
+        embedding_map = {}
+        for result in results:
+            key = (result[0], result[1])  # (source_type, source_id)
+            embedding_map[key] = result[2]
+
+        # Return results in the same order as input
+        return [(row, embedding_map.get((row.__class__.__name__, row.id))) for row in rows]
 
     def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
         return self.session.exec(

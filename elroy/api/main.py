@@ -375,7 +375,14 @@ class Elroy:
         """
 
         return list(
-            do_ingest_dir(self.ctx, address if isinstance(address, Path) else Path(address), force_refresh, recursive, include, exclude)
+            do_ingest_dir(
+                self.ctx,
+                address if isinstance(address, Path) else Path(address),
+                force_refresh,
+                recursive,
+                include,
+                exclude,
+            )
         )[-1]
 
     def message_stream(self, input: str, enable_tools: bool = True) -> Generator[str, None, None]:

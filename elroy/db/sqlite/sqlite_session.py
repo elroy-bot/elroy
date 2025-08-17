@@ -1,5 +1,5 @@
 from struct import unpack
-from typing import Iterable, List, Optional, Type
+from typing import Iterable, List, Optional, Tuple, Type
 
 import sqlite_vec
 from sqlalchemy import text
@@ -101,6 +101,47 @@ class SqliteSession(DbSession):
 
         # Deserialize the binary data into a list of floats
         return self._deserialize_embedding(result[0])
+
+    def get_embeddings(self, rows: List[EmbeddableSqlModel]) -> List[Tuple[EmbeddableSqlModel, Optional[List[float]]]]:
+        if not rows:
+            return []
+
+        # Group rows by source_type for efficiency
+        rows_by_type = {}
+        for row in rows:
+            source_type = row.__class__.__name__
+            if source_type not in rows_by_type:
+                rows_by_type[source_type] = []
+            rows_by_type[source_type].append(row)
+
+        # Build a single query for all rows
+        row_conditions = []
+        params = {}
+        for source_type, type_rows in rows_by_type.items():
+            ids = [str(row.id) for row in type_rows if row.id is not None]
+            if ids:
+                row_conditions.append(f"(source_type = :source_type_{source_type} AND source_id IN ({','.join(ids)}))")
+                params[f"source_type_{source_type}"] = source_type
+
+        if not row_conditions:
+            return [(row, None) for row in rows]
+
+        query = f"""
+            SELECT source_type, source_id, embedding_data
+            FROM vectorstorage
+            WHERE {' OR '.join(row_conditions)}
+        """
+
+        results = self.session.exec(text(query).bindparams(**params))
+
+        # Create a lookup map from results
+        embedding_map = {}
+        for result in results:
+            key = (result[0], result[1])  # (source_type, source_id)
+            embedding_map[key] = self._deserialize_embedding(result[2])
+
+        # Return results in the same order as input
+        return [(row, embedding_map.get((row.__class__.__name__, row.id))) for row in rows]
 
     def query_vector(
         self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]

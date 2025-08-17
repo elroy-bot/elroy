@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Optional, Type
+from typing import Iterable, List, Optional, Sequence, Tuple, Type
 
 from sqlmodel import Session, select
 from toolz import compose
@@ -55,6 +55,10 @@ class DbSession(ABC):
 
     @abstractmethod
     def get_embedding(self, row: EmbeddableSqlModel) -> Optional[List[float]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_embeddings(self, rows: Sequence[EmbeddableSqlModel]) -> Sequence[Tuple[EmbeddableSqlModel, Optional[List[float]]]]:
         raise NotImplementedError
 
     def get_embedding_text_md5(self, row: EmbeddableSqlModel) -> Optional[str]:
