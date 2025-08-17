@@ -13,6 +13,21 @@ T = TypeVar("T")
 logger = get_logger()
 
 
+def juxt(*functions):
+    """
+    Creates a function that applies multiple functions to the same arguments
+    in parallel and returns a tuple of results.
+    """
+
+    def _juxt_func(*args, **kwargs):
+        with ThreadPoolExecutor(max_workers=len(functions)) as executor:
+            futures = [executor.submit(func, *args, **kwargs) for func in functions]
+            results = [future.result() for future in futures]
+            return tuple(results)
+
+    return _juxt_func
+
+
 def run_async(thread_pool: ThreadPoolExecutor, coro):
     """
     Runs a coroutine in a separate thread and returns the result (synchronously).

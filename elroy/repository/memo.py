@@ -5,7 +5,7 @@ from functools import partial
 from typing import List, Optional, Union
 
 from pydantic import BaseModel
-from toolz import concat, juxt, pipe
+from toolz import concat, pipe
 from toolz.curried import filter
 
 from ..core.constants import RecoverableToolError
@@ -15,6 +15,7 @@ from ..db.db_models import EmbeddableSqlModel, Memory, Reminder
 from ..llm.client import get_embedding, query_llm, query_llm_with_response_format
 from ..models import CreateMemoryRequest, CreateReminderRequest
 from ..utils.clock import local_now, utc_now
+from ..utils.utils import juxt
 from .memories.operations import do_create_memory
 from .memories.queries import filter_for_relevance
 from .recall.queries import get_most_relevant_memories, get_most_relevant_reminders
