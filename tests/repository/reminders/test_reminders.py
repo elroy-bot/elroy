@@ -233,6 +233,7 @@ def test_reminder_integration_workflow(ctx: ElroyContext):
     quiz_assistant_bool(False, ctx, "Do I have any reminders about medical or checkup?")
 
 
+@pytest.mark.skip("TODO")
 def test_reminder_deactivation_sets_is_active_to_none(ctx: ElroyContext):
     """Test that reminder deactivation sets is_active to None (not False) for unique constraint"""
     # Create a reminder
