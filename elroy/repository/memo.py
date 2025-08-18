@@ -28,7 +28,7 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
     memories: List[EmbeddableSqlModel] = pipe(
         text,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
+        lambda x: juxt(ctx.thread_pool, get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
         concat,
         list,
         filter(lambda x: x is not None),

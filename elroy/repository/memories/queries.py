@@ -4,7 +4,7 @@ from typing import Callable, Iterable, List, Optional, Sequence, TypeVar, Union
 
 from pydantic import BaseModel, Field
 from sqlmodel import col, select
-from toolz import concat, juxt, pipe, unique
+from toolz import concat, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
 from ...config.llm import ChatModel
@@ -21,6 +21,7 @@ from ...db.db_models import (
 )
 from ...llm.client import get_embedding, query_llm_with_response_format
 from ...models import RecallMetadata, RecallResponse
+from ...utils.utils import juxt
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.tools import to_synthetic_tool_call
 from ..context_messages.transforms import (
@@ -175,7 +176,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
+        lambda x: juxt(ctx.thread_pool, get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
         concat,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
