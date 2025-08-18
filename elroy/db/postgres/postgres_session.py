@@ -1,7 +1,7 @@
-from typing import Iterable, List, Optional, Tuple, Type
+from typing import Iterable, List, Optional, Sequence, Tuple, Type
 
 from sqlalchemy import select
-from sqlmodel import and_, select
+from sqlmodel import and_, col, select
 from toolz import pipe
 from toolz.curried import map
 
@@ -19,7 +19,7 @@ class PostgresSession(DbSession):
             )  # type: ignore
         ).first()  # type: ignore
 
-    def get_embeddings(self, rows: List[EmbeddableSqlModel]) -> List[Tuple[EmbeddableSqlModel, Optional[List[float]]]]:
+    def get_embeddings(self, rows: Sequence[EmbeddableSqlModel]) -> List[Tuple[EmbeddableSqlModel, Optional[List[float]]]]:
         if not rows:
             return []
 
@@ -36,7 +36,7 @@ class PostgresSession(DbSession):
         for source_type, type_rows in rows_by_type.items():
             ids = [row.id for row in type_rows if row.id is not None]
             if ids:
-                conditions.append(and_(VectorStorage.source_type == source_type, VectorStorage.source_id.in_(ids)))
+                conditions.append(and_(VectorStorage.source_type == source_type, col(VectorStorage.source_id).in_(ids)))
 
         if not conditions:
             return [(row, None) for row in rows]

@@ -102,7 +102,7 @@ reportUnusedImport = false # In the future, consider enabling this
 
 [tool.black]
 line-length = 140
-target-version = ['py39', 'py310', 'py311']
+target-version = ['py310', 'py311']
 
 [tool.pytest.ini_options]
 filterwarnings = [

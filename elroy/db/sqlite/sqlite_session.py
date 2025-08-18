@@ -1,5 +1,5 @@
 from struct import unpack
-from typing import Iterable, List, Optional, Tuple, Type
+from typing import Iterable, List, Optional, Sequence, Tuple, Type
 
 import sqlite_vec
 from sqlalchemy import text
@@ -102,7 +102,7 @@ class SqliteSession(DbSession):
         # Deserialize the binary data into a list of floats
         return self._deserialize_embedding(result[0])
 
-    def get_embeddings(self, rows: List[EmbeddableSqlModel]) -> List[Tuple[EmbeddableSqlModel, Optional[List[float]]]]:
+    def get_embeddings(self, rows: Sequence[EmbeddableSqlModel]) -> List[Tuple[EmbeddableSqlModel, Optional[List[float]]]]:
         if not rows:
             return []
 
@@ -132,7 +132,7 @@ class SqliteSession(DbSession):
             WHERE {' OR '.join(row_conditions)}
         """
 
-        results = self.session.exec(text(query).bindparams(**params))
+        results = self.session.exec(text(query).bindparams(**params))  # type: ignore
 
         # Create a lookup map from results
         embedding_map = {}

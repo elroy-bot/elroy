@@ -18,6 +18,7 @@ from toolz.curried import map
 from elroy.io.completer import SlashCompleter
 
 from ..config.paths import get_prompt_history_path
+from ..core.async_tasks import run_async
 from ..core.constants import EXIT
 from ..core.logging import get_logger
 from ..db.db_models import Memory
@@ -121,7 +122,6 @@ class CliIO(ElroyIO):
     def prompt_user(
         self, thread_pool: ThreadPoolExecutor, retries: int, prompt=">", prefill: str = "", keyboard_interrupt_count: int = 0
     ) -> str:
-        from ..utils.utils import run_async
 
         try:
             return run_async(thread_pool, self._prompt_user(prompt, prefill))

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from toolz import concat, pipe
 from toolz.curried import filter
 
+from ..core.async_tasks import juxt
 from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
@@ -15,7 +16,6 @@ from ..db.db_models import EmbeddableSqlModel, Memory, Reminder
 from ..llm.client import get_embedding, query_llm, query_llm_with_response_format
 from ..models import CreateMemoryRequest, CreateReminderRequest
 from ..utils.clock import local_now, utc_now
-from ..utils.utils import juxt
 from .memories.operations import do_create_memory
 from .memories.queries import filter_for_relevance
 from .recall.queries import get_most_relevant_memories, get_most_relevant_reminders
@@ -28,7 +28,7 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
     memories: List[EmbeddableSqlModel] = pipe(
         text,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(ctx.thread_pool, get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
+        lambda x: juxt(ctx, get_most_relevant_memories, get_most_relevant_reminders)(x),
         concat,
         list,
         filter(lambda x: x is not None),

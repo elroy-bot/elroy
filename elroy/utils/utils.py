@@ -1,6 +1,4 @@
-import asyncio
 import threading
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, Iterator, Optional, TypeVar, Union
 
@@ -11,34 +9,6 @@ from ..core.session import dbsession
 T = TypeVar("T")
 
 logger = get_logger()
-
-
-def juxt(executor: ThreadPoolExecutor, *functions):
-    """
-    Creates a function that applies multiple functions to the same arguments
-    in parallel and returns a tuple of results.
-    """
-
-    def _juxt_func(*args, **kwargs):
-        futures = [executor.submit(func, *args, **kwargs) for func in functions]
-        results = [future.result() for future in futures]
-        return tuple(results)
-
-    return _juxt_func
-
-
-def run_async(thread_pool: ThreadPoolExecutor, coro):
-    """
-    Runs a coroutine in a separate thread and returns the result (synchronously).
-
-    Args:
-        coro: The coroutine to run
-
-    Returns:
-        The result of the coroutine
-    """
-
-    return thread_pool.submit(asyncio.run, coro).result()
 
 
 def is_blank(input: Optional[str]) -> bool:

@@ -21,7 +21,6 @@ from ...db.db_models import (
 )
 from ...llm.client import get_embedding, query_llm_with_response_format
 from ...models import RecallMetadata, RecallResponse
-from ...utils.utils import juxt
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.tools import to_synthetic_tool_call
 from ..context_messages.transforms import (
@@ -166,6 +165,8 @@ def get_message_content(context_messages: List[ContextMessage], n: int) -> str:
 
 @tracer.chain
 def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+    from ...core.async_tasks import juxt
+
     message_content = get_message_content(context_messages, 6)
 
     if not message_content:
@@ -176,7 +177,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
     return pipe(
         message_content,
         partial(get_embedding, ctx.embedding_model),
-        lambda x: juxt(ctx.thread_pool, get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
+        lambda x: juxt(ctx, get_most_relevant_memories, get_most_relevant_reminders)(x),
         concat,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),
