@@ -121,6 +121,41 @@ def test_dir_ingest_exclude_patterns(ctx: ElroyContext, test_docs_dir: Path):
     assert not any(doc.address.endswith(".txt") for doc in docs)
 
 
+def test_dir_ingest_ignores_dot_files(ctx: ElroyContext, tmpdir: str):
+    """Test that dot files and directories are ignored during directory ingestion."""
+    docs_dir = Path(tmpdir) / "test_dots"
+    docs_dir.mkdir(exist_ok=True)
+
+    # Create regular files
+    (docs_dir / "normal.md").write_text("# Normal Document\nThis should be ingested.")
+    (docs_dir / "regular.txt").write_text("Regular text file.")
+
+    # Create dot files (should be ignored)
+    (docs_dir / ".hidden.md").write_text("# Hidden Document\nThis should be ignored.")
+    (docs_dir / ".gitignore").write_text("*.log\n*.tmp")
+
+    # Create dot directory with files (should be ignored)
+    dot_dir = docs_dir / ".hidden_dir"
+    dot_dir.mkdir(exist_ok=True)
+    (dot_dir / "hidden_doc.md").write_text("# Hidden Dir Document\nThis should be ignored.")
+
+    # Test recursive ingestion
+    results = list(do_ingest_dir(ctx, docs_dir, force_refresh=False, recursive=True, include=[], exclude=[]))[-1]
+
+    # Should only find the 2 regular files (normal.md and regular.txt)
+    assert results[DocIngestStatus.SUCCESS] == 2
+
+    # Verify dot files and dot directories were ignored
+    docs = list(get_source_docs(ctx))
+    doc_addresses = [doc.address for doc in docs]
+
+    assert any("normal.md" in addr for addr in doc_addresses)
+    assert any("regular.txt" in addr for addr in doc_addresses)
+    assert not any(".hidden.md" in addr for addr in doc_addresses)
+    assert not any(".gitignore" in addr for addr in doc_addresses)
+    assert not any("hidden_doc.md" in addr for addr in doc_addresses)
+
+
 @pytest.fixture
 def test_docs_dir(tmpdir: str) -> Path:
     """Create a temporary directory with test documents"""

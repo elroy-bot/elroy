@@ -66,6 +66,10 @@ def should_process_file(path: Path, include: List[str], exclude: List[str]) -> b
     Returns:
         bool: True if the path should be processed, False otherwise
     """
+    # Skip dot files and directories (files/directories starting with .)
+    if path.name.startswith("."):
+        return False
+
     path_str = str(path)
 
     # First check exclude patterns against full path
@@ -83,7 +87,12 @@ def recursive_file_walk(directory: Path, include: List[str], exclude: List[str])
     for root, dirnames, files in os.walk(directory):
         root_path = Path(root)
 
-        dirnames[:] = [d for d in dirnames if not any(fnmatch.fnmatch(str(root_path / d / "**"), pattern) for pattern in exclude)]
+        # Filter out dot directories and those matching exclude patterns
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if not d.startswith(".") and not any(fnmatch.fnmatch(str(root_path / d / "**"), pattern) for pattern in exclude)
+        ]
         for file in files:
             file_path = Path(os.path.join(root, file))
             if should_process_file(file_path, include, exclude):
@@ -282,7 +291,8 @@ def chunk_generic(address: Path, content: str, max_chars: int = 3000, overlap: i
         Iterator of DocumentChunk objects
     """
 
-    logger.info(f"Chunking file: {address}: Generic file chunker, performance might be suboptimal.")
+    if not str(address).endswith(".txt"):
+        logger.info(f"Chunking file: {address}: Generic file chunker, performance might be suboptimal.")
 
     # Split on paragraph breaks
     splits = re.split(r"(\n\s*\n)", content)
