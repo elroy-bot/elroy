@@ -26,3 +26,13 @@ def get_source_doc_excerpts(ctx: ElroyContext, source_doc: SourceDocument) -> Li
             select(DocumentExcerpt).where(DocumentExcerpt.source_document_id == source_doc.id).where(DocumentExcerpt.is_active == True)
         ).all()
     )
+
+
+def get_source_doc_by_content_md5(ctx: ElroyContext, content_md5: str) -> Optional[SourceDocument]:
+    """Find a source document with the same content MD5 hash, excluding the current address if provided."""
+    return ctx.db.exec(
+        select(SourceDocument).where(
+            SourceDocument.content_md5 == content_md5,
+            SourceDocument.user_id == ctx.user_id,
+        )
+    ).first()

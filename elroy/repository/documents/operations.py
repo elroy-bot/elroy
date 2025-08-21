@@ -17,7 +17,11 @@ from ...llm.client import query_llm
 from ...utils.clock import utc_now
 from ..memories.operations import do_create_memory
 from ..recall.operations import upsert_embedding_if_needed
-from .queries import get_source_doc_by_address, get_source_doc_excerpts
+from .queries import (
+    get_source_doc_by_address,
+    get_source_doc_by_content_md5,
+    get_source_doc_excerpts,
+)
 
 logger = get_logger()
 
@@ -47,6 +51,7 @@ class DocIngestStatus(Enum):
     TOO_LONG = "Document exceeds the configured max_ingested_doc_lines, and was not ingested."
     PENDING = "Document is queued for ingestion"
     UNSUPPORTED_FORMAT = "Document format is not supported"
+    MOVED = "Document existing document that had a different address, so existing doc address was updated."
 
 
 def should_process_file(path: Path, include: List[str], exclude: List[str]) -> bool:
@@ -194,8 +199,19 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
         source_doc.content_md5 = content_md5
         mark_source_document_excerpts_inactive(ctx, source_doc)
         doc_was_updated = True
-
     else:
+        # Check for documents with matching content MD5 (moved documents)
+        existing_doc_with_same_content = get_source_doc_by_content_md5(ctx, content_md5)
+        if existing_doc_with_same_content and existing_doc_with_same_content.address != str(address):
+            logger.info(
+                f"Found existing document with same content at {existing_doc_with_same_content.address}, updating address to {address}"
+            )
+            existing_doc_with_same_content.address = str(address)
+            existing_doc_with_same_content.name = str(address)
+            existing_doc_with_same_content.extracted_at = utc_now()
+            ctx.db.persist(existing_doc_with_same_content)
+            return DocIngestStatus.MOVED
+
         logger.info(f"Persisting source document {address}")
         source_doc = SourceDocument(
             user_id=ctx.user_id,

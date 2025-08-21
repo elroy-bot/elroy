@@ -42,6 +42,36 @@ def test_ingest_doc_duplicate(ctx: ElroyContext, midnight_garden_md_path: Path):
     assert do_ingest(ctx, midnight_garden_md_path, True) == DocIngestStatus.UPDATED
 
 
+def test_ingest_doc_moved(ctx: ElroyContext, tmpdir: str):
+    """Test that a document moved to a new location is detected and handled correctly."""
+    # Create a test document at original location
+    original_path = Path(tmpdir) / "original_doc.md"
+    content = "# Test Document\nThis is test content for moved document detection."
+    original_path.write_text(content)
+
+    # Ingest the document at original location
+    assert do_ingest(ctx, original_path, False) == DocIngestStatus.SUCCESS
+
+    # Create the same content at a new location
+    new_path = Path(tmpdir) / "moved_doc.md"
+    new_path.write_text(content)
+
+    # Ingest at new location should detect it as moved
+    result = do_ingest(ctx, new_path, False)
+    assert result == DocIngestStatus.MOVED
+
+    # Verify the document address was updated to new location
+    from elroy.repository.documents.queries import get_source_doc_by_address
+
+    updated_doc = get_source_doc_by_address(ctx, new_path)
+    assert updated_doc is not None
+    assert updated_doc.address == str(new_path)
+
+    # Verify original location no longer exists in database
+    original_doc = get_source_doc_by_address(ctx, original_path)
+    assert original_doc is None
+
+
 def test_large_doc(ctx: ElroyContext, very_large_document_path: Path):
     assert do_ingest(ctx, very_large_document_path, False) == DocIngestStatus.TOO_LONG
 
