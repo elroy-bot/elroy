@@ -249,6 +249,21 @@ class WaitlistSignup(SQLModel, table=True):
     platform: Optional[str] = Field(default=None, description="Platform preference (iOS/Android)")
 
 
+class BackgroundIngestionConfig(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id"), {"extend_existing": True})
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+    user_id: int = Field(..., description="Elroy user for context")
+    watch_directory: str = Field(..., description="Directory to watch for new/changed documents")
+    is_active: bool = Field(default=True, description="Whether background ingestion is enabled")
+    recursive: bool = Field(default=True, description="Whether to recursively watch subdirectories")
+    include_patterns: str = Field(default="", description="Comma-separated glob patterns to include")
+    exclude_patterns: str = Field(default="", description="Comma-separated glob patterns to exclude")
+    last_full_scan: Optional[datetime] = Field(default=None, description="When the last full directory scan was completed")
+    last_scan_status: str = Field(default="pending", description="Status of the last scan: 'success', 'error', or 'pending'")
+
+
 def get_mem_source_options() -> Dict[str, Type[MemorySource]]:
     # Note, this is brittle! Should be replaced in the future with a registration process.
     from ..repository.context_messages.transforms import ContextMessageSetWithMessages
