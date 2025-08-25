@@ -769,8 +769,9 @@ def ingest_doc(
                 for status_update in do_ingest_dir(ctx, path, force_refresh, recursive, include, exclude):
                     total_docs += 1
                     live.update(generate_status_table(status_update))
-                io.info("Consolidating memories...")
-                do_consolidate_memories(ctx, int(total_docs / 5), io)
+            # Consolidate memories after the Live display is closed
+            io.info("Consolidating memories...")
+            do_consolidate_memories(ctx, int(total_docs / 5), io)
         else:
             io.warning(f"Path {path} is neither a file nor a directory")
 
