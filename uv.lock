@@ -682,6 +682,7 @@ dependencies = [
     { name = "toolz" },
     { name = "typer" },
     { name = "uvicorn" },
+    { name = "watchdog" },
 ]
 
 [package.optional-dependencies]
@@ -777,6 +778,7 @@ requires-dist = [
     { name = "typer", specifier = "==0.12.5" },
     { name = "uvicorn", specifier = ">=0.24.0" },
     { name = "vulture", marker = "extra == 'dev'", specifier = ">=2.11" },
+    { name = "watchdog", specifier = ">=4.0.0" },
 ]
 provides-extras = ["dev", "docs", "tracing"]
 

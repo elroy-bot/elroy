@@ -81,9 +81,14 @@ class ElroyContext:
         reflect: bool,
         shell_commands: bool,
         allowed_shell_command_prefixes: List[str],
+        # Background Document Ingestion
+        background_ingestion_enabled: bool,
+        background_ingestion_full_scan_interval_hours: int,
     ):
         self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in allowed_shell_command_prefixes]
         self.shell_commands = shell_commands
+        self.background_ingestion_enabled = background_ingestion_enabled
+        self.background_ingestion_full_scan_interval_hours = background_ingestion_full_scan_interval_hours
 
         self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
 

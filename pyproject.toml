@@ -35,6 +35,7 @@ dependencies = [
     "apscheduler>=3.11.0",
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
+    "watchdog>=4.0.0",
 ]
 
 [project.optional-dependencies]

@@ -393,10 +393,17 @@ def chat(typer_ctx: typer.Context):
 
         # Initialize the APScheduler
         from ..core.async_tasks import init_scheduler, shutdown_scheduler
+        from ..core.background_ingestion_scheduler import (
+            start_background_ingestion_for_user,
+            stop_background_ingestion,
+        )
 
         init_scheduler()
 
         with init_elroy_session(ctx, io, True, True):
+            # Start background ingestion if configured
+            start_background_ingestion_for_user(ctx)
+
             try:
                 handle_chat(io, params["enable_assistant_greeting"], ctx)
             except BdbQuit:
@@ -411,6 +418,7 @@ def chat(typer_ctx: typer.Context):
                 else:
                     create_bug_report_from_exception_if_confirmed(io, ctx, e)
             finally:
+                stop_background_ingestion()
                 shutdown_scheduler(wait=False)
 
     else:

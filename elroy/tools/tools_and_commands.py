@@ -13,6 +13,13 @@ from ..cli.slash_commands import (
 )
 from ..core.constants import IS_ENABLED, user_only_tool
 from ..core.ctx import ElroyContext
+from ..repository.background_ingestion.tools import (
+    disable_background_ingestion,
+    get_background_ingestion_status,
+    remove_background_ingestion,
+    setup_background_ingestion,
+    update_background_ingestion,
+)
 from ..repository.context_messages.operations import (
     pop,
     refresh_system_instructions,
@@ -96,6 +103,11 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_source_documents,
     get_user_preferred_name,
     set_user_preferred_name,
+    setup_background_ingestion,
+    update_background_ingestion,
+    get_background_ingestion_status,
+    disable_background_ingestion,
+    remove_background_ingestion,
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,
