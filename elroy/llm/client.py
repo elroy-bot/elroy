@@ -159,19 +159,30 @@ def query_llm_with_word_limit(model: ChatModel, prompt: str, system: str, word_l
 def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     """
     Generate an embedding for the given text using the specified model.
+    
+    Uses a local filesystem cache to avoid redundant API calls.
 
     Args:
         text (str): The input text to generate an embedding for.
-        model (str): The name of the embedding model to use.
+        model (EmbeddingModel): The embedding model configuration to use.
 
     Returns:
         List[float]: The generated embedding as a list of floats.
     """
     from litellm import embedding
     from litellm.exceptions import ContextWindowExceededError
+    
+    from .embedding_cache import get_embedding_cache
 
     if not text:
         raise ValueError("Text cannot be empty")
+    
+    # Try to get from cache first
+    cache = get_embedding_cache()
+    cached_embedding = cache.get(model.name, text)
+    if cached_embedding is not None:
+        return cached_embedding
+    
     embedding_kwargs = {
         "model": model.name,
         "input": [text],
@@ -185,10 +196,17 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
         embedding_kwargs["api_base"] = model.api_base
 
     max_attempts = 5
+    original_text = text
     for attempt in range(max_attempts):
         try:
             response = embedding(**embedding_kwargs)
-            return response.data[0]["embedding"]  # type: ignore
+            result_embedding = response.data[0]["embedding"]  # type: ignore
+            
+            # Cache the result using the original text as key
+            # (even if we had to truncate due to context window)
+            cache.put(model.name, original_text, result_embedding)
+            
+            return result_embedding
         except ContextWindowExceededError:
             new_length = int(len(text) / 2)
             text = text[-new_length:]
