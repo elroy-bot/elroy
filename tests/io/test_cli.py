@@ -5,7 +5,7 @@ from elroy.llm.stream_parser import SystemInfo
 
 
 def test_empty_output(rich_formatter):
-    io = CliIO(rich_formatter, show_internal_thought=False, show_memory_panel=True)
+    io = CliIO(rich_formatter, show_internal_thought=False, show_memory_panel=True, show_system_status_panel=True)
     io.print_stream(iter([]))
 
 

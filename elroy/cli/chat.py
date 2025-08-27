@@ -13,7 +13,7 @@ from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
-from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
+from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler, print_system_status_panel
 from ..core.async_tasks import schedule_task
 from ..core.constants import EXIT, USER
 from ..core.ctx import ElroyContext
@@ -124,6 +124,8 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
         )
     if io.show_memory_panel:
         print_memory_panel(io, ctx)
+    
+    print_system_status_panel(io, ctx)
 
     while True:
         io.update_completer(
@@ -146,6 +148,9 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
             if io.show_memory_panel:
                 io.rule()
                 print_memory_panel(io, ctx)
+            
+            # Always check for system status to display
+            print_system_status_panel(io, ctx)
             schedule_task(refresh_context_if_needed, ctx, replace=True, delay_seconds=5)
 
 

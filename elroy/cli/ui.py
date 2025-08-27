@@ -36,6 +36,15 @@ def print_title_ruler(io: CliIO, assistant_name: str):
     )
 
 
+def print_system_status_panel(io: CliIO, ctx: ElroyContext) -> None:
+    """Display system status panel if enabled and there are active operations."""
+    if not io.show_system_status_panel:
+        logger.debug("print_system_status_panel called, but System status panel is disabled")
+        return
+    
+    io.print_system_status_panel()
+
+
 def print_model_selection(io: CliIO, ctx: ElroyContext):
     chat_msg = f"Using chat model: {ctx.chat_model.name}" + (" (inferred from env)" if ctx.is_chat_model_inferred else "")
 

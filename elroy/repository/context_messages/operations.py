@@ -207,9 +207,23 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
 
 
 def refresh_context_if_needed(ctx: ElroyContext):
+    from ...core.system_status import (
+        SystemStatusType, track_system_operation, complete_system_operation
+    )
+    
     context_messages = list(get_context_messages(ctx))
     if is_context_refresh_needed(context_messages, ctx.chat_model.name, ctx.max_tokens):
-        context_refresh(ctx, context_messages)
+        operation_id = track_system_operation(
+            SystemStatusType.CONTEXT_REFRESH,
+            "Context Refresh",
+            "Compressing conversation context to manage memory"
+        )
+        try:
+            context_refresh(ctx, context_messages)
+            complete_system_operation(operation_id, success=True, details="Context successfully refreshed")
+        except Exception as e:
+            complete_system_operation(operation_id, success=False, details=f"Context refresh failed: {str(e)}")
+            raise
 
 
 @user_only_tool

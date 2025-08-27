@@ -40,6 +40,7 @@ class CliIO(ElroyIO):
         formatter: RichFormatter,
         show_internal_thought: bool,
         show_memory_panel: bool,
+        show_system_status_panel: bool = True,
     ) -> None:
         self.console = Console()
         self.formatter = formatter
@@ -60,6 +61,7 @@ class CliIO(ElroyIO):
             lexer=PygmentsLexer(TextLexer),
         )
         self.show_memory_panel = show_memory_panel
+        self.show_system_status_panel = show_system_status_panel
 
         self.last_output_type = None
 
@@ -112,6 +114,41 @@ class CliIO(ElroyIO):
     def print_memory_panel(self, titles: Iterable[str]):
         if titles:
             panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
+            self.console.print(panel)
+    
+    def print_system_status_panel(self):
+        """Print the system status panel showing active and recent operations."""
+        if not self.show_system_status_panel:
+            return
+            
+        from ..core.system_status import get_system_status_tracker
+        
+        tracker = get_system_status_tracker()
+        active_operations = tracker.get_active_operations()
+        
+        if not active_operations:
+            return
+        
+        status_lines = []
+        for operation in active_operations:
+            status_line = f"• {operation.operation_name}"
+            
+            if operation.progress is not None:
+                progress_percent = int(operation.progress * 100)
+                status_line += f" ({progress_percent}%)"
+            
+            if operation.details:
+                status_line += f": {operation.details}"
+            
+            status_lines.append(status_line)
+        
+        if status_lines:
+            panel = Panel(
+                "\n".join(status_lines), 
+                title="System Status", 
+                expand=False, 
+                border_style=self.formatter.internal_thought_color
+            )
             self.console.print(panel)
 
     def rule(self):

@@ -113,29 +113,76 @@ class MemoryCluster:
 def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: Optional[ElroyIO] = None):
     """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
     from .queries import get_active_memories
-
-    clusters = pipe(
-        get_active_memories(ctx),
-        lambda x: _find_clusters(ctx, x, io),
-        take(cluster_limit),
-        list,
+    from ...core.system_status import (
+        SystemStatusType, StatusState, track_system_operation, 
+        update_system_operation, complete_system_operation
     )
 
-    logger.info(f"Found {len(clusters)} memory clusters to consolidate")
+    # Track the overall consolidation process
+    operation_id = track_system_operation(
+        SystemStatusType.MEMORY_CONSOLIDATION,
+        "Memory Consolidation",
+        "Starting memory consolidation process"
+    )
 
-    if io:
-        from rich.progress import track
+    try:
+        clusters = pipe(
+            get_active_memories(ctx),
+            lambda x: _find_clusters(ctx, x, io, operation_id),
+            take(cluster_limit),
+            list,
+        )
 
-        items = track(clusters, "Consolidating memory clusters")
-    else:
-        items = iter(clusters)
+        logger.info(f"Found {len(clusters)} memory clusters to consolidate")
+        
+        if not clusters:
+            complete_system_operation(operation_id, success=True, details="No memory clusters found to consolidate")
+            return
 
-    for cluster in items:
-        assert isinstance(cluster, MemoryCluster)
-        consolidate_memory_cluster(ctx, cluster)
+        update_system_operation(
+            operation_id, 
+            state=StatusState.IN_PROGRESS,
+            details=f"Consolidating {len(clusters)} memory clusters"
+        )
+
+        if io:
+            from rich.progress import track
+
+            items = track(clusters, "Consolidating memory clusters")
+        else:
+            items = iter(clusters)
+
+        total_clusters = len(clusters)
+        for i, cluster in enumerate(items):
+            assert isinstance(cluster, MemoryCluster)
+            
+            # Update progress
+            progress = (i + 1) / total_clusters
+            update_system_operation(
+                operation_id,
+                progress=progress,
+                details=f"Consolidating cluster {i + 1}/{total_clusters}"
+            )
+            
+            consolidate_memory_cluster(ctx, cluster)
+
+        complete_system_operation(
+            operation_id, 
+            success=True, 
+            details=f"Successfully consolidated {total_clusters} memory clusters"
+        )
+
+    except Exception as e:
+        logger.error(f"Memory consolidation failed: {e}")
+        complete_system_operation(
+            operation_id, 
+            success=False, 
+            details=f"Memory consolidation failed: {str(e)}"
+        )
+        raise
 
 
-def _find_clusters(ctx: ElroyContext, memories: List[Memory], io: Optional[ElroyIO] = None) -> List[MemoryCluster]:
+def _find_clusters(ctx: ElroyContext, memories: List[Memory], io: Optional[ElroyIO] = None, operation_id: Optional[str] = None) -> List[MemoryCluster]:
 
     embeddings = []
     valid_memories = []
