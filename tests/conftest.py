@@ -1,6 +1,7 @@
 import os
 import subprocess
 import uuid
+from functools import cached_property
 from typing import Any, Generator
 
 import pytest
@@ -30,6 +31,7 @@ from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.user.operations import create_user_id
+from elroy.llm.cached_client import CachedLLMClient
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
@@ -209,7 +211,7 @@ def user_token() -> Generator[str, None, None]:
 
 
 @pytest.fixture(scope="function")
-def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
+def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str, tmp_path) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext for testing, using the same defaults as the CLI"""
 
     # Create new context with all parameters
@@ -220,9 +222,21 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
         use_background_threads=True,
     )
     ctx.set_db_session(db_session)
+    
+    # Override the llm_client property with a cached client for tests
+    # Use tmp_path for this test session to avoid cross-test interference
+    cache_dir = tmp_path / "llm_cache"
+    cached_client = CachedLLMClient(cache_dir)
+    
+    # Monkey patch the cached_property - we need to replace it on the class
+    original_llm_client = type(ctx).llm_client
+    type(ctx).llm_client = cached_property(lambda self: cached_client)
 
     onboard_non_interactive(ctx)
     yield ctx
+    
+    # Restore original property
+    type(ctx).llm_client = original_llm_client
     ctx.unset_db_session()
 
 

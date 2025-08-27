@@ -17,6 +17,7 @@ from ..config.llm import (
     get_embedding_model,
     infer_chat_model_name,
 )
+from ..llm.client import LLMClient
 from ..config.paths import get_default_config_path
 from ..config.personas import PERSONA
 from ..db.db_manager import DbManager, get_db_manager
@@ -210,6 +211,11 @@ class ElroyContext:
             openai_api_base=self.params.openai_api_base,
             enable_caching=self.params.enable_caching,
         )
+    
+    @cached_property
+    def llm_client(self) -> LLMClient:
+        """Get the LLM client instance. Override in tests to use cached client."""
+        return LLMClient()
 
     @cached_property
     def user_id(self) -> int:
