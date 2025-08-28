@@ -1,6 +1,7 @@
 import os
 import subprocess
 import uuid
+from functools import cached_property
 from typing import Any, Generator
 
 import pytest
@@ -208,17 +209,44 @@ def user_token() -> Generator[str, None, None]:
     yield str(uuid.uuid4())
 
 
+class TestElroyContext(ElroyContext):
+    """Test version of ElroyContext that uses cached LLM client."""
+    
+    @cached_property
+    def llm_client(self):
+        """Get the cached LLM client for tests."""
+        from elroy.llm.cached_client import CachedLLMClient
+        return CachedLLMClient(self.chat_model, self.embedding_model)
+
+
 @pytest.fixture(scope="function")
 def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext for testing, using the same defaults as the CLI"""
 
-    # Create new context with all parameters
-    ctx = ElroyContext.init(
-        user_token=user_token,
-        database_url=db_manager.url,
-        chat_model=chat_model_name,
-        use_background_threads=True,
+    # Create context using TestElroyContext which has cached LLM client
+    from elroy.cli.options import get_resolved_params, resolve_model_alias
+    from elroy.cli.main import CLI_ONLY_PARAMS, MODEL_ALIASES
+    from toolz import pipe
+    from toolz.curried import dissoc
+    
+    # Similar logic to ElroyContext.init but using TestElroyContext
+    kwargs = {
+        'user_token': user_token,
+        'database_url': db_manager.url,
+        'chat_model': chat_model_name,
+        'use_background_threads': True,
+    }
+    
+    params = pipe(
+        kwargs,
+        lambda x: get_resolved_params(**x),
+        lambda x: dissoc(x, *CLI_ONLY_PARAMS),
     )
+    
+    # Filter out invalid params
+    valid_params = {k: v for k, v in params.items() if k in TestElroyContext.__init__.__annotations__.keys()}
+    
+    ctx = TestElroyContext(**valid_params)
     ctx.set_db_session(db_session)
 
     onboard_non_interactive(ctx)

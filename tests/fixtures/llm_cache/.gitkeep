@@ -1,0 +1,2 @@
+# Cache directory for LLM responses during tests
+# Cache files can be checked into version control for reproducible tests

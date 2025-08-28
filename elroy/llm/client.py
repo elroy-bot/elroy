@@ -238,3 +238,27 @@ def _query_llm(model: ChatModel, prompt: str, system: str, response_format: Opti
         response_format=response_format,
     )
     return completion(**completion_kwargs).choices[0].message.content.strip()  # type: ignore
+
+
+class LLMClient:
+    """Base LLM client that wraps the existing LLM functions."""
+    
+    def __init__(self, chat_model: ChatModel, embedding_model: EmbeddingModel):
+        self.chat_model = chat_model
+        self.embedding_model = embedding_model
+    
+    def query_llm(self, prompt: str, system: str) -> str:
+        """Query the LLM with a prompt and system message."""
+        return query_llm(self.chat_model, prompt, system)
+    
+    def query_llm_with_response_format(self, prompt: str, system: str, response_format: Type[T]) -> T:
+        """Query the LLM with a structured response format."""
+        return query_llm_with_response_format(self.chat_model, prompt, system, response_format)
+    
+    def query_llm_with_word_limit(self, prompt: str, system: str, word_limit: int) -> str:
+        """Query the LLM with a word limit constraint."""
+        return query_llm_with_word_limit(self.chat_model, prompt, system, word_limit)
+    
+    def get_embedding(self, text: str) -> List[float]:
+        """Get an embedding for the given text."""
+        return get_embedding(self.embedding_model, text)
