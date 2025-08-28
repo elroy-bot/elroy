@@ -169,9 +169,18 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
     """
     from litellm import embedding
     from litellm.exceptions import ContextWindowExceededError
+    from .embedding_cache import get_cache
 
     if not text:
         raise ValueError("Text cannot be empty")
+    
+    # Check cache first
+    cache = get_cache()
+    cached_embedding = cache.get(model.name, text)
+    if cached_embedding is not None:
+        logger.debug(f"Using cached embedding for model {model.name}")
+        return cached_embedding
+    
     embedding_kwargs = {
         "model": model.name,
         "input": [text],
@@ -185,10 +194,17 @@ def get_embedding(model: EmbeddingModel, text: str) -> List[float]:
         embedding_kwargs["api_base"] = model.api_base
 
     max_attempts = 5
+    original_text = text  # Store original text for caching
+    
     for attempt in range(max_attempts):
         try:
             response = embedding(**embedding_kwargs)
-            return response.data[0]["embedding"]  # type: ignore
+            embedding_result = response.data[0]["embedding"]  # type: ignore
+            
+            # Cache the result using the final text that was successfully processed
+            cache.put(model.name, text, embedding_result)
+            
+            return embedding_result
         except ContextWindowExceededError:
             new_length = int(len(text) / 2)
             text = text[-new_length:]
