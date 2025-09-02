@@ -229,6 +229,12 @@ class ElroyContext:
     def db_manager(self) -> DbManager:
         assert self.params.database_url, "Database URL not set"
         return get_db_manager(self.params.database_url)
+    
+    @cached_property
+    def llm_client(self):
+        """Get the LLM client instance. Can be overridden in subclasses for testing."""
+        from ..llm.llm_client import LLMClient
+        return LLMClient()
 
     @allow_unused
     def is_db_connected(self) -> bool:
