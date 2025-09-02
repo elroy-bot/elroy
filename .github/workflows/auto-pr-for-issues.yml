@@ -1,0 +1,40 @@
+name: Auto-create PR for issue branches
+
+on:
+  create:
+
+jobs:
+  auto-pr:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if branch relates to issue
+        id: check-issue
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          if [[ $BRANCH_NAME =~ ^claude/issue-[0-9]+-[0-9]{8}-[0-9]{4}$ ]]; then
+            ISSUE_NUMBER=$(echo $BRANCH_NAME | grep -oE '[0-9]+' | head -1)
+            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+            echo "create_pr=true" >> $GITHUB_OUTPUT
+            echo "Branch $BRANCH_NAME matches issue pattern, issue number: $ISSUE_NUMBER"
+          else
+            echo "create_pr=false" >> $GITHUB_OUTPUT
+            echo "Branch $BRANCH_NAME does not match issue pattern"
+          fi
+      
+      - name: Checkout
+        if: steps.check-issue.outputs.create_pr == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      
+      - name: Create PR
+        if: steps.check-issue.outputs.create_pr == 'true'
+        run: |
+          gh pr create \
+            --title "Fix issue #${{ steps.check-issue.outputs.issue_number }}" \
+            --body "Auto-created PR for issue #${{ steps.check-issue.outputs.issue_number }}" \
+            --base main \
+            --head ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
