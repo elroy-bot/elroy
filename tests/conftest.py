@@ -128,7 +128,7 @@ def io(rich_formatter: RichFormatter) -> Generator[MockCliIO, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
+def george_ctx(ctx: TestElroyContext) -> Generator[TestElroyContext, Any, None]:
     messages = [
         ContextMessage(
             role=USER,
@@ -208,12 +208,22 @@ def user_token() -> Generator[str, None, None]:
     yield str(uuid.uuid4())
 
 
+class TestElroyContext(ElroyContext):
+    """Test-specific ElroyContext that uses cached LLM client."""
+    
+    @cached_property
+    def llm_client(self):
+        """Override to use cached LLM client in tests."""
+        from elroy.llm.cached_llm_client import CachedLLMClient
+        return CachedLLMClient()
+
+
 @pytest.fixture(scope="function")
-def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
-    """Create an ElroyContext for testing, using the same defaults as the CLI"""
+def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str) -> Generator[TestElroyContext, None, None]:
+    """Create a TestElroyContext for testing with cached LLM client"""
 
     # Create new context with all parameters
-    ctx = ElroyContext.init(
+    ctx = TestElroyContext.init(
         user_token=user_token,
         database_url=db_manager.url,
         chat_model=chat_model_name,
