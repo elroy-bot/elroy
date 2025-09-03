@@ -13,6 +13,7 @@ from elroy.cli.chat import onboard_non_interactive
 from elroy.cli.options import resolve_model_alias
 from elroy.core.constants import ASSISTANT, USER, allow_unused
 from elroy.core.ctx import ElroyContext
+from elroy.llm.cached_client import CachedLlmClient
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     ContextMessageSet,
@@ -128,7 +129,7 @@ def io(rich_formatter: RichFormatter) -> Generator[MockCliIO, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
+def george_ctx(cached_ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
     messages = [
         ContextMessage(
             role=USER,
@@ -182,10 +183,10 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
         ),
     ]
 
-    add_context_messages(ctx, messages)
+    add_context_messages(cached_ctx, messages)
 
     do_create_reminder(
-        ctx,
+        cached_ctx,
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
         None,
@@ -193,14 +194,14 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
     )
 
     do_create_reminder(
-        ctx,
+        cached_ctx,
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",
         None,
         "when george mentions bills",
     )
 
-    yield ctx
+    yield cached_ctx
 
 
 @pytest.fixture(scope="function")
@@ -220,6 +221,28 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
         use_background_threads=True,
     )
     ctx.set_db_session(db_session)
+
+    onboard_non_interactive(ctx)
+    yield ctx
+    ctx.unset_db_session()
+
+
+@pytest.fixture(scope="function")
+def cached_ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
+    """Create an ElroyContext for testing with cached LLM responses"""
+
+    # Create new context with all parameters
+    ctx = ElroyContext.init(
+        user_token=user_token,
+        database_url=db_manager.url,
+        chat_model=chat_model_name,
+        use_background_threads=True,
+    )
+    ctx.set_db_session(db_session)
+
+    # Replace the LLM client with a cached version
+    cached_llm_client = CachedLlmClient(ctx.chat_model, ctx.embedding_model)
+    ctx.set_custom_llm_client(cached_llm_client)
 
     onboard_non_interactive(ctx)
     yield ctx
