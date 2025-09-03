@@ -21,6 +21,7 @@ from ..config.paths import get_default_config_path
 from ..config.personas import PERSONA
 from ..db.db_manager import DbManager, get_db_manager
 from ..db.db_session import DbSession
+from ..llm.client import LlmClient
 from .constants import allow_unused
 from .logging import get_logger
 
@@ -197,6 +198,10 @@ class ElroyContext:
             enable_caching=self.params.enable_caching,
             inline_tool_calls=self.params.inline_tool_calls,
         )
+
+    @cached_property
+    def llm(self) -> LlmClient:
+        return LlmClient(self.chat_model, self.embedding_model)
 
     @cached_property
     def embedding_model(self) -> EmbeddingModel:

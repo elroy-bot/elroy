@@ -8,7 +8,6 @@ from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..core.tracing import tracer
 from ..db.db_models import FunctionCall
-from ..llm.client import generate_chat_completion_message
 from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, CodeBlock
 from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import add_context_messages
@@ -72,8 +71,7 @@ def process_message(
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        stream = generate_chat_completion_message(
-            chat_model=ctx.chat_model,
+        stream = ctx.llm.generate_chat_completion_message(
             context_messages=context_messages + new_msgs,
             tool_schemas=ctx.tool_registry.get_schemas(),
             enable_tools=enable_tools and (not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,

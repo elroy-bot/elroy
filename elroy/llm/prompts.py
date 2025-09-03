@@ -1,10 +1,9 @@
 from typing import Optional, Tuple
 
-from ..config.llm import ChatModel
 from ..core.constants import MEMORY_WORD_COUNT_LIMIT
 from ..core.tracing import tracer
-from ..llm.client import query_llm, query_llm_with_word_limit
 from ..llm.parsing import extract_title_and_body
+from .client import LlmClient
 
 ONBOARDING_SUPPLEMENT_INSTRUCT = (
     lambda preferred_name: f"""
@@ -20,9 +19,8 @@ However, avoid asking too many questions at once. Be sure to engage in a natural
 
 
 @tracer.chain
-def summarize_conversation(model: ChatModel, assistant_name: str, convo_summary: str) -> str:
-    return query_llm_with_word_limit(
-        model=model,
+def summarize_conversation(llm: LlmClient, assistant_name: str, convo_summary: str) -> str:
+    return llm.query_llm_with_word_limit(
         prompt=convo_summary,
         word_limit=MEMORY_WORD_COUNT_LIMIT,
         system=f"""
@@ -38,11 +36,10 @@ Only output the summary, do NOT include anything else in your output.
 
 
 @tracer.chain
-def summarize_for_memory(model: ChatModel, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
+def summarize_for_memory(llm: LlmClient, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
     user_noun = user_preferred_name or "the user"
 
-    response = query_llm(
-        model=model,
+    response = llm.query_llm(
         prompt=conversation_summary,
         system=f"""
 You are the internal thought monologue of an AI personal assistant, forming a memory from a conversation.
