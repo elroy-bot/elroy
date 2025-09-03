@@ -16,7 +16,6 @@ from elroy.db.db_models import EmbeddableSqlModel, Reminder
 from elroy.io.cli import CliIO
 from elroy.io.formatters.base import ElroyPrintable
 from elroy.io.formatters.rich_formatter import RichFormatter
-from elroy.llm.client import get_embedding, query_llm
 from elroy.llm.stream_parser import SystemInfo
 from elroy.messenger.messenger import process_message
 from elroy.repository.context_messages.operations import replace_context_messages
@@ -85,7 +84,7 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] 
 
 def vector_search_by_text(ctx: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
     return pipe(
-        get_embedding(ctx.embedding_model, query),
+        ctx.llm.get_embedding(query),
         partial(query_vector, table, ctx),
         first_or_none,
     )  # type: ignore
@@ -109,8 +108,7 @@ def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str)
                 return False
         logging.info("Retrying boolean answer parsing")
         return get_boolean(
-            query_llm(
-                model=ctx.chat_model,
+            ctx.llm.query_llm(
                 system="You are an AI assistant, who converts text responses to boolean. "
                 "Given a piece of text, respond with TRUE if intention of the answer is to be affirmative, "
                 "and FALSE if the intention of the answer is to be in the negative."

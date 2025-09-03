@@ -7,7 +7,6 @@ from sqlmodel import col, select
 from toolz import concat, juxt, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
-from ...config.llm import ChatModel
 from ...core.constants import SYSTEM, TOOL
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger, log_execution_time
@@ -19,7 +18,7 @@ from ...db.db_models import (
     Reminder,
     get_memory_source_class,
 )
-from ...llm.client import get_embedding, query_llm_with_response_format
+from ...llm.client import LlmClient
 from ...models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.tools import to_synthetic_tool_call
@@ -86,7 +85,7 @@ def get_active_memories(ctx: ElroyContext) -> List[Memory]:
 
 @tracer.chain
 def get_relevant_memories_and_reminders(ctx: ElroyContext, query: str) -> List[Union[Reminder, Memory]]:
-    query_embedding = get_embedding(ctx.embedding_model, query)
+    query_embedding = ctx.llm.get_embedding(query)
 
     relevant_memories = [
         memory
@@ -119,7 +118,7 @@ T = TypeVar("T")
 @tracer.chain
 @log_execution_time
 def filter_for_relevance(
-    model: ChatModel,
+    llm: LlmClient,
     query: str,
     memories: List[T],
     extraction_fn: Callable[[T], str],
@@ -131,8 +130,7 @@ def filter_for_relevance(
         answers: List[bool]
         reasoning: str  # noqa: F841
 
-    resp = query_llm_with_response_format(
-        model=model,
+    resp = llm.query_llm_with_response_format(
         prompt=f"""
         Query: {query}
         Responses:
@@ -174,7 +172,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
 
     return pipe(
         message_content,
-        partial(get_embedding, ctx.embedding_model),
+        ctx.llm.get_embedding,
         lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
         concat,
         filter(lambda x: x is not None),
@@ -220,8 +218,7 @@ def get_reflective_recall(
             do_get_user_preferred_name(ctx.db.session, ctx.user_id),
             get_assistant_name(ctx),
         ),
-        lambda x: query_llm_with_response_format(
-            ctx.chat_model,
+        lambda x: ctx.llm.query_llm_with_response_format(
             x,
             """#Identity and Purpose
 

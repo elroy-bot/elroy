@@ -7,13 +7,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Generator, Iterator, List
 
-from ...config.llm import ChatModel
 from ...core.constants import RecoverableToolError, allow_unused
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, SourceDocument
-from ...llm.client import query_llm
+from ...llm.client import LlmClient
 from ...utils.clock import utc_now
 from ..memories.operations import do_create_memory
 from ..recall.operations import upsert_embedding_if_needed
@@ -35,11 +34,10 @@ class DocumentChunk:
 
 @allow_unused
 @tracer.chain
-def convert_to_text(chat_model: ChatModel, content: str) -> str:
-    return query_llm(
+def convert_to_text(llm: LlmClient, content: str) -> str:
+    return llm.query_llm(
         system="Your task is to convert the following text into plain text. You should NOT summarize content, "
         "but rather convert it into plain text. That is, the information in the output should be the same as the information in the input.",
-        model=chat_model,
         prompt=content,
     )
 

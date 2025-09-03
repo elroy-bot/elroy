@@ -162,7 +162,7 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
                 do_get_user_preferred_name(ctx.db.session, ctx.user_id),
                 assistant_name,
             ),
-            partial(summarize_conversation, ctx.chat_model, assistant_name),
+            partial(summarize_conversation, ctx.llm, assistant_name),
             lambda _: f"<conversational_summary>{_}</conversational_summary>",
             str,
         )

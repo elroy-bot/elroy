@@ -9,7 +9,6 @@ from ...core.ctx import ElroyContext
 from ...core.logging import log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Memory, Reminder
-from ...llm.client import get_embedding
 from ...models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
 
@@ -81,7 +80,7 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
     """
 
     # Get embedding for the search query
-    query_embedding = get_embedding(ctx.embedding_model, query)
+    query_embedding = ctx.llm.get_embedding(query)
 
     # Search for relevant documents using vector similarity
     results = query_vector(DocumentExcerpt, ctx, query_embedding)

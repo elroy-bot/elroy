@@ -1,7 +1,6 @@
 # Triage input, creating either a memory or a reminder
 
 
-from functools import partial
 from typing import List, Optional, Union
 
 from pydantic import BaseModel
@@ -12,7 +11,6 @@ from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..db.db_models import EmbeddableSqlModel, Memory, Reminder
-from ..llm.client import get_embedding, query_llm, query_llm_with_response_format
 from ..models import CreateMemoryRequest, CreateReminderRequest
 from ..utils.clock import local_now, utc_now
 from .memories.operations import do_create_memory
@@ -26,14 +24,14 @@ logger = get_logger()
 def augment_text(ctx: ElroyContext, text: str) -> str:
     memories: List[EmbeddableSqlModel] = pipe(
         text,
-        partial(get_embedding, ctx.embedding_model),
+        ctx.llm.get_embedding,
         lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
         concat,
         list,
         filter(lambda x: x is not None),
         list,
         lambda mems: filter_for_relevance(
-            ctx.chat_model,
+            ctx.llm,
             text,
             mems,
             lambda m: m.to_fact(),
@@ -43,8 +41,7 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
 
     if len(memories) > 0:
         mem_str = "\n".join([m.to_fact() for m in memories])
-        return query_llm(
-            ctx.chat_model,
+        return ctx.llm.query_llm(
             system=f"""
             Your job is to augment text with contextual information recalled from memory. You will be provided with the initial text, as well as memories from storage which have been deemed to be relevant. Use this information to augment the text with enough context such that future readers can better understand the memory.
 
@@ -83,8 +80,7 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> List[Union[Reminder, Memory]
 
             augmented = augment_text(ctx, text)
 
-            req = query_llm_with_response_format(
-                model=ctx.chat_model,
+            req = ctx.llm.query_llm_with_response_format(
                 system=(
                     f"""Your task is to convert text into either a reminder or a memory.
 

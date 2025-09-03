@@ -9,7 +9,6 @@ from toolz.curried import filter
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import EmbeddableSqlModel
-from ...llm.client import get_embedding
 from ..context_messages.operations import add_context_messages, remove_context_messages
 from ..context_messages.queries import get_context_messages
 from ..memories.transforms import to_fast_recall_tool_call
@@ -30,7 +29,7 @@ def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> No
         logger.info("Old and new text matches md5, skipping")
         return
     else:
-        embedding = get_embedding(ctx.embedding_model, new_text)
+        embedding = ctx.llm.get_embedding(new_text)
         if vector_storage_row:
             ctx.db.update_embedding(vector_storage_row, embedding, new_md5)
         else:
