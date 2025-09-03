@@ -55,3 +55,7 @@ show_memory_panel: true  # Whether to display the memory panel
 shell_commands: false  # Whether to enable shell commands
 allowed_shell_command_prefixes:
   - .*
+
+# Background Document Ingestion
+background_ingestion_full_scan_interval_hours: 24  # How often to run a full directory scan (in hours)
+background_ingestion_enabled: true  # Whether background ingestion is globally enabled
