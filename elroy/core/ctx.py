@@ -3,7 +3,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from functools import cached_property
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, Callable, List, Optional, TypeVar
 
 from toolz import pipe
@@ -22,6 +21,14 @@ from ..config.personas import PERSONA
 from ..db.db_manager import DbManager, get_db_manager
 from ..db.db_session import DbSession
 from ..llm.client import LlmClient
+from .configs import (
+    DatabaseConfig,
+    MemoryConfig,
+    ModelConfig,
+    RuntimeConfig,
+    ToolConfig,
+    UIConfig,
+)
 from .constants import allow_unused
 from .logging import get_logger
 
@@ -83,15 +90,70 @@ class ElroyContext:
         shell_commands: bool,
         allowed_shell_command_prefixes: List[str],
     ):
+        # Create structured config objects
+        self.database_config = DatabaseConfig(database_url=database_url)
+
+        self.model_config = ModelConfig(
+            openai_api_key=openai_api_key,
+            openai_api_base=openai_api_base,
+            openai_embedding_api_base=openai_embedding_api_base,
+            chat_model=chat_model,
+            chat_model_api_key=chat_model_api_key,
+            chat_model_api_base=chat_model_api_base,
+            embedding_model=embedding_model,
+            embedding_model_api_key=embedding_model_api_key,
+            embedding_model_api_base=embedding_model_api_base,
+            embedding_model_size=embedding_model_size,
+            enable_caching=enable_caching,
+            inline_tool_calls=inline_tool_calls,
+            max_tokens=max_tokens,
+        )
+
+        self.ui_config = UIConfig(
+            show_internal_thought=show_internal_thought,
+            system_message_color=system_message_color,
+            assistant_color=assistant_color,
+            user_input_color=user_input_color,
+            warning_color=warning_color,
+            internal_thought_color=internal_thought_color,
+        )
+
+        self.memory_config = MemoryConfig(
+            max_context_age_minutes=max_context_age_minutes,
+            min_convo_age_for_greeting_minutes=min_convo_age_for_greeting_minutes,
+            memory_cluster_similarity_threshold=memory_cluster_similarity_threshold,
+            max_memory_cluster_size=max_memory_cluster_size,
+            min_memory_cluster_size=min_memory_cluster_size,
+            memories_between_consolidation=memories_between_consolidation,
+            messages_between_memory=messages_between_memory,
+            l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold,
+        )
+
+        self.tool_config = ToolConfig(
+            custom_tools_path=custom_tools_path,
+            exclude_tools=exclude_tools,
+            include_base_tools=include_base_tools,
+            shell_commands=shell_commands,
+            allowed_shell_command_prefixes=allowed_shell_command_prefixes,
+        )
+
+        self.runtime_config = RuntimeConfig(
+            config_path=config_path,
+            user_token=user_token,
+            debug=debug,
+            default_persona=default_persona or PERSONA,
+            default_assistant_name=default_assistant_name,
+            use_background_threads=use_background_threads,
+            max_ingested_doc_lines=max_ingested_doc_lines,
+            max_assistant_loops=max_assistant_loops,
+            reflect=reflect,
+        )
+
+        # Maintain backward compatibility with direct attribute access
         self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in allowed_shell_command_prefixes]
         self.shell_commands = shell_commands
-
-        self.params = SimpleNamespace(**{k: v for k, v in locals().items() if k != "self"})
-
         self.reflect = reflect
-
         self.include_base_tools = include_base_tools
-
         self.user_token = user_token
         self.show_internal_thought = show_internal_thought
         self.default_assistant_name = default_assistant_name
@@ -100,7 +162,6 @@ class ElroyContext:
         self.max_tokens = max_tokens
         self.max_assistant_loops = max_assistant_loops
         self.l2_memory_relevance_distance_threshold = l2_memory_relevance_distance_threshold
-
         self.context_refresh_target_tokens = int(max_tokens / 3)
         self.memory_cluster_similarity_threshold = memory_cluster_similarity_threshold
         self.min_memory_cluster_size = min_memory_cluster_size
@@ -150,10 +211,10 @@ class ElroyContext:
         from ..tools.registry import ToolRegistry
 
         registry = ToolRegistry(
-            self.include_base_tools,
-            self.params.custom_tools_path,
-            exclude_tools=self.params.exclude_tools,
-            shell_commands=self.shell_commands,
+            self.tool_config.include_base_tools,
+            self.tool_config.custom_tools_path,
+            exclude_tools=self.tool_config.exclude_tools,
+            shell_commands=self.tool_config.shell_commands,
             allowed_shell_command_prefixes=self.allowed_shell_command_prefixes,
         )
         registry.register_all()
@@ -161,8 +222,8 @@ class ElroyContext:
 
     @cached_property
     def config_path(self) -> Path:
-        if self.params.config_path:
-            return Path(self.params.config_path)
+        if self.runtime_config.config_path:
+            return Path(self.runtime_config.config_path)
         else:
             return get_default_config_path()
 
@@ -172,31 +233,31 @@ class ElroyContext:
 
     @property
     def max_in_context_message_age(self) -> timedelta:
-        return timedelta(minutes=self.params.max_context_age_minutes)
+        return timedelta(minutes=self.memory_config.max_context_age_minutes)
 
     @property
     def min_convo_age_for_greeting(self) -> timedelta:
-        return timedelta(minutes=self.params.min_convo_age_for_greeting_minutes)
+        return timedelta(minutes=self.memory_config.min_convo_age_for_greeting_minutes)
 
     @property
     def is_chat_model_inferred(self) -> bool:
-        return self.params.chat_model is None
+        return self.model_config.chat_model is None
 
     @cached_property
     def chat_model(self) -> ChatModel:
-        if not self.params.chat_model:
+        if not self.model_config.chat_model:
             chat_model_name = infer_chat_model_name()
         else:
-            chat_model_name = self.params.chat_model
+            chat_model_name = self.model_config.chat_model
 
         return get_chat_model(
             model_name=chat_model_name,
-            openai_api_key=self.params.openai_api_key,
-            openai_api_base=self.params.openai_api_base,
-            api_key=self.params.chat_model_api_key,
-            api_base=self.params.chat_model_api_base,
-            enable_caching=self.params.enable_caching,
-            inline_tool_calls=self.params.inline_tool_calls,
+            openai_api_key=self.model_config.openai_api_key,
+            openai_api_base=self.model_config.openai_api_base,
+            api_key=self.model_config.chat_model_api_key,
+            api_base=self.model_config.chat_model_api_base,
+            enable_caching=self.model_config.enable_caching,
+            inline_tool_calls=self.model_config.inline_tool_calls,
         )
 
     @cached_property
@@ -206,14 +267,14 @@ class ElroyContext:
     @cached_property
     def embedding_model(self) -> EmbeddingModel:
         return get_embedding_model(
-            model_name=self.params.embedding_model,
-            embedding_size=self.params.embedding_model_size,
-            api_key=self.params.embedding_model_api_key,
-            api_base=self.params.embedding_model_api_base,
-            openai_embedding_api_base=self.params.openai_embedding_api_base,
-            openai_api_key=self.params.openai_api_key,
-            openai_api_base=self.params.openai_api_base,
-            enable_caching=self.params.enable_caching,
+            model_name=self.model_config.embedding_model,
+            embedding_size=self.model_config.embedding_model_size,
+            api_key=self.model_config.embedding_model_api_key,
+            api_base=self.model_config.embedding_model_api_base,
+            openai_embedding_api_base=self.model_config.openai_embedding_api_base,
+            openai_api_key=self.model_config.openai_api_key,
+            openai_api_base=self.model_config.openai_api_base,
+            enable_caching=self.model_config.enable_caching,
         )
 
     @cached_property
@@ -221,7 +282,7 @@ class ElroyContext:
         from ..repository.user.operations import create_user_id
         from ..repository.user.queries import get_user_id_if_exists
 
-        return get_user_id_if_exists(self.db, self.user_token) or create_user_id(self.db, self.user_token)
+        return get_user_id_if_exists(self.db, self.runtime_config.user_token) or create_user_id(self.db, self.runtime_config.user_token)
 
     @property
     def db(self) -> DbSession:
@@ -232,8 +293,8 @@ class ElroyContext:
 
     @cached_property
     def db_manager(self) -> DbManager:
-        assert self.params.database_url, "Database URL not set"
-        return get_db_manager(self.params.database_url)
+        assert self.database_config.database_url, "Database URL not set"
+        return get_db_manager(self.database_config.database_url)
 
     @allow_unused
     def is_db_connected(self) -> bool:
