@@ -242,19 +242,19 @@ def _query_llm(model: ChatModel, prompt: str, system: str, response_format: Opti
 
 class LLMClient:
     """Base LLM client class that wraps the existing LLM functions."""
-    
+
     def query_llm(self, model: ChatModel, prompt: str, system: str) -> str:
         """Query LLM with simple prompt/system message."""
         return query_llm(model, prompt, system)
-    
+
     def query_llm_with_response_format(self, model: ChatModel, prompt: str, system: str, response_format: Type[T]) -> T:
         """Query LLM with structured response format."""
         return query_llm_with_response_format(model, prompt, system, response_format)
-    
+
     def query_llm_with_word_limit(self, model: ChatModel, prompt: str, system: str, word_limit: int) -> str:
         """Query LLM with word limit constraint."""
         return query_llm_with_word_limit(model, prompt, system, word_limit)
-    
+
     def generate_chat_completion_message(
         self,
         chat_model: ChatModel,
@@ -264,10 +264,8 @@ class LLMClient:
         force_tool: Optional[str] = None,
     ) -> StreamParser:
         """Generate a chat completion with context messages and tools."""
-        return generate_chat_completion_message(
-            chat_model, context_messages, tool_schemas, enable_tools, force_tool
-        )
-    
+        return generate_chat_completion_message(chat_model, context_messages, tool_schemas, enable_tools, force_tool)
+
     def get_embedding(self, model: EmbeddingModel, text: str) -> List[float]:
         """Get embedding for text."""
         return get_embedding(model, text)

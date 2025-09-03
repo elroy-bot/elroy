@@ -27,11 +27,11 @@ from elroy.db.db_session import DbSession
 from elroy.db.postgres.postgres_manager import PostgresManager
 from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.formatters.rich_formatter import RichFormatter
+from elroy.llm.cached_client import CachedLLMClient
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.user.operations import create_user_id
-from elroy.llm.cached_client import CachedLLMClient
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
@@ -222,19 +222,21 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
         use_background_threads=True,
     )
     ctx.set_db_session(db_session)
-    
+
     # Override the llm_client property with a cached client for tests
     # Use tmp_path for this test session to avoid cross-test interference
     cache_dir = tmp_path / "llm_cache"
     cached_client = CachedLLMClient(cache_dir)
-    
+
     # Monkey patch the cached_property - we need to replace it on the class
     original_llm_client = type(ctx).llm_client
-    type(ctx).llm_client = cached_property(lambda self: cached_client)
+    new_cached_property = cached_property(lambda self: cached_client)
+    new_cached_property.__set_name__(type(ctx), "llm_client")
+    type(ctx).llm_client = new_cached_property
 
     onboard_non_interactive(ctx)
     yield ctx
-    
+
     # Restore original property
     type(ctx).llm_client = original_llm_client
     ctx.unset_db_session()
