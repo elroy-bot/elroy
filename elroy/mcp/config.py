@@ -14,6 +14,18 @@ from ..config.paths import get_home_dir
 from ..core.ctx import ElroyContext
 
 
+def _extract_config_params(ctx: ElroyContext) -> Dict[str, Any]:
+    """Extract configuration parameters needed for MCP environment variables."""
+    # Only include parameters that are typically used as environment variables for MCP
+    return {
+        "database_url": ctx.database_config.database_url,
+        "openai_api_key": ctx.model_config.openai_api_key,
+        "openai_api_base": ctx.model_config.openai_api_base,
+        "user_token": ctx.runtime_config.user_token,
+        "default_persona": ctx.runtime_config.default_persona,
+    }
+
+
 def get_mcp_config(local: bool, ctx: ElroyContext) -> Dict[str, Any]:
     args = ["run", "--with", "elroy", "--with", "mcp"]
     if local:
@@ -22,7 +34,7 @@ def get_mcp_config(local: bool, ctx: ElroyContext) -> Dict[str, Any]:
 
     return pipe(
         ctx,
-        lambda ctx: vars(ctx.params),
+        lambda ctx: _extract_config_params(ctx),
         valfilter(lambda v: v is not None),
         keymap(get_env_var_name),
         itemfilter(lambda x: os.environ.get(x[0]) == x[1]),  # only include those env vars that are actually set in the user env
