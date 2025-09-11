@@ -1,14 +1,11 @@
-import json
 import sys
 from bdb import BdbQuit
-from functools import partial
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import typer
 from rich.table import Table
 from sqlmodel import col
-from toolz import pipe
 
 from elroy.cli.options import get_str_from_stdin_or_arg
 
@@ -774,37 +771,6 @@ def ingest_doc(
             do_consolidate_memories(ctx, int(total_docs / 5), io)
         else:
             io.warning(f"Path {path} is neither a file nor a directory")
-
-
-mcp_app = typer.Typer(help="MCP server commands")
-app.add_typer(mcp_app, name="mcp")
-
-
-@mcp_app.command(name="print-config")
-def mcp_print_config(
-    typer_ctx: typer.Context,
-    local: bool = typer.Option(
-        False,
-        "--local",
-        help="Print config using the same instance of Elroy running this command",
-    ),
-):
-    """Print MCP server configuration to stdout"""
-    from ..mcp.config import get_mcp_config, is_uv_installed
-
-    assert typer_ctx.parent and typer_ctx.parent.parent
-    ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.parent.params)
-    io = get_io(**typer_ctx.parent.parent.params)
-
-    if not is_uv_installed():
-        io.warning("uv not detected. uv is required to run Elroy MCP server")
-
-    pipe(
-        ctx,
-        partial(get_mcp_config, local),
-        lambda d: json.dumps(d, indent=2),
-        print,
-    )
 
 
 def get_io(**kwargs) -> ElroyIO:
