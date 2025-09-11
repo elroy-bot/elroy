@@ -41,17 +41,24 @@ class ElroyContext:
     def __init__(
         self,
         *,
-        # Basic Configuration
+        # Config objects (preferred approach)
+        database_config: Optional[DatabaseConfig] = None,
+        model_config: Optional[ModelConfig] = None,
+        ui_config: Optional[UIConfig] = None,
+        memory_config: Optional[MemoryConfig] = None,
+        tool_config: Optional[ToolConfig] = None,
+        runtime_config: Optional[RuntimeConfig] = None,
+        # Individual parameters (for backward compatibility)
         config_path: Optional[str] = None,
-        database_url: str,
-        show_internal_thought: bool,
-        system_message_color: str,
-        assistant_color: str,
-        user_input_color: str,
-        warning_color: str,
-        internal_thought_color: str,
-        user_token: str,
-        custom_tools_path: List[str] = [],
+        database_url: Optional[str] = None,
+        show_internal_thought: Optional[bool] = None,
+        system_message_color: Optional[str] = None,
+        assistant_color: Optional[str] = None,
+        user_input_color: Optional[str] = None,
+        warning_color: Optional[str] = None,
+        internal_thought_color: Optional[str] = None,
+        user_token: Optional[str] = None,
+        custom_tools_path: Optional[List[str]] = None,
         # API Configuration
         openai_api_key: Optional[str] = None,
         openai_api_base: Optional[str] = None,
@@ -60,117 +67,135 @@ class ElroyContext:
         chat_model: Optional[str] = None,
         chat_model_api_key: Optional[str] = None,
         chat_model_api_base: Optional[str] = None,
-        embedding_model: str,
+        embedding_model: Optional[str] = None,
         embedding_model_api_key: Optional[str] = None,
         embedding_model_api_base: Optional[str] = None,
-        embedding_model_size: int,
-        enable_caching: bool = True,
-        inline_tool_calls: bool = False,
+        embedding_model_size: Optional[int] = None,
+        enable_caching: Optional[bool] = None,
+        inline_tool_calls: Optional[bool] = None,
         # Context Management
-        max_assistant_loops: int,
-        max_tokens: int,
-        max_context_age_minutes: float,
-        min_convo_age_for_greeting_minutes: float,
+        max_assistant_loops: Optional[int] = None,
+        max_tokens: Optional[int] = None,
+        max_context_age_minutes: Optional[float] = None,
+        min_convo_age_for_greeting_minutes: Optional[float] = None,
         # Memory Management
-        memory_cluster_similarity_threshold: float,
-        max_memory_cluster_size: int,
-        min_memory_cluster_size: int,
-        memories_between_consolidation: int,
-        messages_between_memory: int,
-        l2_memory_relevance_distance_threshold: float,
+        memory_cluster_similarity_threshold: Optional[float] = None,
+        max_memory_cluster_size: Optional[int] = None,
+        min_memory_cluster_size: Optional[int] = None,
+        memories_between_consolidation: Optional[int] = None,
+        messages_between_memory: Optional[int] = None,
+        l2_memory_relevance_distance_threshold: Optional[float] = None,
         # Basic Configuration
-        debug: bool,
-        default_persona: Optional[str] = None,  # The generic persona to use if no persona is specified
-        default_assistant_name: str,  # The generic assistant name to use if no assistant name is specified
-        use_background_threads: bool,  # Whether to use background threads for certain operations
-        max_ingested_doc_lines: int,  # The maximum number of lines to ingest from a document
-        exclude_tools: List[str] = [],  # Tools to exclude from the tool registry
-        include_base_tools: bool,
-        reflect: bool,
-        shell_commands: bool,
-        allowed_shell_command_prefixes: List[str],
+        debug: Optional[bool] = None,
+        default_persona: Optional[str] = None,
+        default_assistant_name: Optional[str] = None,
+        use_background_threads: Optional[bool] = None,
+        max_ingested_doc_lines: Optional[int] = None,
+        exclude_tools: Optional[List[str]] = None,
+        include_base_tools: Optional[bool] = None,
+        reflect: Optional[bool] = None,
+        shell_commands: Optional[bool] = None,
+        allowed_shell_command_prefixes: Optional[List[str]] = None,
     ):
-        # Create structured config objects
-        self.database_config = DatabaseConfig(database_url=database_url)
+        # Handle both config objects approach and individual parameters approach
+        if database_config is not None:
+            self.database_config = database_config
+        else:
+            self.database_config = DatabaseConfig(database_url=database_url or "")
 
-        self.model_config = ModelConfig(
-            openai_api_key=openai_api_key,
-            openai_api_base=openai_api_base,
-            openai_embedding_api_base=openai_embedding_api_base,
-            chat_model=chat_model,
-            chat_model_api_key=chat_model_api_key,
-            chat_model_api_base=chat_model_api_base,
-            embedding_model=embedding_model,
-            embedding_model_api_key=embedding_model_api_key,
-            embedding_model_api_base=embedding_model_api_base,
-            embedding_model_size=embedding_model_size,
-            enable_caching=enable_caching,
-            inline_tool_calls=inline_tool_calls,
-            max_tokens=max_tokens,
-        )
+        if model_config is not None:
+            self.model_config = model_config
+        else:
+            self.model_config = ModelConfig(
+                openai_api_key=openai_api_key,
+                openai_api_base=openai_api_base,
+                openai_embedding_api_base=openai_embedding_api_base,
+                chat_model=chat_model,
+                chat_model_api_key=chat_model_api_key,
+                chat_model_api_base=chat_model_api_base,
+                embedding_model=embedding_model or "text-embedding-3-small",
+                embedding_model_api_key=embedding_model_api_key,
+                embedding_model_api_base=embedding_model_api_base,
+                embedding_model_size=embedding_model_size or 1536,
+                enable_caching=enable_caching if enable_caching is not None else True,
+                inline_tool_calls=inline_tool_calls if inline_tool_calls is not None else False,
+                max_tokens=max_tokens or 4000,
+            )
 
-        self.ui_config = UIConfig(
-            show_internal_thought=show_internal_thought,
-            system_message_color=system_message_color,
-            assistant_color=assistant_color,
-            user_input_color=user_input_color,
-            warning_color=warning_color,
-            internal_thought_color=internal_thought_color,
-        )
+        if ui_config is not None:
+            self.ui_config = ui_config
+        else:
+            self.ui_config = UIConfig(
+                show_internal_thought=show_internal_thought if show_internal_thought is not None else False,
+                system_message_color=system_message_color or "bright_blue",
+                assistant_color=assistant_color or "bright_green",
+                user_input_color=user_input_color or "bright_yellow",
+                warning_color=warning_color or "bright_red",
+                internal_thought_color=internal_thought_color or "dim",
+            )
 
-        self.memory_config = MemoryConfig(
-            max_context_age_minutes=max_context_age_minutes,
-            min_convo_age_for_greeting_minutes=min_convo_age_for_greeting_minutes,
-            memory_cluster_similarity_threshold=memory_cluster_similarity_threshold,
-            max_memory_cluster_size=max_memory_cluster_size,
-            min_memory_cluster_size=min_memory_cluster_size,
-            memories_between_consolidation=memories_between_consolidation,
-            messages_between_memory=messages_between_memory,
-            l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold,
-        )
+        if memory_config is not None:
+            self.memory_config = memory_config
+        else:
+            self.memory_config = MemoryConfig(
+                max_context_age_minutes=max_context_age_minutes or 60.0,
+                min_convo_age_for_greeting_minutes=min_convo_age_for_greeting_minutes or 5.0,
+                memory_cluster_similarity_threshold=memory_cluster_similarity_threshold or 0.85,
+                max_memory_cluster_size=max_memory_cluster_size or 10,
+                min_memory_cluster_size=min_memory_cluster_size or 2,
+                memories_between_consolidation=memories_between_consolidation or 5,
+                messages_between_memory=messages_between_memory or 10,
+                l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold or 0.7,
+            )
 
-        self.tool_config = ToolConfig(
-            custom_tools_path=custom_tools_path,
-            exclude_tools=exclude_tools,
-            include_base_tools=include_base_tools,
-            shell_commands=shell_commands,
-            allowed_shell_command_prefixes=allowed_shell_command_prefixes,
-        )
+        if tool_config is not None:
+            self.tool_config = tool_config
+        else:
+            self.tool_config = ToolConfig(
+                custom_tools_path=custom_tools_path or [],
+                exclude_tools=exclude_tools or [],
+                include_base_tools=include_base_tools if include_base_tools is not None else True,
+                shell_commands=shell_commands if shell_commands is not None else True,
+                allowed_shell_command_prefixes=allowed_shell_command_prefixes or [],
+            )
 
-        self.runtime_config = RuntimeConfig(
-            config_path=config_path,
-            user_token=user_token,
-            debug=debug,
-            default_persona=default_persona or PERSONA,
-            default_assistant_name=default_assistant_name,
-            use_background_threads=use_background_threads,
-            max_ingested_doc_lines=max_ingested_doc_lines,
-            max_assistant_loops=max_assistant_loops,
-            reflect=reflect,
-        )
+        if runtime_config is not None:
+            self.runtime_config = runtime_config
+        else:
+            self.runtime_config = RuntimeConfig(
+                config_path=config_path,
+                user_token=user_token or "",
+                debug=debug if debug is not None else False,
+                default_persona=default_persona or PERSONA,
+                default_assistant_name=default_assistant_name or "",
+                use_background_threads=use_background_threads if use_background_threads is not None else True,
+                max_ingested_doc_lines=max_ingested_doc_lines or 0,
+                max_assistant_loops=max_assistant_loops or 0,
+                reflect=reflect if reflect is not None else False,
+            )
 
         # Maintain backward compatibility with direct attribute access
-        self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in allowed_shell_command_prefixes]
-        self.shell_commands = shell_commands
-        self.reflect = reflect
-        self.include_base_tools = include_base_tools
-        self.user_token = user_token
-        self.show_internal_thought = show_internal_thought
-        self.default_assistant_name = default_assistant_name
-        self.default_persona = default_persona or PERSONA
-        self.debug = debug
-        self.max_tokens = max_tokens
-        self.max_assistant_loops = max_assistant_loops
-        self.l2_memory_relevance_distance_threshold = l2_memory_relevance_distance_threshold
-        self.context_refresh_target_tokens = int(max_tokens / 3)
-        self.memory_cluster_similarity_threshold = memory_cluster_similarity_threshold
-        self.min_memory_cluster_size = min_memory_cluster_size
-        self.max_memory_cluster_size = max_memory_cluster_size
-        self.memories_between_consolidation = memories_between_consolidation
-        self.messages_between_memory = messages_between_memory
-        self.inline_tool_calls = inline_tool_calls
-        self.use_background_threads = use_background_threads
-        self.max_ingested_doc_lines = max_ingested_doc_lines
+        self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in self.tool_config.allowed_shell_command_prefixes]
+        self.shell_commands = self.tool_config.shell_commands
+        self.reflect = self.runtime_config.reflect
+        self.include_base_tools = self.tool_config.include_base_tools
+        self.user_token = self.runtime_config.user_token
+        self.show_internal_thought = self.ui_config.show_internal_thought
+        self.default_assistant_name = self.runtime_config.default_assistant_name
+        self.default_persona = self.runtime_config.default_persona
+        self.debug = self.runtime_config.debug
+        self.max_tokens = self.model_config.max_tokens
+        self.max_assistant_loops = self.runtime_config.max_assistant_loops
+        self.l2_memory_relevance_distance_threshold = self.memory_config.l2_memory_relevance_distance_threshold
+        self.context_refresh_target_tokens = int(self.model_config.max_tokens / 3)
+        self.memory_cluster_similarity_threshold = self.memory_config.memory_cluster_similarity_threshold
+        self.min_memory_cluster_size = self.memory_config.min_memory_cluster_size
+        self.max_memory_cluster_size = self.memory_config.max_memory_cluster_size
+        self.memories_between_consolidation = self.memory_config.memories_between_consolidation
+        self.messages_between_memory = self.memory_config.messages_between_memory
+        self.inline_tool_calls = self.model_config.inline_tool_calls
+        self.use_background_threads = self.runtime_config.use_background_threads
+        self.max_ingested_doc_lines = self.runtime_config.max_ingested_doc_lines
 
     from ..tools.registry import ToolRegistry
 
