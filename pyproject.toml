@@ -30,7 +30,6 @@ dependencies = [
     "sqlite-vec>=0.1.6",
     "scikit-learn>=1.6.0",
     "lock>=2018.3.25.2110",
-    "mcp",
     "importlib-resources",
     "apscheduler>=3.11.0",
     "fastapi>=0.104.0",
@@ -79,7 +78,6 @@ tracing = [
 
 [project.scripts]
 elroy = "elroy.cli.main:app"
-elroy_mcp = "elroy.mcp.server:main"
 
 [tool.pyright]
 include = [
