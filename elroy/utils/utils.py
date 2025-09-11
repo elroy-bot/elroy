@@ -89,7 +89,14 @@ def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> Optional[thread
     # hack to get a new session for the thread
     def wrapped_fn():
         # Create completely new connection in the new thread
-        new_ctx = ElroyContext(**vars(ctx.params))
+        new_ctx = ElroyContext(
+            database_config=ctx.database_config,
+            model_config=ctx.model_config,
+            ui_config=ctx.ui_config,
+            memory_config=ctx.memory_config,
+            tool_config=ctx.tool_config,
+            runtime_config=ctx.runtime_config,
+        )
         with dbsession(new_ctx):
             fn(new_ctx, *args)
 

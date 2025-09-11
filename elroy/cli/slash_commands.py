@@ -65,10 +65,10 @@ def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
             str(idx),
             Group(*details),
             style={
-                ASSISTANT: ctx.params.assistant_color,
-                USER: ctx.params.user_input_color,
-                SYSTEM: ctx.params.system_message_color,
-                TOOL: ctx.params.system_message_color,
+                ASSISTANT: ctx.ui_config.assistant_color,
+                USER: ctx.ui_config.user_input_color,
+                SYSTEM: ctx.ui_config.system_message_color,
+                TOOL: ctx.ui_config.system_message_color,
             }.get(message.role, "white"),
         )
 

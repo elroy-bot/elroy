@@ -10,6 +10,7 @@ from tests.utils import process_test_message
 from toolz import pipe
 from toolz.curried import map
 
+from elroy.core.configs import ToolConfig
 from elroy.core.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
 from elroy.core.ctx import ElroyContext
 from elroy.db.db_models import ToolCall
@@ -85,10 +86,23 @@ def test_tool_schema_does_not_have_elroy_ctx():
 
 
 def test_exclude_tools(ctx: ElroyContext):
-    params = vars(ctx.params)
-    params["exclude_tools"] = ["get_user_preferred_name"]
+    # Create new ElroyContext with modified tool config
+    new_tool_config = ToolConfig(
+        custom_tools_path=ctx.tool_config.custom_tools_path,
+        exclude_tools=["get_user_preferred_name"],
+        allowed_shell_command_prefixes=ctx.tool_config.allowed_shell_command_prefixes,
+        include_base_tools=ctx.tool_config.include_base_tools,
+        shell_commands=ctx.tool_config.shell_commands,
+    )
 
-    new_ctx = ElroyContext(**params)
+    new_ctx = ElroyContext(
+        database_config=ctx.database_config,
+        model_config=ctx.model_config,
+        ui_config=ctx.ui_config,
+        memory_config=ctx.memory_config,
+        tool_config=new_tool_config,
+        runtime_config=ctx.runtime_config,
+    )
 
     assert new_ctx.tool_registry.get("get_user_preferred_name") is None
 

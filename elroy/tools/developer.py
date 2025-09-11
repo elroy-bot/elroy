@@ -107,15 +107,15 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
             "User Token": ctx.user_token,
             "Database URL": (
                 "postgresql://" + "*" * 8
-                if not show_secrets and ctx.params.database_url.startswith("postgresql")
-                else ctx.params.database_url
+                if not show_secrets and ctx.database_config.database_url.startswith("postgresql")
+                else ctx.database_config.database_url
             ),
         },
         "Model Configuration": {
             "Chat Model": ctx.chat_model.name,
             "Embedding Model": ctx.embedding_model.name,
-            "Embedding Model Size": ctx.params.embedding_model_size,
-            "Caching Enabled": ctx.params.enable_caching,
+            "Embedding Model Size": ctx.model_config.embedding_model_size,
+            "Caching Enabled": ctx.model_config.enable_caching,
         },
         "API Configuration": {
             "Chat API Base": ctx.chat_model.api_base or "None (May be read from env vars)",
@@ -133,7 +133,7 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
             "Max Assistant Loops": ctx.max_assistant_loops,
             "Max tokens": ctx.max_tokens,
             "Context Refresh Target Tokens": ctx.context_refresh_target_tokens,
-            "Max Context Age (minutes)": ctx.params.max_context_age_minutes,
+            "Max Context Age (minutes)": ctx.memory_config.max_context_age_minutes,
         },
         "Memory Management": {
             "Memory Cluster Similarity": ctx.memory_cluster_similarity_threshold,
@@ -144,11 +144,11 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
         },
         "UI Configuration": {
             "Show Internal Thought": ctx.show_internal_thought,
-            "System Message Color": Text(ctx.params.system_message_color, style=ctx.params.system_message_color),
-            "Assistant Color": Text(ctx.params.assistant_color, style=ctx.params.assistant_color),
-            "User Input Color": Text(ctx.params.user_input_color, style=ctx.params.user_input_color),
-            "Warning Color": Text(ctx.params.warning_color, style=ctx.params.warning_color),
-            "Internal Thought Color": Text(ctx.params.internal_thought_color, style=ctx.params.internal_thought_color),
+            "System Message Color": Text(ctx.ui_config.system_message_color, style=ctx.ui_config.system_message_color),
+            "Assistant Color": Text(ctx.ui_config.assistant_color, style=ctx.ui_config.assistant_color),
+            "User Input Color": Text(ctx.ui_config.user_input_color, style=ctx.ui_config.user_input_color),
+            "Warning Color": Text(ctx.ui_config.warning_color, style=ctx.ui_config.warning_color),
+            "Internal Thought Color": Text(ctx.ui_config.internal_thought_color, style=ctx.ui_config.internal_thought_color),
         },
     }
 
