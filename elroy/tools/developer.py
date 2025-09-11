@@ -1,7 +1,5 @@
 import os
 import platform
-import re
-import subprocess
 import sys
 import urllib.parse
 import webbrowser
@@ -15,44 +13,13 @@ from ..config.paths import get_home_dir, get_log_file_path
 from ..core.constants import (
     BUG_REPORT_LOG_LINES,
     REPO_ISSUES_URL,
-    RecoverableToolError,
-    tool,
     user_only_tool,
 )
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
-from ..llm.stream_parser import ShellCommandOutput
 from ..utils.clock import utc_now
 
 logger = get_logger()
-
-
-@tool
-def run_shell_command(ctx: ElroyContext, command: str) -> ShellCommandOutput:
-    """
-    Run a shell command and return the output.
-
-    Args:
-        command (str): The shell command to run.
-
-    Returns:
-        str: The output of the command.
-    """
-    # check if command matches any of ctx.allowed_shell_command_prefixes (regex match)
-    if not any(re.match(prefix, command) for prefix in ctx.allowed_shell_command_prefixes):
-        raise RecoverableToolError(f"Command {command} does not match any allowed prefixes: {ctx.allowed_shell_command_prefixes}")
-
-    logger.info(f"Running shell command: {command}")
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    if result.returncode != 0:
-        logger.error(f"Command failed with error: {result.stderr}")
-
-    return ShellCommandOutput(
-        working_dir=os.getcwd(),
-        command=command,
-        stdout=result.stdout,
-        stderr=result.stderr,
-    )
 
 
 @user_only_tool
