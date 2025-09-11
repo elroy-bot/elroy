@@ -76,7 +76,15 @@ def schedule_task(
     @wraps(fn)
     def wrapped_fn():
         # Create completely new connection in the new thread
-        new_ctx = ElroyContext(**vars(ctx.params))
+        # Use config objects directly - much cleaner than extracting individual parameters
+        new_ctx = ElroyContext(
+            database_config=ctx.database_config,
+            model_config=ctx.model_config,
+            ui_config=ctx.ui_config,
+            memory_config=ctx.memory_config,
+            tool_config=ctx.tool_config,
+            runtime_config=ctx.runtime_config,
+        )
         with dbsession(new_ctx):
             fn(new_ctx, *args, **kwargs)
 
