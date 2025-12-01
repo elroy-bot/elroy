@@ -105,6 +105,9 @@ use_directory_urls: false
 
 # Extra settings
 extra:
+  analytics:
+    provider: google
+    property: G-WGS6XZX78T
   api_base_url: !ENV [API_BASE_URL, 'https://elroy-pf72y.ondigitalocean.app']
   social:
     - icon: fontawesome/brands/github
