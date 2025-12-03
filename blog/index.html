@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://elroy.bot/blog/index.html">
       
       
-        <link rel="prev" href="../waitlist.html">
+        <link rel="prev" href="../roadmap.html">
       
       
       
@@ -710,28 +710,6 @@
       
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../waitlist.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Waitlist
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
     
   
   
@@ -751,7 +729,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -769,8 +747,8 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_11">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             Blog
           </label>
@@ -822,6 +800,71 @@
     </a>
 </div>
       </header>
+      
+        <article class="md-post md-post--excerpt">
+  <header class="md-post__header">
+    
+    <div class="md-post__meta md-meta">
+      <ul class="md-meta__list">
+        <li class="md-meta__item">
+          <time datetime="2025-10-28 00:00:00+00:00">October 28, 2025</time></li>
+        
+        
+          
+          <li class="md-meta__item">
+            
+              3 min read
+            
+          </li>
+        
+      </ul>
+      
+    </div>
+  </header>
+  <div class="md-post__content md-typeset">
+    <h2 id="optimizing-repos-for-ai"><a class="toclink" href="2025/10/28/optimizing-repos-for-ai.html">Optimizing repos for AI</a></h2>
+<p>A colleague recently complained to me about the hassle of organizing information in <code>AGENTS.md</code> / <code>CLAUDE.md</code>. This is the mark of a real adopter - she has gone through the progression from being impressed by coding agents to being annoyed at the next bottleneck.</p>
+<p>When I'm thinking about optimizing repos for agents, I'm looking to accomplish three main goals<sup id="fnref:1"><a class="footnote-ref" href="2025/10/28/optimizing-repos-for-ai.html#fn:1">1</a></sup>:</p>
+<ul>
+<li><strong>Increase <em>iterative speed</em></strong>: Avoid repeated context gathering, enable the agent to quickly self-correct its mistakes.</li>
+<li><strong>Improve adherence to evergreen instructions</strong>: Over time, repeated agent mistakes emerge. Context within the repo helps the agent avoid these and adopt a more consistent workflow.</li>
+<li><strong>Help the most <a href="https://en.wikipedia.org/wiki/Human">agentic agents of them all</a></strong>: Humans and agents scan docs and code in very similar ways, so organizing information so it's easily understood by humans is a good rule of thumb for helping the agents anyways!</li>
+</ul>
+<!-- truncate -->
+
+<h3 id="strategies"><a class="toclink" href="2025/10/28/optimizing-repos-for-ai.html#strategies">Strategies<sup id="fnref:2"><a class="footnote-ref" href="2025/10/28/optimizing-repos-for-ai.html#fn:2">2</a></sup></a></h3>
+<h4 id="increased-static-analysis"><a class="toclink" href="2025/10/28/optimizing-repos-for-ai.html#increased-static-analysis">Increased static analysis</a></h4>
+<p>Pushing detection of quality issues to compile time creates a virtuous cycle where the agent can quickly spot and correct mistakes:</p>
+<p><img alt="runtime-oops" src="diagrams/runtime-oops.png" /></p>
+<p>This implies strong, opinionated linters, and strong type checks for dynamically typed languages<sup id="fnref:3"><a class="footnote-ref" href="2025/10/28/optimizing-repos-for-ai.html#fn:3">3</a></sup>.</p>
+<p>The tradeoff here is cumbersome nitpicks for humans to deal with, but agents can quickly correct any mistakes that cannot be automatically fixed by the linter.</p>
+<h4 id="just-for-repeated-agent-commands"><a class="toclink" href="2025/10/28/optimizing-repos-for-ai.html#just-for-repeated-agent-commands"><a href="https://github.com/casey/just">just</a> for repeated agent commands</a></h4>
+<p>There's fragmentation in how to make commands available to agents - there's MCP, the newly released <a href="https://www.anthropic.com/news/skills">Claude Skills</a>, or embedding information in <code>CLAUDE.md</code> / <code>AGENTS.md</code>.</p>
+<p>A <code>justfile</code> is the most interoperable way to share commands between different agents and humans, and is a straightforward place to iterate.</p>
+<p>One additional refinement is to make these commands <em>economical in their output volume</em>. For example, I take care to direct build logs to dedicated files - healthy build logs can eat up a lot of tokens if outputted directly to the agent.</p>
+<h4 id="organize-docs-in-docs"><a class="toclink" href="2025/10/28/optimizing-repos-for-ai.html#organize-docs-in-docs">Organize docs in <code>docs/</code></a></h4>
+<p>Simon Willison recently <a href="https://simonwillison.net/2025/Oct/25/coding-agent-tips/">wrote about this topic</a>, and expressed that docs aren't so important. I agree that docs <em>explaining the code</em> aren't all that helpful, but I get a lot of mileage out of having docs like <code>CODE_REVIEW.md</code>, <code>PRD.md</code>, <code>ROADMAP.md</code>, and <code>CAPTAINS_LOG.md</code>. This helps the agent stay on track with the overall intent of the project, adhere to consistent review practices, and counter poor tendencies (the most obnoxious being an overwhelming tendency to fail open).</p>
+<p>Putting these in a <code>docs/</code> folder and referencing them in agent instructions helps reduce context bloat, and provides interoperability between humans and various agents.</p>
+<p>Frameworks have begun to emerge that handle some of this for you. I've tried <a href="https://github.com/github/spec-kit">spec-kit</a> and found it to be a little heavy-handed. In general I favor a more documentation-heavy approach when building with agents, but the need for different docs comes with iteration, and I think generating the full complement of docs is a bit overkill right off the bat.</p>
+<h3 id="no-experts-no-standards"><a class="toclink" href="2025/10/28/optimizing-repos-for-ai.html#no-experts-no-standards">No experts, no standards</a></h3>
+<p>These strategies work for me, but this field is too new for dogma. The most important strategy is to experiment and share what you learn.</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:1">
+<p>Whether optimizing for coding agents is a good idea is a subject for a different discussion, but: I'm a believer in agent-based coding. I no longer <em>ever</em> write code without one assistant or another open. So we'll proceed on the assumption that coding agents are <em>really good</em>, and not especially existentially risky (I am, for the moment, the one giving the directions).&#160;<a class="footnote-backref" href="2025/10/28/optimizing-repos-for-ai.html#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:2">
+<p>Offered with no supporting evidence or benchmarks whatsoever, based entirely on <em>vibes</em>&#160;<a class="footnote-backref" href="2025/10/28/optimizing-repos-for-ai.html#fnref:2" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:3">
+<p>Should you use a dynamically typed language at all? For my projects, I've traded Python for Rust, where "if it compiles, it works".&#160;<a class="footnote-backref" href="2025/10/28/optimizing-repos-for-ai.html#fnref:3" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
+    
+  </div>
+</article>
       
         <article class="md-post md-post--excerpt">
   <header class="md-post__header">
