@@ -89,7 +89,7 @@ nav:
     - Tools Guide: tools_guide.md
     - Tools Schema: tools_schema.md
   - Roadmap: roadmap.md
-  - Waitlist: waitlist.md
+  # - Waitlist: waitlist.md
   - Blog:
     - blog/index.md
 
