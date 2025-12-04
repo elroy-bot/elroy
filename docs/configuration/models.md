@@ -8,7 +8,7 @@ Elroy will automatically select appropriate models based on available API keys:
 
 | API Key | Chat Model | Embedding Model |
 |---------|------------|----------------|
-| `ANTHROPIC_API_KEY` | Claude 3 Sonnet | text-embedding-3-small |
+| `ANTHROPIC_API_KEY` | Claude 4.5 Sonnet | text-embedding-3-small |
 | `OPENAI_API_KEY` | GPT-4o | text-embedding-3-small |
 | `GEMINI_API_KEY` | Gemini 2.0 Flash | text-embedding-3-small |
 
@@ -31,8 +31,8 @@ Shortcuts for common models:
 
 | Alias | Description |
 |-------|-------------|
-| `--sonnet` | Use Anthropic's Claude 3 Sonnet model |
-| `--opus` | Use Anthropic's Claude 3 Opus model |
+| `--sonnet` | Use Anthropic's Claude 4.5 Sonnet model |
+| `--opus` | Use Anthropic's Claude 4.5 Opus model |
 | `--4o` | Use OpenAI's GPT-4o model |
 | `--4o-mini` | Use OpenAI's GPT-4o-mini model |
 | `--o1` | Use OpenAI's o1 model |
