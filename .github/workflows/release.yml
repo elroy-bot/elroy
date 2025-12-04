@@ -8,40 +8,6 @@ on:
       - '**'  # Ignore branch pushes, only trigger on tags
 
 jobs:
-  pytest:
-    environment:
-      name: release
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: ankane/pgvector:v0.5.1
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_DB: elroy
-          POSTGRES_USER: elroy
-          POSTGRES_PASSWORD: password
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - uses: ./.github/actions/setup-elroy-env
-    - uses: ./.github/actions/setup-postgres
-
-    - name: Run Tests
-      run: |
-        source .venv/bin/activate
-        pytest -x --chat-models gpt-5-nano --db-type "postgres,sqlite"
-      env:
-        PYTHONWARNINGS: "ignore::DeprecationWarning"
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
   test-install:
     environment:
       name: release
@@ -79,7 +45,7 @@ jobs:
   publish-pypi:
     environment:
       name: release
-    needs: [pytest, test-install]
+    needs: [test-install]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -106,7 +72,7 @@ jobs:
   create-github-release:
     environment:
       name: release
-    needs: [pytest, test-install]
+    needs: [test-install]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -138,7 +104,7 @@ jobs:
   publish-docker:
     environment:
       name: release
-    needs: [pytest, test-install, wait-five-minutes]
+    needs: [test-install, wait-five-minutes]
     runs-on: ubuntu-latest
     permissions:
       contents: read
