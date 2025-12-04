@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.2] - 2025-12-03
+
+### Improved
+- Updated default model versions for better performance and reliability
+- Document ingestion now ignores dotfiles by default to prevent ingesting system files
+- Documents are no longer re-ingested if they are moved within the same directory structure
+
+### Fixed
+- Fixed display bug in memory consolidation interface
+
+### Infrastructure
+- Refactored LLM client to class-based architecture for better maintainability
+- Streamlined configuration management
+- Removed MCP server functionality (moved to separate package)
+- Removed shell command tools from developer tools
+
 ## [0.1.0] - 2025-08-16
 
 ### Added
