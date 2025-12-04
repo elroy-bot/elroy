@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.2] - 2025-12-03
+## [0.1.1] - 2025-12-03
 
 ### Improved
 - Updated default model versions for better performance and reliability
