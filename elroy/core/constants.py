@@ -83,7 +83,7 @@ ELROY_DATABASE_URL = "ELROY_DATABASE_URL"
 GEMINI_PREFIX = "gemini"
 AZURE_PREFIX = "azure"
 
-CLAUDE_3_5_SONNET = "claude-3-5-sonnet-20241022"
+CLAUDE_3_5_SONNET = "claude-sonnet-4-5-20250929"  # Updated to Claude 4.5 Sonnet
 GPT_5 = "gpt-5"
 GEMINI_2_0_FLASH = "gemini/gemini-2.0-flash"
 TEXT_EMBEDDING_3_SMALL = "text-embedding-3-small"
@@ -107,12 +107,19 @@ KNOWN_MODELS: Dict[Provider, List[str]] = {
     ],
     Provider.ANTHROPIC: [
         CLAUDE_3_5_SONNET,
+        # Claude 4.5 models
+        "claude-sonnet-4-5-20250929",
+        "claude-opus-4-5-20251101",
+        # Claude 3.5 models (older, may be deprecated)
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-sonnet-20240620",
+        "claude-3-5-haiku-20241022",
+        # Claude 3 models
         "claude-3",
         "claude-3-opus-20240229",
-        "claude-3-5-sonnet-20240620",
         "claude-3-sonnet-20240229",
-        "claude-3-5-haiku-20241022",
         "claude-3-haiku-20240307",
+        # Claude 2 models
         "claude-2.1",
         "claude-2",
         "claude-instant-1.2",

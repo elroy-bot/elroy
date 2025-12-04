@@ -30,7 +30,7 @@ def resolve_model_alias(alias: str) -> Optional[str]:
     return {
         "sonnet": CLAUDE_3_5_SONNET,
         "claude-3.5": CLAUDE_3_5_SONNET,
-        "opus": "claude-3-opus-20240229",
+        "opus": "claude-opus-4-5-20251101",  # Updated to Claude 4.5 Opus
         "haiku": "claude-3-5-haiku-20241022",
         "o1": "openai/o1",
         "o1_mini": "openai/o1-mini",

@@ -53,6 +53,18 @@ clean:
 install:
     uv pip install -e ".[dev,docs]"
 
+# Release a new patch version
+release-patch:
+    python scripts/release.py patch
+
+# Release a new minor version
+release-minor:
+    python scripts/release.py minor
+
+# Release a new major version
+release-major:
+    python scripts/release.py major
+
 # Show available recipes
 help:
     @just --list

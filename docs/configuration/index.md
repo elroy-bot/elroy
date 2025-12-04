@@ -8,7 +8,7 @@ Elroy's configuration can be specified in three ways, in order of precedence:
 
 1. **Command Line Flags**: Highest priority, overrides all other settings
    ```bash
-   elroy --chat-model claude-3-5-sonnet-20241022
+   elroy --chat-model claude-sonnet-4-5-20250929
    ```
 
 2. **Environment Variables**: Second priority, overridden by CLI flags. All environment variables are prefixed with `ELROY_` and use uppercase with underscores:
