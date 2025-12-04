@@ -111,7 +111,14 @@ class CliIO(ElroyIO):
 
     def print_memory_panel(self, titles: Iterable[str]):
         if titles:
-            panel = Panel("\n".join(titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
+            titles_list = list(titles)
+            display_titles = titles_list[:10]
+            remaining = len(titles_list) - 10
+
+            if remaining > 0:
+                display_titles.append(f"({remaining} more)")
+
+            panel = Panel("\n".join(display_titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
 
     def rule(self):
