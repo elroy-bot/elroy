@@ -178,7 +178,7 @@ class ElroyContext:
         self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in self.tool_config.allowed_shell_command_prefixes]
         self.shell_commands = self.tool_config.shell_commands
         self.reflect = self.runtime_config.reflect
-        self.include_base_tools = self.tool_config.include_base_tools
+        self._include_base_tools = self.tool_config.include_base_tools
         self.user_token = self.runtime_config.user_token
         self.show_internal_thought = self.ui_config.show_internal_thought
         self.default_assistant_name = self.runtime_config.default_assistant_name
@@ -196,6 +196,18 @@ class ElroyContext:
         self.inline_tool_calls = self.model_config.inline_tool_calls
         self.use_background_threads = self.runtime_config.use_background_threads
         self.max_ingested_doc_lines = self.runtime_config.max_ingested_doc_lines
+
+    @property
+    def include_base_tools(self) -> bool:
+        return self._include_base_tools
+
+    @include_base_tools.setter
+    def include_base_tools(self, value: bool):
+        self._include_base_tools = value
+        self.tool_config.include_base_tools = value
+        # Clear cached tool_registry so it gets recreated with new include_base_tools value
+        if "tool_registry" in self.__dict__:
+            del self.__dict__["tool_registry"]
 
     from ..tools.registry import ToolRegistry
 

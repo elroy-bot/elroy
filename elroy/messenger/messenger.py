@@ -13,9 +13,7 @@ from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.validations import Validator
-from ..repository.memories.queries import (
-    get_relevant_memory_context_msgs,
-)
+from ..repository.memories.queries import get_relevant_memory_context_msgs
 from ..repository.reminders.queries import get_due_reminder_context_msgs
 from .tools import exec_function_call
 

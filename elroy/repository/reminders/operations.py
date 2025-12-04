@@ -9,10 +9,7 @@ from ...core.logging import get_logger
 from ...db.db_models import Reminder
 from ...utils.clock import utc_now
 from ...utils.utils import is_blank
-from ..recall.operations import (
-    remove_from_context,
-    upsert_embedding_if_needed,
-)
+from ..recall.operations import remove_from_context, upsert_embedding_if_needed
 from .queries import get_active_reminder_names, get_db_reminder_by_name
 
 logger = get_logger()

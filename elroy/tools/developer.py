@@ -10,11 +10,7 @@ from rich.text import Text
 
 from .. import __version__
 from ..config.paths import get_home_dir, get_log_file_path
-from ..core.constants import (
-    BUG_REPORT_LOG_LINES,
-    REPO_ISSUES_URL,
-    user_only_tool,
-)
+from ..core.constants import BUG_REPORT_LOG_LINES, REPO_ISSUES_URL, user_only_tool
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..utils.clock import utc_now
