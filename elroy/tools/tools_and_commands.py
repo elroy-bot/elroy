@@ -60,11 +60,7 @@ from ..repository.user.tools import (
     set_user_full_name,
     set_user_preferred_name,
 )
-from .developer import (
-    create_bug_report,
-    print_config,
-    tail_elroy_logs,
-)
+from .developer import create_bug_report, print_config, tail_elroy_logs
 
 IN_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
     drop_memory_from_current_context,

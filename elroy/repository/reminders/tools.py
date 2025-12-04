@@ -8,15 +8,8 @@ from ...utils.utils import is_blank
 from ..context_messages.operations import add_context_messages
 from ..memories.transforms import to_fast_recall_tool_call
 from ..recall.operations import upsert_embedding_if_needed
-from .operations import (
-    do_complete_reminder,
-    do_create_reminder,
-    do_delete_reminder,
-)
-from .queries import (
-    get_active_reminder_names,
-    get_db_reminder_by_name,
-)
+from .operations import do_complete_reminder, do_create_reminder, do_delete_reminder
+from .queries import get_active_reminder_names, get_db_reminder_by_name
 
 logger = get_logger()
 
