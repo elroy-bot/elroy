@@ -3,7 +3,7 @@ title: "Make It Easy for Humans First, Then AI"
 date: 2025-11-26
 ---
 
-I recently wrote about [optimizing repos for AI](/optimizing-repos-for-ai), but I've not quite settled on the question of, **_should_ you optimize repos for AI?** That is, is there really substantial daylight between what an AI dev needs and what a human needs?
+I recently wrote about [optimizing repos for AI](optimizing-repos-for-ai.md), but I've not quite settled on the question of, **_should_ you optimize repos for AI?** That is, is there really substantial daylight between what an AI dev needs and what a human needs?
 
 <!-- truncate -->
 
@@ -36,4 +36,4 @@ For commands/skills, automation can help - for example, I wrote the [just-claude
 
 This also sidesteps dev angst about being left behind. There's really no difference between the goal of economical token use for AI and reducing cognitive overhead for humans - organizing for humans first makes everyone happy.
 
-[^1]: I wrote about what content I put in these files in the (ironically titled) post [Optimizing repos for AI](/optimizing-repos-for-ai)
+[^1]: I wrote about what content I put in these files in the (ironically titled) post [Optimizing repos for AI](optimizing-repos-for-ai.md)

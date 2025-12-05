@@ -16,7 +16,7 @@ Too much, and the program [loses track of what it's supposed to be doing](https:
 
 An implicit strategy question when building with LLMs is _autonomy first_ or _autonomy last_:
 
-![autonomy_first_vs_last](/images/blog/autonomy_last/autonomy_first_vs_last.png)
+![autonomy_first_vs_last](../../images/blog/autonomy_last/autonomy_first_vs_last.png)
 
 All of the major LLM-specific programming techniques are firmly _autonomy first_ strategies:
 
@@ -49,21 +49,21 @@ I wanted to build an LLM assistant with memory abilities, called [Elroy](https:/
 
 The first solution I turned to, which many people have done, is build an agent loop with access to custom for creating and reading memories:
 
-![tool_based_agent](/images/blog/autonomy_last/Agent.png)
+![tool_based_agent](../../images/blog/autonomy_last/Agent.png)
 
 ### Approach #2: Model Context Protocol (MCP)
 
 There's now a handly tool for builders like this: [MCP](https://modelcontextprotocol.io/introduction). There are many implementations of my memory tools available via MCP, in fact [smithery.ai](https://smithery.ai/) lists one from Mem0 on it's homepage:
 
-![smithery](/images/blog/autonomy_last/smithery.png)
+![smithery](../../images/blog/autonomy_last/smithery.png)
 
 Now, an (in theory) lightweight abstraction sits between my program and it's tools:
 
-![mcp](/images/blog/autonomy_last/mcp.png)
+![mcp](../../images/blog/autonomy_last/mcp.png)
 
 This suggests extending my application via picking from a library of MCP's:
 
-![more_mcp](/images/blog/autonomy_last/more_mcp.png)
+![more_mcp](../../images/blog/autonomy_last/more_mcp.png)
 
 
 ### Agentic trouble
@@ -72,13 +72,13 @@ I got my memory program working pretty well on gpt-4. At first it wasn't creatin
 
 Then, I wanted to see how Sonnet would do, and I had a problem[^2]: the program's behavior completely changed! Now, it was creating a memory on almost every message, and searching memories for even trivial responses:
 
-![tool_usage](/images/blog/autonomy_last/tool_usage_rate.png)
+![tool_usage](../../images/blog/autonomy_last/tool_usage_rate.png)
 
 ### Approach #3: Autonomy Last
 
 My solution was to remove the timing of recall and memory creation from the agent's control. Upon receiving a message, the memories are automatically searched, with relevant ones being added to context. Every n messages, a memory is created[^3]:
 
-![tool_usage](/images/blog/autonomy_last/elroy.png)
+![tool_usage](../../images/blog/autonomy_last/elroy.png)
 
 This made much more of the behavior of my program deterministic, and made it easier to reason about and optimize.
 

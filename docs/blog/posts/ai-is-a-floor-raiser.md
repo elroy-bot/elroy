@@ -86,9 +86,12 @@ _Summarizing_ is a core AI skill, but it doesn't help much here:
 Similar with food ordering: apps like DoorDash have meticulously designed interfaces. They strike a careful balance between information like price and ingredients against photos of the food. AI is unlikely to produce interfaces that are faster or more thoughtfully composed.
 
 
-## The future is already here – it’s just not very evenly distributed
+## The future is already here – it's just not very evenly distributed
 
 AI has raised the floor for knowledge work, but that change doesn't matter to everyone. This goes a long way towards explaining the very wide range of reactions to AI. For engineering managers like myself, AI has made an enormous impact on my relationship with technology. Others fear and resent being replaced. Still others hear smart people express enthusiasm for AI, struggle to find utility, and think _I must just not get it_.
+
+!!! info "Working on something new"
+    I'm building [Tack](https://elroy.bot/blog/2025/12/04/tack---reminders-powered-by-local-ai.html), a smart reminder app powered by local AI. If you're interested in trying it out, [sign up here](https://elroy.bot/blog/2025/12/04/tack---reminders-powered-by-local-ai.html).
 
 AI hasn't replaced how we do everything, but it's a highly capable technology. While it's worth experimenting with, whoever you are, if it doesn't seem like it makes sense for you, it probably doesn't.
 
