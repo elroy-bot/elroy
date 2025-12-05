@@ -963,7 +963,7 @@
   </header>
   <div class="md-post__content md-typeset">
     <h2 id="make-it-easy-for-humans-first-then-ai"><a class="toclink" href="2025/11/26/make-it-easy-for-humans-first-then-ai.html">Make It Easy for Humans First, Then AI</a></h2>
-<p>I recently wrote about <a href="/optimizing-repos-for-ai">optimizing repos for AI</a>, but I've not quite settled on the question of, <strong><em>should</em> you optimize repos for AI?</strong> That is, is there really substantial daylight between what an AI dev needs and what a human needs?</p>
+<p>I recently wrote about <a href="2025/10/28/optimizing-repos-for-ai.html">optimizing repos for AI</a>, but I've not quite settled on the question of, <strong><em>should</em> you optimize repos for AI?</strong> That is, is there really substantial daylight between what an AI dev needs and what a human needs?</p>
 <!-- truncate -->
 
 <h3 id="issues-with-optimizing-repos-for-ai"><a class="toclink" href="2025/11/26/make-it-easy-for-humans-first-then-ai.html#issues-with-optimizing-repos-for-ai">Issues with optimizing repos for AI</a></h3>
@@ -984,7 +984,7 @@
 <hr />
 <ol>
 <li id="fn:1">
-<p>I wrote about what content I put in these files in the (ironically titled) post <a href="/optimizing-repos-for-ai">Optimizing repos for AI</a>&#160;<a class="footnote-backref" href="2025/11/26/make-it-easy-for-humans-first-then-ai.html#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+<p>I wrote about what content I put in these files in the (ironically titled) post <a href="2025/10/28/optimizing-repos-for-ai.html">Optimizing repos for AI</a>&#160;<a class="footnote-backref" href="2025/11/26/make-it-easy-for-humans-first-then-ai.html#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
 </li>
 </ol>
 </div>
@@ -1129,8 +1129,12 @@
 <li>For important email, I don't <em>want</em> a summary: An AI is likely to produce less specifically crafted information than the sender, and I don't want to risk missing important details.</li>
 </ul>
 <p>Similar with food ordering: apps like DoorDash have meticulously designed interfaces. They strike a careful balance between information like price and ingredients against photos of the food. AI is unlikely to produce interfaces that are faster or more thoughtfully composed.</p>
-<h3 id="the-future-is-already-here-its-just-not-very-evenly-distributed"><a class="toclink" href="2025/07/29/ai-is-a-floor-raiser-not-a-ceiling-raiser.html#the-future-is-already-here-its-just-not-very-evenly-distributed">The future is already here – it’s just not very evenly distributed</a></h3>
+<h3 id="the-future-is-already-here-its-just-not-very-evenly-distributed"><a class="toclink" href="2025/07/29/ai-is-a-floor-raiser-not-a-ceiling-raiser.html#the-future-is-already-here-its-just-not-very-evenly-distributed">The future is already here – it's just not very evenly distributed</a></h3>
 <p>AI has raised the floor for knowledge work, but that change doesn't matter to everyone. This goes a long way towards explaining the very wide range of reactions to AI. For engineering managers like myself, AI has made an enormous impact on my relationship with technology. Others fear and resent being replaced. Still others hear smart people express enthusiasm for AI, struggle to find utility, and think <em>I must just not get it</em>.</p>
+<div class="admonition info">
+<p class="admonition-title">Working on something new</p>
+<p>I'm building <a href="https://elroy.bot/blog/2025/12/04/tack---reminders-powered-by-local-ai.html">Tack</a>, a smart reminder app powered by local AI. If you're interested in trying it out, <a href="https://elroy.bot/blog/2025/12/04/tack---reminders-powered-by-local-ai.html">sign up here</a>.</p>
+</div>
 <p>AI hasn't replaced how we do everything, but it's a highly capable technology. While it's worth experimenting with, whoever you are, if it doesn't seem like it makes sense for you, it probably doesn't.</p>
 <div class="footnote">
 <hr />
@@ -1174,7 +1178,7 @@
 
 <h3 id="autonomy-first-vs-autonomy-last"><a class="toclink" href="2025/07/07/add-autonomy-last.html#autonomy-first-vs-autonomy-last">Autonomy first vs autonomy last</a></h3>
 <p>An implicit strategy question when building with LLMs is <em>autonomy first</em> or <em>autonomy last</em>:</p>
-<p><img alt="autonomy_first_vs_last" src="/images/blog/autonomy_last/autonomy_first_vs_last.png" /></p>
+<p><img alt="autonomy_first_vs_last" src="../images/blog/autonomy_last/autonomy_first_vs_last.png" /></p>
 <p>All of the major LLM-specific programming techniques are firmly <em>autonomy first</em> strategies:</p>
 <ul>
 <li><em>MCP</em> surfaces a wide variety of functionality the program can have, and lets the LLM decide which to use</li>
@@ -1198,21 +1202,21 @@
 <p>I wanted to build an LLM assistant with memory abilities, called <a href="https://github.com/elroy-bot/elroy">Elroy</a>. My goal was to make a <em>program</em> that could chat in human text. My ideal users are technical, capable and interested in customizing their software, but not necessarily interested in LLMs for their own sake.</p>
 <h4 id="approach-1-agent-with-tools"><a class="toclink" href="2025/07/07/add-autonomy-last.html#approach-1-agent-with-tools">Approach #1: "Agent" with tools</a></h4>
 <p>The first solution I turned to, which many people have done, is build an agent loop with access to custom for creating and reading memories:</p>
-<p><img alt="tool_based_agent" src="/images/blog/autonomy_last/Agent.png" /></p>
+<p><img alt="tool_based_agent" src="../images/blog/autonomy_last/Agent.png" /></p>
 <h4 id="approach-2-model-context-protocol-mcp"><a class="toclink" href="2025/07/07/add-autonomy-last.html#approach-2-model-context-protocol-mcp">Approach #2: Model Context Protocol (MCP)</a></h4>
 <p>There's now a handly tool for builders like this: <a href="https://modelcontextprotocol.io/introduction">MCP</a>. There are many implementations of my memory tools available via MCP, in fact <a href="https://smithery.ai/">smithery.ai</a> lists one from Mem0 on it's homepage:</p>
-<p><img alt="smithery" src="/images/blog/autonomy_last/smithery.png" /></p>
+<p><img alt="smithery" src="../images/blog/autonomy_last/smithery.png" /></p>
 <p>Now, an (in theory) lightweight abstraction sits between my program and it's tools:</p>
-<p><img alt="mcp" src="/images/blog/autonomy_last/mcp.png" /></p>
+<p><img alt="mcp" src="../images/blog/autonomy_last/mcp.png" /></p>
 <p>This suggests extending my application via picking from a library of MCP's:</p>
-<p><img alt="more_mcp" src="/images/blog/autonomy_last/more_mcp.png" /></p>
+<p><img alt="more_mcp" src="../images/blog/autonomy_last/more_mcp.png" /></p>
 <h4 id="agentic-trouble"><a class="toclink" href="2025/07/07/add-autonomy-last.html#agentic-trouble">Agentic trouble</a></h4>
 <p>I got my memory program working pretty well on gpt-4. At first it wasn't creating or referencing memories enough, but I was able to fix this with careful prompting.</p>
 <p>Then, I wanted to see how Sonnet would do, and I had a problem<sup id="fnref:2"><a class="footnote-ref" href="2025/07/07/add-autonomy-last.html#fn:2">2</a></sup>: the program's behavior completely changed! Now, it was creating a memory on almost every message, and searching memories for even trivial responses:</p>
-<p><img alt="tool_usage" src="/images/blog/autonomy_last/tool_usage_rate.png" /></p>
+<p><img alt="tool_usage" src="../images/blog/autonomy_last/tool_usage_rate.png" /></p>
 <h4 id="approach-3-autonomy-last"><a class="toclink" href="2025/07/07/add-autonomy-last.html#approach-3-autonomy-last">Approach #3: Autonomy Last</a></h4>
 <p>My solution was to remove the timing of recall and memory creation from the agent's control. Upon receiving a message, the memories are automatically searched, with relevant ones being added to context. Every n messages, a memory is created<sup id="fnref:3"><a class="footnote-ref" href="2025/07/07/add-autonomy-last.html#fn:3">3</a></sup>:</p>
-<p><img alt="tool_usage" src="/images/blog/autonomy_last/elroy.png" /></p>
+<p><img alt="tool_usage" src="../images/blog/autonomy_last/elroy.png" /></p>
 <p>This made much more of the behavior of my program deterministic, and made it easier to reason about and optimize.</p>
 <h2 id="autonomy-last"><a class="toclink" href="2025/07/07/add-autonomy-last.html#autonomy-last">Autonomy Last</a></h2>
 <p>The "autonomy last" approach trades some of the magic of fully autonomous LLMs for predictable, reliable behavior that scales as your program grows in complexity. While my evidence is, (as I should have stated from the outset), <em>vibes</em>, I think this approach will lead to more maintainable and robust applications.</p>
