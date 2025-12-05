@@ -1,0 +1,26 @@
+:root {
+  --md-primary-fg-color: #C8C7E8;
+  --md-primary-fg-color--light: #C8C7E8;
+  --md-primary-fg-color--dark: #C8C7E8;
+  --md-accent-fg-color: #C8C7E8;
+}
+
+.md-header {
+  background-color: #C8C7E8 !important;
+}
+
+.md-tabs {
+  background-color: #C8C7E8 !important;
+}
+
+.md-nav__item .md-nav__link--active {
+  color: #C8C7E8;
+}
+
+.md-typeset a {
+  color: #C8C7E8;
+}
+
+.md-typeset a:hover {
+  color: #C8C7E8;
+}

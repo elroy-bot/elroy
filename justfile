@@ -16,19 +16,20 @@ test-all *ARGS:
 
 # Serve documentation locally with live reload
 docs:
-    mkdocs serve
-
-# Serve documentation on a specific port
-docs-port PORT:
-    mkdocs serve --dev-addr=127.0.0.1:{{PORT}}
+    cd website && npm start
 
 # Build documentation
 docs-build:
-    mkdocs build
+    cd website && npm run build
 
-# Deploy documentation to GitHub Pages
+# Serve built documentation locally
+docs-serve:
+    cd website && npm run serve
+
+# Deploy documentation to GitHub Pages (done via GitHub Actions on stable branch)
 docs-deploy:
-    mkdocs gh-deploy --force
+    @echo "Documentation is deployed automatically via GitHub Actions when pushing to the stable branch"
+    @echo "To deploy manually, push to the stable branch or run: cd website && npm run build && gh-pages -d build"
 
 # Format code with black and isort
 fmt:
