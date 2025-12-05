@@ -10,7 +10,6 @@ Elroy is a scriptable, memory augmented AI personal assistant, accessible from t
 - **Reminders** Track context based and timing based reminders
 - **Simple scripting interface**: Script Elroy with minimal configuration overhead
 - **CLI Tool interface**: Quickly review memories Elroy creates for you, or jot quick notes for Elroy to remember.
-- **MCP server**: Surface conversation memories to other tools via MCP
 
 ![Reminder demo](./docs/images/reminders_demo.gif)
 
@@ -124,20 +123,6 @@ cat meeting_notes.txt | elroy remember
 # Use a specific tool with piped input
 echo "Buy groceries" | elroy message --tool create_reminder
 ```
-
-## MCP Server
-
-To configure an MCP client to use Elroy:
-
-1. Ensure `uv` is installed
-1. Use `elroy mcp print-config` to get the server's json configuration
-1. Paste the value in the client's MCP server config.
-
-MCP support is experimental, please file issues if you encounter problems!
-
-## Roadmap
-
-For information about upcoming features, planned changes, and project direction, see the [roadmap](docs/roadmap.md).
 
 ## Branches
 

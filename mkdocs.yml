@@ -23,7 +23,6 @@ theme:
   features:
     - navigation.instant
     - navigation.tracking
-    - navigation.expand
     - navigation.indexes
     - navigation.top
     - search.highlight
@@ -83,13 +82,10 @@ nav:
     - Memory: configuration/memory.md
     - Tracing: configuration/tracing.md
     - UI: configuration/ui.md
-  - Model Context Protocol: model_context_protocol.md
-  - Scripting: scripting.md
-  - Tools:
-    - Tools Guide: tools_guide.md
-    - Tools Schema: tools_schema.md
-  - Roadmap: roadmap.md
-  # - Waitlist: waitlist.md
+    - Scripting: scripting.md
+    - Tools:
+      - Tools Guide: tools_guide.md
+      - Tools Schema: tools_schema.md
   - Blog:
     - blog/index.md
 
