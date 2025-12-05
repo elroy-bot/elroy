@@ -19,7 +19,6 @@ Elroy is an AI assistant that runs in your terminal, with memory and reminder tr
 - **Document Understanding**: Ingest your docs to give Elroy context about your projects
 - **Simple Scripting**: Automate tasks with minimal configuration overhead
 - **CLI Tool Interface**: Quickly review memories or jot notes for Elroy to remember
-- **MCP Server**: Surface conversation memories to other tools via Model Context Protocol
 
 The fastest way to get started is using the install script:
 

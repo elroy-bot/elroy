@@ -53,7 +53,6 @@ For a full list of available tools and slash commands, see the [Tools Guide](too
 | `elroy set-persona TEXT` | Set a custom persona for the assistant |
 | `elroy reset-persona` | Removes any custom persona, reverting to the default |
 | `elroy show-persona` | Print the system persona and exit |
-| `elroy mcp` | MCP server commands |
 
 ## Document Ingestion
 
