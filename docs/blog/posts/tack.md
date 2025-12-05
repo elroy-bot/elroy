@@ -1,0 +1,16 @@
+---
+title: Tack - Reminders powered by local AI
+date: 2025-12-04
+---
+
+I'm working on an iPhone app called Tack. I have a terrible time remembering things, and have resorted to a patchwork of emails to myself and disorganized notes. I find reminder apps frustrating, the pre-AI ones aren't smart enough, and the AI ones treat every input like an invitation to have a conversation. Tack shoots for a middle ground:
+
+![tack](../diagrams/tack/tack.png)
+
+<!-- truncate -->
+
+I get the _ick_ from divulging personal details to LLM providers, so Tack uses local AI models (using Apple's on device Apple Intelligence).
+
+The project is ready for test users! If you're interested in trying it out, please fill out the form below!
+
+<iframe src="https://docs.google.com/forms/d/e/1FAIpQLScqT440AcNKri-OGFMACMyogU7AP_IqVQ0mkBD_0C8fCqD7Rw/viewform?embedded=true" width="100%" height="800" frameBorder="0" marginHeight="0" marginWidth="0">Loading…</iframe>

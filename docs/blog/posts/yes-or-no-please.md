@@ -1,6 +1,7 @@
 ---
 title: "Yes or No, Please: Building Reliable Tests for Unreliable LLMs"
 date: 2025-03-04
+canonical_url: https://elroy.bot/blog/2025/03/04/yes-or-no-please-building-reliable-tests-for-unreliable-llms.html
 ---
 
 # Yes or No, Please: Building Reliable Tests for Unreliable LLMs
@@ -8,6 +9,8 @@ date: 2025-03-04
 For LLM-based applications to be truly useful, they need **predictability**: While the free-text nature of LLMs means the range of acceptable outcomes is wider than with traditional programs, I still need consistent behavior: if I ask an AI personal assistant to create a calendar entry, I don't want it to order me a pizza instead.
 
 While AI has changed a lot about how I develop software, one crusty old technique still helps me: **tests**.
+
+<!-- truncate -->
 
 Here's what's worked well for me (and not!):
 
