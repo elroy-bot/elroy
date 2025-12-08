@@ -73,8 +73,10 @@ const config: Config = {
         blog: {
           showReadingTime: true,
           feedOptions: {
-            type: ['rss'],
+            type: ['rss', 'atom'],
             copyright: 'Copyright © 2025 Elroy Team',
+            title: 'Elroy Blog',
+            description: 'Thoughts on AI memory and automation',
           },
           editUrl: 'https://github.com/elroy-bot/elroy/edit/main/docs/',
           blogTitle: 'Elroy Blog',
@@ -125,6 +127,11 @@ const config: Config = {
           label: 'Configuration',
         },
         {to: '/blog', label: 'Blog', position: 'left'},
+        {
+          href: '/blog/rss.xml',
+          label: 'RSS',
+          position: 'left',
+        },
         {
           href: 'https://github.com/elroy-bot/elroy',
           label: 'GitHub',
