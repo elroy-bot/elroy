@@ -57,6 +57,44 @@
   color: #ffffff !important;
 }
 
+/* Blog sidebar styling to match docs sidebar */
+aside[class*='docSidebarContainer'] {
+  border-right: 1px solid var(--ifm-toc-border-color);
+}
+
+.theme-blog-sidebar-item-link {
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s;
+}
+
+.theme-blog-sidebar-item-link:hover {
+  background-color: var(--ifm-color-emphasis-100);
+  text-decoration: none;
+}
+
+.theme-blog-sidebar-item-link-active {
+  background-color: var(--ifm-color-emphasis-200);
+  font-weight: 500;
+}
+
+ul[class*='sidebar_'] {
+  padding-left: 0;
+}
+
+.sidebar_node_modules {
+  font-size: 0.875rem;
+}
+
+h3[class*='sidebarItemTitle'] {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
 /* Blog post footer styling */
 .blog-post-footer {
   margin-top: 3rem;

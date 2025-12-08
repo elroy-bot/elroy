@@ -82,7 +82,8 @@ const config: Config = {
           blogTitle: 'Elroy Blog',
           blogDescription: 'Thoughts on AI memory and automation',
           postsPerPage: 'ALL',
-          blogSidebarCount: 0,
+          blogSidebarCount: 'ALL',
+          blogSidebarTitle: 'Recent posts',
           onUntruncatedBlogPosts: 'ignore',
         },
         theme: {
