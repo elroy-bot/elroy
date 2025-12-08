@@ -28,6 +28,11 @@ const sidebars: SidebarsConfig = {
         'tools_schema',
       ],
     },
+    {
+      type: 'link',
+      label: 'Blog',
+      href: '/blog',
+    },
   ],
 };
 

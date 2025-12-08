@@ -30,6 +30,33 @@
   --ifm-link-color: #C8C7E8;
 }
 
+/* Navbar link contrast improvements */
+.navbar__link {
+  color: #3d3654 !important;
+  font-weight: 500;
+}
+
+.navbar__link:hover {
+  color: #1a1526 !important;
+}
+
+.navbar__link--active {
+  color: #1a1526 !important;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .navbar__link {
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .navbar__link:hover {
+  color: #e4e3f3 !important;
+}
+
+[data-theme='dark'] .navbar__link--active {
+  color: #ffffff !important;
+}
+
 /* Blog post footer styling */
 .blog-post-footer {
   margin-top: 3rem;

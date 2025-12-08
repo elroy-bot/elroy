@@ -26,7 +26,13 @@ const config: Config = {
   projectName: 'elroy', // Usually your repo name.
 
   onBrokenLinks: 'warn',
-  onBrokenMarkdownLinks: 'warn',
+
+  markdown: {
+    format: 'detect',
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
 
   // CRITICAL: This maintains .html URLs to match MkDocs behavior
   trailingSlash: false,
@@ -75,13 +81,15 @@ const config: Config = {
           blogDescription: 'Thoughts on AI memory and automation',
           postsPerPage: 'ALL',
           blogSidebarCount: 0,
+          onUntruncatedBlogPosts: 'ignore',
         },
         theme: {
           customCss: './src/css/custom.css',
         },
-        gtag: {
+        gtag: process.env.NODE_ENV === 'production' ? {
           trackingID: 'G-WGS6XZX78T',
-        },
+          anonymizeIP: true,
+        } : false,
       } satisfies Preset.Options,
     ],
   ],
