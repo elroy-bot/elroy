@@ -46,11 +46,6 @@ const sidebars: SidebarsConfig = {
       items: [
         {
           type: 'link',
-          label: 'All Posts',
-          href: '/blog',
-        },
-        {
-          type: 'link',
           label: 'AI is a Floor Raiser, not a Ceiling Raiser',
           href: '/blog/2025/11/22/ai-is-a-floor-raiser',
         },
@@ -78,11 +73,6 @@ const sidebars: SidebarsConfig = {
           type: 'link',
           label: 'Add Autonomy Last',
           href: '/blog/2025/07/07/autonomy-last',
-        },
-        {
-          type: 'link',
-          label: 'RSS Feed',
-          href: '/blog/rss.xml',
         },
       ],
     },
