@@ -2,13 +2,13 @@
   <img src="images/logo_circle.png" alt="Elroy Logo" width="200"/>
 </div>
 
-# Elroy: An AI memory and reminder assistant
+# Overview
+
+Elroy is an AI assistant that runs in your terminal, with memory and reminder tracking. It remembers everything you tell it, can learn from your documents, and helps you stay organized.
 
 [![Discord](https://img.shields.io/discord/1200684659277832293?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/5PJUY4eMce)
 [![GitHub](https://img.shields.io/github/stars/elroy-bot/elroy?style=social)](https://github.com/elroy-bot/elroy)
 [![PyPI](https://img.shields.io/pypi/v/elroy)](https://pypi.org/project/elroy/)
-
-Elroy is an AI assistant that runs in your terminal, with memory and reminder tracking. It remembers everything you tell it, can learn from your documents, and helps you stay organized.
 
 ![Reminder demo](images/reminders_demo.gif)
 
