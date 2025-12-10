@@ -1,4 +1,4 @@
-site_name: Elroy
+site_name: "Elroy"
 site_url: https://elroy.bot
 site_description: An AI memory and reminder assistant
 site_author: Elroy Team
@@ -70,22 +70,24 @@ markdown_extensions:
 
 # Navigation structure
 nav:
-  - Home: index.md
-  - How It Works: how_it_works.md
-  - Installation: installation.md
-  - CLI: cli.md
-  - Configuration:
-    - Overview: configuration/index.md
-    - Basic Configuration: configuration/basic.md
-    - Models: configuration/models.md
-    - Context Management: configuration/context.md
-    - Memory: configuration/memory.md
-    - Tracing: configuration/tracing.md
-    - UI: configuration/ui.md
+  - Elroy:
+    - index.md
+    - How It Works: how_it_works.md
+    - Installation: installation.md
+    - CLI: cli.md
+    - Configuration:
+      - configuration/index.md
+      - Basic Configuration: configuration/basic.md
+      - Models: configuration/models.md
+      - Context Management: configuration/context.md
+      - Memory: configuration/memory.md
+      - Tracing: configuration/tracing.md
+      - UI: configuration/ui.md
     - Scripting: scripting.md
     - Tools:
       - Tools Guide: tools_guide.md
       - Tools Schema: tools_schema.md
+  - iOS App Waitlist: waitlist.md
   - Blog:
     - blog/index.md
 
