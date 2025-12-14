@@ -728,7 +728,7 @@ requires-dist = [
     { name = "autoflake", marker = "extra == 'dev'", specifier = ">=2.3.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.2" },
     { name = "bumpversion", marker = "extra == 'dev'", specifier = ">=0.6.0" },
-    { name = "click", specifier = "==8.1.7" },
+    { name = "click", specifier = ">=8.1.7" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "discord-py", marker = "extra == 'dev'" },
     { name = "docstring-parser", specifier = ">=0.16" },
@@ -772,7 +772,7 @@ requires-dist = [
     { name = "testcontainers", marker = "extra == 'dev'", specifier = ">=3.7.1" },
     { name = "tiktoken", specifier = ">=0.8.0" },
     { name = "toolz", specifier = ">=0.12.1" },
-    { name = "typer", specifier = "==0.12.5" },
+    { name = "typer", specifier = ">=0.20.0" },
     { name = "uvicorn", specifier = ">=0.24.0" },
     { name = "vulture", marker = "extra == 'dev'", specifier = ">=2.11" },
 ]
@@ -3086,7 +3086,7 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.12.5"
+version = "0.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -3094,9 +3094,9 @@ dependencies = [
     { name = "shellingham" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/58/a79003b91ac2c6890fc5d90145c662fd5771c6f11447f116b63300436bc9/typer-0.12.5.tar.gz", hash = "sha256:f592f089bedcc8ec1b974125d64851029c3b1af145f04aca64d69410f0c9b722", size = 98953, upload-time = "2024-08-24T21:17:57.346Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8f/28/7c85c8032b91dbe79725b6f17d2fffc595dff06a35c7a30a37bef73a1ab4/typer-0.20.0.tar.gz", hash = "sha256:1aaf6494031793e4876fb0bacfa6a912b551cf43c1e63c800df8b1a866720c37", size = 106492, upload-time = "2025-10-20T17:03:49.445Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/2b/886d13e742e514f704c33c4caa7df0f3b89e5a25ef8db02aa9ca3d9535d5/typer-0.12.5-py3-none-any.whl", hash = "sha256:62fe4e471711b147e3365034133904df3e235698399bc4de2b36c8579298d52b", size = 47288, upload-time = "2024-08-24T21:17:55.451Z" },
+    { url = "https://files.pythonhosted.org/packages/78/64/7713ffe4b5983314e9d436a90d5bd4f63b6054e2aca783a3cfc44cb95bbf/typer-0.20.0-py3-none-any.whl", hash = "sha256:5b463df6793ec1dca6213a3cf4c0f03bc6e322ac5e16e13ddd622a889489784a", size = 47028, upload-time = "2025-10-20T17:03:47.617Z" },
 ]
 
 [[package]]
