@@ -429,7 +429,6 @@ def message(
     tool: str = typer.Option(
         None,
         "--tool",
-        "-t",
         help="Specifies the tool to use in responding to a message",
     ),
     plain: bool = typer.Option(
@@ -721,13 +720,11 @@ def ingest_doc(
     include: List[str] = typer.Option(
         [],
         "--include",
-        "-i",
         help="Glob pattern for files to include (e.g. '*.txt,*.md'). Multiple patterns can be comma-separated.",
     ),
     exclude: List[str] = typer.Option(
         [],
         "--exclude",
-        "-e",
         help="Glob pattern for files to exclude (e.g. '*.log'). Can also be used to exclude directories.",
     ),
 ):
