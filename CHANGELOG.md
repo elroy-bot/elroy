@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3] - 2025-12-14
+
+### Fixed
+- Fixed startup issue with Click dependency that prevented the CLI from launching properly
+
+### Improved
+- Limited the number of memories displayed in the context panel for better readability and reduced clutter
+
 ## [0.1.1] - 2025-12-03
 
 ### Improved
