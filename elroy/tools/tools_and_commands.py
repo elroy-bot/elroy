@@ -61,6 +61,7 @@ from ..repository.user.tools import (
     set_user_preferred_name,
 )
 from .developer import create_bug_report, print_config, tail_elroy_logs
+from .time import get_current_date
 
 IN_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
     drop_memory_from_current_context,
@@ -92,6 +93,7 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_source_documents,
     get_user_preferred_name,
     set_user_preferred_name,
+    get_current_date,
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,

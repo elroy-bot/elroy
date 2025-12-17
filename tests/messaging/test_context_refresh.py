@@ -1,4 +1,4 @@
-from elroy.cli.chat import get_user_logged_in_message
+from elroy.cli.chat import get_session_context
 from elroy.repository.context_messages.operations import context_refresh
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.memories.queries import get_active_memories
@@ -13,6 +13,6 @@ def test_context_refresh(george_ctx):
     assert len(get_active_memories(george_ctx)) == before_memory_count + 1
 
 
-def test_user_login_msg(ctx):
-    get_user_logged_in_message(ctx)
+def test_session_context(ctx):
+    get_session_context(ctx)
     # Future improvement: more specific test that takes context into account (with test clock)

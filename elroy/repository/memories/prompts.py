@@ -1,7 +1,10 @@
 from ...core.constants import MEMORY_WORD_COUNT_LIMIT
 from ...utils.clock import local_now, utc_now
 
-MEMORY_CONSOLIDATION = f"""# Memory Consolidation Task
+
+def get_memory_consolidation_prompt() -> str:
+    """Returns the memory consolidation prompt with current date/time."""
+    return f"""# Memory Consolidation Task
 
 Your task is to consolidate or reorganize two or more memory excerpts. These excerpts have been flagged as having overlapping or redundant content and require consolidation or reorganization.
 

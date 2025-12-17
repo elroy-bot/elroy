@@ -13,7 +13,7 @@ from ...core.tracing import tracer
 from ...db.db_models import Memory
 from ...io.base import ElroyIO
 from ...models import MemoryResponse
-from .prompts import MEMORY_CONSOLIDATION
+from .prompts import get_memory_consolidation_prompt
 
 logger = get_logger()
 
@@ -227,7 +227,7 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
     for memory in cluster.memories:
         logger.info(f"Will consolidate: {memory.name}")
     response = ctx.llm.query_llm_with_response_format(
-        system=MEMORY_CONSOLIDATION,
+        system=get_memory_consolidation_prompt(),
         prompt=str(cluster),
         response_format=ConsolidationResponse,
     )

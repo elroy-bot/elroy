@@ -70,11 +70,14 @@ def handle_message_stdio(
     )
 
 
-def get_user_logged_in_message(ctx: ElroyContext) -> str:
+def get_session_context(ctx: ElroyContext) -> str:
     preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
 
     if preferred_name == "Unknown":
         preferred_name = "User (preferred name unknown)"
+
+    # Include current date/time in session context
+    current_datetime = datetime_to_string(local_now())
 
     today_start = today_start_local()
 
@@ -93,11 +96,9 @@ def get_user_logged_in_message(ctx: ElroyContext) -> str:
     if earliest_today_msg:
         # Convert UTC time to local timezone for display
         local_time = earliest_today_msg.created_at.replace(tzinfo=UTC).astimezone(local_tz())
-        today_summary = f"I first started chatting with {preferred_name} today at {local_time.strftime('%I:%M %p')}."
+        return f"Current date/time: {current_datetime}. {preferred_name} has logged in. I first started chatting with {preferred_name} today at {local_time.strftime('%I:%M %p')}."
     else:
-        today_summary = f"I haven't chatted with {preferred_name} yet today. I should offer a brief greeting (less than 50 words)."
-
-    return f"{preferred_name} has logged in. The current time is {datetime_to_string(local_now())}. {today_summary}"
+        return f"Current date/time: {current_datetime}. {preferred_name} has logged in. I haven't chatted with {preferred_name} yet today. I should offer a brief greeting (less than 50 words)."
 
 
 def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
@@ -105,7 +106,8 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
 
     print_title_ruler(io, get_assistant_name(ctx))
 
-    add_context_messages(ctx, to_synthetic_tool_call("get_login_message", get_user_logged_in_message(ctx)))
+    # Add session context as synthetic tool call
+    add_context_messages(ctx, to_synthetic_tool_call("get_session_context", get_session_context(ctx)))
 
     context_messages = Validator(ctx, get_context_messages(ctx)).validated_msgs()
 

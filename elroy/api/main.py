@@ -9,6 +9,7 @@ from toolz.curried import do, filter, map
 
 from elroy.db.db_models import Reminder
 
+from ..cli.chat import get_session_context
 from ..core.constants import USER
 from ..core.ctx import ElroyContext
 from ..core.logging import setup_core_logging
@@ -21,12 +22,16 @@ from ..io.formatters.plain_formatter import PlainFormatter
 from ..llm.stream_parser import AssistantInternalThought, AssistantToolResult, collect
 from ..messenger.messenger import process_message
 from ..repository.context_messages.data_models import ContextMessage
-from ..repository.context_messages.operations import add_context_message
+from ..repository.context_messages.operations import (
+    add_context_message,
+    add_context_messages,
+)
 from ..repository.context_messages.operations import (
     context_refresh as do_context_refresh,
 )
 from ..repository.context_messages.operations import reset_messages as do_reset_messages
 from ..repository.context_messages.queries import get_context_messages
+from ..repository.context_messages.tools import to_synthetic_tool_call
 from ..repository.context_messages.transforms import is_context_refresh_needed
 from ..repository.documents.operations import DocIngestStatus, do_ingest, do_ingest_dir
 from ..repository.memo import do_ingest_memo
@@ -108,6 +113,9 @@ class Elroy:
 
             if assistant_name:
                 set_assistant_name(self.ctx, assistant_name)
+
+            # Add session context as synthetic tool call
+            add_context_messages(self.ctx, to_synthetic_tool_call("get_session_context", get_session_context(self.ctx)))
 
     @db
     def get_current_messages(self) -> List[ContextMessage]:  # noqa F841
