@@ -48,6 +48,9 @@ def process_message(
         )
     ]
 
+    # TODO: Quick classifier on whether recall is necessary
+
+    # TODO: due reminders and relevant memory context async
     new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
     # Check for due timed reminders and surface them
