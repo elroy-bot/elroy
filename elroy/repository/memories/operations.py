@@ -62,7 +62,7 @@ def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str
         raise ValueError(f"Memory text exceeds maximum length of {MAX_MEMORY_LENGTH} characters.")
 
     if not name:
-        name = ctx.llm.query_llm(
+        name = ctx.fast_llm.query_llm(
             system="Given text representing a memory, your task is to come up with a short title for a memory. "
             "If the title mentions dates, it should be specific dates rather than relative ones.",
             prompt=text,
@@ -78,7 +78,7 @@ def formulate_memory(ctx: ElroyContext, context_messages: List[ContextMessage]) 
     user_preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
 
     return summarize_for_memory(
-        ctx.llm,
+        ctx.fast_llm,
         format_context_messages(
             context_messages,
             user_preferred_name,

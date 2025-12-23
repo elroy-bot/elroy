@@ -53,17 +53,49 @@ clean:
 install:
     uv pip install -e ".[dev,docs]"
 
+# Release a new version (specify type: patch, minor, or major)
+release TYPE *FLAGS:
+    python scripts/release.py {{TYPE}} {{FLAGS}}
+
 # Release a new patch version
-release-patch:
-    python scripts/release.py patch
+release-patch *FLAGS:
+    just release patch {{FLAGS}}
 
 # Release a new minor version
-release-minor:
-    python scripts/release.py minor
+release-minor *FLAGS:
+    just release minor {{FLAGS}}
 
 # Release a new major version
-release-major:
-    python scripts/release.py major
+release-major *FLAGS:
+    just release major {{FLAGS}}
+
+# Run database migrations (SQLite by default)
+migrate DATABASE_URL="":
+    #!/usr/bin/env python3
+    import os
+    import sys
+    sys.path.insert(0, os.getcwd())
+    from elroy.config.paths import get_default_sqlite_url
+    from elroy.db.db_manager import get_db_manager
+    database_url = "{{DATABASE_URL}}" or os.environ.get("ELROY_DATABASE_URL") or get_default_sqlite_url()
+    print(f"Running migrations for: {database_url}")
+    db_manager = get_db_manager(database_url)
+    db_manager.migrate()
+    print("Migrations completed successfully!")
+
+# Run SQLite database migrations
+migrate-sqlite:
+    @just migrate
+
+# Run PostgreSQL database migrations (requires ELROY_DATABASE_URL)
+migrate-postgres:
+    #!/usr/bin/env bash
+    if [ -z "$ELROY_DATABASE_URL" ]; then
+        echo "ERROR: ELROY_DATABASE_URL environment variable is not set"
+        echo "Please set ELROY_DATABASE_URL to your PostgreSQL connection string"
+        exit 1
+    fi
+    just migrate "$ELROY_DATABASE_URL"
 
 # Show available recipes
 help:

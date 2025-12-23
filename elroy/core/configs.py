@@ -18,10 +18,15 @@ class ModelConfig:
     openai_api_base: Optional[str] = None
     openai_embedding_api_base: Optional[str] = None
 
-    # Chat Model Configuration
+    # Chat Model Configuration (Strong Model - used for main conversation)
     chat_model: Optional[str] = None
     chat_model_api_key: Optional[str] = None
     chat_model_api_base: Optional[str] = None
+
+    # Fast Model Configuration (used for background tasks: summarization, classification, etc.)
+    fast_model: Optional[str] = None
+    fast_model_api_key: Optional[str] = None
+    fast_model_api_base: Optional[str] = None
 
     # Embedding Model Configuration
     embedding_model: str = "text-embedding-3-small"
@@ -62,6 +67,10 @@ class MemoryConfig:
     memories_between_consolidation: int = 5
     messages_between_memory: int = 10
     l2_memory_relevance_distance_threshold: float = 0.7
+
+    # Memory Recall Classifier
+    memory_recall_classifier_enabled: bool = True
+    memory_recall_classifier_window: int = 3
 
 
 @dataclass

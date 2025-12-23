@@ -67,6 +67,9 @@ class ElroyContext:
         chat_model: Optional[str] = None,
         chat_model_api_key: Optional[str] = None,
         chat_model_api_base: Optional[str] = None,
+        fast_model: Optional[str] = None,
+        fast_model_api_key: Optional[str] = None,
+        fast_model_api_base: Optional[str] = None,
         embedding_model: Optional[str] = None,
         embedding_model_api_key: Optional[str] = None,
         embedding_model_api_base: Optional[str] = None,
@@ -85,6 +88,8 @@ class ElroyContext:
         memories_between_consolidation: Optional[int] = None,
         messages_between_memory: Optional[int] = None,
         l2_memory_relevance_distance_threshold: Optional[float] = None,
+        memory_recall_classifier_enabled: Optional[bool] = None,
+        memory_recall_classifier_window: Optional[int] = None,
         # Basic Configuration
         debug: Optional[bool] = None,
         default_persona: Optional[str] = None,
@@ -113,6 +118,9 @@ class ElroyContext:
                 chat_model=chat_model,
                 chat_model_api_key=chat_model_api_key,
                 chat_model_api_base=chat_model_api_base,
+                fast_model=fast_model,
+                fast_model_api_key=fast_model_api_key,
+                fast_model_api_base=fast_model_api_base,
                 embedding_model=embedding_model or "text-embedding-3-small",
                 embedding_model_api_key=embedding_model_api_key,
                 embedding_model_api_base=embedding_model_api_base,
@@ -146,6 +154,8 @@ class ElroyContext:
                 memories_between_consolidation=memories_between_consolidation or 5,
                 messages_between_memory=messages_between_memory or 10,
                 l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold or 0.7,
+                memory_recall_classifier_enabled=memory_recall_classifier_enabled if memory_recall_classifier_enabled is not None else True,
+                memory_recall_classifier_window=memory_recall_classifier_window or 3,
             )
 
         if tool_config is not None:
@@ -298,8 +308,30 @@ class ElroyContext:
         )
 
     @cached_property
+    def fast_model(self) -> ChatModel:
+        """Fast model for background tasks (summarization, classification, etc.)"""
+        # If no fast_model configured, fall back to chat_model
+        if not self.model_config.fast_model:
+            return self.chat_model
+
+        return get_chat_model(
+            model_name=self.model_config.fast_model,
+            openai_api_key=self.model_config.openai_api_key,
+            openai_api_base=self.model_config.openai_api_base,
+            api_key=self.model_config.fast_model_api_key,
+            api_base=self.model_config.fast_model_api_base,
+            enable_caching=self.model_config.enable_caching,
+            inline_tool_calls=False,  # Fast model doesn't need inline tool calls
+        )
+
+    @cached_property
     def llm(self) -> LlmClient:
         return LlmClient(self.chat_model, self.embedding_model)
+
+    @cached_property
+    def fast_llm(self) -> LlmClient:
+        """Fast LLM client for background tasks (summarization, classification, etc.)"""
+        return LlmClient(self.fast_model, self.embedding_model)
 
     @cached_property
     def embedding_model(self) -> EmbeddingModel:

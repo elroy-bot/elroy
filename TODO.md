@@ -2,15 +2,9 @@
 
 ## Performance Optimizations
 
-1. **Add classifier early in message cycle to help latency of responses**
-   - Implement early classification to improve response times
-   - Should happen before main processing pipeline
-
-2. **Avoid rewriting context to invalidate prompt caching**
-   - Preserve context structure to maintain prompt cache effectiveness
-   - User initiative actions excepted from this constraint
-
-3. **Implement strong model / fast model configuration**
-   - Allow different models to be used for different tasks
-   - Fast model for simple/quick operations (e.g., classification, routing)
-   - Strong model for complex reasoning and generation tasks
+✅ **Completed**: Add classifier early in message cycle to help latency of responses
+   - Implemented two-stage hybrid classifier (heuristics + fast_llm)
+   - Integrated at messenger.py:51 (replaced TODO comment)
+   - Uses fast_model infrastructure for efficient classification
+   - Configurable via `memory_recall_classifier_enabled` and `memory_recall_classifier_window`
+   - All tests passing (117 passed, 3 skipped)

@@ -31,7 +31,7 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
         filter(lambda x: x is not None),
         list,
         lambda mems: filter_for_relevance(
-            ctx.llm,
+            ctx.fast_llm,
             text,
             mems,
             lambda m: m.to_fact(),

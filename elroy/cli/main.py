@@ -115,6 +115,21 @@ def common(
         help="API key for OpenAI compatible chat model API.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
+    fast_model: Optional[str] = ElroyOption(
+        "fast_model",
+        help="Fast model for background tasks (summarization, classification). Falls back to chat_model if not set.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    fast_model_api_base: Optional[str] = ElroyOption(
+        "fast_model_api_base",
+        help="Base URL for fast model API.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    fast_model_api_key: Optional[str] = ElroyOption(
+        "fast_model_api_key",
+        help="API key for fast model API.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
     embedding_model: str = ElroyOption(
         "embedding_model",
         help="The model to use for text embeddings.",
@@ -211,6 +226,18 @@ def common(
     min_memory_cluster_size: int = ElroyOption(
         "min_memory_cluster_size",
         help="The minimum number of memories that can be consolidated into a single memory at once.",
+        rich_help_panel="Memory Consolidation",
+        hidden=True,
+    ),
+    memory_recall_classifier_enabled: bool = ElroyOption(
+        "memory_recall_classifier_enabled",
+        help="Whether to use classifier to determine if memory recall is needed. Improves latency by skipping unnecessary memory lookups.",
+        rich_help_panel="Memory Consolidation",
+        hidden=True,
+    ),
+    memory_recall_classifier_window: int = ElroyOption(
+        "memory_recall_classifier_window",
+        help="Number of recent messages to analyze when classifying if memory recall is needed.",
         rich_help_panel="Memory Consolidation",
         hidden=True,
     ),
