@@ -209,7 +209,7 @@ def onboard_interactive(io: CliIO, ctx: ElroyContext):
 
     replace_context_messages(
         ctx,
-        [get_refreshed_system_message(ctx, [])]
+        [get_refreshed_system_message(ctx)]
         + to_synthetic_tool_call(
             "get_onboarding_instructions",
             ONBOARDING_SUPPLEMENT_INSTRUCT(preferred_name),
@@ -226,4 +226,4 @@ def onboard_interactive(io: CliIO, ctx: ElroyContext):
 
 
 def onboard_non_interactive(ctx: ElroyContext) -> None:
-    replace_context_messages(ctx, [get_refreshed_system_message(ctx, [])])
+    replace_context_messages(ctx, [get_refreshed_system_message(ctx)])

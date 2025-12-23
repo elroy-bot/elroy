@@ -35,13 +35,13 @@ from ..memories.tools import create_memory
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
 from .data_models import ContextMessage
 from .queries import get_context_messages
+from .tools import to_synthetic_tool_call
 from .transforms import (
     compress_context_messages,
     context_message_to_db_message,
     format_context_messages,
     is_context_refresh_needed,
     remove,
-    replace_system_instruction,
 )
 
 logger = get_logger()
@@ -141,37 +141,20 @@ def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) 
             schedule_task(create_mem_from_current_context, ctx)
 
 
-def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Iterable[ContextMessage]) -> ContextMessage:
+def get_refreshed_system_message(ctx: ElroyContext) -> ContextMessage:
+    """
+    Generate stable system message WITHOUT conversational summary.
+    System message should be stable across normal operations to preserve prompt cache.
+    """
 
-    context_messages = list(context_messages_iter)
-
-    assert isinstance(context_messages, list)
-    if len(context_messages) > 0 and context_messages[0].role == SYSTEM:
-        # skip existing system message if it is still in context.
-        context_messages = context_messages[1:]
-
-    if len([msg for msg in context_messages if msg.role == USER]) == 0:
-        conversation_summary = None
-    else:
-        assistant_name = get_assistant_name(ctx)
-
-        conversation_summary = pipe(
-            context_messages,
-            lambda msgs: format_context_messages(
-                msgs,
-                do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-                assistant_name,
-            ),
-            partial(summarize_conversation, ctx.llm, assistant_name),
-            lambda _: f"<conversational_summary>{_}</conversational_summary>",
-            str,
-        )
+    # Generate stable system message without conversational summary to preserve prompt cache.
+    # Summary is added separately in context_refresh() to avoid invalidating the cache.
+    # System message only changes when persona, tools, or formatting instructions change.
 
     return pipe(
         [
             SYSTEM_INSTRUCTION_LABEL,
             f"<persona>{get_persona(ctx)}</persona>",
-            conversation_summary,
             FORMATTING_INSTRUCT,
             inline_tool_instruct(ctx.tool_registry.get_schemas()) if ctx.chat_model.inline_tool_calls else None,
             "From now on, converse as your persona.",
@@ -186,24 +169,58 @@ def get_refreshed_system_message(ctx: ElroyContext, context_messages_iter: Itera
 
 @tracer.agent
 def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
-    logger.info("Refreshing context")
+    """
+    Refresh context WITHOUT regenerating system message to preserve prompt cache.
+
+    Cache-friendly approach:
+    1. Keep existing system message (preserves cache)
+    2. Compress messages
+    3. Add conversational summary as synthetic tool call (appended, doesn't break cache)
+    """
+    logger.info("Refreshing context (cache-friendly: preserving system message)")
     context_message_list = list(context_messages)
 
     # We calculate an archival memory, then persist it, then use it to calculate entity facts, then persist those.
     memory_title, memory_text = formulate_memory(ctx, context_message_list)
     create_memory(ctx, memory_title, memory_text)
 
-    pipe(
-        get_refreshed_system_message(ctx, context_message_list),
-        partial(replace_system_instruction, context_message_list),
+    # Compress messages while keeping existing system message
+    compressed_messages = pipe(
+        context_message_list,
         partial(
             compress_context_messages,
             ctx.chat_model.name,
             ctx.context_refresh_target_tokens,
             ctx.max_in_context_message_age,
         ),
-        partial(replace_context_messages, ctx),
     )
+
+    # Generate conversational summary from context (excluding system message)
+    # This provides context continuity without breaking the cache
+    if len([msg for msg in context_message_list if msg.role == USER]) > 0:
+        assistant_name = get_assistant_name(ctx)
+
+        conversation_summary = pipe(
+            context_message_list[1:],  # Skip system message
+            lambda msgs: format_context_messages(
+                msgs,
+                do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+                assistant_name,
+            ),
+            partial(summarize_conversation, ctx.llm, assistant_name),
+        )
+
+        # Create synthetic tool call with the summary (cache-friendly: appended at end)
+        summary_tool_call = to_synthetic_tool_call(
+            func_name="context_summary",
+            func_response=f"Recent conversation summary: {conversation_summary}",
+        )
+
+        # Replace context with: compressed messages + summary tool call
+        replace_context_messages(ctx, compressed_messages + summary_tool_call)
+    else:
+        # No user messages yet, just use compressed messages
+        replace_context_messages(ctx, compressed_messages)
 
 
 def refresh_context_if_needed(ctx: ElroyContext):
@@ -300,13 +317,10 @@ def refresh_system_instructions(ctx: ElroyContext) -> str:
     context_messages = list(get_context_messages(ctx))
     if len(context_messages) == 0:
         context_messages.append(
-            get_refreshed_system_message(ctx, []),
+            get_refreshed_system_message(ctx),
         )
     else:
-        context_messages[0] = get_refreshed_system_message(
-            ctx,
-            context_messages[1:],
-        )
+        context_messages[0] = get_refreshed_system_message(ctx)
     replace_context_messages(ctx, context_messages)
     return "System instruction refresh complete"
 
@@ -326,7 +340,7 @@ def reset_messages(ctx: ElroyContext) -> str:
 
     replace_context_messages(
         ctx,
-        [get_refreshed_system_message(ctx, [])],
+        [get_refreshed_system_message(ctx)],
     )
 
     return "Context reset complete"
