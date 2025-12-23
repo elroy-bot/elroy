@@ -19,8 +19,9 @@ However, avoid asking too many questions at once. Be sure to engage in a natural
 
 
 @tracer.chain
-def summarize_conversation(llm: LlmClient, assistant_name: str, convo_summary: str) -> str:
-    return llm.query_llm_with_word_limit(
+def summarize_conversation(fast_llm: LlmClient, assistant_name: str, convo_summary: str) -> str:
+    """Summarize conversation using fast model for efficiency."""
+    return fast_llm.query_llm_with_word_limit(
         prompt=convo_summary,
         word_limit=MEMORY_WORD_COUNT_LIMIT,
         system=f"""
@@ -36,10 +37,11 @@ Only output the summary, do NOT include anything else in your output.
 
 
 @tracer.chain
-def summarize_for_memory(llm: LlmClient, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
+def summarize_for_memory(fast_llm: LlmClient, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
+    """Generate memory from conversation summary using fast model."""
     user_noun = user_preferred_name or "the user"
 
-    response = llm.query_llm(
+    response = fast_llm.query_llm(
         prompt=conversation_summary,
         system=f"""
 You are the internal thought monologue of an AI personal assistant, forming a memory from a conversation.

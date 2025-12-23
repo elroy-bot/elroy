@@ -14,6 +14,9 @@ reflect: false # Whether to reflect on recalled memory content. True leads to ri
 chat_model: null  # The model to use for chat completions, if not provided, inferred from env variables
 chat_model_api_base: null  # Base URL for OpenAI compatible chat model API. Litellm will recognize vars too
 chat_model_api_key: null  # API key for OpenAI compatible chat model API
+fast_model: null  # Fast model for background tasks (summarization, classification). Falls back to chat_model if not set
+fast_model_api_base: null  # Base URL for fast model API
+fast_model_api_key: null  # API key for fast model API
 embedding_model: "text-embedding-3-small" # The model to use for text embeddings. If not provided, inferred from env variables
 embedding_model_size: 1536  # The size of the embedding model
 embedding_model_api_base: null  # Base URL for OpenAI compatible embedding model API
@@ -40,6 +43,10 @@ messages_between_memory: 20  # Max number of messages to process without creatin
 l2_memory_relevance_distance_threshold: 1.24  # L2 distance threshold for memory relevance
 max_memory_cluster_size: 5  # The maximum number of memories that can be consolidated into a single memory at once
 min_memory_cluster_size: 3  # The minimum number of memories that can be consolidated into a single memory at once
+
+# Memory Recall Classifier
+memory_recall_classifier_enabled: true  # Whether to use classifier to determine if memory recall is needed (improves latency)
+memory_recall_classifier_window: 3  # Number of recent messages to analyze when classifying
 
 # UI Configuration
 show_internal_thought: true  # Show the assistant's internal thought monologue

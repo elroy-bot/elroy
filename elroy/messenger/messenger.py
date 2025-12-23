@@ -14,6 +14,7 @@ from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.validations import Validator
 from ..repository.memories.queries import get_relevant_memory_context_msgs
+from ..repository.memories.recall_classifier import should_recall_memory
 from ..repository.reminders.queries import get_due_reminder_context_msgs
 from .tools import exec_function_call
 
@@ -48,10 +49,22 @@ def process_message(
         )
     ]
 
-    # TODO: Quick classifier on whether recall is necessary
+    # Use classifier to determine if memory recall is necessary
+    if ctx.memory_config.memory_recall_classifier_enabled:
+        recall_decision = should_recall_memory(
+            ctx=ctx,
+            current_message=msg,
+            recent_messages=context_messages,
+        )
 
-    # TODO: due reminders and relevant memory context async
-    new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
+        if recall_decision.needs_recall:
+            logger.debug(f"Memory recall enabled: {recall_decision.reasoning}")
+            new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
+        else:
+            logger.debug(f"Memory recall skipped: {recall_decision.reasoning}")
+    else:
+        # Classifier disabled, always do recall (backward compatibility)
+        new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
     # Check for due timed reminders and surface them
     due_reminder_msgs = get_due_reminder_context_msgs(ctx)
