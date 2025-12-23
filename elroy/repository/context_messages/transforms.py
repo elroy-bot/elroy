@@ -1,6 +1,5 @@
 # This is hacky, should add arbitrary metadata
 import json
-from collections import deque
 from dataclasses import asdict
 from datetime import timedelta
 from functools import partial, reduce
@@ -93,18 +92,6 @@ def is_context_refresh_needed(context_messages: Iterable[ContextMessage], chat_m
         return False
 
 
-def replace_system_instruction(context_messages: List[ContextMessage], new_system_message: ContextMessage) -> List[ContextMessage]:
-    """
-    Note that this removes any prior system instruction messages, even if they are not in first position
-    """
-    return pipe(
-        context_messages,
-        remove(is_system_instruction),
-        list,
-        lambda x: [new_system_message] + x,
-    )
-
-
 def format_message(
     message: ContextMessage,
     user_preferred_name: Optional[str],
@@ -174,41 +161,75 @@ def compress_context_messages(
     context_messages: List[ContextMessage],
 ) -> List[ContextMessage]:
     """
-    Compresses messages in the context window by summarizing old messages, while keeping new messages intact.
-    """
-    system_message, prev_messages = context_messages[0], context_messages[1:]
+    Cache-friendly compression: preserves message order, only drops old messages from the beginning.
 
+    Strategy:
+    1. Keep system message at position 0 (never changes)
+    2. Scan backward from newest messages to find what fits in token budget
+    3. Find cutoff index and return [system_message] + messages[cutoff_idx:]
+    4. This ensures messages are never reordered, maximizing prompt cache hits
+    """
+    if not context_messages:
+        return []
+
+    system_message = context_messages[0]
     assert is_system_instruction(system_message)
+
+    prev_messages = context_messages[1:]
+    if not prev_messages:
+        return [system_message]
+
     assert not any(is_system_instruction(msg) for msg in prev_messages)
 
-    current_token_count = count_tokens(chat_model_name, system_message)
+    # Calculate token budget
+    system_tokens = count_tokens(chat_model_name, system_message)
+    remaining_budget = context_refresh_target_tokens - system_tokens
 
-    kept_messages = deque()
+    # Find cutoff: scan backward from newest, accumulate tokens until we hit budget or age limit
+    cutoff_idx = 0
+    current_token_count = 0
+    now = utc_now()
 
-    # iterate through non-system context messages in reverse order
-    # we keep the most current messages that are fresh enough to be relevant
-    for msg in reversed(prev_messages):  # iterate in reverse order
-        msg_created_at = msg.created_at
+    # Scan in reverse (newest first) to find what fits in budget
+    for idx in range(len(prev_messages) - 1, -1, -1):
+        msg = prev_messages[idx]
+        msg_tokens = count_tokens(chat_model_name, msg)
 
-        candidate_message_count = count_tokens(chat_model_name, msg)
+        # Special handling for TOOL messages: must keep with their preceding ASSISTANT message
+        if idx < len(prev_messages) - 1 and prev_messages[idx + 1].role == TOOL:
+            # This is an ASSISTANT message followed by TOOL result
+            # We need to keep both or neither
+            next_msg_tokens = count_tokens(chat_model_name, prev_messages[idx + 1])
+            if current_token_count + msg_tokens + next_msg_tokens <= remaining_budget:
+                # Can fit both, they're already counted/will be counted
+                current_token_count += msg_tokens
+                continue
+            else:
+                # Can't fit the pair, set cutoff after them
+                cutoff_idx = idx + 2
+                break
 
-        if len(kept_messages) > 0 and kept_messages[0].role == TOOL:
-            # if the last message kept was a tool call, we must keep the corresponding assistant message that came before it.
-            kept_messages.appendleft(msg)
-            current_token_count += candidate_message_count
-            continue
-
-        if current_token_count > context_refresh_target_tokens:
+        # Check token budget
+        if current_token_count + msg_tokens > remaining_budget:
+            cutoff_idx = idx + 1
             break
-        elif msg_created_at is not None and msg_created_at < utc_now() - max_in_context_message_age:
-            logger.info(f"Dropping old message {msg.id}")
-            continue
-        else:
-            kept_messages.appendleft(msg)
-            current_token_count += candidate_message_count
 
-    # Keep system message first, but reverse the rest to maintain chronological order
-    return [system_message] + list(kept_messages)
+        # Check age
+        if msg.created_at and msg.created_at < now - max_in_context_message_age:
+            logger.info(f"Dropping old message {msg.id}")
+            cutoff_idx = idx + 1
+            break
+
+        current_token_count += msg_tokens
+
+    # Return system message + kept messages (preserves exact order)
+    kept_messages = prev_messages[cutoff_idx:]
+
+    logger.info(
+        f"Compression: kept {len(kept_messages)}/{len(prev_messages)} messages, " f"{current_token_count}/{remaining_budget} tokens"
+    )
+
+    return [system_message] + kept_messages
 
 
 class ContextMessageSetWithMessages(MemorySource):

@@ -78,7 +78,7 @@ class Validator:
         for idx, message in enumerate(ctx_msg_list):
             if idx == 0 and not is_system_instruction(message):
                 self.errors.append(f"First message is not system instruction, repairing by inserting system instruction")
-                yield get_refreshed_system_message(self.ctx, ctx_msg_list)
+                yield get_refreshed_system_message(self.ctx)
                 yield message
             elif idx != 0 and is_system_instruction(message):
                 self.errors.append("Found system message in non-first position, repairing by dropping message")
