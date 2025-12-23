@@ -14,6 +14,9 @@ reflect: false # Whether to reflect on recalled memory content. True leads to ri
 chat_model: null  # The model to use for chat completions, if not provided, inferred from env variables
 chat_model_api_base: null  # Base URL for OpenAI compatible chat model API. Litellm will recognize vars too
 chat_model_api_key: null  # API key for OpenAI compatible chat model API
+fast_model: null  # Fast model for background tasks (summarization, classification). Falls back to chat_model if not set
+fast_model_api_base: null  # Base URL for fast model API
+fast_model_api_key: null  # API key for fast model API
 embedding_model: "text-embedding-3-small" # The model to use for text embeddings. If not provided, inferred from env variables
 embedding_model_size: 1536  # The size of the embedding model
 embedding_model_api_base: null  # Base URL for OpenAI compatible embedding model API

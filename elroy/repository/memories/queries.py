@@ -118,11 +118,12 @@ T = TypeVar("T")
 @tracer.chain
 @log_execution_time
 def filter_for_relevance(
-    llm: LlmClient,
+    fast_llm: LlmClient,
     query: str,
     memories: List[T],
     extraction_fn: Callable[[T], str],
 ) -> List[T]:
+    """Filter memories for relevance using fast model for efficiency."""
 
     memories_str = "\n\n".join(f"{i}. {extraction_fn(memory)}" for i, memory in enumerate(memories))
 
@@ -130,7 +131,7 @@ def filter_for_relevance(
         answers: List[bool]
         reasoning: str  # noqa: F841
 
-    resp = llm.query_llm_with_response_format(
+    resp = fast_llm.query_llm_with_response_format(
         prompt=f"""
         Query: {query}
         Responses:

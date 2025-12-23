@@ -207,7 +207,7 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
                 do_get_user_preferred_name(ctx.db.session, ctx.user_id),
                 assistant_name,
             ),
-            partial(summarize_conversation, ctx.llm, assistant_name),
+            partial(summarize_conversation, ctx.fast_llm, assistant_name),
         )
 
         # Create synthetic tool call with the summary (cache-friendly: appended at end)

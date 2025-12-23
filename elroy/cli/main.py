@@ -115,6 +115,21 @@ def common(
         help="API key for OpenAI compatible chat model API.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
+    fast_model: Optional[str] = ElroyOption(
+        "fast_model",
+        help="Fast model for background tasks (summarization, classification). Falls back to chat_model if not set.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    fast_model_api_base: Optional[str] = ElroyOption(
+        "fast_model_api_base",
+        help="Base URL for fast model API.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
+    fast_model_api_key: Optional[str] = ElroyOption(
+        "fast_model_api_key",
+        help="API key for fast model API.",
+        rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
+    ),
     embedding_model: str = ElroyOption(
         "embedding_model",
         help="The model to use for text embeddings.",

@@ -219,6 +219,8 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
 
 @tracer.chain
 def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
+    """Consolidate memory cluster using fast model for efficiency."""
+
     class ConsolidationResponse(BaseModel):
         reasoning: str  # noqa F841
         memories: List[MemoryResponse]
@@ -226,7 +228,7 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
     logger.info(f"Consolidating memories {len(cluster)} memories in cluster.")
     for memory in cluster.memories:
         logger.info(f"Will consolidate: {memory.name}")
-    response = ctx.llm.query_llm_with_response_format(
+    response = ctx.fast_llm.query_llm_with_response_format(
         system=get_memory_consolidation_prompt(),
         prompt=str(cluster),
         response_format=ConsolidationResponse,
