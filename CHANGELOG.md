@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.3] - 2025-12-14
+## [0.1.2] - 2025-12-14
 
 ### Fixed
 - Fixed startup issue with Click dependency that prevented the CLI from launching properly
