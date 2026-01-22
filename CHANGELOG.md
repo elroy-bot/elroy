@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0] - 2026-01-22
+
+### Added
+- Strong and weak model configuration support, allowing you to configure different models for different types of operations for better cost/performance tradeoffs
+
+### Improved
+- Context message handling now avoids unnecessary rewrites, improving performance and reducing API calls
+- Consolidated session context gathering for more efficient memory operations
+
+### Infrastructure
+- Database migrations for improved index performance on vector queries
+- Refactored context message operations and validation logic
+
 ## [0.1.2] - 2025-12-14
 
 ### Fixed
