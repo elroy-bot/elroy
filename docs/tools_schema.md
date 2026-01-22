@@ -193,6 +193,13 @@ If a retrieved memory is relevant but lacks detail to answer the question, use t
   {
     "type": "function",
     "function": {
+      "name": "get_current_date",
+      "description": "Returns the current date and time."
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "get_document_excerpt",
       "description": "Gets text of document excerpt by address and chunk index (0-indexed). Use get_source_doc_metadata to get available chunk indices.",
       "parameters": {
