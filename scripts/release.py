@@ -77,9 +77,9 @@ def check_remote_tag_consistent(errors: Errors):
             ["git", "rev-list", "-n", "1", f"v{current_version}"], capture_output=True, text=True, check=True
         ).stdout.strip()
 
-        # Get remote tag commit
+        # Get remote tag commit (dereference annotated tags with ^{})
         remote_tag_commit = (
-            subprocess.run(["git", "ls-remote", "origin", f"refs/tags/v{current_version}"], capture_output=True, text=True, check=True)
+            subprocess.run(["git", "ls-remote", "origin", f"refs/tags/v{current_version}^{{}}"], capture_output=True, text=True, check=True)
             .stdout.strip()
             .split()[0]
         )
