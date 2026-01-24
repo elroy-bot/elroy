@@ -1,3 +1,5 @@
+import shutil
+import stat
 import sys
 from bdb import BdbQuit
 from pathlib import Path
@@ -795,6 +797,129 @@ def ingest_doc(
             do_consolidate_memories(ctx, int(total_docs / 5), io)
         else:
             io.warning(f"Path {path} is neither a file nor a directory")
+
+
+@app.command(name="install-skills")
+def install_skills(
+    skills_dir: Optional[str] = typer.Option(
+        None,
+        "--skills-dir",
+        help="Custom Claude Code skills directory (default: ~/.claude/skills)",
+    ),
+    uninstall: bool = typer.Option(
+        False,
+        "--uninstall",
+        help="Uninstall Elroy skills instead of installing",
+    ),
+):
+    """Install Elroy skills for Claude Code integration.
+
+    This command installs Elroy memory management skills into Claude Code's skills directory.
+    These skills allow you to use Elroy's memory tools directly from Claude Code using slash
+    commands like /remember and /recall.
+
+    Available skills:
+    - /remember       - Create a long-term memory
+    - /recall         - Search through memories
+    - /list-memories  - List all memories
+    - /remind         - Create a reminder
+    - /list-reminders - List active reminders
+    - /ingest         - Ingest documents into memory
+    """
+
+    # Determine skills directory
+    if skills_dir is None:
+        target_dir = Path.home() / ".claude" / "skills"
+    else:
+        target_dir = Path(skills_dir).expanduser()
+
+    # Find the claude-skills directory in the package
+    # Use __file__ to find the elroy package directory
+    package_dir = Path(__file__).parent.parent
+    source_dir = package_dir.parent / "claude-skills"
+
+    if not source_dir.exists():
+        print(f"❌ Error: Claude skills directory not found at {source_dir}")
+        print("   This may indicate an installation issue.")
+        raise typer.Exit(1)
+
+    # List of skills to install
+    skills = [
+        "remember",
+        "recall",
+        "list-memories",
+        "remind",
+        "list-reminders",
+        "ingest",
+    ]
+
+    # Handle uninstall
+    if uninstall:
+        print(f"🗑️  Uninstalling Elroy skills from: {target_dir}\n")
+
+        removed_count = 0
+        for skill in skills:
+            skill_path = target_dir / skill
+            if skill_path.exists():
+                if skill_path.is_dir():
+                    shutil.rmtree(skill_path)
+                else:
+                    skill_path.unlink()
+                print(f"   ✓ Removed: {skill}")
+                removed_count += 1
+            else:
+                print(f"   ⚠️  Not found: {skill}")
+
+        if removed_count > 0:
+            print(f"\n✨ Elroy skills uninstalled successfully! ({removed_count} skills removed)")
+        else:
+            print("\n⚠️  No skills were found to uninstall.")
+
+        raise typer.Exit()
+
+    # Create skills directory if it doesn't exist
+    if not target_dir.exists():
+        print(f"📁 Creating skills directory: {target_dir}")
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+    # Install skills
+    print(f"📦 Installing Elroy skills to: {target_dir}\n")
+
+    installed_count = 0
+    for skill in skills:
+        source_path = source_dir / skill
+        dest_path = target_dir / skill
+
+        if not source_path.exists():
+            print(f"   ⚠️  Skipping {skill} (source not found)")
+            continue
+
+        # Remove existing skill if present
+        if dest_path.exists():
+            if dest_path.is_dir():
+                shutil.rmtree(dest_path)
+            else:
+                dest_path.unlink()
+
+        # Copy the skill directory
+        if source_path.is_dir():
+            shutil.copytree(source_path, dest_path)
+        else:
+            # Fallback for old-style single file skills
+            shutil.copy2(source_path, dest_path)
+            dest_path.chmod(dest_path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+        print(f"   ✓ Installed: {skill}")
+        installed_count += 1
+
+    print(f"\n✨ Elroy skills installed successfully! ({installed_count} skills installed)")
+    print("\n📋 Available commands:")
+    for skill in skills:
+        print(f"   /{skill}")
+
+    print("\n💡 Tip: Try using /{skill} in your Claude Code session")
+
+    raise typer.Exit()
 
 
 def get_io(**kwargs) -> ElroyIO:

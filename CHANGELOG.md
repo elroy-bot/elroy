@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- Claude Code skills integration: Install Elroy memory tools as Claude Code slash commands (`/remember`, `/recall`, etc.)
+- New `elroy install-skills` CLI command for easy installation of Claude Code skills
+- New `just install-claude-skills` and `just uninstall-claude-skills` commands for easy installation
+- Comprehensive documentation for Claude Code integration in `claude-skills/README.md`
 - Comprehensive latency tracking system with per-request breakdown of operations
 - Detailed logging for all major operations (context loading, memory recall, LLM calls, tool execution)
 - Request IDs for tracking operations across the full message processing pipeline

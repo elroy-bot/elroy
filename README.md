@@ -124,6 +124,43 @@ cat meeting_notes.txt | elroy remember
 echo "Buy groceries" | elroy message --tool create_reminder
 ```
 
+## Claude Code Integration
+
+Elroy provides skills for [Claude Code](https://github.com/anthropics/claude-code) that expose memory management as slash commands:
+
+- `/remember` - Create a long-term memory
+- `/recall` - Search through memories
+- `/list-memories` - List all memories
+- `/remind` - Create a reminder
+- `/list-reminders` - List active reminders
+- `/ingest` - Ingest documents into memory
+
+### Installation
+
+Install the Claude Code skills using the Elroy CLI:
+
+```bash
+elroy install-skills
+```
+
+Or use the just command from the repository:
+
+```bash
+just install-claude-skills
+```
+
+This installs skills to `~/.claude/skills/` making them available in all Claude Code sessions.
+
+**Important**: Restart your Claude Code session after installation to load the new skills.
+
+To uninstall:
+
+```bash
+elroy install-skills --uninstall
+```
+
+For detailed usage and examples, see [claude-skills/README.md](claude-skills/README.md).
+
 ## Branches
 
 `main` comes with backwards compatibility and automatic database migrations.
