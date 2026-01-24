@@ -53,6 +53,24 @@ clean:
 install:
     uv pip install -e ".[dev,docs]"
 
+# Install Claude Code skills
+install-claude-skills SKILLS_DIR="":
+    #!/usr/bin/env bash
+    if [ -n "{{SKILLS_DIR}}" ]; then
+        elroy install-skills --skills-dir "{{SKILLS_DIR}}"
+    else
+        elroy install-skills
+    fi
+
+# Uninstall Claude Code skills
+uninstall-claude-skills SKILLS_DIR="":
+    #!/usr/bin/env bash
+    if [ -n "{{SKILLS_DIR}}" ]; then
+        elroy install-skills --uninstall --skills-dir "{{SKILLS_DIR}}"
+    else
+        elroy install-skills --uninstall
+    fi
+
 # Release a new version (specify type: patch, minor, or major)
 release TYPE *FLAGS:
     python scripts/release.py {{TYPE}} {{FLAGS}}
