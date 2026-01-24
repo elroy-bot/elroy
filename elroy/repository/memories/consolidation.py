@@ -136,23 +136,25 @@ def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: Optional
 
 def _find_clusters(ctx: ElroyContext, memories: List[Memory], io: Optional[ElroyIO] = None) -> List[MemoryCluster]:
 
+    import time
+
+    start_time = time.perf_counter()
+
     embeddings = []
     valid_memories = []
 
-    if io:
-        from rich.progress import track
+    logger.info(f"Gathering embeddings for {len(memories)} memories")
 
-        items = track(memories, "Gathering embeddings")
-    else:
-        logger.info("Gathering embeddings")
-        items = iter(memories)
-
-    for memory in items:
+    # TODO: Optimize this to batch load in single query (currently N+1)
+    # Challenge: pgvector deserialization issues with some DB configurations
+    for memory in memories:
         embedding = ctx.db.get_embedding(memory)
         if embedding is not None:
             embeddings.append(embedding)
             valid_memories.append(memory)
-    logger.info(f"Got {len(embeddings)} embeddings")
+
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    logger.info(f"Got {len(embeddings)} embeddings in {duration_ms:.0f}ms ({len(memories)} queries)")
 
     if not embeddings:
         raise ValueError("No embeddings found for memories")

@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Comprehensive latency tracking system with per-request breakdown of operations
+- Detailed logging for all major operations (context loading, memory recall, LLM calls, tool execution)
+- Request IDs for tracking operations across the full message processing pipeline
+- Latency tracking for embedding API calls with character count and retry attempt logging
+
+### Improved
+- Significantly improved logging visibility for performance bottlenecks
+- Added timing instrumentation to memory consolidation (now logs query count and duration)
+- Better structured logging with operation-specific metadata
+- Memory recall, tool execution, and context persistence now tracked individually
+
 ## [0.2.0] - 2026-01-22
 
 ### Added

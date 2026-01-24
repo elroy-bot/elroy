@@ -1,3 +1,4 @@
+import uuid
 from typing import Iterator, List, Optional
 
 from pydantic import BaseModel
@@ -5,6 +6,7 @@ from toolz import pipe
 
 from ..core.constants import ASSISTANT, SYSTEM, TOOL, USER
 from ..core.ctx import ElroyContext
+from ..core.latency import LatencyTracker
 from ..core.logging import get_logger
 from ..core.tracing import tracer
 from ..db.db_models import FunctionCall
@@ -32,14 +34,21 @@ def process_message(
 ) -> Iterator[BaseModel]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
+    # Initialize latency tracker for this request
+    request_id = str(uuid.uuid4())[:8]
+    ctx.latency_tracker = LatencyTracker(request_id=request_id)
+    logger.info(f"[{request_id}] Processing message (role={role}, length={len(msg)})")
+
     if force_tool and not enable_tools:
         logger.warning("force_tool set, but enable_tools is False. Ignoring force_tool.")
 
-    context_messages: List[ContextMessage] = pipe(
-        get_context_messages(ctx),
-        lambda msgs: Validator(ctx, msgs).validated_msgs(),
-        list,
-    )  # type: ignore
+    with ctx.latency_tracker.measure("load_context_messages"):
+        context_messages: List[ContextMessage] = pipe(
+            get_context_messages(ctx),
+            lambda msgs: Validator(ctx, msgs).validated_msgs(),
+            list,
+        )  # type: ignore
+        logger.debug(f"[{request_id}] Loaded {len(context_messages)} context messages")
 
     new_msgs: List[ContextMessage] = [
         ContextMessage(
@@ -51,23 +60,28 @@ def process_message(
 
     # Use classifier to determine if memory recall is necessary
     if ctx.memory_config.memory_recall_classifier_enabled:
-        recall_decision = should_recall_memory(
-            ctx=ctx,
-            current_message=msg,
-            recent_messages=context_messages,
-        )
+        with ctx.latency_tracker.measure("memory_recall_classification"):
+            recall_decision = should_recall_memory(
+                ctx=ctx,
+                current_message=msg,
+                recent_messages=context_messages,
+            )
 
         if recall_decision.needs_recall:
             logger.debug(f"Memory recall enabled: {recall_decision.reasoning}")
-            new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
+            with ctx.latency_tracker.measure("memory_recall", needs_recall=True):
+                new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
         else:
             logger.debug(f"Memory recall skipped: {recall_decision.reasoning}")
+            ctx.latency_tracker.track("memory_recall", 0, skipped=True)
     else:
         # Classifier disabled, always do recall (backward compatibility)
-        new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
+        with ctx.latency_tracker.measure("memory_recall", classifier_disabled=True):
+            new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
     # Check for due timed reminders and surface them
-    due_reminder_msgs = get_due_reminder_context_msgs(ctx)
+    with ctx.latency_tracker.measure("due_reminders_check"):
+        due_reminder_msgs = get_due_reminder_context_msgs(ctx)
 
     if due_reminder_msgs:
         new_msgs += due_reminder_msgs
@@ -85,33 +99,35 @@ def process_message(
         function_calls: List[FunctionCall] = []
         tool_context_messages: List[ContextMessage] = []
 
-        stream = ctx.llm.generate_chat_completion_message(
-            context_messages=context_messages + new_msgs,
-            tool_schemas=ctx.tool_registry.get_schemas(),
-            enable_tools=enable_tools and (not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,
-            force_tool=force_tool,
-        )
-        for stream_chunk in stream.process_stream():
-            if isinstance(stream_chunk, (AssistantResponse, AssistantInternalThought, CodeBlock)):
-                yield stream_chunk
-            elif isinstance(stream_chunk, FunctionCall):
-                yield stream_chunk  # yield the call
+        with ctx.latency_tracker.measure("llm_completion", loop=loops):
+            stream = ctx.llm.generate_chat_completion_message(
+                context_messages=context_messages + new_msgs,
+                tool_schemas=ctx.tool_registry.get_schemas(),
+                enable_tools=enable_tools and (not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,
+                force_tool=force_tool,
+            )
+            for stream_chunk in stream.process_stream():
+                if isinstance(stream_chunk, (AssistantResponse, AssistantInternalThought, CodeBlock)):
+                    yield stream_chunk
+                elif isinstance(stream_chunk, FunctionCall):
+                    yield stream_chunk  # yield the call
 
-                function_calls.append(stream_chunk)
-                # Note: there's some slightly weird behavior here if the tool call results in context messages being added.
-                # Since we're not persisting new context messages until the end of this loop, context messages from within
-                # tool call executions will show up before the user message it's responding to.
-                tool_call_result = exec_function_call(ctx, stream_chunk)
-                tool_context_messages.append(
-                    ContextMessage(
-                        role=TOOL,
-                        tool_call_id=stream_chunk.id,
-                        content=str(tool_call_result),
-                        chat_model=ctx.chat_model.name,
-                    )
-                )
+                    function_calls.append(stream_chunk)
+                    # Note: there's some slightly weird behavior here if the tool call results in context messages being added.
+                    # Since we're not persisting new context messages until the end of this loop, context messages from within
+                    # tool call executions will show up before the user message it's responding to.
+                    with ctx.latency_tracker.measure("tool_execution", tool=stream_chunk.function_name):
+                        tool_call_result = exec_function_call(ctx, stream_chunk)
+                        tool_context_messages.append(
+                            ContextMessage(
+                                role=TOOL,
+                                tool_call_id=stream_chunk.id,
+                                content=str(tool_call_result),
+                                chat_model=ctx.chat_model.name,
+                            )
+                        )
 
-                yield tool_call_result
+                        yield tool_call_result
 
         new_msgs.append(
             ContextMessage(
@@ -125,12 +141,17 @@ def process_message(
         new_msgs += tool_context_messages
         if force_tool:
             assert tool_context_messages, "force_tool set, but no tool messages generated"
-            add_context_messages(ctx, new_msgs)
+            with ctx.latency_tracker.measure("persist_context_messages", count=len(new_msgs)):
+                add_context_messages(ctx, new_msgs)
 
             break  # we are specifically requesting tool call results, so don't need to loop for assistant response
         elif tool_context_messages:
             # do NOT persist context messages with add_context_messages at this point, we are continuing to loop and accumulate new msgs
             loops += 1
         else:
-            add_context_messages(ctx, new_msgs)
+            with ctx.latency_tracker.measure("persist_context_messages", count=len(new_msgs)):
+                add_context_messages(ctx, new_msgs)
             break
+
+    # Log latency summary at the end of processing
+    ctx.latency_tracker.log_summary()

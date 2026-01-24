@@ -37,6 +37,7 @@ logger = get_logger()
 
 class ElroyContext:
     _db: Optional[DbSession] = None
+    latency_tracker: Optional[Any] = None  # LatencyTracker, avoiding circular import
 
     def __init__(
         self,

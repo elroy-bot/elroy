@@ -80,7 +80,7 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
     """
 
     # Get embedding for the search query
-    query_embedding = ctx.llm.get_embedding(query)
+    query_embedding = ctx.llm.get_embedding(query, ctx=ctx)
 
     # Search for relevant documents using vector similarity
     results = query_vector(DocumentExcerpt, ctx, query_embedding)
