@@ -33,3 +33,11 @@ When the user asks you to:
 - "format the code" → use `just format`
 
 Always prefer `just` commands over direct tool invocation.
+
+## Project Roadmap
+
+The project roadmap is maintained in `ROADMAP.md`. When working on features or discussing project direction:
+- Reference the roadmap for current priorities
+- Update the roadmap when completing items (move to "Completed" section)
+- Add new items as they are identified or requested
+- Keep items well-organized by category (Performance, Features, etc.)

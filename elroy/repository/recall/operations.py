@@ -29,7 +29,7 @@ def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> No
         logger.info("Old and new text matches md5, skipping")
         return
     else:
-        embedding = ctx.llm.get_embedding(new_text)
+        embedding = ctx.llm.get_embedding(new_text, ctx=ctx)
         if vector_storage_row:
             ctx.db.update_embedding(vector_storage_row, embedding, new_md5)
         else:

@@ -154,19 +154,24 @@ class LlmClient:
             system=system,
         )
 
-    def get_embedding(self, text: str) -> List[float]:
+    def get_embedding(self, text: str, ctx: Optional[Any] = None) -> List[float]:
         """
         Generate an embedding for the given text using the specified model.
 
         Args:
             text (str): The input text to generate an embedding for.
             model (str): The name of the embedding model to use.
+            ctx: Optional ElroyContext for latency tracking
 
         Returns:
             List[float]: The generated embedding as a list of floats.
         """
+        import time
+
         from litellm import embedding
         from litellm.exceptions import ContextWindowExceededError
+
+        start_time = time.perf_counter()
 
         if not text:
             raise ValueError("Text cannot be empty")
@@ -186,7 +191,16 @@ class LlmClient:
         for attempt in range(max_attempts):
             try:
                 response = embedding(**embedding_kwargs)
-                return response.data[0]["embedding"]  # type: ignore
+                result = response.data[0]["embedding"]  # type: ignore
+
+                # Track latency if context is available
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                if ctx and hasattr(ctx, "latency_tracker") and ctx.latency_tracker:
+                    ctx.latency_tracker.track("embedding_api", duration_ms, chars=len(text), attempt=attempt)
+                else:
+                    logger.debug(f"Embedding API call: {duration_ms:.0f}ms (chars={len(text)}, attempt={attempt})")
+
+                return result
             except ContextWindowExceededError:
                 new_length = int(len(text) / 2)
                 text = text[-new_length:]
