@@ -27,6 +27,8 @@ def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> No
 
     if vector_storage_row and vector_storage_row.embedding_text_md5 == new_md5:
         logger.info("Old and new text matches md5, skipping")
+        if row.is_active is not True and hasattr(ctx.db, "update_embedding_active"):
+            ctx.db.update_embedding_active(row)
         return
     else:
         embedding = ctx.llm.get_embedding(new_text, ctx=ctx)
@@ -34,6 +36,8 @@ def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> No
             ctx.db.update_embedding(vector_storage_row, embedding, new_md5)
         else:
             ctx.db.insert_embedding(row=row, embedding_data=embedding, embedding_text_md5=new_md5)
+        if row.is_active is not True and hasattr(ctx.db, "update_embedding_active"):
+            ctx.db.update_embedding_active(row)
 
 
 def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:

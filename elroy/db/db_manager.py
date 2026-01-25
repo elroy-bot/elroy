@@ -82,11 +82,27 @@ class DbManager(ABC, Generic[TSession]):
         command.upgrade(self.alembic_config, "head")
 
 
-def get_db_manager(url: str) -> DbManager:
+def get_db_manager(url: str, vector_backend: str = "auto", chroma_path: Path | None = None) -> DbManager:
 
+    from ..db.chroma.chroma_manager import ChromaManager
+    from ..db.chroma.migration import migrate_sqlite_vectorstorage_if_needed
     from ..db.postgres.postgres_manager import PostgresManager
     from ..db.sqlite.sqlite_manager import SqliteManager
 
+    if vector_backend == "auto" or vector_backend is None:
+        if url.startswith("sqlite:///"):
+            vector_backend = "chroma"
+        else:
+            vector_backend = "sqlite"
+
+    # If ChromaDB backend is selected, use ChromaManager regardless of relational DB type
+    if vector_backend == "chroma":
+        manager = ChromaManager(url, chroma_path=chroma_path)
+        if url.startswith("sqlite:///"):
+            migrate_sqlite_vectorstorage_if_needed(url, manager)
+        return manager
+
+    # Otherwise, use native vector storage (sqlite-vec or pgvector)
     if url.startswith("postgresql://"):
         return PostgresManager(url)
     elif url.startswith("sqlite:///"):

@@ -52,6 +52,8 @@ class ElroyContext:
         # Individual parameters (for backward compatibility)
         config_path: Optional[str] = None,
         database_url: Optional[str] = None,
+        vector_backend: Optional[str] = None,
+        chroma_path: Optional[str] = None,
         show_internal_thought: Optional[bool] = None,
         system_message_color: Optional[str] = None,
         assistant_color: Optional[str] = None,
@@ -107,7 +109,11 @@ class ElroyContext:
         if database_config is not None:
             self.database_config = database_config
         else:
-            self.database_config = DatabaseConfig(database_url=database_url or "")
+            self.database_config = DatabaseConfig(
+                database_url=database_url or "",
+                vector_backend=vector_backend or "auto",
+                chroma_path=chroma_path,
+            )
 
         if model_config is not None:
             self.model_config = model_config
@@ -364,7 +370,11 @@ class ElroyContext:
     @cached_property
     def db_manager(self) -> DbManager:
         assert self.database_config.database_url, "Database URL not set"
-        return get_db_manager(self.database_config.database_url)
+        return get_db_manager(
+            self.database_config.database_url,
+            self.database_config.vector_backend,
+            chroma_path=self.database_config.chroma_path,
+        )
 
     @allow_unused
     def is_db_connected(self) -> bool:

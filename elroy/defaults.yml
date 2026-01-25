@@ -1,6 +1,8 @@
 ### Basic Configuration ###
 user_token: DEFAULT  # User token to use for Elroy
 database_url: null  # Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed
+vector_backend: auto  # Vector storage backend: "auto", "sqlite" (native), or "chroma"
+chroma_path: null  # Optional filesystem path for ChromaDB storage (defaults to ~/.elroy/chroma)
 debug: false  # Enable fail-fast error handling and verbose logging output
 default_assistant_name: "Elroy"  # Default name for the assistant
 include_base_tools: true # Whether to include base tools of the assistant. Note: Memories will still be formed base on context window management.

@@ -94,6 +94,8 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
     item.is_active = False
     ctx.db.add(item)
     ctx.db.commit()
+    if hasattr(ctx.db, "update_embedding_active"):
+        ctx.db.update_embedding_active(item)
     remove_from_context(ctx, item)
 
 
