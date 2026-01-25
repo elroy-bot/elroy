@@ -173,7 +173,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
 
     return pipe(
         message_content,
-        ctx.llm.get_embedding,
+        lambda x: ctx.llm.get_embedding(x, ctx=ctx),
         lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
         concat,
         filter(lambda x: x is not None),

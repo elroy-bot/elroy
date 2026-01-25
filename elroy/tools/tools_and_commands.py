@@ -34,6 +34,7 @@ from ..repository.documents.tools import (
 from ..repository.memories.tools import (
     create_memory,
     examine_memories,
+    get_fast_recall,
     get_source_content_for_memory,
     print_memories,
     print_memory,
@@ -94,6 +95,7 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     get_user_preferred_name,
     set_user_preferred_name,
     get_current_date,
+    get_fast_recall,
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,

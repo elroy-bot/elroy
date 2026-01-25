@@ -105,9 +105,17 @@ class SqliteSession(DbSession):
     def query_vector(
         self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
     ) -> Iterable[EmbeddableSqlModel]:
+        import time
+
+        from ...core.logging import get_logger
+
+        logger = get_logger(__name__)
 
         # Serialize the vector once
         serialized_query = sqlite_vec.serialize_float32(query)
+
+        # Time the SQL query execution
+        start_time = time.perf_counter()
 
         results = self.session.exec(
             text(
@@ -131,13 +139,25 @@ class SqliteSession(DbSession):
             )  # type: ignore
         )
 
-        return pipe(
+        # Log SQL execution time
+        sql_duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(f"SQL vector search ({table.__name__}): {sql_duration_ms:.0f}ms")
+
+        # Time result processing
+        processing_start = time.perf_counter()
+
+        processed_results = pipe(
             results,
             map(lambda row: dict(row._mapping)),  # Convert SQLAlchemy Row to dict
             map(table.model_validate),  # Convert dict to model instance
             list,
             iter,
         )
+
+        processing_duration_ms = (time.perf_counter() - processing_start) * 1000
+        logger.info(f"Result processing ({table.__name__}): {processing_duration_ms:.0f}ms")
+
+        return processed_results
 
     def _deserialize_embedding(self, data: bytes) -> List[float]:
         """Deserialize binary vector data from SQLite into a list of floats"""

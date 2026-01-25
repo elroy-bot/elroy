@@ -214,6 +214,8 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
     update_time = db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
     updated_text = f"{original_memory.text}\n\nUpdate ({update_time}):\n{update_text}"
     ctx.db.commit()
+    if hasattr(ctx.db, "update_embedding_active"):
+        ctx.db.update_embedding_active(original_memory)
 
     do_create_memory(
         ctx,
@@ -263,3 +265,9 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     do_create_memory_from_ctx_msgs(ctx, name, text)
 
     return f"New memory created: {name}"
+
+
+@tool
+def get_fast_recall(ctx: ElroyContext) -> str:
+    """No-op tool used to acknowledge synthetic recall context."""
+    return "OK"
