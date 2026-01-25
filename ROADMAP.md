@@ -4,19 +4,7 @@ This document tracks planned improvements and features for Elroy.
 
 ## Current Priorities
 
-### Performance
-- **Improve latency**: Response times are still poor and it's unclear from logs what is causing the slowdowns. Need to:
-  - Add more detailed performance instrumentation
-  - Profile critical paths (memory processing, context building, LLM calls)
-  - Identify and optimize bottlenecks
-  - Consider caching strategies where appropriate
-
-### Developer Experience
-- **Create Claude skills for memory tools**: Build a set of Claude Code skills that provide easy access to memory operations:
-  - Skill for searching/querying memories
-  - Skill for creating/updating memories
-  - Skill for managing memory contexts
-  - Skill for debugging memory-related issues
+(No active priorities at this time)
 
 ## Future Items
 
@@ -24,4 +12,22 @@ This document tracks planned improvements and features for Elroy.
 
 ## Completed
 
-(Items will be moved here when completed)
+### Performance
+- **Improve latency tracking and logging** (Completed: 2025-01)
+  - Added comprehensive latency tracking module (`elroy/core/latency.py`)
+  - Implemented `LatencyTracker` class for tracking operations across requests
+  - Added context manager for measuring operations with automatic logging
+  - Built summary functionality showing breakdown by operation type
+  - Added decorators for tracking function latency
+  - Configured automatic logging for slow operations (>100ms)
+
+### Developer Experience
+- **Create Claude Code skills for memory tools** (Completed: 2025-01)
+  - Built complete set of 6 Claude Code skills in `claude-skills/` directory
+  - `/remember` - Create long-term memories
+  - `/recall` - Search through memories
+  - `/list-memories` - List all active memories
+  - `/remind` - Create reminders
+  - `/list-reminders` - List active reminders
+  - `/ingest` - Ingest documents into memory
+  - Includes installation script with help documentation
