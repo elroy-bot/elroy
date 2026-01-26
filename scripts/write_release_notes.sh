@@ -38,34 +38,13 @@ done
 cd "$REPO_ROOT"
 
 # Get current version from __init__.py
-CURRENT_VERSION=$(grep -E '^__version__' elroy/__init__.py | cut -d'"' -f2)
-if [[ -z "$CURRENT_VERSION" ]]; then
+# Note: This script is called AFTER bumpversion has already updated the version files,
+# so we should use the current version, not calculate the next one.
+VERSION=$(grep -E '^__version__' elroy/__init__.py | cut -d'"' -f2)
+if [[ -z "$VERSION" ]]; then
     echo "Error: Could not find version in elroy/__init__.py"
     exit 1
 fi
-
-# Calculate next version based on release type
-IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
-MAJOR=${VERSION_PARTS[0]}
-MINOR=${VERSION_PARTS[1]}
-PATCH=${VERSION_PARTS[2]}
-
-case "$RELEASE_TYPE" in
-    "major")
-        MAJOR=$((MAJOR + 1))
-        MINOR=0
-        PATCH=0
-        ;;
-    "minor")
-        MINOR=$((MINOR + 1))
-        PATCH=0
-        ;;
-    "patch")
-        PATCH=$((PATCH + 1))
-        ;;
-esac
-
-VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
 echo "Writing release notes for version $VERSION"
 

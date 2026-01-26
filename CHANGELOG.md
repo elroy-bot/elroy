@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [0.4.0] - 2026-01-25
+## [0.3.0] - 2026-01-25
 
 ### Added
 - ChromaDB integration: Elroy now supports ChromaDB as a vector database backend for memory storage, providing an alternative to SQLite with improved vector search capabilities. Configure with `--chroma-db` or set `chroma_db: true` in your config
@@ -22,7 +22,14 @@
 - Embedding API calls now log character count and retry attempt information
 
 ### Infrastructure
-- Enhanced release script with better error handling, annotated tags, and automatic cleanup on failure
+- Enhanced release automation script with comprehensive error handling and recovery mechanisms
+  - Fixed IndexError when checking remote tags by properly handling empty output
+  - Changed from lightweight to annotated tags following Git best practices (includes tagger, date, and message)
+  - Added backward compatibility for checking both annotated and lightweight tag formats
+  - Wrapped release workflow in error handling with automatic cleanup on failure
+  - Added capability to delete failed release branches for cleaner repository state
+  - Made tag operations idempotent to safely retry after partial failures
+  - Fixed write_release_notes.sh to use current version instead of calculating next version
 
 ## [0.2.0] - 2026-01-22
 
