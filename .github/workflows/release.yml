@@ -35,14 +35,25 @@ jobs:
 
     - name: Test built package
       run: |
+        # Clean all Python artifacts
+        find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+        find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+        find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
         # Temporarily move source to avoid Python path shadowing
         mv elroy elroy_source_backup
+
         # Create fresh test venv after moving source
-        python3 -m venv .test_venv
-        source .test_venv/bin/activate
-        pip install ./dist/elroy-*.whl
-        bash scripts/test_cli.sh
+        python3 -m venv /tmp/test_venv
+        source /tmp/test_venv/bin/activate
+        pip install $GITHUB_WORKSPACE/dist/elroy-*.whl
+
+        # Run tests from /tmp
+        cd /tmp
+        bash $GITHUB_WORKSPACE/scripts/test_cli.sh
+
         # Restore source
+        cd $GITHUB_WORKSPACE
         mv elroy_source_backup elroy
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
