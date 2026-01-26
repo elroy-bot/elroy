@@ -35,12 +35,14 @@ OPTIONS:
     --help, -h        Show this help message
 
 INSTALLED SKILLS:
-    /remember       - Create a long-term memory
-    /recall         - Search through memories
-    /list-memories  - List all memories
-    /remind         - Create a reminder
-    /list-reminders - List active reminders
-    /ingest         - Ingest documents into memory
+    /remember        - Create a long-term memory
+    /recall          - Search through memories
+    /list-memories   - List all memories
+    /remind          - Create a reminder
+    /list-reminders  - List active reminders
+    /ingest          - Ingest documents into memory
+    /introspect      - Ask questions about Elroy's implementation
+    /make-improvement - Implement a feature or improvement and submit a PR
 
 REQUIREMENTS:
     - Elroy must be installed and available in PATH
@@ -101,6 +103,8 @@ SKILLS=(
     "remind"
     "list-reminders"
     "ingest"
+    "introspect"
+    "make-improvement"
 )
 
 # Uninstall if requested

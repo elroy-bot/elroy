@@ -8,7 +8,16 @@ This document tracks planned improvements and features for Elroy.
 
 ## Future Items
 
-(Items will be added here as they are identified)
+### Self-Improvement Framework (Partial)
+Enable Elroy to actively participate in its own development:
+- **Usage analytics tracking**: Capture interaction outcomes (success/failure/retry patterns)
+- **Analysis tools**: Tools to query usage patterns, review roadmap
+- **Improvement proposals**: System for agent to suggest and prioritize improvements based on observed data
+- **Development session mode**: Special mode where agent works on implementing improvements
+
+**Completed foundation**:
+- ✅ `/introspect` skill - Agent can understand its own implementation
+- ✅ `/make-improvement` skill - Agent can implement changes and submit PRs
 
 ## Completed
 
@@ -22,12 +31,16 @@ This document tracks planned improvements and features for Elroy.
   - Configured automatic logging for slow operations (>100ms)
 
 ### Developer Experience
-- **Create Claude Code skills for memory tools** (Completed: 2025-01)
-  - Built complete set of 6 Claude Code skills in `claude-skills/` directory
-  - `/remember` - Create long-term memories
-  - `/recall` - Search through memories
-  - `/list-memories` - List all active memories
-  - `/remind` - Create reminders
-  - `/list-reminders` - List active reminders
-  - `/ingest` - Ingest documents into memory
-  - Includes installation script with help documentation
+- **Create Claude Code skills for memory and development tools** (Completed: 2025-01)
+  - Built complete set of 8 Claude Code skills in `claude-skills/` directory
+  - Memory management:
+    - `/remember` - Create long-term memories
+    - `/recall` - Search through memories
+    - `/list-memories` - List all active memories
+    - `/remind` - Create reminders
+    - `/list-reminders` - List active reminders
+    - `/ingest` - Ingest documents into memory
+  - Self-improvement capabilities:
+    - `/introspect` - Ask questions about Elroy's implementation (enables self-awareness)
+    - `/make-improvement` - Implement features/improvements and submit PRs (enables self-modification)
+  - Includes installation script and comprehensive documentation

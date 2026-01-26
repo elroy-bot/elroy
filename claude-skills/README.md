@@ -6,6 +6,8 @@ This directory contains Claude Code skills that expose Elroy's memory management
 
 Elroy skills allow you to use Elroy's powerful memory management features directly from within Claude Code sessions. This creates a seamless integration between Claude Code and Elroy's long-term memory capabilities.
 
+Additionally, development skills (`/introspect` and `/make-improvement`) enable Elroy to understand and improve itself - creating a self-improvement feedback loop.
+
 ## Available Skills
 
 | Skill | Description | Usage |
@@ -16,6 +18,8 @@ Elroy skills allow you to use Elroy's powerful memory management features direct
 | `/remind` | Create a reminder | `/remind "Review PR tomorrow"` |
 | `/list-reminders` | List active reminders | `/list-reminders` |
 | `/ingest` | Ingest documents | `/ingest docs/` |
+| `/introspect` | Ask about Elroy's implementation | `/introspect "How does memory consolidation work?"` |
+| `/make-improvement` | Implement and PR a feature | `/make-improvement "Add date-aware search"` |
 
 ## Installation
 
@@ -110,6 +114,26 @@ Make documentation available to Elroy for context:
 /ingest docs/
 /ingest specs/api-documentation.pdf
 ```
+
+### Self-Improvement Workflow
+
+Use the development skills to understand and improve Elroy:
+
+```bash
+# Understand how something works
+/introspect "How does memory consolidation work?"
+
+# Implement an improvement
+/make-improvement "Add date-aware search to examine_memories"
+
+# The agent will:
+# 1. Use /introspect to understand current implementation
+# 2. Plan the change and ask for approval
+# 3. Implement, test, and document the change
+# 4. Submit a pull request
+```
+
+This creates a complete feedback loop where Elroy can understand and improve itself.
 
 ## How It Works
 
