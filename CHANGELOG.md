@@ -2,21 +2,27 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-25
+
 ### Added
-- Claude Code skills integration: Install Elroy memory tools as Claude Code slash commands (`/remember`, `/recall`, etc.)
+- ChromaDB integration: Elroy now supports ChromaDB as a vector database backend for memory storage, providing an alternative to SQLite with improved vector search capabilities. Configure with `--chroma-db` or set `chroma_db: true` in your config
+- Migration script for transitioning existing SQLite memories to ChromaDB (`scripts/migrate_to_chroma.py`)
+- Claude Code skills integration: Install Elroy memory tools as Claude Code slash commands (`/remember`, `/recall`, `/list-memories`, `/remind`, `/list-reminders`, `/ingest`)
 - New `elroy install-skills` CLI command for easy installation of Claude Code skills
-- New `just install-claude-skills` and `just uninstall-claude-skills` commands for easy installation
+- New `just install-claude-skills` and `just uninstall-claude-skills` commands for convenient skills management
 - Comprehensive documentation for Claude Code integration in `claude-skills/README.md`
-- Comprehensive latency tracking system with per-request breakdown of operations
-- Detailed logging for all major operations (context loading, memory recall, LLM calls, tool execution)
+- Comprehensive latency tracking system with per-request breakdown of operations, helping identify performance bottlenecks
 - Request IDs for tracking operations across the full message processing pipeline
-- Latency tracking for embedding API calls with character count and retry attempt logging
+- Detailed logging for all major operations including context loading, memory recall, LLM calls, tool execution, and context persistence
 
 ### Improved
-- Significantly improved logging visibility for performance bottlenecks
+- Significantly improved performance visibility with operations >100ms logged at INFO level
 - Added timing instrumentation to memory consolidation (now logs query count and duration)
-- Better structured logging with operation-specific metadata
-- Memory recall, tool execution, and context persistence now tracked individually
+- Better structured logging with operation-specific metadata and latency summaries
+- Embedding API calls now log character count and retry attempt information
+
+### Infrastructure
+- Enhanced release script with better error handling, annotated tags, and automatic cleanup on failure
 
 ## [0.2.0] - 2026-01-22
 
