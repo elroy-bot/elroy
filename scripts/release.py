@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+"""Elroy release automation script.
+
+This script automates the release process including:
+- Version bumping across all files
+- Changelog generation
+- PR creation and merging
+- Git tag creation (annotated tags)
+- Docker validation
+
+Recent improvements (2026-01):
+- Fixed IndexError when checking remote tags
+- Changed to annotated tags (from lightweight) for better semantics
+- Added backward compatibility for checking both tag types
+- Added error handling and cleanup on failure
+- Made tag operations idempotent (safe to retry)
+"""
 import argparse
 import json
 import os
@@ -77,16 +93,25 @@ def check_remote_tag_consistent(errors: Errors):
             ["git", "rev-list", "-n", "1", f"v{current_version}"], capture_output=True, text=True, check=True
         ).stdout.strip()
 
-        # Get remote tag commit (dereference annotated tags with ^{})
-        remote_tag_commit = (
-            subprocess.run(["git", "ls-remote", "origin", f"refs/tags/v{current_version}^{{}}"], capture_output=True, text=True, check=True)
-            .stdout.strip()
-            .split()[0]
-        )
+        # Try annotated tag syntax first (^{} dereferences to commit)
+        remote_output = subprocess.run(
+            ["git", "ls-remote", "origin", f"refs/tags/v{current_version}^{{}}"], capture_output=True, text=True, check=True
+        ).stdout.strip()
 
-        if not remote_tag_commit:
+        # If empty, try without ^{} (for lightweight tags or backward compatibility)
+        if not remote_output:
+            remote_output = subprocess.run(
+                ["git", "ls-remote", "origin", f"refs/tags/v{current_version}"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+
+        # Check if tag exists on remote at all
+        if not remote_output:
             errors.messages.append(f"Error: Git tag v{current_version} not found on remote")
-        elif local_tag_commit != remote_tag_commit:
+            return
+
+        remote_tag_commit = remote_output.split()[0]
+
+        if local_tag_commit != remote_tag_commit:
             errors.messages.append(f"Error: Local tag v{current_version} doesn't match remote tag")
 
     except subprocess.CalledProcessError:
@@ -292,56 +317,94 @@ if __name__ == "__main__":
     handle_errors(errors)
     errors = Errors([])
 
-    # checkout branch for new release
-    subprocess.run(["git", "checkout", "-b", f"release-{next_version}"], check=True)
+    # Track release branch for cleanup on failure
+    release_branch = f"release-{next_version}"
+    original_branch = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True, check=True).stdout.strip()
 
-    print("Running bumpversion...")
-    subprocess.run(["bumpversion", "--new-version", next_version, args.release_type], check=True)
+    try:
+        # checkout branch for new release
+        subprocess.run(["git", "checkout", "-b", release_branch], check=True)
 
-    print("Updating docs...")
-    update_schema_doc()
+        print("Running bumpversion...")
+        subprocess.run(["bumpversion", "--new-version", next_version, args.release_type], check=True)
 
-    repo_root = os.popen("git rev-parse --show-toplevel").read().strip()
-    os.chdir(repo_root)
+        print("Updating docs...")
+        update_schema_doc()
 
-    # Call write_release_notes.sh script to generate changelog
-    print("Generating release notes...")
-    write_notes_script = os.path.join(os.path.dirname(__file__), "write_release_notes.sh")
-    subprocess.run([write_notes_script, "--type", args.release_type], check=True)
+        repo_root = os.popen("git rev-parse --show-toplevel").read().strip()
+        os.chdir(repo_root)
 
-    # if local git state is not clean, await for user confirmation
-    if not is_local_git_clean():
-        print("Documents have been updated. Please press Enter to continue")
+        # Call write_release_notes.sh script to generate changelog
+        print("Generating release notes...")
+        write_notes_script = os.path.join(os.path.dirname(__file__), "write_release_notes.sh")
+        subprocess.run([write_notes_script, "--type", args.release_type], check=True)
+
+        # if local git state is not clean, await for user confirmation
+        if not is_local_git_clean():
+            print("Documents have been updated. Please press Enter to continue")
+            input()
+
+        os.system("git add .")
+        os.system(f"git commit -m 'Release {next_version}'")
+        os.system("git push")
+
+        # verify again that state is clean
+        if not is_local_git_clean():
+            print("Local git state is not clean. Aborting release")
+            raise RuntimeError("Local git state not clean after commit")
+
+        # open pr with gh cli
+        print("Creating PR...")
+        subprocess.run(["git", "push", "origin"], check=True)
+        subprocess.run(["gh", "pr", "create", "--fill"], check=True)
+
+        # check with user before merging
+        print("Press Enter to merge the PR")
         input()
 
-    os.system("git add .")
-    os.system(f"git commit -m 'Release {next_version}'")
-    os.system("git push")
+        # merge pr
+        print("Merging PR...")
+        subprocess.run(["gh", "pr", "merge", "--rebase", "-d"], check=True)
 
-    # verify again that state is clean
-    if not is_local_git_clean():
-        print("Local git state is not clean. Aborting release")
+        # switch back to main and pull latest
+        print("Switching to main branch...")
+        subprocess.run(["git", "checkout", "main"], check=True)
+        subprocess.run(["git", "pull", "origin", "main"], check=True)
+
+    except Exception as e:
+        print(f"\n❌ Error during release process: {e}")
+        print(f"Cleaning up: switching back to {original_branch}")
+
+        # Try to switch back to original branch
+        subprocess.run(["git", "checkout", original_branch], check=False)
+
+        # Ask user if they want to delete the release branch
+        try:
+            response = input(f"\nDelete release branch '{release_branch}'? [y/N] ").lower()
+            if response == "y":
+                subprocess.run(["git", "branch", "-D", release_branch], check=False)
+                print(f"Deleted branch {release_branch}")
+            else:
+                print(f"Release branch '{release_branch}' preserved for manual inspection")
+        except EOFError:
+            print(f"\nRelease branch '{release_branch}' preserved for manual inspection")
+
+        print("\nRelease aborted. Please fix the issue and try again.")
         sys.exit(1)
-
-    # open pr with gh cli
-    print("Creating PR...")
-    subprocess.run(["git", "push", "origin"], check=True)
-    subprocess.run(["gh", "pr", "create", "--fill"], check=True)
-
-    # check with user before merging
-    print("Press Enter to merge the PR")
-    input()
-
-    # merge pr
-    print("Merging PR...")
-    subprocess.run(["gh", "pr", "merge", "--rebase", "-d"], check=True)
-
-    # switch back to main and pull latest
-    print("Switching to main branch...")
-    subprocess.run(["git", "checkout", "main"], check=True)
-    subprocess.run(["git", "pull", "origin", "main"], check=True)
 
     # create and push tag on main
     print("Creating and pushing tag...")
-    subprocess.run(["git", "tag", f"v{next_version}"], check=True)
-    subprocess.run(["git", "push", "origin", f"v{next_version}"], check=True)
+    tag_name = f"v{next_version}"
+
+    # Check if tag already exists locally
+    existing_tag = subprocess.run(["git", "tag", "-l", tag_name], capture_output=True, text=True).stdout.strip()
+
+    if existing_tag:
+        print(f"Warning: Tag {tag_name} already exists locally, skipping creation")
+    else:
+        # Create annotated tag (best practice for releases)
+        subprocess.run(["git", "tag", "-a", tag_name, "-m", f"Release {next_version}"], check=True)
+        print(f"Created annotated tag {tag_name}")
+
+    # Push tag to remote (idempotent - won't fail if already exists)
+    subprocess.run(["git", "push", "origin", tag_name], check=True)
