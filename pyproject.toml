@@ -137,10 +137,9 @@ exclude_lines = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.targets.wheel]
-packages = ["elroy"]
-include = ["claude-skills"]
+[tool.hatch.build.targets.wheel.force-include]
+"claude-skills" = "claude-skills"
 
-[tool.hatch.build.targets.sdist]
-include = ["claude-skills/**/*"]
+[tool.hatch.build.targets.sdist.force-include]
+"claude-skills" = "claude-skills"
 
