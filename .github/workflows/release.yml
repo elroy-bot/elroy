@@ -35,24 +35,8 @@ jobs:
 
     - name: Test built package
       run: |
-        # Ensure we have uv
-        pip install --user uv
-
-        # Create fresh venv for testing
-        rm -rf .test_venv
-        uv venv .test_venv
-
-        echo "Installing elroy from wheel..."
-        ls -la ./dist/
-        uv pip install --python .test_venv/bin/python ./dist/elroy-*.whl
-
-        echo "Verifying installation..."
-        .test_venv/bin/python -c "import elroy; print(f'Elroy {elroy.__version__} installed successfully')"
-        .test_venv/bin/elroy version
-
-        echo "Running CLI tests..."
-        # Add venv bin to PATH so test_cli.sh can find elroy
-        export PATH="$(pwd)/.test_venv/bin:$PATH"
+        source .venv/bin/activate
+        uv pip install ./dist/elroy-*.whl
         bash scripts/test_cli.sh
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
