@@ -35,10 +35,12 @@ jobs:
 
     - name: Test built package
       run: |
-        source .venv/bin/activate
-        pip install ./dist/elroy-*.whl
+        # Install using venv's Python explicitly
+        .venv/bin/python -m pip install ./dist/elroy-*.whl
         # Run tests from /tmp to avoid Python finding local source instead of installed package
         cd /tmp
+        # Add venv bin to front of PATH to ensure we use venv's elroy
+        export PATH="$GITHUB_WORKSPACE/.venv/bin:$PATH"
         bash $GITHUB_WORKSPACE/scripts/test_cli.sh
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
