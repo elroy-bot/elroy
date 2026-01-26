@@ -37,8 +37,10 @@ jobs:
       run: |
         # Temporarily move source to avoid Python path shadowing
         mv elroy elroy_source_backup
-        source .venv/bin/activate
-        uv pip install ./dist/elroy-*.whl
+        # Create fresh test venv after moving source
+        python3 -m venv .test_venv
+        source .test_venv/bin/activate
+        pip install ./dist/elroy-*.whl
         bash scripts/test_cli.sh
         # Restore source
         mv elroy_source_backup elroy
