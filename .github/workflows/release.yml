@@ -35,8 +35,8 @@ jobs:
 
     - name: Test built package
       run: |
-        # Install using venv's Python explicitly
-        .venv/bin/python -m pip install ./dist/elroy-*.whl
+        # Install using uv pip with explicit python target
+        uv pip install --python .venv/bin/python ./dist/elroy-*.whl
         # Run tests from /tmp to avoid Python finding local source instead of installed package
         cd /tmp
         # Add venv bin to front of PATH to ensure we use venv's elroy
