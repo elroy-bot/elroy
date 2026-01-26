@@ -41,18 +41,18 @@ jobs:
         # Create fresh venv for testing
         rm -rf .test_venv
         uv venv .test_venv
-        source .test_venv/bin/activate
 
         echo "Installing elroy from wheel..."
         ls -la ./dist/
-        uv pip install ./dist/elroy-*.whl
+        uv pip install --python .test_venv/bin/python ./dist/elroy-*.whl
 
         echo "Verifying installation..."
-        which elroy
-        python -c "import elroy; print(f'Elroy {elroy.__version__} installed successfully')"
-        elroy version
+        .test_venv/bin/python -c "import elroy; print(f'Elroy {elroy.__version__} installed successfully')"
+        .test_venv/bin/elroy version
 
         echo "Running CLI tests..."
+        # Add venv bin to PATH so test_cli.sh can find elroy
+        export PATH="$(pwd)/.test_venv/bin:$PATH"
         bash scripts/test_cli.sh
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
