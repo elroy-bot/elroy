@@ -224,6 +224,13 @@ If a retrieved memory is relevant but lacks detail to answer the question, use t
   {
     "type": "function",
     "function": {
+      "name": "get_fast_recall",
+      "description": "No-op tool used to acknowledge synthetic recall context."
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "get_source_content_for_memory",
       "description": "Retrieves content of the source for a memory, by source type and name.
 
