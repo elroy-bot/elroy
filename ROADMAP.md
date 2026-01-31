@@ -4,7 +4,13 @@ This document tracks planned improvements and features for Elroy.
 
 ## Current Priorities
 
-(No active priorities at this time)
+### User Interface
+- **System status in live panel** (Issue #475)
+  - PRD: `prds/system-status-panel.md`
+  - Expand the "Relevant Context" panel to show system execution info
+  - Display memory consolidation status and background tasks
+  - Show counters for messages/memories until next operation
+  - Configurable toggle for showing system status
 
 ## Future Items
 
