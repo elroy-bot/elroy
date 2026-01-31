@@ -134,6 +134,8 @@ Elroy provides skills for [Claude Code](https://github.com/anthropics/claude-cod
 - `/remind` - Create a reminder
 - `/list-reminders` - List active reminders
 - `/ingest` - Ingest documents into memory
+- `/introspect` - Ask questions about Elroy's implementation (for development)
+- `/make-improvement` - Implement a feature or improvement and submit a PR (for development)
 
 ### Installation
 

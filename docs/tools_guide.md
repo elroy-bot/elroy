@@ -1,6 +1,8 @@
 # Tools Guide
 
-Elroy provides a set of tools that can be used by typing a forward slash (/) followed by the command name. These tools are organized into the following categories:
+Elroy provides a set of tools that can be used by typing a forward slash (/) followed by the command name. These tools are organized into the following categories.
+
+**Note:** Many of these tools are also available as [Claude Code skills](../claude-skills/README.md) via slash commands like `/remember`, `/recall`, `/introspect`, etc.
 
 ## Memory Management
 
@@ -32,6 +34,16 @@ Elroy provides a set of tools that can be used by typing a forward slash (/) fol
 | `/get_user_preferred_name` | Returns the user's preferred name. |
 | `/set_user_preferred_name` | Set the user's preferred name. Should predominantly be used relatively early in first conversations, and relatively rarely afterward. |
 
+## Self-Improvement Tools
+
+| Tool/Command | Description |
+|-------------|-------------|
+| `/introspect` | Ask questions about Elroy's implementation and codebase. Returns detailed explanations with file paths and implementation details. Use this to understand how Elroy works before making changes. |
+| `/make_improvement` | Implement a feature or improvement to Elroy following a structured workflow. Handles planning, implementation, testing, documentation, and PR submission. |
+| `/review_roadmap` | Review the current roadmap, open GitHub issues, and recent commits. Use this to understand current priorities and what to work on next. |
+
+These tools enable Elroy to understand and improve itself. See [CLAUDE.md](../CLAUDE.md) for detailed usage.
+
 ## Utility Tools
 
 | Tool/Command | Description |
@@ -40,6 +52,7 @@ Elroy provides a set of tools that can be used by typing a forward slash (/) fol
 | `/tail_elroy_logs` | Returns the last `lines` of the Elroy logs. |
 | `/run_shell_command` | Run a shell command and return the output. |
 | `/make_coding_edit` | Makes an edit to code using a delegated coding LLM. Requires complete context in the instruction. |
+| `/get_current_date` | Get the current date and time in ISO 8601 format. |
 
 ## Adding Custom Tools
 

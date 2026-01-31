@@ -829,12 +829,14 @@ def install_skills(
     commands like /remember and /recall.
 
     Available skills:
-    - /remember       - Create a long-term memory
-    - /recall         - Search through memories
-    - /list-memories  - List all memories
-    - /remind         - Create a reminder
-    - /list-reminders - List active reminders
-    - /ingest         - Ingest documents into memory
+    - /remember        - Create a long-term memory
+    - /recall          - Search through memories
+    - /list-memories   - List all memories
+    - /remind          - Create a reminder
+    - /list-reminders  - List active reminders
+    - /ingest          - Ingest documents into memory
+    - /introspect      - Ask questions about Elroy's implementation
+    - /make-improvement - Implement a feature or improvement and submit a PR
     """
 
     # Determine skills directory
@@ -861,6 +863,8 @@ def install_skills(
         "remind",
         "list-reminders",
         "ingest",
+        "introspect",
+        "make-improvement",
     ]
 
     # Handle uninstall

@@ -62,6 +62,7 @@ from ..repository.user.tools import (
     set_user_preferred_name,
 )
 from .developer import create_bug_report, print_config, tail_elroy_logs
+from .self_improvement import introspect, make_improvement, review_roadmap
 from .time import get_current_date
 
 IN_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
@@ -96,6 +97,9 @@ NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
     set_user_preferred_name,
     get_current_date,
     get_fast_recall,
+    introspect,
+    make_improvement,
+    review_roadmap,
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,
