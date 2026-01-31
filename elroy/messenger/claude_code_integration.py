@@ -13,59 +13,40 @@ from ..core.logging import get_logger
 logger = get_logger(__name__)
 
 
-def introspect_implementation(ctx: ElroyContext, query: str) -> str:
+def introspect_implementation(ctx: ElroyContext, query: str) -> str:  # noqa: ARG001
     """Explore Elroy's codebase to answer implementation questions.
 
-    This is the implementation for the introspect() tool. It uses similar
-    logic to the /introspect Claude Code skill.
+    This tool is designed to work when Elroy is running inside a Claude Code session.
+    It returns a formatted request that Claude will see and act on by invoking
+    the /introspect skill.
 
     Args:
         ctx: The Elroy context
         query: Question about implementation
 
     Returns:
-        Detailed explanation of the implementation
+        Formatted request for Claude to invoke /introspect skill
     """
-    # Get the repository root (parent of elroy package)
-    repo_root = Path(__file__).parent.parent.parent
+    # Find where the elroy package is located
+    elroy_path = Path(__file__).parent.parent.parent.resolve()
 
-    # Build a prompt for code exploration
-    exploration_prompt = f"""Explore the Elroy codebase to answer this question: {query}
+    # Check if it's a git repository (helpful context)
+    is_git_repo = (elroy_path / ".git").exists()
+    location_type = "git repository" if is_git_repo else "installed package"
 
-Repository structure:
-- elroy/core/ - Core infrastructure (logging, latency, context, tracing)
-- elroy/db/ - Database models and operations
-- elroy/repository/ - Data access layer (memories, reminders, messages)
-- elroy/tools/ - Agent tools and commands
-- elroy/messenger/ - Message processing and agent loop
-- elroy/cli/ - CLI interface
-- elroy/config/ - Configuration management
+    # Return a formatted request that Claude will recognize
+    return f"""[INTROSPECT REQUEST]
 
-Provide:
-1. Summary - Brief answer to the question
-2. Key Files - Relevant file paths with line numbers
-3. How It Works - Explanation of the implementation
-4. Related Code - Connected systems or patterns
+Location: {elroy_path} ({location_type})
+Query: {query}
 
-Focus on being thorough and accurate. Include specific file paths and line numbers.
-"""
+Please invoke the /introspect skill to explore the Elroy codebase and answer this question.
+The codebase is located at: {elroy_path}
 
-    # For now, return a structured response that guides the agent
-    # In a full implementation, this would use the Task/Explore agent
-    return f"""To answer "{query}", I need to explore the codebase.
-
-[Note: In production, this would use the Task/Explore agent to search the codebase.
-For now, I can examine files directly using read/grep tools.]
-
-Starting exploration at: {repo_root}
-
-{exploration_prompt}
-
-I'll now use file reading and search tools to investigate this question.
-"""
+If the working directory is not already {elroy_path}, you may need to reference that path when exploring."""
 
 
-def implement_improvement(
+def implement_improvement(  # noqa: ARG001
     ctx: ElroyContext,
     description: str,
     create_branch: bool = True,
@@ -74,7 +55,9 @@ def implement_improvement(
 ) -> str:
     """Implement an improvement following the make-improvement workflow.
 
-    This is the implementation for the make_improvement() tool.
+    This tool is designed to work when Elroy is running inside a Claude Code session.
+    It returns a formatted request that Claude will see and act on by invoking
+    the /make-improvement skill.
 
     Args:
         ctx: The Elroy context
@@ -84,33 +67,55 @@ def implement_improvement(
         submit_pr: Whether to create PR
 
     Returns:
-        Summary of actions taken
+        Formatted request for Claude to invoke /make-improvement skill
     """
-    repo_root = Path(__file__).parent.parent.parent
+    repo_root = Path(__file__).parent.parent.parent.resolve()
 
-    workflow_guide = f"""Implementing improvement: {description}
+    # Verify it's a git repository (required for making improvements)
+    if not (repo_root / ".git").exists():
+        return f"""[ERROR] Cannot make improvements to installed package
 
-Workflow:
-1. ✓ Understanding current implementation (use introspect() tool)
-2. ✓ Review roadmap and issues (use review_roadmap() tool)
+The Elroy code is located at: {repo_root}
+
+This appears to be an installed package, not a git repository.
+The make_improvement tool requires a git repository to:
+- Create feature branches
+- Commit changes
+- Submit pull requests
+
+Please run Elroy from a development checkout of the repository."""
+
+    workflow_options = []
+    if create_branch:
+        workflow_options.append("create feature branch")
+    if run_tests:
+        workflow_options.append("run tests")
+    if submit_pr:
+        workflow_options.append("submit PR")
+
+    options_str = ", ".join(workflow_options) if workflow_options else "commit locally only"
+
+    return f"""[MAKE IMPROVEMENT REQUEST]
+
+Location: {repo_root} (git repository)
+Description: {description}
+Options: {options_str}
+
+Please invoke the /make-improvement skill with these parameters:
+- create_branch={create_branch}
+- run_tests={run_tests}
+- submit_pr={submit_pr}
+
+The /make-improvement skill will:
+1. Use /introspect to understand current implementation
+2. Use /review-roadmap to check priorities
 3. Plan the implementation
-4. Get user approval
-5. {"Create feature branch" if create_branch else "Work on current branch"}
-6. Implement changes
-7. {"Run tests" if run_tests else "Skip tests"}
-8. Update documentation
-9. {"Submit PR" if submit_pr else "Commit locally"}
-
-Repository: {repo_root}
-
-I'll now begin the workflow. First, let me understand the current implementation
-by using the introspect() tool to investigate related code.
-"""
-
-    return workflow_guide
+4. Get your approval
+5. Implement the changes
+6. {'Create feature branch, ' if create_branch else ''}implement, {'run tests, ' if run_tests else ''}and {'submit PR' if submit_pr else 'commit locally'}"""
 
 
-def review_project_status(ctx: ElroyContext) -> str:
+def review_project_status(ctx: ElroyContext) -> str:  # noqa: ARG001
     """Review roadmap, issues, and recent commits.
 
     Args:
