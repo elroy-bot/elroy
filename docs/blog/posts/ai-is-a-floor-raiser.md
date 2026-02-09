@@ -6,6 +6,8 @@ canonical_url: https://elroy.bot/blog/2025/07/29/ai-is-a-floor-raiser-not-a-ceil
 
 # AI is a Floor Raiser, not a Ceiling Raiser
 
+*Also published at [tombedor.dev/ai-is-a-floor-raiser](https://tombedor.dev/ai-is-a-floor-raiser/)*
+
 ## A reshaped learning curve
 
 
