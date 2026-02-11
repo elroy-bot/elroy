@@ -334,6 +334,13 @@ class ElroyContext:
     @cached_property
     def llm(self) -> LlmClient:
         return LlmClient(self.chat_model, self.embedding_model)
+    
+    def set_custom_llm_client(self, llm_client: LlmClient) -> None:
+        """Set a custom LLM client, replacing the default one."""
+        # Clear the cached property and set a new one
+        if 'llm' in self.__dict__:
+            del self.__dict__['llm']
+        self.__dict__['llm'] = llm_client
 
     @cached_property
     def fast_llm(self) -> LlmClient:
