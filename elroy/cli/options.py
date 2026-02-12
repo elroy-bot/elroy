@@ -96,6 +96,13 @@ def get_resolved_params(**kwargs) -> Dict[str, Any]:
     """Get resolved parameter values from environment and config."""
     # n.b merge priority is lib default < user config file < env var < explicit CLI arg
 
+    def convert_comma_separated_to_list(d: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert comma-separated string for background_ingest_paths to list if needed."""
+        if "background_ingest_paths" in d and isinstance(d["background_ingest_paths"], str):
+            paths = [p.strip() for p in d["background_ingest_paths"].split(",") if p.strip()]
+            return assoc(d, "background_ingest_paths", paths)
+        return d
+
     return pipe(
         [
             DEFAULTS_CONFIG,  # package defaults
@@ -106,6 +113,7 @@ def get_resolved_params(**kwargs) -> Dict[str, Any]:
         map(valfilter(lambda x: x is not None and x != ())),
         merge,
         lambda d: assoc(d, "database_url", get_default_sqlite_url()) if not d.get("database_url") else d,
+        convert_comma_separated_to_list,
     )  # type: ignore
 
 
