@@ -227,6 +227,7 @@ class UserPreference(SQLModel, table=True):
     full_name: Optional[str] = Field(default=None, description="The full name for the user")
     is_active: Optional[bool] = Field(default=True, description="Whether the context is active")
     assistant_name: Optional[str] = Field(default=None, description="The assistant name for the user")
+    background_ingest_last_run: Optional[datetime] = Field(default=None, description="Timestamp of the last background ingestion run")
 
 
 class ContextMessageSet(SQLModel, table=True):

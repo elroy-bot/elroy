@@ -224,7 +224,7 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
     """Consolidate memory cluster using fast model for efficiency."""
 
     class ConsolidationResponse(BaseModel):
-        reasoning: str  # noqa F841
+        reasoning: Optional[str] = None  # noqa F841
         memories: List[MemoryResponse]
 
     logger.info(f"Consolidating memories {len(cluster)} memories in cluster.")

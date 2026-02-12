@@ -7,6 +7,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Generator, Iterator, List
 
+from pydantic import BaseModel
+
 from ...core.constants import RecoverableToolError, allow_unused
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
@@ -50,6 +52,13 @@ class DocIngestStatus(Enum):
     PENDING = "Document is queued for ingestion"
     UNSUPPORTED_FORMAT = "Document format is not supported"
     MOVED = "Document existing document that had a different address, so existing doc address was updated."
+
+
+class IngestDirStatusUpdate(BaseModel):
+    """Status update from directory ingestion operation."""
+
+    total: int
+    statuses: Dict[DocIngestStatus, int]
 
 
 def should_process_file(path: Path, include: List[str], exclude: List[str]) -> bool:
@@ -104,7 +113,7 @@ def do_ingest_dir(
     recursive: bool,
     include: List[str],
     exclude: List[str],
-) -> Generator[Dict[DocIngestStatus, int], None, None]:
+) -> Generator[IngestDirStatusUpdate, None, None]:
     """
     Recursively ingest all files in a directory that match the include/exclude patterns.
 
@@ -130,7 +139,8 @@ def do_ingest_dir(
 
     statuses = {status: 0 for status in DocIngestStatus}
 
-    yield statuses
+    # First yield includes the total count for progress bar initialization
+    yield IngestDirStatusUpdate(total=len(file_paths), statuses=statuses)
 
     for idx, file_path in enumerate(file_paths):
         try:
@@ -141,9 +151,9 @@ def do_ingest_dir(
             logger.error(f"Failed to ingest {file_path}: {str(e)}", exc_info=True)
             raise
         statuses[DocIngestStatus.PENDING] = len(file_paths) - (idx + 1)
-        yield statuses
+        yield IngestDirStatusUpdate(total=len(file_paths), statuses=statuses)
 
-    yield statuses
+    yield IngestDirStatusUpdate(total=len(file_paths), statuses=statuses)
 
 
 def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocIngestStatus:

@@ -246,12 +246,47 @@ class ChromaSession(DbSession):
 
         # Query ChromaDB with metadata filters
         # Over-fetch to account for inactive records that will be filtered out
-        results = collection.query(
-            query_embeddings=[query],
-            n_results=RESULT_SET_LIMIT_COUNT * 2,
-            where={"$and": [{"source_type": table.__name__}, {"is_active": True}]},
-            include=["metadatas", "distances"],
-        )
+        try:
+            # First, let's check what records actually exist in this collection
+            logger.debug(f"Querying ChromaDB for {table.__name__} records")
+
+            results = collection.query(
+                query_embeddings=[query],
+                n_results=RESULT_SET_LIMIT_COUNT * 2,
+                where={"$and": [{"source_type": table.__name__}, {"is_active": True}]},
+                include=["metadatas", "distances"],
+            )
+        except Exception as e:
+            logger.error(f"ChromaDB query failed for {table.__name__}: {e}")
+
+            # Try to diagnose the issue by checking collection state
+            try:
+                collection_count = collection.count()
+                logger.info(f"ChromaDB collection has {collection_count} total records")
+
+                # Try a simpler query without filters to see if basic querying works
+                test_results = collection.query(
+                    query_embeddings=[query],
+                    n_results=1,
+                    include=["metadatas"],
+                )
+                logger.info(f"Basic query (no filters) returned {len(test_results['ids'][0]) if test_results['ids'] else 0} results")
+
+                # Try querying with just the source_type filter
+                type_results = collection.query(
+                    query_embeddings=[query],
+                    n_results=1,
+                    where={"source_type": table.__name__},
+                    include=["metadatas"],
+                )
+                logger.info(f"Query with source_type filter returned {len(type_results['ids'][0]) if type_results['ids'] else 0} results")
+
+            except Exception as diag_error:
+                logger.error(f"Diagnostic query also failed: {diag_error}")
+
+            logger.warning("ChromaDB has inconsistent state. Re-raising exception to see full traceback.")
+            # Re-raise the original exception to get full diagnostic info
+            raise
 
         # Log ChromaDB query time
         chroma_duration_ms = (time.perf_counter() - start_time) * 1000

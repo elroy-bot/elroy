@@ -269,6 +269,22 @@ def common(
         help="If true, the assistant will reflect on memories it recalls. This will lead to slower but richer responses. If false, memories will be less processed when recalled into memory.",
         rich_help_panel="Basic Configuration",
     ),
+    # Background Document Ingestion
+    background_ingest_enabled: bool = ElroyOption(
+        "background_ingest_enabled",
+        help="Enable automatic background ingestion of documents from configured paths.",
+        rich_help_panel="Background Ingestion",
+    ),
+    background_ingest_paths: Optional[str] = ElroyOption(
+        "background_ingest_paths",
+        help="Comma-separated list of paths to automatically ingest in the background (or set in config file as YAML list).",
+        rich_help_panel="Background Ingestion",
+    ),
+    background_ingest_interval_minutes: int = ElroyOption(
+        "background_ingest_interval_minutes",
+        help="Minutes between background ingestion runs (default: 60).",
+        rich_help_panel="Background Ingestion",
+    ),
     system_message_color: str = ElroyOption(
         "system_message_color",
         help="Color for system messages.",
@@ -433,6 +449,14 @@ def chat(typer_ctx: typer.Context):
         init_scheduler()
 
         with init_elroy_session(ctx, io, True, True):
+            # Schedule background document ingestion if enabled
+            if ctx.background_ingest_enabled:
+                from ..repository.documents.background import (
+                    schedule_periodic_ingestion,
+                )
+
+                schedule_periodic_ingestion(ctx)
+
             try:
                 handle_chat(io, params["enable_assistant_greeting"], ctx)
             except BdbQuit:
@@ -778,33 +802,65 @@ def ingest_doc(
             result = do_ingest(ctx, path, force_refresh)
             io.info(f"Document ingestion result: {result.name}")
         elif path.is_dir():
-            from rich.live import Live
-            from rich.table import Table
+            from rich.progress import (
+                BarColumn,
+                Progress,
+                TaskProgressColumn,
+                TextColumn,
+            )
 
             from elroy.repository.documents.operations import DocIngestStatus
 
-            # Initialize status counts
-            # Create a function to generate the status table
-            def generate_status_table(statuses: Dict[DocIngestStatus, int]):
-                table = Table()
-                table.add_column("Status", style="bold")
-                table.add_column("Count", justify="right")
+            # Helper to format status summary (e.g., "✓ 45 • ↻ 3 • ⏭ 2")
+            def format_status_summary(statuses: Dict[DocIngestStatus, int]) -> str:
+                parts = []
+                status_symbols = {
+                    DocIngestStatus.SUCCESS: "✓",
+                    DocIngestStatus.UPDATED: "↻",
+                    DocIngestStatus.UNCHANGED: "=",
+                    DocIngestStatus.TOO_LONG: "⏭",
+                    DocIngestStatus.UNSUPPORTED_FORMAT: "✗",
+                }
+                for status, symbol in status_symbols.items():
+                    count = statuses.get(status, 0)
+                    if count > 0:
+                        parts.append(f"{symbol} {count}")
+                return " • ".join(parts) if parts else "Starting..."
 
-                for status, count in statuses.items():
-                    table.add_row(status.name, str(count))
+            # Use Rich's Progress bar for better visualization
+            with Progress(
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TextColumn("• {task.fields[status_summary]}"),
+            ) as progress:
+                # First yield contains total count
+                status_gen = do_ingest_dir(ctx, path, force_refresh, recursive, include, exclude)
+                first_update = next(status_gen)
+                total = first_update.total
+                statuses = first_update.statuses
 
-                return table
+                task_id = progress.add_task("Ingesting documents", total=total, status_summary=format_status_summary(statuses))
 
-            # Use Rich's Live display to update the table in real-time
-            with Live(generate_status_table({s: 0 for s in DocIngestStatus}), refresh_per_second=8) as live:
-                # Consume the generator and update the display
-                total_docs = 0
-                for status_update in do_ingest_dir(ctx, path, force_refresh, recursive, include, exclude):
-                    total_docs += 1
-                    live.update(generate_status_table(status_update))
-            # Consolidate memories after the Live display is closed
+                # Process remaining updates
+                for status_update in status_gen:
+                    statuses = status_update.statuses
+                    completed = sum(
+                        statuses.get(s, 0)
+                        for s in [
+                            DocIngestStatus.SUCCESS,
+                            DocIngestStatus.UPDATED,
+                            DocIngestStatus.UNCHANGED,
+                            DocIngestStatus.TOO_LONG,
+                            DocIngestStatus.UNSUPPORTED_FORMAT,
+                        ]
+                    )
+                    status_summary = format_status_summary(statuses)
+                    progress.update(task_id, completed=completed, status_summary=status_summary)
+
+            # Consolidate memories after the progress bar is complete
             io.info("Consolidating memories...")
-            do_consolidate_memories(ctx, int(total_docs / 5), io)
+            do_consolidate_memories(ctx, int(total / 5), io)
         else:
             io.warning(f"Path {path} is neither a file nor a directory")
 

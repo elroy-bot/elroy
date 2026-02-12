@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 
@@ -99,3 +99,6 @@ class RuntimeConfig:
     default_persona: Optional[str] = None
     use_background_threads: bool = True
     reflect: bool = False
+    background_ingest_paths: List[str] = field(default_factory=list)
+    background_ingest_interval_minutes: int = 60
+    background_ingest_enabled: bool = False

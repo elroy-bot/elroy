@@ -104,6 +104,10 @@ class ElroyContext:
         reflect: Optional[bool] = None,
         shell_commands: Optional[bool] = None,
         allowed_shell_command_prefixes: Optional[List[str]] = None,
+        # Background Ingestion
+        background_ingest_enabled: Optional[bool] = None,
+        background_ingest_paths: Optional[List[str]] = None,
+        background_ingest_interval_minutes: Optional[int] = None,
     ):
         # Handle both config objects approach and individual parameters approach
         if database_config is not None:
@@ -189,6 +193,9 @@ class ElroyContext:
                 max_ingested_doc_lines=max_ingested_doc_lines or 0,
                 max_assistant_loops=max_assistant_loops or 0,
                 reflect=reflect if reflect is not None else False,
+                background_ingest_enabled=background_ingest_enabled if background_ingest_enabled is not None else False,
+                background_ingest_paths=background_ingest_paths or [],
+                background_ingest_interval_minutes=background_ingest_interval_minutes or 60,
             )
 
         # Maintain backward compatibility with direct attribute access
@@ -213,6 +220,9 @@ class ElroyContext:
         self.inline_tool_calls = self.model_config.inline_tool_calls
         self.use_background_threads = self.runtime_config.use_background_threads
         self.max_ingested_doc_lines = self.runtime_config.max_ingested_doc_lines
+        self.background_ingest_enabled = self.runtime_config.background_ingest_enabled
+        self.background_ingest_paths = self.runtime_config.background_ingest_paths
+        self.background_ingest_interval_minutes = self.runtime_config.background_ingest_interval_minutes
 
     @property
     def include_base_tools(self) -> bool:
