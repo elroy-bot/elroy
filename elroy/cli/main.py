@@ -32,7 +32,6 @@ from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
 from ..utils.clock import utc_now
 from ..utils.utils import datetime_to_string
-from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import handle_chat, handle_message_stdio
 from .options import ElroyOption, get_resolved_params
 from .updater import check_latest_version, check_updates
@@ -469,7 +468,8 @@ def chat(typer_ctx: typer.Context):
                         f"Tool use not supported by model {ctx.chat_model.name}. Try starting with --inline-tool-calls"
                     )
                 else:
-                    create_bug_report_from_exception_if_confirmed(io, ctx, e)
+                    # Re-raise the error instead of creating bug report
+                    raise
             finally:
                 shutdown_scheduler(wait=False)
 
