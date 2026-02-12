@@ -26,11 +26,6 @@ EMBEDDING_SIZE = 1536
 
 RESULT_SET_LIMIT_COUNT = 5
 
-REPO_ISSUES_URL = "https://github.com/elroy-bot/elroy/issues"
-
-BUG_REPORT_LOG_LINES = 15
-
-
 MODEL_SELECTION_CONFIG_PANEL = "Model Selection and Configuration"
 
 EXIT = "exit"

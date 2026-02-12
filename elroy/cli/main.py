@@ -16,6 +16,7 @@ from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..core.constants import KNOWN_MODELS, MODEL_SELECTION_CONFIG_PANEL
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger, setup_core_logging, setup_file_logging
+from ..core.self_diagnosis import handle_error_with_diagnosis
 from ..core.session import init_elroy_session
 from ..db.db_models import Reminder
 from ..io.base import ElroyIO, PlainIO
@@ -32,7 +33,6 @@ from ..repository.user.queries import get_persona, get_user_id_if_exists
 from ..tools.developer import do_print_config
 from ..utils.clock import utc_now
 from ..utils.utils import datetime_to_string
-from .bug_report import create_bug_report_from_exception_if_confirmed
 from .chat import handle_chat, handle_message_stdio
 from .options import ElroyOption, get_resolved_params
 from .updater import check_latest_version, check_updates
@@ -469,7 +469,7 @@ def chat(typer_ctx: typer.Context):
                         f"Tool use not supported by model {ctx.chat_model.name}. Try starting with --inline-tool-calls"
                     )
                 else:
-                    create_bug_report_from_exception_if_confirmed(io, ctx, e)
+                    handle_error_with_diagnosis(io, ctx, e)
             finally:
                 shutdown_scheduler(wait=False)
 

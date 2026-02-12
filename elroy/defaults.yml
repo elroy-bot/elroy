@@ -69,3 +69,7 @@ allowed_shell_command_prefixes:
 background_ingest_enabled: false  # Whether to enable background document ingestion
 background_ingest_paths: []  # List of paths to automatically ingest in the background
 background_ingest_interval_minutes: 60  # Minutes between background ingestion runs
+
+# Error Diagnosis
+diagnosis_max_log_lines: 50  # Number of log lines to include in error diagnosis
+diagnosis_show_confidence: true  # Show confidence score in diagnosis output

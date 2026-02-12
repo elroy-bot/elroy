@@ -87,6 +87,14 @@ class ToolConfig:
 
 
 @dataclass
+class DiagnosisConfig:
+    """Error diagnosis configuration."""
+
+    diagnosis_max_log_lines: int = 50
+    diagnosis_show_confidence: bool = True
+
+
+@dataclass
 class RuntimeConfig:
     """Runtime behavior and performance configuration."""
 

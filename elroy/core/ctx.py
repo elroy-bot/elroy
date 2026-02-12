@@ -23,6 +23,7 @@ from ..db.db_session import DbSession
 from ..llm.client import LlmClient
 from .configs import (
     DatabaseConfig,
+    DiagnosisConfig,
     MemoryConfig,
     ModelConfig,
     RuntimeConfig,
@@ -49,6 +50,7 @@ class ElroyContext:
         memory_config: Optional[MemoryConfig] = None,
         tool_config: Optional[ToolConfig] = None,
         runtime_config: Optional[RuntimeConfig] = None,
+        diagnosis_config: Optional[DiagnosisConfig] = None,
         # Individual parameters (for backward compatibility)
         config_path: Optional[str] = None,
         database_url: Optional[str] = None,
@@ -108,6 +110,9 @@ class ElroyContext:
         background_ingest_enabled: Optional[bool] = None,
         background_ingest_paths: Optional[List[str]] = None,
         background_ingest_interval_minutes: Optional[int] = None,
+        # Diagnosis
+        diagnosis_max_log_lines: Optional[int] = None,
+        diagnosis_show_confidence: Optional[bool] = None,
     ):
         # Handle both config objects approach and individual parameters approach
         if database_config is not None:
@@ -198,6 +203,14 @@ class ElroyContext:
                 background_ingest_interval_minutes=background_ingest_interval_minutes or 60,
             )
 
+        if diagnosis_config is not None:
+            self.diagnosis_config = diagnosis_config
+        else:
+            self.diagnosis_config = DiagnosisConfig(
+                diagnosis_max_log_lines=diagnosis_max_log_lines or 50,
+                diagnosis_show_confidence=diagnosis_show_confidence if diagnosis_show_confidence is not None else True,
+            )
+
         # Maintain backward compatibility with direct attribute access
         self.allowed_shell_command_prefixes = [re.compile(f"^{p}") for p in self.tool_config.allowed_shell_command_prefixes]
         self.shell_commands = self.tool_config.shell_commands
@@ -223,6 +236,8 @@ class ElroyContext:
         self.background_ingest_enabled = self.runtime_config.background_ingest_enabled
         self.background_ingest_paths = self.runtime_config.background_ingest_paths
         self.background_ingest_interval_minutes = self.runtime_config.background_ingest_interval_minutes
+        self.diagnosis_max_log_lines = self.diagnosis_config.diagnosis_max_log_lines
+        self.diagnosis_show_confidence = self.diagnosis_config.diagnosis_show_confidence
 
     @property
     def include_base_tools(self) -> bool:
