@@ -61,7 +61,7 @@ from ..repository.user.tools import (
     set_user_full_name,
     set_user_preferred_name,
 )
-from .developer import create_bug_report, print_config, tail_elroy_logs
+from .developer import print_config, tail_elroy_logs
 from .time import get_current_date
 
 IN_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
@@ -115,7 +115,6 @@ USER_ONLY_COMMANDS = {
     search_memories,
     print_active_reminders,
     print_inactive_reminders,
-    create_bug_report,
     set_assistant_name,
 }
 ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = {
