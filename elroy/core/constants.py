@@ -1,5 +1,5 @@
 import enum
-from typing import Callable, Dict, List
+from collections.abc import Callable
 
 MEMORY_WORD_COUNT_LIMIT = 300
 
@@ -49,7 +49,7 @@ def user_only_tool(func: Callable) -> Callable:
 
 
 def allow_unused(func: Callable) -> Callable:
-    setattr(func, "_allow_unused", True)
+    func._allow_unused = True  # type: ignore[attr-defined]
     return func
 
 
@@ -85,7 +85,7 @@ TEXT_EMBEDDING_3_SMALL = "text-embedding-3-small"
 GEMINI_TEXT_EMBEDDING_004 = "gemini/text-embedding-004"
 
 
-KNOWN_MODELS: Dict[Provider, List[str]] = {
+KNOWN_MODELS: dict[Provider, list[str]] = {
     Provider.OPENAI: [
         # O1 Models
         "o1",

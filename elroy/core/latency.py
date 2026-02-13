@@ -2,9 +2,10 @@
 
 import functools
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List
+from typing import Any
 
 from .constants import allow_unused
 from .logging import get_logger
@@ -18,7 +19,7 @@ class LatencyStats:
 
     operation: str
     duration_ms: float
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     _timestamp: float = field(default_factory=time.time)  # For future use
 
 
@@ -27,7 +28,7 @@ class LatencyTracker:
     """Tracks latency across different operations in a request."""
 
     request_id: str
-    stats: List[LatencyStats] = field(default_factory=list)
+    stats: list[LatencyStats] = field(default_factory=list)
     start_time: float = field(default_factory=time.perf_counter)
 
     def track(self, operation: str, duration_ms: float, **metadata):
@@ -63,7 +64,7 @@ class LatencyTracker:
         lines.append("=" * 80)
 
         # Group by operation type
-        by_operation: Dict[str, List[float]] = {}
+        by_operation: dict[str, list[float]] = {}
         for stat in self.stats:
             if stat.operation not in by_operation:
                 by_operation[stat.operation] = []
@@ -78,9 +79,7 @@ class LatencyTracker:
             avg = total / count
             percentage = (total / total_ms * 100) if total_ms > 0 else 0
 
-            lines.append(
-                f"  {operation:30s} | " f"count: {count:3d} | " f"total: {total:6.0f}ms ({percentage:5.1f}%) | " f"avg: {avg:6.0f}ms"
-            )
+            lines.append(f"  {operation:30s} | count: {count:3d} | total: {total:6.0f}ms ({percentage:5.1f}%) | avg: {avg:6.0f}ms")
 
         lines.append("=" * 80)
         return "\n".join(lines)

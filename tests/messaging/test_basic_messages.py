@@ -1,10 +1,10 @@
 import pytest
-from tests.utils import process_test_message
 
 from elroy.core.constants import InvalidForceToolError
 from elroy.repository.memories.queries import get_active_memories
 from elroy.repository.user.queries import do_get_user_preferred_name
 from elroy.repository.user.tools import set_user_preferred_name
+from tests.utils import process_test_message
 
 
 @pytest.mark.flaky(reruns=3)

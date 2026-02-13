@@ -1,8 +1,9 @@
 import json
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
-from typing import Generator, Generic, Iterator, List, Optional, TypeVar, Union
+from typing import Generic, TypeVar
 
 from litellm.types.utils import Delta, ModelResponse
 from pydantic import BaseModel
@@ -65,7 +66,7 @@ class ShellCommandOutput(BaseModel):
         return f"""{self.working_dir} > {self.command}\nself.stdout\n{self.stdout}\nself.stderr\n{self.stderr}"""
 
 
-def to_openai_tool_call(content: str) -> Optional[FunctionCall]:
+def to_openai_tool_call(content: str) -> FunctionCall | None:
     try:
         d = json.loads(content)
         if d.get("name") and d.get("arguments"):
@@ -84,7 +85,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class TextProcessor(ABC, Generic[T]):
-    tags: List[TagSet]
+    tags: list[TagSet]
 
     def __init__(self):
         self.buffer = ""
@@ -132,7 +133,7 @@ class TextProcessor(ABC, Generic[T]):
 
 
 class InternalThoughtProcessor(TextProcessor[AssistantInternalThought]):
-    tags: List[TagSet] = [TagSet("<internal_thought>", "</internal_thought>"), TagSet("<think>", "</think>")]
+    tags: list[TagSet] = [TagSet("<internal_thought>", "</internal_thought>"), TagSet("<think>", "</think>")]
     first_non_whitespace_emitted: bool = False
 
     def activate(self, begin_tag: str):
@@ -236,7 +237,7 @@ class InlineToolCallProcessor(TextProcessor[FunctionCall]):
 class AssistantResponseProcessor:
     """Processes regular text output with proper whitespace handling"""
 
-    tags: List[TagSet] = []  # No tags since this handles regular text
+    tags: list[TagSet] = []  # No tags since this handles regular text
     first_non_whitespace_emitted: bool = False
 
     def __init__(self):
@@ -269,30 +270,30 @@ class AssistantResponseProcessor:
         if self.buffer and not self.buffer.isspace():
             yield AssistantResponse(content=self.buffer.rstrip())
         self.buffer = ""
-        self.first_non_whitespace_emitted
         self.deactivate()
 
 
 class StreamTextProcessor:
     def __init__(self):
-        self.processors: List[TextProcessor] = [
+        self.processors: list[TextProcessor] = [
             CodeBlockProcessor(),  # Process code blocks first
             InlineToolCallProcessor(),
             InternalThoughtProcessor(),
         ]
         self.buffer = ""
-        self.active_processor: Optional[TextProcessor] = None
+        self.active_processor: TextProcessor | None = None
         self.default_processor = AssistantResponseProcessor()
         self.default_processor.activate()  # Activate with empty tag since it handles regular text
 
-    def process(self, text: str) -> Generator[Union[TextOutput, FunctionCall], None, None]:
+    def process(self, text: str) -> Generator[TextOutput | FunctionCall, None, None]:
         for char in text:
             self.buffer += char
             yield from self.process_buffer()
 
-    def process_buffer(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
+    def process_buffer(self) -> Generator[TextOutput | FunctionCall, None, None]:
         while len(self.buffer) > 0:
             if self.active_processor:
+                assert self.buffer
                 yield from self.active_processor.process(self.buffer[0])
                 self.buffer = self.buffer[1:]
                 if not self.active_processor.is_active():
@@ -316,10 +317,11 @@ class StreamTextProcessor:
                     return
                 else:
                     if len(self.buffer) > 0:
+                        assert self.buffer
                         yield from self.default_processor.process(self.buffer[0])
                         self.buffer = self.buffer[1:]
 
-    def flush(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
+    def flush(self) -> Generator[TextOutput | FunctionCall, None, None]:
         if self.buffer:
             if self.active_processor:
                 yield from self.active_processor.flush()
@@ -343,7 +345,7 @@ class StreamParser:
         self.stream_text_processor = StreamTextProcessor()
         self.raw_text = ""
 
-    def process_stream(self) -> Generator[Union[TextOutput, FunctionCall], None, None]:
+    def process_stream(self) -> Generator[TextOutput | FunctionCall, None, None]:
         for chunk in self.chunks:
             delta = chunk.choices[0].delta  # type: ignore
             assert isinstance(delta, Delta)
@@ -363,11 +365,11 @@ class StreamParser:
         return self.raw_text
 
 
-def collect(input_stream: Iterator[BaseModel]) -> List[BaseModel]:
+def collect(input_stream: Iterator[BaseModel]) -> list[BaseModel]:
     response = []
     for processed_chunk in input_stream:
         if isinstance(processed_chunk, TextOutput):
-            if len(response) == 0 or not type(response[-1]) == type(processed_chunk):
+            if len(response) == 0 or type(response[-1]) is not type(processed_chunk):
                 response.append(processed_chunk)
             else:
                 response[-1].content += processed_chunk.content

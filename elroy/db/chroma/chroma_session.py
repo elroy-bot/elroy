@@ -1,7 +1,8 @@
 """ChromaDB-backed session for vector storage operations."""
 
 import time
-from typing import Dict, Iterable, List, Optional, Type
+from collections.abc import Iterable
+from typing import Any, cast
 
 import chromadb
 from sqlmodel import col, select
@@ -28,7 +29,7 @@ class ChromaSession(DbSession):
     def __init__(self, url: str, session, chroma_client: chromadb.ClientAPI):
         super().__init__(url, session)
         self.chroma_client = chroma_client
-        self._collections: Dict[int, chromadb.Collection] = {}
+        self._collections: dict[int, chromadb.Collection] = {}
 
     def _get_collection(self, user_id: int) -> chromadb.Collection:
         """Get or create user's vector collection with L2 distance."""
@@ -42,7 +43,7 @@ class ChromaSession(DbSession):
         """Generate ChromaDB document ID from source type and ID."""
         return f"{source_type}_{source_id}"
 
-    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
+    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> VectorStorage | None:
         """Get vector storage entry for a given source type and id.
 
         Note: ChromaDB doesn't store VectorStorage rows, it stores embeddings directly.
@@ -55,9 +56,13 @@ class ChromaSession(DbSession):
         doc_id = self._make_document_id(row.__class__.__name__, row.id)
 
         try:
-            result = collection.get(ids=[doc_id], include=["embeddings", "metadatas"])
+            result = cast(dict[str, Any], collection.get(ids=[doc_id], include=["embeddings", "metadatas"]))
 
-            if not result["ids"]:
+            if not result.get("ids"):
+                return None
+            embeddings = result.get("embeddings") or []
+            metadatas = result.get("metadatas") or []
+            if not embeddings or not metadatas:
                 return None
 
             # Reconstruct VectorStorage from ChromaDB data
@@ -66,14 +71,14 @@ class ChromaSession(DbSession):
                 source_type=row.__class__.__name__,
                 source_id=row.id,
                 user_id=row.user_id,
-                embedding_data=result["embeddings"][0],
-                embedding_text_md5=result["metadatas"][0]["embedding_text_md5"],
+                embedding_data=list(embeddings[0]),
+                embedding_text_md5=str(metadatas[0].get("embedding_text_md5", "")),
             )
         except Exception as e:
             logger.warning(f"Error retrieving vector for {doc_id}: {e}")
             return None
 
-    def insert_embedding(self, row: EmbeddableSqlModel, embedding_data: List[float], embedding_text_md5: str):
+    def insert_embedding(self, row: EmbeddableSqlModel, embedding_data: list[float], embedding_text_md5: str):
         """Insert vector into ChromaDB with metadata."""
         if row.id is None:
             raise ValueError("Cannot insert embedding for row without ID")
@@ -96,31 +101,34 @@ class ChromaSession(DbSession):
             ],
         )
 
-    def update_embedding(self, vector_storage: VectorStorage, embedding: List[float], embedding_text_md5: str):
+    def update_embedding(self, vector_storage: VectorStorage, embedding: list[float], embedding_text_md5: str):
         """Update existing vector in ChromaDB."""
         collection = self._get_collection(vector_storage.user_id)
         doc_id = self._make_document_id(vector_storage.source_type, vector_storage.source_id)
 
         collection.update(
             ids=[doc_id],
-            embeddings=[embedding],
-            metadatas=[
-                {
-                    "source_type": vector_storage.source_type,
-                    "source_id": vector_storage.source_id,
-                    "user_id": vector_storage.user_id,
-                    "embedding_text_md5": embedding_text_md5,
-                    "is_active": True,
-                }
-            ],
+            embeddings=cast(Any, [embedding]),
+            metadatas=cast(
+                Any,
+                [
+                    {
+                        "source_type": vector_storage.source_type,
+                        "source_id": vector_storage.source_id,
+                        "user_id": vector_storage.user_id,
+                        "embedding_text_md5": embedding_text_md5,
+                        "is_active": True,
+                    }
+                ],
+            ),
         )
 
     @allow_unused
     def upsert_embeddings(
         self,
-        rows: List[EmbeddableSqlModel],
-        embeddings: List[List[float]],
-        embedding_text_md5s: List[str],
+        rows: list[EmbeddableSqlModel],
+        embeddings: list[list[float]],
+        embedding_text_md5s: list[str],
     ) -> None:
         """Batch upsert vectors into ChromaDB."""
         if not rows:
@@ -129,9 +137,9 @@ class ChromaSession(DbSession):
         user_id = rows[0].user_id
         collection = self._get_collection(user_id)
 
-        ids: List[str] = []
-        metadatas: List[dict] = []
-        for row, embedding_text_md5 in zip(rows, embedding_text_md5s):
+        ids: list[str] = []
+        metadatas: list[dict] = []
+        for row, embedding_text_md5 in zip(rows, embedding_text_md5s, strict=False):
             if row.id is None:
                 raise ValueError("Cannot upsert embedding for row without ID")
             is_active = bool(row.is_active) if row.is_active is not None else False
@@ -148,8 +156,8 @@ class ChromaSession(DbSession):
 
         collection.upsert(
             ids=ids,
-            embeddings=embeddings,
-            metadatas=metadatas,
+            embeddings=cast(Any, embeddings),
+            metadatas=cast(Any, metadatas),
         )
 
     def update_embedding_active(self, row: EmbeddableSqlModel) -> None:
@@ -162,15 +170,20 @@ class ChromaSession(DbSession):
         is_active = bool(row.is_active) if row.is_active is not None else False
 
         try:
-            result = collection.get(ids=[doc_id], include=["embeddings", "metadatas"])
+            result = cast(dict[str, Any], collection.get(ids=[doc_id], include=["embeddings", "metadatas"]))
         except Exception as e:
             logger.warning(f"Error retrieving embedding for {doc_id}: {e}")
             return
 
-        if not result["ids"]:
+        if not result.get("ids"):
             return
 
-        metadata = result["metadatas"][0] or {}
+        metadatas = result.get("metadatas") or []
+        embeddings = result.get("embeddings") or []
+        if not embeddings:
+            return
+
+        metadata = metadatas[0] if metadatas else {}
         metadata = {
             "source_type": metadata.get("source_type", row.__class__.__name__),
             "source_id": metadata.get("source_id", row.id),
@@ -181,11 +194,11 @@ class ChromaSession(DbSession):
 
         collection.update(
             ids=[doc_id],
-            embeddings=[result["embeddings"][0]],
-            metadatas=[metadata],
+            embeddings=cast(Any, [embeddings[0]]),
+            metadatas=cast(Any, [metadata]),
         )
 
-    def get_embedding(self, row: EmbeddableSqlModel) -> Optional[List[float]]:
+    def get_embedding(self, row: EmbeddableSqlModel) -> list[float] | None:
         """Retrieve vector embedding from ChromaDB."""
         if row.id is None:
             return None
@@ -194,17 +207,20 @@ class ChromaSession(DbSession):
         doc_id = self._make_document_id(row.__class__.__name__, row.id)
 
         try:
-            result = collection.get(ids=[doc_id], include=["embeddings"])
+            result = cast(dict[str, Any], collection.get(ids=[doc_id], include=["embeddings"]))
 
-            if not result["ids"]:
+            if not result.get("ids"):
                 return None
 
-            return result["embeddings"][0]
+            embeddings = result.get("embeddings") or []
+            if not embeddings:
+                return None
+            return list(embeddings[0])
         except Exception as e:
             logger.warning(f"Error retrieving embedding for {doc_id}: {e}")
             return None
 
-    def get_embedding_text_md5(self, row: EmbeddableSqlModel) -> Optional[str]:
+    def get_embedding_text_md5(self, row: EmbeddableSqlModel) -> str | None:
         """Retrieve embedding text hash from ChromaDB metadata."""
         if row.id is None:
             return None
@@ -213,22 +229,22 @@ class ChromaSession(DbSession):
         doc_id = self._make_document_id(row.__class__.__name__, row.id)
 
         try:
-            result = collection.get(ids=[doc_id], include=["metadatas"])
+            result = cast(dict[str, Any], collection.get(ids=[doc_id], include=["metadatas"]))
 
-            if not result["ids"]:
+            if not result.get("ids"):
                 return None
 
-            metadata = result["metadatas"][0]
-            if not metadata:
+            metadatas = result.get("metadatas") or []
+            if not metadatas:
                 return None
-
-            return metadata.get("embedding_text_md5")
+            metadata = metadatas[0] or {}
+            return str(metadata.get("embedding_text_md5"))
         except Exception as e:
             logger.warning(f"Error retrieving embedding metadata for {doc_id}: {e}")
             return None
 
     def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
+        self, l2_distance_threshold: float, table: type[EmbeddableSqlModel], user_id: int, query: list[float]
     ) -> Iterable[EmbeddableSqlModel]:
         """Vector search with filtering, returns entity objects.
 
@@ -256,6 +272,7 @@ class ChromaSession(DbSession):
                 where={"$and": [{"source_type": table.__name__}, {"is_active": True}]},
                 include=["metadatas", "distances"],
             )
+            results = cast(dict[str, Any], results)
         except Exception as e:
             logger.error(f"ChromaDB query failed for {table.__name__}: {e}")
 
@@ -296,14 +313,21 @@ class ChromaSession(DbSession):
         processing_start = time.perf_counter()
 
         # Filter by distance threshold and extract source_ids in order
-        if not results["ids"] or not results["ids"][0]:
+        if not results.get("ids") or not results["ids"][0]:
             processing_duration_ms = (time.perf_counter() - processing_start) * 1000
             logger.info(f"Result processing ({table.__name__}): {processing_duration_ms:.0f}ms - no results")
             return iter([])
 
+        metadatas = results.get("metadatas") or []
+        distances = results.get("distances") or []
+        if not metadatas or not distances:
+            processing_duration_ms = (time.perf_counter() - processing_start) * 1000
+            logger.info(f"Result processing ({table.__name__}): {processing_duration_ms:.0f}ms - missing metadata")
+            return iter([])
+
         entity_ids = [
             metadata["source_id"]
-            for metadata, distance in zip(results["metadatas"][0], results["distances"][0])
+            for metadata, distance in zip(metadatas[0], distances[0], strict=False)
             if distance < l2_distance_threshold
         ]
 
@@ -313,7 +337,7 @@ class ChromaSession(DbSession):
             return iter([])
 
         # Fetch entities from relational DB
-        entities = self.session.exec(select(table).where(col(table.id).in_(entity_ids)).where(table.is_active == True)).all()
+        entities = self.session.exec(select(table).where(col(table.id).in_(entity_ids)).where(cast(Any, table.is_active).is_(True))).all()
 
         # Maintain ChromaDB's distance-sorted order
         entity_dict = {e.id: e for e in entities}

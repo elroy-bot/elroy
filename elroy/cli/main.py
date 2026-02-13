@@ -3,7 +3,7 @@ import stat
 import sys
 from bdb import BdbQuit
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import typer
 from rich.table import Table
@@ -81,7 +81,7 @@ def common(
         help="User token to use for Elroy",
         rich_help_panel="Basic Configuration",
     ),
-    custom_tools_path: List[str] = typer.Option(
+    custom_tools_path: list[str] = typer.Option(
         [],
         "--custom-tools-path",
         help="Path to custom functions to load",
@@ -94,7 +94,7 @@ def common(
         rich_help_panel="Basic Configuration",
     ),
     # Database Configuration
-    database_url: Optional[str] = ElroyOption(
+    database_url: str | None = ElroyOption(
         "database_url",
         default_factory=get_default_sqlite_url,
         help="Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.",
@@ -116,27 +116,27 @@ def common(
         help="The model to use for chat completions.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    chat_model_api_base: Optional[str] = ElroyOption(
+    chat_model_api_base: str | None = ElroyOption(
         "chat_model_api_base",
         help="Base URL for OpenAI compatible chat model API. Litellm will recognize vars too",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    chat_model_api_key: Optional[str] = ElroyOption(
+    chat_model_api_key: str | None = ElroyOption(
         "chat_model_api_key",
         help="API key for OpenAI compatible chat model API.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    fast_model: Optional[str] = ElroyOption(
+    fast_model: str | None = ElroyOption(
         "fast_model",
         help="Fast model for background tasks (summarization, classification). Falls back to chat_model if not set.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    fast_model_api_base: Optional[str] = ElroyOption(
+    fast_model_api_base: str | None = ElroyOption(
         "fast_model_api_base",
         help="Base URL for fast model API.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    fast_model_api_key: Optional[str] = ElroyOption(
+    fast_model_api_key: str | None = ElroyOption(
         "fast_model_api_key",
         help="API key for fast model API.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
@@ -151,12 +151,12 @@ def common(
         help="The size of the embedding model.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    embedding_model_api_base: Optional[str] = ElroyOption(
+    embedding_model_api_base: str | None = ElroyOption(
         "embedding_model_api_base",
         help="Base URL for OpenAI compatible embedding model API.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    embedding_model_api_key: Optional[str] = ElroyOption(
+    embedding_model_api_key: str | None = ElroyOption(
         "embedding_model_api_key",
         help="API key for OpenAI compatible embedding model API.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
@@ -190,7 +190,7 @@ def common(
         rich_help_panel="Context Management",
         hidden=True,
     ),
-    min_convo_age_for_greeting_minutes: Optional[float] = ElroyOption(
+    min_convo_age_for_greeting_minutes: float | None = ElroyOption(
         "min_convo_age_for_greeting_minutes",
         help="Minimum age in minutes of conversation before the assistant will offer a greeting on login. 0 means assistant will offer greeting each time. To disable greeting, set --first=True (This will override any value for min_convo_age_for_greeting_minutes)",
         rich_help_panel="Context Management",
@@ -274,7 +274,7 @@ def common(
         help="Enable automatic background ingestion of documents from configured paths.",
         rich_help_panel="Background Ingestion",
     ),
-    background_ingest_paths: Optional[str] = ElroyOption(
+    background_ingest_paths: str | None = ElroyOption(
         "background_ingest_paths",
         help="Comma-separated list of paths to automatically ingest in the background (or set in config file as YAML list).",
         rich_help_panel="Background Ingestion",
@@ -356,13 +356,13 @@ def common(
         show_default=False,
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
     ),
-    openai_api_key: Optional[str] = ElroyOption(
+    openai_api_key: str | None = ElroyOption(
         "openai_api_key",
         help="OpenAI API key, required for OpenAI (or OpenAI compatible) models.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
         hidden=True,
     ),
-    openai_api_base: Optional[str] = ElroyOption(
+    openai_api_base: str | None = ElroyOption(
         "openai_api_base",
         help="OpenAI API (or OpenAI compatible) base URL.",
         rich_help_panel=MODEL_SELECTION_CONFIG_PANEL,
@@ -411,7 +411,7 @@ def common(
         rich_help_panel="Basic Configuration",
         hidden=True,
     ),
-    allowed_shell_command_prefixes: List[str] = ElroyOption(
+    allowed_shell_command_prefixes: list[str] = ElroyOption(
         "allowed_shell_command_prefixes",
         help="Allowed prefixes for shell commands.",
         rich_help_panel="Basic Configuration",
@@ -429,10 +429,7 @@ def chat(typer_ctx: typer.Context):
     """Opens an interactive chat session. (default command)"""
 
     # extra check needed since chat is the default command
-    if not typer_ctx.params and typer_ctx.parent:
-        params = typer_ctx.parent.params
-    else:
-        params = typer_ctx.params
+    params = typer_ctx.parent.params if not typer_ctx.params and typer_ctx.parent else typer_ctx.params
 
     io = get_io(**params)
 
@@ -466,7 +463,7 @@ def chat(typer_ctx: typer.Context):
                 if "Unsupported param: tools" in str(e):
                     raise typer.BadParameter(
                         f"Tool use not supported by model {ctx.chat_model.name}. Try starting with --inline-tool-calls"
-                    )
+                    ) from e
                 else:
                     # Re-raise the error instead of creating bug report
                     raise
@@ -511,13 +508,13 @@ def message(
 @app.command(name="print-tool-schemas")
 def print_tools(
     typer_ctx: typer.Context,
-    tool: Optional[str] = typer.Argument(None, help="Tool to print schema for"),
+    tool: str | None = typer.Argument(None, help="Tool to print schema for"),
 ):
     """Prints the schema for a tool and exits."""
     assert typer_ctx.parent
     ctx = ElroyContext.init(use_background_threads=False, **typer_ctx.parent.params)
     io = get_io(**typer_ctx.parent.params)
-    io.print(ctx.tool_registry.get_schemas())  # type: ignore
+    io.print(ctx.tool_registry.get_schemas())
 
 
 @app.command(name="remember")
@@ -607,7 +604,7 @@ def user_stats(
         total_memories = ctx.db.exec(select(func.count(col(Memory.id))).where(Memory.user_id == ctx.user_id)).first() or 0
 
         active_memories = (
-            ctx.db.exec(select(func.count(col(Memory.id))).where(Memory.user_id == ctx.user_id, Memory.is_active == True)).first() or 0
+            ctx.db.exec(select(func.count(col(Memory.id))).where(Memory.user_id == ctx.user_id, Memory.is_active)).first() or 0
         )
 
         total_document_excerpts = (
@@ -616,7 +613,7 @@ def user_stats(
 
         active_document_excerpts = (
             ctx.db.exec(
-                select(func.count(col(DocumentExcerpt.id))).where(DocumentExcerpt.user_id == ctx.user_id, DocumentExcerpt.is_active == True)
+                select(func.count(col(DocumentExcerpt.id))).where(DocumentExcerpt.user_id == ctx.user_id, DocumentExcerpt.is_active)
             ).first()
             or 0
         )
@@ -624,8 +621,7 @@ def user_stats(
         total_reminders = ctx.db.exec(select(func.count(col(Reminder.id))).where(Reminder.user_id == ctx.user_id)).first() or 0
 
         active_reminders = (
-            ctx.db.exec(select(func.count(col(Reminder.id))).where(Reminder.user_id == ctx.user_id, Reminder.is_active == True)).first()
-            or 0
+            ctx.db.exec(select(func.count(col(Reminder.id))).where(Reminder.user_id == ctx.user_id, Reminder.is_active)).first() or 0
         )
 
         # Count vectors for this user's entities
@@ -780,12 +776,12 @@ def ingest_doc(
         "-r",
         help="If path is a directory, recursively ingest all documents within it.",
     ),
-    include: List[str] = typer.Option(
+    include: list[str] = typer.Option(
         [],
         "--include",
         help="Glob pattern for files to include (e.g. '*.txt,*.md'). Multiple patterns can be comma-separated.",
     ),
-    exclude: List[str] = typer.Option(
+    exclude: list[str] = typer.Option(
         [],
         "--exclude",
         help="Glob pattern for files to exclude (e.g. '*.log'). Can also be used to exclude directories.",
@@ -812,7 +808,7 @@ def ingest_doc(
             from elroy.repository.documents.operations import DocIngestStatus
 
             # Helper to format status summary (e.g., "✓ 45 • ↻ 3 • ⏭ 2")
-            def format_status_summary(statuses: Dict[DocIngestStatus, int]) -> str:
+            def format_status_summary(statuses: dict[DocIngestStatus, int]) -> str:
                 parts = []
                 status_symbols = {
                     DocIngestStatus.SUCCESS: "✓",
@@ -867,7 +863,7 @@ def ingest_doc(
 
 @app.command(name="install-skills")
 def install_skills(
-    skills_dir: Optional[str] = typer.Option(
+    skills_dir: str | None = typer.Option(
         None,
         "--skills-dir",
         help="Custom Claude Code skills directory (default: ~/.claude/skills)",
@@ -894,10 +890,7 @@ def install_skills(
     """
 
     # Determine skills directory
-    if skills_dir is None:
-        target_dir = Path.home() / ".claude" / "skills"
-    else:
-        target_dir = Path(skills_dir).expanduser()
+    target_dir = Path.home() / ".claude" / "skills" if skills_dir is None else Path(skills_dir).expanduser()
 
     # Find the claude-skills directory in the package
     # Use __file__ to find the elroy package directory

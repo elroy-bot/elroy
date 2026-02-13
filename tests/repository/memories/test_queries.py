@@ -1,8 +1,7 @@
-from tests.utils import MockCliIO
-
 from elroy.core.ctx import ElroyContext
 from elroy.repository.memories.operations import do_create_memory
 from elroy.repository.memories.queries import get_memories
+from tests.utils import MockCliIO
 
 
 def test_get_memories(io: MockCliIO, ctx: ElroyContext):

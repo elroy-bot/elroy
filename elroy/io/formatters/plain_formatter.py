@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Generator
+from collections.abc import Generator
 
 from ...db.db_models import FunctionCall
 from ...llm.stream_parser import (
@@ -12,7 +12,6 @@ from .base import ElroyPrintable, StringFormatter
 
 
 class PlainFormatter(StringFormatter):
-
     def format(self, message: ElroyPrintable) -> Generator[str, None, None]:
         if isinstance(message, (str, AssistantResponse, AssistantInternalThought)):
             yield str(message)
@@ -29,7 +28,7 @@ class PlainFormatter(StringFormatter):
                 output.append("Standard Error:")
                 output.append(message.stderr)
             yield "\n".join(output)
-        elif isinstance(message, Dict):
+        elif isinstance(message, dict):
             yield "\n".join(["```json", json.dumps(message, indent=2), "```"])
         else:
             raise Exception(f"Unrecognized type: {type(message)}")

@@ -5,8 +5,7 @@ An interactive D&D-style game where players can interact with multiple AI charac
 Each character maintains their own memories and personality while sharing a common narrative.
 """
 
-from typing import Dict, Optional
-
+import typer
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -25,14 +24,15 @@ class Character:
     def message(self, input: str) -> str:
         return self.ai.message(input)
 
-    def remember(self, message: str, name: Optional[str]):
-        self.ai.create_memory(message, name)
+    def remember(self, message: str, name: str | None):
+        memory_name = name or "Shared Memory"
+        self.ai.create_memory(memory_name, message)
 
 
 class ElroyQuestGame:
     def __init__(self, player_name: str):
         self.player_name = player_name
-        self.characters: Dict[str, Character] = {}
+        self.characters: dict[str, Character] = {}
         self.console = Console()
 
     def add_character(self, assistant_name: str, persona: str, text_color: str):
@@ -87,8 +87,6 @@ class ElroyQuestGame:
                 self.console.print("[bold red]Goodbye![/bold red]")
                 break
 
-
-import typer
 
 app = typer.Typer()
 

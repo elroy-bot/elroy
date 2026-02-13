@@ -1,7 +1,8 @@
+from collections.abc import Callable, Generator
 from datetime import datetime
 from functools import partial, wraps
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, ParamSpec, TypeVar, Union
+from typing import ParamSpec, TypeVar
 
 from pydantic import BaseModel
 from toolz import concat, pipe
@@ -33,7 +34,7 @@ from ..repository.context_messages.operations import reset_messages as do_reset_
 from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.tools import to_synthetic_tool_call
 from ..repository.context_messages.transforms import is_context_refresh_needed
-from ..repository.documents.operations import DocIngestStatus, do_ingest, do_ingest_dir
+from ..repository.documents.operations import DocIngestStatus, IngestDirStatusUpdate, do_ingest, do_ingest_dir
 from ..repository.memo import do_ingest_memo
 from ..repository.memories.queries import get_memories
 from ..repository.memories.tools import create_memory as do_create_memory
@@ -58,24 +59,24 @@ def db(f: Callable[P, T]) -> Callable[P, T]:
     @wraps(f)
     def wrapper(self, *args, **kwargs):
         with dbsession(self.ctx):
-            return f(self, *args, **kwargs)  # type: ignore
+            return f(self, *args, **kwargs)
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
 
 
 class Elroy:
     def __init__(
         self,
         *,
-        token: Optional[str] = None,
+        token: str | None = None,
         formatter: StringFormatter = PlainFormatter(),
-        config_path: Optional[str] = None,
-        persona: Optional[str] = None,
-        assistant_name: Optional[str] = None,
-        database_url: Optional[str] = None,
+        config_path: str | None = None,
+        persona: str | None = None,
+        assistant_name: str | None = None,
+        database_url: str | None = None,
         check_db_migration: bool = False,
         show_tool_calls: bool = True,
-        exclude_tools: List[str] = [],  # any tools which should not be loaded
+        exclude_tools: list[str] | None = None,  # any tools which should not be loaded
         **kwargs,
     ):
         """Initialize an Elroy instance.
@@ -93,6 +94,8 @@ class Elroy:
             **kwargs: Additional configuration parameters
         """
 
+        if exclude_tools is None:
+            exclude_tools = []
         setup_core_logging()
         self.formatter = formatter
         self.show_tool_calls = show_tool_calls
@@ -118,12 +121,12 @@ class Elroy:
             add_context_messages(self.ctx, to_synthetic_tool_call("get_session_context", get_session_context(self.ctx)))
 
     @db
-    def get_current_messages(self) -> List[ContextMessage]:  # noqa F841
+    def get_current_messages(self) -> list[ContextMessage]:  # noqa F841
         """Retrieves messages currently in context"""
         return pipe(
             get_context_messages(self.ctx),
             list,
-        )  # type: ignore
+        )
 
     @db
     def query_memory(self, query: str) -> str:
@@ -138,7 +141,7 @@ class Elroy:
         return do_query_memory(self.ctx, query)
 
     @db
-    def get_active_reminders(self) -> List[Reminder]:
+    def get_active_reminders(self) -> list[Reminder]:
         """Get all active reminders for the current user.
 
         Returns:
@@ -147,7 +150,7 @@ class Elroy:
         return do_get_active_reminders(self.ctx)
 
     @db
-    def get_reminders(self, include_completed: bool = False) -> List[Reminder]:
+    def get_reminders(self, include_completed: bool = False) -> list[Reminder]:
         """Get reminders, optionally including completed ones.
 
         Args:
@@ -159,7 +162,7 @@ class Elroy:
         return do_get_reminders(self.ctx, include_completed)
 
     @db
-    def complete_reminder(self, name: str, closing_comment: Optional[str] = None) -> str:
+    def complete_reminder(self, name: str, closing_comment: str | None = None) -> str:
         """Mark a reminder as completed.
 
         Args:
@@ -172,7 +175,7 @@ class Elroy:
         return do_complete_reminder(self.ctx, name, closing_comment)
 
     @db
-    def create_reminder(self, name: str, text: str, trigger_time: Optional[datetime], reminder_context: Optional[str]) -> Reminder:
+    def create_reminder(self, name: str, text: str, trigger_time: datetime | None, reminder_context: str | None) -> Reminder:
         """Create a new reminder.
 
         Args:
@@ -187,7 +190,7 @@ class Elroy:
         return do_create_reminder(self.ctx, name, text, trigger_time, reminder_context)
 
     @db
-    def ingest_memo(self, text: str) -> List[Reminder | Memory]:
+    def ingest_memo(self, text: str) -> list[Reminder | Memory]:
         """Ingest a memo text and extract memories and reminders from it.
 
         Args:
@@ -248,7 +251,7 @@ class Elroy:
         return do_create_memory(self.ctx, name, text)
 
     @db
-    def get_current_memories(self) -> List[Memory]:
+    def get_current_memories(self) -> list[Memory]:
         """Retrieves the list of memories currently in context"""
         return pipe(
             self.get_current_messages(),
@@ -264,7 +267,7 @@ class Elroy:
 
     @db
     @tracer.chain
-    def message(self, input: str, enable_tools: bool = True, force_tool: Optional[str] = None) -> str:
+    def message(self, input: str, enable_tools: bool = True, force_tool: str | None = None) -> str:
         """Process a message to the assistant and return the response
 
         Args:
@@ -291,7 +294,7 @@ class Elroy:
             list,
             "\n\n".join,
             lambda x: x.strip(),
-        )  # type: ignore
+        )
 
     @db
     def reset_messages(self) -> None:
@@ -350,7 +353,7 @@ class Elroy:
             self.context_refresh()
 
     @db
-    def ingest_doc(self, address: Union[str, Path], force_refresh=False) -> DocIngestStatus:
+    def ingest_doc(self, address: str | Path, force_refresh=False) -> DocIngestStatus:
         """Ingest a document into the assistant's memory
 
         Args:
@@ -367,8 +370,8 @@ class Elroy:
 
     @db
     def ingest_dir(
-        self, address: Union[str, Path], include: List[str], exclude: List[str], recursive: bool, force_refresh=False
-    ) -> Dict[DocIngestStatus, int]:
+        self, address: str | Path, include: list[str], exclude: list[str], recursive: bool, force_refresh=False
+    ) -> "IngestDirStatusUpdate":
         """Ingest a directory of documents into the assistant's memory
 
         Args:
@@ -415,7 +418,7 @@ class Elroy:
 
         if isinstance(chunk, AssistantInternalThought):
             return self.ctx.show_internal_thought
-        elif isinstance(chunk, FunctionCall) or isinstance(chunk, AssistantToolResult):
+        elif isinstance(chunk, (FunctionCall, AssistantToolResult)):
             return self.show_tool_calls
         else:
             return True

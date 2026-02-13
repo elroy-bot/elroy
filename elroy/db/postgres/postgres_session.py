@@ -1,6 +1,6 @@
-from typing import Iterable, List, Optional, Type
+from collections.abc import Iterable
+from typing import Any, cast
 
-from sqlalchemy import select
 from sqlmodel import and_, select
 from toolz import pipe
 from toolz.curried import map
@@ -11,20 +11,19 @@ from ..db_session import DbSession
 
 
 class PostgresSession(DbSession):
-
-    def get_embedding(self, row: EmbeddableSqlModel) -> Optional[List[float]]:
+    def get_embedding(self, row: EmbeddableSqlModel) -> list[float] | None:
         return self.session.exec(
             select(VectorStorage.embedding_data).where(
                 VectorStorage.source_id == row.id, VectorStorage.source_type == row.__class__.__name__
-            )  # type: ignore
+            )
         ).first()  # type: ignore
 
-    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
+    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> VectorStorage | None:
         return self.session.exec(
             select(VectorStorage).where(VectorStorage.source_type == row.__class__.__name__, VectorStorage.source_id == row.id)
         ).first()
 
-    def update_embedding(self, vector_storage: VectorStorage, embedding: List[float], embedding_text_md5: str):
+    def update_embedding(self, vector_storage: VectorStorage, embedding: list[float], embedding_text_md5: str):
         vector_storage.embedding_data = embedding
         vector_storage.embedding_text_md5 = embedding_text_md5
         self.session.add(vector_storage)
@@ -45,7 +44,7 @@ class PostgresSession(DbSession):
         self.session.commit()
 
     def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
+        self, l2_distance_threshold: float, table: type[EmbeddableSqlModel], user_id: int, query: list[float]
     ) -> Iterable[EmbeddableSqlModel]:
         """
         Perform a vector search on the specified table using the given query.
@@ -74,12 +73,12 @@ class PostgresSession(DbSession):
                 .where(
                     and_(
                         table.user_id == user_id,
-                        table.is_active == True,
+                        cast(Any, table.is_active).is_(True),
                         distance_exp < l2_distance_threshold,
                     )
                 )
                 .order_by(distance_exp)
-                .limit(RESULT_SET_LIMIT_COUNT)  # type: ignore
+                .limit(RESULT_SET_LIMIT_COUNT)
             ),
             map(lambda row: row[0]),
         )

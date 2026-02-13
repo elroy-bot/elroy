@@ -1,5 +1,5 @@
 import json
-from typing import Generator
+from collections.abc import Generator
 
 from ...db.db_models import FunctionCall
 from ...llm.stream_parser import (

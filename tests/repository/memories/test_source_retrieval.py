@@ -1,5 +1,3 @@
-from tests.utils import process_test_message
-
 from elroy.core.ctx import ElroyContext
 from elroy.repository.memories.consolidation import consolidate_memories
 from elroy.repository.memories.queries import get_active_memories
@@ -8,6 +6,7 @@ from elroy.repository.memories.tools import (
     get_source_content_for_memory,
     get_source_list_for_memory,
 )
+from tests.utils import process_test_message
 
 
 def test_memory_source(ctx: ElroyContext):

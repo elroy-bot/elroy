@@ -1,12 +1,11 @@
-from typing import Optional, Tuple
-
 from ..core.constants import MEMORY_WORD_COUNT_LIMIT
 from ..core.tracing import tracer
 from ..llm.parsing import extract_title_and_body
 from .client import LlmClient
 
-ONBOARDING_SUPPLEMENT_INSTRUCT = (
-    lambda preferred_name: f"""
+
+def onboarding_supplement_instruct(preferred_name):
+    return f"""
 This is the first exchange between you and your primary user, {preferred_name}.
 
 Greet {preferred_name} warmly and introduce yourself.
@@ -15,7 +14,6 @@ In these early messages, prioritize learning some basic information about {prefe
 
 However, avoid asking too many questions at once. Be sure to engage in a natural conversation. {preferred_name} is likely unsure of what to expect from you, so be patient and understanding.
 """
-)
 
 
 @tracer.chain
@@ -37,7 +35,7 @@ Only output the summary, do NOT include anything else in your output.
 
 
 @tracer.chain
-def summarize_for_memory(fast_llm: LlmClient, conversation_summary: str, user_preferred_name: Optional[str]) -> Tuple[str, str]:
+def summarize_for_memory(fast_llm: LlmClient, conversation_summary: str, user_preferred_name: str | None) -> tuple[str, str]:
     """Generate memory from conversation summary using fast model."""
     user_noun = user_preferred_name or "the user"
 

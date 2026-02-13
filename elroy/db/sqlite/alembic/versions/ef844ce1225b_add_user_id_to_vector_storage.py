@@ -7,16 +7,16 @@ Create Date: 2025-07-27 12:40:54.080721
 """
 
 import logging
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlite_vec
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "ef844ce1225b"
-down_revision: Union[str, None] = "9eb7c341e950"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "9eb7c341e950"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -24,7 +24,6 @@ def upgrade() -> None:
     connection = op.get_bind().connection
 
     try:
-
         connection.enable_load_extension(True)  # type: ignore
         sqlite_vec.load(connection)  # type: ignore
         connection.enable_load_extension(False)  # type: ignore

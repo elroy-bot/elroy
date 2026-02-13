@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Set
+from collections.abc import Callable
 
 from rich.table import Table
 from toolz import concatv, pipe
@@ -64,24 +64,24 @@ from ..repository.user.tools import (
 from .developer import print_config, tail_elroy_logs
 from .time import get_current_date
 
-IN_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
+IN_CONTEXT_MEMORY_COMMANDS: set[Callable] = {
     drop_memory_from_current_context,
 }
-NON_CONTEXT_MEMORY_COMMANDS: Set[Callable] = {
+NON_CONTEXT_MEMORY_COMMANDS: set[Callable] = {
     add_memory_to_current_context,
 }
-ALL_ACTIVE_MEMORY_COMMANDS: Set[Callable] = {
+ALL_ACTIVE_MEMORY_COMMANDS: set[Callable] = {
     print_memory,
     update_outdated_or_incorrect_memory,
 }
-ALL_ACTIVE_REMINDER_COMMANDS: Set[Callable] = {
+ALL_ACTIVE_REMINDER_COMMANDS: set[Callable] = {
     delete_reminder,
     complete_reminder,
     print_reminder,
     rename_reminder,
     update_reminder_text,
 }
-NON_ARG_PREFILL_COMMANDS: Set[Callable] = {
+NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     get_source_content_for_memory,
     create_reminder,
     create_memory,
@@ -117,7 +117,7 @@ USER_ONLY_COMMANDS = {
     print_inactive_reminders,
     set_assistant_name,
 }
-ASSISTANT_VISIBLE_COMMANDS: Set[Callable] = {
+ASSISTANT_VISIBLE_COMMANDS: set[Callable] = {
     f
     for f in (
         NON_ARG_PREFILL_COMMANDS
@@ -154,6 +154,6 @@ def get_help(ctx: ElroyContext) -> Table:
     table.add_column("Command", justify="left", style="cyan", no_wrap=True)
     table.add_column("Description", justify="left", style="green")
 
-    for command, description in commands:  # type: ignore
+    for command, description in commands:
         table.add_row(command, description)
     return table

@@ -6,7 +6,7 @@ Create Date: 2025-08-15 12:02:55.852145
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
@@ -14,9 +14,9 @@ from sqlmodel.sql.sqltypes import AutoString
 
 # revision identifiers, used by Alembic.
 revision: str = "899126f0e215"
-down_revision: Union[str, None] = "1c74c74a43e2"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "1c74c74a43e2"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -50,9 +50,9 @@ def upgrade() -> None:
     # Copy data to new table
     op.execute(
         """
-        INSERT INTO reminder_new (id, created_at, updated_at, user_id, name, text, 
+        INSERT INTO reminder_new (id, created_at, updated_at, user_id, name, text,
                                  trigger_datetime, reminder_context, is_active, status, closing_comment)
-        SELECT id, created_at, updated_at, user_id, name, text, 
+        SELECT id, created_at, updated_at, user_id, name, text,
                trigger_datetime, reminder_context, is_active, status, closing_comment
         FROM reminder
     """
@@ -83,9 +83,9 @@ def downgrade() -> None:
     # Copy data back (excluding new columns)
     op.execute(
         """
-        INSERT INTO reminder_old (id, created_at, updated_at, user_id, name, text, 
+        INSERT INTO reminder_old (id, created_at, updated_at, user_id, name, text,
                                  trigger_datetime, reminder_context, is_active)
-        SELECT id, created_at, updated_at, user_id, name, text, 
+        SELECT id, created_at, updated_at, user_id, name, text,
                trigger_datetime, reminder_context, is_active
         FROM reminder
     """

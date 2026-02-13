@@ -1,5 +1,4 @@
 import uuid
-from typing import List, Union
 
 from pydantic import BaseModel
 
@@ -9,7 +8,7 @@ from ...db.db_models import Memory, ToolCall
 from .data_models import ContextMessage
 
 
-def to_synthetic_tool_call(func_name: str, func_response: Union[str, BaseModel]) -> List[ContextMessage]:
+def to_synthetic_tool_call(func_name: str, func_response: str | BaseModel) -> list[ContextMessage]:
     tool_call_id = str(uuid.uuid4())
 
     return [

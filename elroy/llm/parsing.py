@@ -1,12 +1,11 @@
 import re
-from typing import Tuple
 
 from ..core.logging import get_logger
 
 logger = get_logger()
 
 
-def extract_title_and_body(response: str) -> Tuple[str, str]:
+def extract_title_and_body(response: str) -> tuple[str, str]:
     """Extract title and body from markdown formatted response.
 
     Supports various markdown title formats:

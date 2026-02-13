@@ -1,5 +1,3 @@
-from tests.utils import process_test_message
-
 from elroy.core.ctx import ElroyContext
 from elroy.repository.context_messages.operations import reset_messages
 from elroy.repository.user.operations import (
@@ -8,6 +6,7 @@ from elroy.repository.user.operations import (
     set_persona,
 )
 from elroy.repository.user.queries import do_get_user_preferred_name
+from tests.utils import process_test_message
 
 
 def test_update_user_preferred_name(ctx: ElroyContext):
@@ -25,7 +24,7 @@ def test_update_persona(ctx):
 
     assert "elroy" in reply.lower()
 
-    set_persona(ctx, "You are a helpful assistant." "Your name is Jarvis" "If asked what your name is, be sure to reply with Jarvis")
+    set_persona(ctx, "You are a helpful assistant.Your name is JarvisIf asked what your name is, be sure to reply with Jarvis")
 
     reply = process_test_message(ctx, "What is your name?")
 

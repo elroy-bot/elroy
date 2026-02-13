@@ -30,15 +30,12 @@ def _seed_sqlite_with_embedding(sqlite_db_url: str, user_id: int = 1) -> int:
     with manager.open_session() as session:
         user = User(
             id=user_id,
-            email=f"user{user_id}@example.com",
-            name=f"User {user_id}",
-            preferred_name=f"User {user_id}",
             token="token",
-            is_active=True,
         )
         session.add(user)
         session.commit()
         created_user_id = user.id
+        assert created_user_id is not None
 
         memory = Memory(
             user_id=created_user_id,

@@ -1,5 +1,4 @@
 import os
-from typing import List, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,7 +29,7 @@ app = FastAPI(title="Elroy API", version="1.0.0", log_level="info")
 
 # Add CORS middleware
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # type: ignore
     allow_origins=["https://elroy.bot", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["GET", "POST"],
@@ -41,8 +40,8 @@ app.add_middleware(
 # Waitlist models
 class WaitlistSignup(BaseModel):
     email: str
-    use_case: Optional[str] = None
-    platform: Optional[str] = None
+    use_case: str | None = None
+    platform: str | None = None
 
 
 class WaitlistResponse(BaseModel):
@@ -65,11 +64,11 @@ async def root():
     return {"status": "ok"}
 
 
-@app.get("/get_current_messages", response_model=List[MessageResponse])
+@app.get("/get_current_messages", response_model=list[MessageResponse])
 async def get_current_messages():
     """Return a list of current messages in the conversation context."""
     elroy = Elroy()
-    elroy.ctx
+    _ = elroy.ctx
 
     messages = []
     for msg in elroy.get_current_messages():
@@ -88,11 +87,11 @@ async def ingest_memo(request: IngestMemoRequest):
     )
 
 
-@app.get("/get_current_memories", response_model=List[MemoryResponse])
+@app.get("/get_current_memories", response_model=list[MemoryResponse])
 async def get_current_memories():
     """Return a list of memories for the current user."""
     elroy = Elroy()
-    elroy.ctx
+    _ = elroy.ctx
 
     memories = []
     for memory in elroy.get_current_memories():
@@ -105,7 +104,7 @@ async def get_current_memories():
 async def chat(request: ChatRequest):
     """Process a user message and return the updated conversation."""
     elroy = Elroy(show_internal_thought=False, show_tool_calls=False)
-    elroy.message(request.message)
+    elroy.message(input=request.message)
     messages = []
     for msg in elroy.get_current_messages():
         if msg.content and msg.role != TOOL:
@@ -119,10 +118,7 @@ async def create_reminder_endpoint(request: CreateReminderRequest):
     """Create a new reminder (timed, contextual, or hybrid)."""
     elroy = Elroy()
 
-    if request.trigger_time:
-        trigger_time = string_to_datetime(request.trigger_time)
-    else:
-        trigger_time = None
+    trigger_time = string_to_datetime(request.trigger_time) if request.trigger_time else None
     result = elroy.create_reminder(request.name, request.text, trigger_time, request.reminder_context)
     return ApiResponse(result=result.to_fact())
 
@@ -135,7 +131,7 @@ async def mark_reminder_completed_endpoint(request: CompleteReminderRequest):
     return ApiResponse(result=result)
 
 
-@app.get("/get_reminders", response_model=List[ReminderResponse])
+@app.get("/get_reminders", response_model=list[ReminderResponse])
 async def get_reminders_endpoint(include_completed: bool = False):
     """Get reminders, optionally including completed ones."""
     elroy = Elroy()

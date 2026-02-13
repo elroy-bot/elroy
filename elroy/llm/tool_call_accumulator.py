@@ -1,6 +1,6 @@
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Dict, Iterator, List, Optional
 
 from ..config.llm import ChatModel
 from ..db.db_models import FunctionCall
@@ -17,7 +17,7 @@ class PartialToolCall:
 
     from litellm.types.utils import ChatCompletionDeltaToolCall
 
-    def update(self, delta: ChatCompletionDeltaToolCall) -> Optional[FunctionCall]:
+    def update(self, delta: ChatCompletionDeltaToolCall) -> FunctionCall | None:
         from litellm.types.utils import ChatCompletionDeltaToolCall
 
         if self.is_complete:
@@ -48,10 +48,10 @@ class OpenAIToolCallAccumulator:
 
     def __init__(self, chat_model: ChatModel):
         self.chat_model = chat_model
-        self.tool_calls: Dict[int, PartialToolCall] = {}
-        self.last_updated_index: Optional[int] = None
+        self.tool_calls: dict[int, PartialToolCall] = {}
+        self.last_updated_index: int | None = None
 
-    def update(self, delta_tool_calls: Optional[List[ChatCompletionDeltaToolCall]]) -> Iterator[FunctionCall]:
+    def update(self, delta_tool_calls: list[ChatCompletionDeltaToolCall] | None) -> Iterator[FunctionCall]:
         for delta in delta_tool_calls or []:
             if delta.index not in self.tool_calls:
                 if (

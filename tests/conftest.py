@@ -1,11 +1,11 @@
 import os
 import subprocess
 import uuid
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 import pytest
 from sqlmodel import delete
-from tests.utils import MockCliIO
 from toolz import pipe
 from toolz.curried import do
 
@@ -30,6 +30,7 @@ from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.user.operations import create_user_id
+from tests.utils import MockCliIO
 
 ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
 
@@ -105,7 +106,7 @@ def db_manager(
 
     with db_manager.open_session() as db:
         for table in [Message, Reminder, User, UserPreference, Memory, ContextMessageSet]:
-            db.exec(delete(table))  # type: ignore
+            db.exec(delete(table))
         db.commit()
 
     yield db_manager

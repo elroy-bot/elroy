@@ -1,13 +1,6 @@
 from datetime import timedelta
 
 import pytest
-from tests.utils import (
-    MockCliIO,
-    create_reminder_in_past,
-    get_active_reminders_summary,
-    process_test_message,
-    quiz_assistant_bool,
-)
 
 from elroy.core.ctx import ElroyContext
 from elroy.repository.reminders.operations import do_create_reminder
@@ -18,6 +11,13 @@ from elroy.repository.reminders.queries import (
 )
 from elroy.repository.reminders.tools import delete_reminder
 from elroy.utils.clock import utc_now
+from tests.utils import (
+    MockCliIO,
+    create_reminder_in_past,
+    get_active_reminders_summary,
+    process_test_message,
+    quiz_assistant_bool,
+)
 
 
 @pytest.mark.flaky(reruns=3)
@@ -142,7 +142,7 @@ def test_future_reminder_not_due(ctx: ElroyContext):
     """Test that future reminders are not considered due"""
     # Create a reminder for tomorrow
     future_time = utc_now() + timedelta(days=1)
-    future_reminder = do_create_reminder(
+    do_create_reminder(
         ctx=ctx,
         name="future_test",
         text="This reminder is for tomorrow",

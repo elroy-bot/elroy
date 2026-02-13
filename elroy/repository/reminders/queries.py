@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Any, cast
 
 from rich.table import Table
 from sqlmodel import col, select
@@ -11,34 +11,34 @@ from ..context_messages.data_models import ContextMessage
 from ..context_messages.tools import to_synthetic_tool_call
 
 
-def get_db_reminder_by_name(ctx: ElroyContext, name: str) -> Optional[Reminder]:
+def get_db_reminder_by_name(ctx: ElroyContext, name: str) -> Reminder | None:
     """Get any reminder (timed or contextual) by name"""
     return ctx.db.exec(
         select(Reminder).where(
             Reminder.user_id == ctx.user_id,
             Reminder.name == name,
-            Reminder.is_active == True,
+            cast(Any, Reminder.is_active),
         )
     ).first()
 
 
-def get_active_reminders(ctx: ElroyContext) -> List[Reminder]:
+def get_active_reminders(ctx: ElroyContext) -> list[Reminder]:
     """Get all active reminders"""
     return list(
         ctx.db.exec(
             select(Reminder)
             .where(
                 Reminder.user_id == ctx.user_id,
-                Reminder.is_active == True,
+                cast(Any, Reminder.is_active),
             )
             .order_by(col(Reminder.created_at))
         ).all()
     )
 
 
-def get_reminders(ctx: ElroyContext, include_completed: bool = False) -> List[Reminder]:
+def get_reminders(ctx: ElroyContext, include_completed: bool = False) -> list[Reminder]:
     """Get reminders, optionally including completed ones"""
-    conditions: List = [Reminder.user_id == ctx.user_id]
+    conditions: list = [Reminder.user_id == ctx.user_id]
 
     if include_completed:
         # Include both active (status="created") and completed (status="completed")
@@ -46,19 +46,19 @@ def get_reminders(ctx: ElroyContext, include_completed: bool = False) -> List[Re
     else:
         # Only active reminders
         conditions.append(Reminder.status == "created")
-        conditions.append(Reminder.is_active == True)
+        conditions.append(cast(Any, Reminder.is_active))
 
     reminders = list(ctx.db.exec(select(Reminder).where(*conditions).order_by(col(Reminder.created_at))).all())
     ctx.db.session.expunge_all()
     return reminders
 
 
-def get_active_reminder_names(ctx: ElroyContext) -> List[str]:
+def get_active_reminder_names(ctx: ElroyContext) -> list[str]:
     """Gets the list of names for all active reminders"""
     return [reminder.name for reminder in get_active_reminders(ctx)]
 
 
-def get_due_timed_reminders(ctx: ElroyContext) -> List[Reminder]:
+def get_due_timed_reminders(ctx: ElroyContext) -> list[Reminder]:
     """Get timed reminders that are due (trigger_datetime <= now)
 
     Args:
@@ -72,7 +72,7 @@ def get_due_timed_reminders(ctx: ElroyContext) -> List[Reminder]:
         ctx.db.exec(
             select(Reminder).where(
                 Reminder.user_id == ctx.user_id,
-                Reminder.is_active == True,
+                cast(Any, Reminder.is_active),
                 col(Reminder.trigger_datetime).is_not(None),
                 col(Reminder.trigger_datetime) <= now,
             )
@@ -81,7 +81,7 @@ def get_due_timed_reminders(ctx: ElroyContext) -> List[Reminder]:
 
 
 @allow_unused
-def get_reminder_by_name(ctx: ElroyContext, reminder_name: str) -> Optional[str]:
+def get_reminder_by_name(ctx: ElroyContext, reminder_name: str) -> str | None:
     """Get the text for a reminder by name
 
     Args:
@@ -99,7 +99,7 @@ def get_reminder_by_name(ctx: ElroyContext, reminder_name: str) -> Optional[str]
 
 
 @user_only_tool
-def print_active_reminders(ctx: ElroyContext, n: Optional[int] = None) -> Union[str, Table]:
+def print_active_reminders(ctx: ElroyContext, n: int | None = None) -> str | Table:
     """Prints the last n active reminders (both timed and contextual). If n is None, prints all active reminders.
 
     Args:
@@ -109,7 +109,7 @@ def print_active_reminders(ctx: ElroyContext, n: Optional[int] = None) -> Union[
 
 
 @user_only_tool
-def print_inactive_reminders(ctx: ElroyContext, n: Optional[int] = None) -> Union[str, Table]:
+def print_inactive_reminders(ctx: ElroyContext, n: int | None = None) -> str | Table:
     """Prints the last n inactive reminders (both timed and contextual). If n is None, prints all inactive reminders.
 
     Args:
@@ -118,7 +118,7 @@ def print_inactive_reminders(ctx: ElroyContext, n: Optional[int] = None) -> Unio
     return _print_all_reminders(ctx, False, n)
 
 
-def _print_all_reminders(ctx: ElroyContext, active: bool, n: Optional[int] = None) -> Union[Table, str]:
+def _print_all_reminders(ctx: ElroyContext, active: bool, n: int | None = None) -> Table | str:
     """Prints the last n reminders (both timed and contextual). If n is None, prints all reminders.
 
     Args:
@@ -164,7 +164,7 @@ def _print_all_reminders(ctx: ElroyContext, active: bool, n: Optional[int] = Non
     return table
 
 
-def get_due_reminder_context_msgs(ctx: ElroyContext) -> List[ContextMessage]:
+def get_due_reminder_context_msgs(ctx: ElroyContext) -> list[ContextMessage]:
     """Get context messages for any due timed reminders
 
     Args:
@@ -178,7 +178,13 @@ def get_due_reminder_context_msgs(ctx: ElroyContext) -> List[ContextMessage]:
     if not due_reminders:
         return []
 
-    return to_synthetic_tool_call(
-        "get_due_reminders",
-        "\n".join([f"⏰ REMINDER DUE: '{reminder.name}' - {reminder.text}\n\nThis reminder was scheduled for {reminder.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')} and is now due. Please inform the user about this reminder and then use the delete_reminder tool to remove it from active reminders." for reminder in due_reminders]),  # type: ignore
-    )
+    lines: list[str] = []
+    for reminder in due_reminders:
+        trigger_dt = reminder.trigger_datetime
+        if not trigger_dt:
+            continue
+        lines.append(
+            f"⏰ REMINDER DUE: '{reminder.name}' - {reminder.text}\n\nThis reminder was scheduled for {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')} and is now due. Please inform the user about this reminder and then use the delete_reminder tool to remove it from active reminders."
+        )
+
+    return to_synthetic_tool_call("get_due_reminders", "\n".join(lines))

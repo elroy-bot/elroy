@@ -1,5 +1,3 @@
-from typing import List
-
 import pytest
 from sqlmodel import select
 
@@ -39,7 +37,7 @@ def dummy_msgs():
     ]
 
 
-def test_memory_creation_trigger(mem_op_ctx: ElroyContext, dummy_msgs: List[ContextMessage]):
+def test_memory_creation_trigger(mem_op_ctx: ElroyContext, dummy_msgs: list[ContextMessage]):
     """
     Test that memory creation is triggered after a certain number of messages.
 
@@ -71,7 +69,7 @@ def test_memory_creation_trigger(mem_op_ctx: ElroyContext, dummy_msgs: List[Cont
     assert len(get_active_memories(mem_op_ctx)) == memory_ct + 1
 
 
-def test_memory_creation_batch_messages(mem_op_ctx: ElroyContext, dummy_msgs: List[ContextMessage]):
+def test_memory_creation_batch_messages(mem_op_ctx: ElroyContext, dummy_msgs: list[ContextMessage]):
     """
     Test that memory creation is triggered when adding multiple messages at once.
 
@@ -90,7 +88,7 @@ def test_memory_creation_batch_messages(mem_op_ctx: ElroyContext, dummy_msgs: Li
     assert len(get_active_memories(mem_op_ctx)) == memory_ct + 1
 
 
-def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: List[ContextMessage]):
+def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: list[ContextMessage]):
     mem_op_ctx.messages_between_memory = 3
     mem_op_ctx.use_background_threads = False
 

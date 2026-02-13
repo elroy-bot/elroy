@@ -1,14 +1,14 @@
 # This is hacky, should add arbitrary metadata
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict
 from datetime import timedelta
 from functools import partial, reduce
 from operator import add
-from typing import Iterable, Iterator, List, Optional
 
 from sqlmodel import Session, col, select
 from toolz import concat, pipe
-from toolz.curried import filter, map, pipe, remove
+from toolz.curried import filter, map, remove
 
 from ...core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
 from ...core.logging import get_logger
@@ -22,7 +22,7 @@ from .data_models import ContextMessage
 logger = get_logger()
 
 
-def is_system_instruction(message: Optional[ContextMessage]) -> bool:
+def is_system_instruction(message: ContextMessage | None) -> bool:
     return (
         message is not None
         and message.content is not None
@@ -31,13 +31,13 @@ def is_system_instruction(message: Optional[ContextMessage]) -> bool:
     )
 
 
-def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMessage]) -> Optional[timedelta]:
+def get_time_since_most_recent_user_message(context_messages: Iterable[ContextMessage]) -> timedelta | None:
     return pipe(
         context_messages,
         filter(lambda x: x.role == USER),
         last_or_none,
         lambda x: (utc_now() - x.created_at) if x and x.created_at else None,
-    )  # type: ignore
+    )
 
 
 def db_message_to_context_message(db_message: Message) -> ContextMessage:
@@ -94,9 +94,9 @@ def is_context_refresh_needed(context_messages: Iterable[ContextMessage], chat_m
 
 def format_message(
     message: ContextMessage,
-    user_preferred_name: Optional[str],
-    assistant_name: Optional[str],
-) -> List[str]:
+    user_preferred_name: str | None,
+    assistant_name: str | None,
+) -> list[str]:
     datetime_str = datetime_to_string(message.created_at)
     if message.role == SYSTEM:
         return [f"SYSTEM ({datetime_str}): {message.content}"]
@@ -114,7 +114,9 @@ def format_message(
                 message.tool_calls,
                 map(lambda x: x.function),
                 map(
-                    lambda x: f"{assistant_name} TOOL CALL REQUEST ({datetime_str}): function name: {x['name']}, arguments: {x['arguments']}"
+                    lambda x: (
+                        f"{assistant_name} TOOL CALL REQUEST ({datetime_str}): function name: {x['name']}, arguments: {x['arguments']}"
+                    )
                 ),
                 list,
                 msgs.extend,
@@ -140,7 +142,11 @@ def format_context_messages(
         map(lambda x: x.created_at),
         filter(lambda x: x is not None),
         list,
-        lambda l: f"Messages from {datetime_to_string(min(l))} to {datetime_to_string(max(l))}" if l else "No messages in context",
+        lambda timestamps: (
+            f"Messages from {datetime_to_string(min(timestamps))} to {datetime_to_string(max(timestamps))}"
+            if timestamps
+            else "No messages in context"
+        ),
     )
 
     return pipe(
@@ -158,8 +164,8 @@ def compress_context_messages(
     chat_model_name: str,
     context_refresh_target_tokens: int,
     max_in_context_message_age: timedelta,
-    context_messages: List[ContextMessage],
-) -> List[ContextMessage]:
+    context_messages: list[ContextMessage],
+) -> list[ContextMessage]:
     """
     Cache-friendly compression: preserves message order, only drops old messages from the beginning.
 
@@ -225,16 +231,14 @@ def compress_context_messages(
     # Return system message + kept messages (preserves exact order)
     kept_messages = prev_messages[cutoff_idx:]
 
-    logger.info(
-        f"Compression: kept {len(kept_messages)}/{len(prev_messages)} messages, " f"{current_token_count}/{remaining_budget} tokens"
-    )
+    logger.info(f"Compression: kept {len(kept_messages)}/{len(prev_messages)} messages, {current_token_count}/{remaining_budget} tokens")
 
     return [system_message] + kept_messages
 
 
 class ContextMessageSetWithMessages(MemorySource):
-    _context_message_set: Optional[ContextMessageSet]
-    _messages: Optional[List[ContextMessage]]
+    _context_message_set: ContextMessageSet | None
+    _messages: list[ContextMessage] | None
     user_id: int
 
     @classmethod
@@ -242,7 +246,7 @@ class ContextMessageSetWithMessages(MemorySource):
         assert context_message_set.id
         return cls(session=session, id=context_message_set.id, user_id=context_message_set.user_id, context_message_set=context_message_set)
 
-    def __init__(self, session: Session, id: int, user_id: int, context_message_set: Optional[ContextMessageSet] = None):
+    def __init__(self, session: Session, id: int, user_id: int, context_message_set: ContextMessageSet | None = None):
         self._context_message_set = context_message_set
         self.session = session
         self.user_id = user_id
@@ -303,7 +307,7 @@ class ContextMessageSetWithMessages(MemorySource):
             yield from full_list
 
     @property
-    def messages_list(self) -> List[ContextMessage]:
+    def messages_list(self) -> list[ContextMessage]:
         if self._messages:
             return self._messages
         else:

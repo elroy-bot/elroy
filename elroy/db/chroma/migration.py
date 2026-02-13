@@ -4,7 +4,6 @@ import json
 import sqlite3
 from pathlib import Path
 from struct import unpack
-from typing import Optional
 from urllib.parse import urlparse
 
 from ...core.constants import EMBEDDING_SIZE
@@ -48,7 +47,7 @@ def _write_marker(chroma_manager: ChromaManager, database_url: str, vector_count
     path.write_text(json.dumps(payload))
 
 
-def _sqlite_db_path(database_url: str) -> Optional[Path]:
+def _sqlite_db_path(database_url: str) -> Path | None:
     parsed = urlparse(database_url)
     if parsed.scheme != "sqlite":
         return None
@@ -70,7 +69,7 @@ def _get_sqlite_db_stats(database_url: str) -> dict:
     return {"db_mtime": stat.st_mtime, "db_size": stat.st_size}
 
 
-def _get_sqlite_vector_count(database_url: str) -> Optional[int]:
+def _get_sqlite_vector_count(database_url: str) -> int | None:
     db_path = _sqlite_db_path(database_url)
     if not db_path:
         return None

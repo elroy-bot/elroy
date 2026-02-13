@@ -1,10 +1,11 @@
 import inspect
 import json
+from collections.abc import Callable, Iterator
 from functools import partial
 from pathlib import Path
 from re import Pattern
 from types import FunctionType, ModuleType
-from typing import Any, Callable, Dict, Iterator, List, Optional
+from typing import Any
 
 from toolz import concat, pipe
 from toolz.curried import filter, map, remove
@@ -29,11 +30,17 @@ class ToolRegistry:
     def __init__(
         self,
         include_base_tools: bool,
-        custom_paths: List[str] = [],
-        exclude_tools: List[str] = [],
+        custom_paths: list[str] | None = None,
+        exclude_tools: list[str] | None = None,
         shell_commands: bool = False,
-        allowed_shell_command_prefixes: List[Pattern[str]] = [],
+        allowed_shell_command_prefixes: list[Pattern[str]] | None = None,
     ):
+        if allowed_shell_command_prefixes is None:
+            allowed_shell_command_prefixes = []
+        if exclude_tools is None:
+            exclude_tools = []
+        if custom_paths is None:
+            custom_paths = []
         self.include_base_tools = include_base_tools
         self.exclude_tools = exclude_tools
         self.custom_paths = custom_paths
@@ -51,7 +58,7 @@ class ToolRegistry:
         for path in self.custom_paths:
             self.register_path(path)
 
-    def get_schemas(self) -> List[Dict[str, Any]]:
+    def get_schemas(self) -> list[dict[str, Any]]:
         return self._schemas
 
     def register_path(self, custom_path: str) -> None:
@@ -71,7 +78,7 @@ class ToolRegistry:
             return
 
         if path.is_file():
-            if not path.suffix == ".py":
+            if path.suffix != ".py":
                 logger.warning(f"Custom tool path {path} is not a Python file")
                 return
             else:
@@ -96,30 +103,32 @@ class ToolRegistry:
         return any(param for param in inspect.signature(func).parameters.values() if param.annotation != ElroyContext)
 
     def register(self, func: Callable, raise_on_error: bool = True) -> None:
+        func_name = getattr(func, "__name__", func.__class__.__name__)
         if is_langchain_tool(func):
             func = func.func  # type: ignore
+            func_name = getattr(func, "__name__", func.__class__.__name__)
         elif not is_tool(func):
-            raise ValueError(f"Function {func.__name__} is not marked as a tool with @tool decorator")
+            raise ValueError(f"Function {func_name} is not marked as a tool with @tool decorator")
 
-        if func.__name__ in self.exclude_tools:
-            logger.info("Excluding tool: " + func.__name__)
+        if func_name in self.exclude_tools:
+            logger.info("Excluding tool: " + func_name)
             return
 
-        if func.__name__ in self.tools:
-            raise ValueError(f"Function {func.__name__} already registered")
+        if func_name in self.tools:
+            raise ValueError(f"Function {func_name} already registered")
 
         schema = get_function_schema(func)
 
         errors = validate_schema(schema, self.has_non_ctx_args(func))
         if errors:
             if raise_on_error:
-                raise ValueError(f"Invalid schema for function {func.__name__}:\n{json.dumps(schema)}\n" + "\n".join(errors))
+                raise ValueError(f"Invalid schema for function {func_name}:\n{json.dumps(schema)}\n" + "\n".join(errors))
             else:
-                logger.warning(f"Invalid schema for function {func.__name__}:\n" + "\n".join(errors))
+                logger.warning(f"Invalid schema for function {func_name}:\n" + "\n".join(errors))
         self._schemas.append(schema)
-        self.tools[func.__name__] = func
+        self.tools[func_name] = func
 
-    def get(self, name: str) -> Optional[FunctionType]:
+    def get(self, name: str) -> FunctionType | None:
         return self.tools.get(name)
 
     def __getitem__(self, name: str) -> FunctionType:
@@ -143,7 +152,7 @@ def get_module(file_path: Path) -> ModuleType:
         spec.loader.exec_module(module)
         return module
     except Exception as e:
-        raise ValueError(f"Failed to import {file_path}: {str(e)}")
+        raise ValueError(f"Failed to import {file_path}: {str(e)}") from e
 
 
 def get_module_functions(module: ModuleType) -> Iterator[FunctionType]:
@@ -153,10 +162,10 @@ def get_module_functions(module: ModuleType) -> Iterator[FunctionType]:
         filter(inspect.isfunction),
         filter(is_tool),
         filter(lambda _: _.__module__ == module.__name__),
-    )  # type: ignore
+    )
 
 
-def get_system_tool_schemas() -> List[Dict[str, Any]]:
+def get_system_tool_schemas() -> list[dict[str, Any]]:
     from .tools_and_commands import ASSISTANT_VISIBLE_COMMANDS
 
     return pipe(
@@ -164,7 +173,7 @@ def get_system_tool_schemas() -> List[Dict[str, Any]]:
         filter(lambda f: getattr(f, IS_ENABLED, True)),
         map(get_function_schema),
         list,
-    )  # type: ignore
+    )
 
 
 def do_not_use() -> str:

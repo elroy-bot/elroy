@@ -87,7 +87,7 @@ def get_document_excerpt(ctx: ElroyContext, address: str, chunk_index: int) -> s
     if not matching_excerpt:
         available_indices = sorted([e.chunk_index for e in active_excerpts])
         raise RecoverableToolError(
-            f"Chunk index {chunk_index} not found for document {address}. " f"Available chunk indices: {available_indices}"
+            f"Chunk index {chunk_index} not found for document {address}. Available chunk indices: {available_indices}"
         )
 
     return matching_excerpt.content
@@ -106,4 +106,4 @@ def ingest_doc(ctx: ElroyContext, address: str) -> str:
 
     result = do_ingest(ctx, Path(address), False)
 
-    return f"Document {address} has been ingested." if DocIngestStatus.SUCCESS == result else f"Document {address} has been updated."
+    return f"Document {address} has been ingested." if result == DocIngestStatus.SUCCESS else f"Document {address} has been updated."

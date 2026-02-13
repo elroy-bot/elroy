@@ -1,7 +1,5 @@
 """Tests for the memory recall classifier."""
 
-from tests.utils import MockCliIO
-
 from elroy.core.ctx import ElroyContext
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.memories.recall_classifier import (
@@ -9,6 +7,7 @@ from elroy.repository.memories.recall_classifier import (
     _apply_heuristics,
     should_recall_memory,
 )
+from tests.utils import MockCliIO
 
 
 class TestHeuristics:

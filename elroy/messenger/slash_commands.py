@@ -1,5 +1,5 @@
+from collections.abc import Iterator
 from inspect import signature
-from typing import Iterator, Union
 
 from toolz import pipe
 from toolz.curried import valfilter
@@ -23,7 +23,7 @@ logger = get_logger()
 @tracer.chain
 def invoke_slash_command(
     io: CliIO, ctx: ElroyContext, msg: str
-) -> Union[str, Iterator[Union[AssistantResponse, AssistantInternalThought, AssistantToolResult]]]:
+) -> str | Iterator[AssistantResponse | AssistantInternalThought | AssistantToolResult]:
     """
     Takes user input and executes a system command. For commands with a single non-context argument,
     executes directly with provided argument. For multi-argument commands, prompts for each argument.
@@ -40,7 +40,6 @@ def invoke_slash_command(
         func = ctx.tool_registry.tools.get(command) or next((f for f in USER_ONLY_COMMANDS if f.__name__ == command), None)
 
     try:
-
         if not func:
             raise RecoverableToolError(f"Invalid command: {command}. Use /help for a list of valid commands")
 
@@ -59,7 +58,7 @@ def invoke_slash_command(
                 func_args,
                 valfilter(lambda _: _ is not None and _ != ""),
                 lambda _: func(**_),
-            )  # type: ignore
+            )
 
         # Otherwise, fall back to interactive parameter collection
         input_used = False
@@ -78,7 +77,7 @@ def invoke_slash_command(
             func_args,
             valfilter(lambda _: _ is not None and _ != ""),
             lambda _: func(**_),
-        )  # type: ignore
+        )
     except RecoverableToolError as e:
         return str(e)
     except EOFError:

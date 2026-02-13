@@ -1,16 +1,7 @@
 import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Type,
-    Union,
-    get_args,
-    get_origin,
-)
+from typing import Any, Union, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel
@@ -22,11 +13,11 @@ PY_TO_JSON_TYPE = {
     str: "string",
     bool: "boolean",
     float: "number",
-    Optional[str]: "string",
+    str | None: "string",
 }
 
 
-def _pydantic_to_openai_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+def _pydantic_to_openai_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """Recursively clean a schema dictionary to match OpenAI's expected format."""
     if not isinstance(schema, dict):
         return schema
@@ -55,7 +46,7 @@ def _pydantic_to_openai_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
     return clean
 
 
-def get_json_type(py_type: Type) -> Union[str, Dict[str, Any]]:
+def get_json_type(py_type: type) -> str | dict[str, Any]:
     """
     Returns either:
     - A string representing the JSON type for primitive types
@@ -81,35 +72,36 @@ def get_json_type(py_type: Type) -> Union[str, Dict[str, Any]]:
 @dataclass
 class Parameter:
     name: str
-    type: Type
-    docstring: Optional[str]
+    type: type
+    docstring: str | None
     optional: bool
-    default: Optional[Any]
+    default: Any | None
 
 
-def get_function_schema(function: Callable) -> Dict:
+def get_function_schema(function: Callable) -> dict:
     """Returns OpenAI function schema for a given function."""
+    func_name = getattr(function, "__name__", function.__class__.__name__)
 
     def validate_parameter(parameter: Parameter) -> Parameter:
         if not parameter.optional:
-            assert (
-                parameter.type != inspect.Parameter.empty
-            ), f"Required parameter {parameter.name} for function {function.__name__} has no type annotation"
+            assert parameter.type != inspect.Parameter.empty, (
+                f"Required parameter {parameter.name} for function {func_name} has no type annotation"
+            )
         else:
-            assert (
-                parameter.default != inspect.Parameter.empty
-            ), f"Optional parameter {parameter.name} for function {function.__name__} has no default value"
-        assert parameter.name in docstring_dict, f"Parameter {parameter.name} for function {function.__name__} has no docstring"
+            assert parameter.default != inspect.Parameter.empty, (
+                f"Optional parameter {parameter.name} for function {func_name} has no default value"
+            )
+        assert parameter.name in docstring_dict, f"Parameter {parameter.name} for function {func_name} has no docstring"
         if parameter.type != inspect.Parameter.empty:
-            assert (
-                get_json_type(parameter.type) is not None
-            ), f"Parameter {parameter.name} for function {function.__name__} has no corresponding JSON schema type"
+            assert get_json_type(parameter.type) is not None, (
+                f"Parameter {parameter.name} for function {func_name} has no corresponding JSON schema type"
+            )
 
         return parameter
 
-    assert function.__doc__ is not None, f"Function {function.__name__} has no docstring"
+    assert function.__doc__ is not None, f"Function {func_name} has no docstring"
     parsed_docstring = parse(function.__doc__)
-    assert parsed_docstring.description, f"Function {function.__name__} has no description in docstring"
+    assert parsed_docstring.description, f"Function {func_name} has no description in docstring"
     description = parsed_docstring.description.strip()
     docstring_dict = {p.arg_name: p.description for p in parse(function.__doc__).params}
 
@@ -155,12 +147,12 @@ def get_function_schema(function: Callable) -> Dict:
         ),
         dict,
         lambda d: {
-            "name": function.__name__,
+            "name": func_name,
             "description": description,
             "parameters": {
                 "type": "object",
                 "properties": d,
-                "required": [p.name for p in properties if not p.optional],  # type: ignore
+                "required": [p.name for p in properties if not p.optional],
             },
         },
         lambda d: dissoc(d, "parameters") if not d["parameters"]["properties"] else d,
@@ -168,7 +160,7 @@ def get_function_schema(function: Callable) -> Dict:
     )
 
 
-def validate_schema(func_schema: Dict[str, Any], has_args: bool) -> List[str]:
+def validate_schema(func_schema: dict[str, Any], has_args: bool) -> list[str]:
     """
     Validates the schema for OpenAI function tools' parameters.
 
@@ -179,25 +171,25 @@ def validate_schema(func_schema: Dict[str, Any], has_args: bool) -> List[str]:
     errors = []
 
     if "type" not in func_schema or func_schema["type"] != "function":
-        errors.append(f"Missing 'type' or 'type' is not 'function'.")
+        errors.append("Missing 'type' or 'type' is not 'function'.")
     if "function" not in func_schema:
-        errors.append(f"Mssing 'function' key.")
+        errors.append("Mssing 'function' key.")
         return errors
 
     function = func_schema["function"]
     if not isinstance(function, dict):
-        errors.append(f"Schema is not a dictionary.")
+        errors.append("Schema is not a dictionary.")
         return errors
 
     if "description" not in function:
-        errors.append(f"Missing 'description' key.")
+        errors.append("Missing 'description' key.")
 
     if "name" not in function:
-        errors.append(f"Missing 'name' key.")
+        errors.append("Missing 'name' key.")
 
     if "parameters" not in function:
         if has_args:
-            errors.append(f"Function is missing 'parameters' key, required if source function has arguments")
+            errors.append("Function is missing 'parameters' key, required if source function has arguments")
             return errors
         else:
             return errors

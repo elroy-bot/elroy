@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 
 @dataclass
@@ -8,7 +7,7 @@ class DatabaseConfig:
 
     database_url: str
     vector_backend: str = "auto"  # "auto", "sqlite" (native), or "chroma"
-    chroma_path: Optional[str] = None
+    chroma_path: str | None = None
 
 
 @dataclass
@@ -16,24 +15,24 @@ class ModelConfig:
     """LLM and embedding model configuration."""
 
     # API Configuration
-    openai_api_key: Optional[str] = None
-    openai_api_base: Optional[str] = None
-    openai_embedding_api_base: Optional[str] = None
+    openai_api_key: str | None = None
+    openai_api_base: str | None = None
+    openai_embedding_api_base: str | None = None
 
     # Chat Model Configuration (Strong Model - used for main conversation)
-    chat_model: Optional[str] = None
-    chat_model_api_key: Optional[str] = None
-    chat_model_api_base: Optional[str] = None
+    chat_model: str | None = None
+    chat_model_api_key: str | None = None
+    chat_model_api_base: str | None = None
 
     # Fast Model Configuration (used for background tasks: summarization, classification, etc.)
-    fast_model: Optional[str] = None
-    fast_model_api_key: Optional[str] = None
-    fast_model_api_base: Optional[str] = None
+    fast_model: str | None = None
+    fast_model_api_key: str | None = None
+    fast_model_api_base: str | None = None
 
     # Embedding Model Configuration
     embedding_model: str = "text-embedding-3-small"
-    embedding_model_api_key: Optional[str] = None
-    embedding_model_api_base: Optional[str] = None
+    embedding_model_api_key: str | None = None
+    embedding_model_api_base: str | None = None
     embedding_model_size: int = 1536
 
     # Model Behavior
@@ -79,9 +78,9 @@ class MemoryConfig:
 class ToolConfig:
     """Tool and command configuration."""
 
-    custom_tools_path: List[str]
-    exclude_tools: List[str]
-    allowed_shell_command_prefixes: List[str]
+    custom_tools_path: list[str]
+    exclude_tools: list[str]
+    allowed_shell_command_prefixes: list[str]
     include_base_tools: bool = True
     shell_commands: bool = True
 
@@ -94,11 +93,11 @@ class RuntimeConfig:
     default_assistant_name: str
     max_assistant_loops: int
     max_ingested_doc_lines: int
-    config_path: Optional[str] = None
+    config_path: str | None = None
     debug: bool = False
-    default_persona: Optional[str] = None
+    default_persona: str | None = None
     use_background_threads: bool = True
     reflect: bool = False
-    background_ingest_paths: List[str] = field(default_factory=list)
+    background_ingest_paths: list[str] = field(default_factory=list)
     background_ingest_interval_minutes: int = 60
     background_ingest_enabled: bool = False

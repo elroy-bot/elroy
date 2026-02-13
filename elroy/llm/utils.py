@@ -1,12 +1,10 @@
-from typing import List, Union
-
 from toolz import pipe
 from toolz.curried import map
 
 from ..repository.context_messages.data_models import ContextMessage
 
 
-def count_tokens(chat_model_name: str, context_messages: Union[List[ContextMessage], ContextMessage]) -> int:
+def count_tokens(chat_model_name: str, context_messages: list[ContextMessage] | ContextMessage) -> int:
     from litellm.utils import token_counter
 
     if isinstance(context_messages, ContextMessage):
@@ -20,4 +18,4 @@ def count_tokens(chat_model_name: str, context_messages: Union[List[ContextMessa
             map(lambda x: {"role": x.role, "content": x.content}),
             list,
             lambda x: token_counter(chat_model_name, messages=x),
-        )  # type: ignore
+        )

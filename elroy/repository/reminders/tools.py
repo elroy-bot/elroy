@@ -1,5 +1,3 @@
-from typing import Optional
-
 from ...core.constants import RecoverableToolError, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
@@ -19,8 +17,8 @@ def create_reminder(
     ctx: ElroyContext,
     name: str,
     text: str,
-    trigger_time: Optional[str] = None,
-    reminder_context: Optional[str] = None,
+    trigger_time: str | None = None,
+    reminder_context: str | None = None,
 ) -> str:
     """Creates a reminder that can be triggered by time and/or context.
 
@@ -54,11 +52,11 @@ def create_reminder(
         raise ValueError("Reminder name cannot be empty")
 
     if trigger_datetime and reminder_context:
-        content = f"New reminder created: '{name}' - Timed: {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}, Context: {reminder_context}"
+        f"New reminder created: '{name}' - Timed: {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}, Context: {reminder_context}"
     elif trigger_datetime:
-        content = f"New timed reminder created: '{name}' at {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}"
+        f"New timed reminder created: '{name}' at {trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}"
     else:
-        content = f"New contextual reminder created: '{name}' triggered by context: {reminder_context}"
+        pass
 
     add_context_messages(
         ctx,
@@ -77,7 +75,7 @@ def create_reminder(
 
 
 @tool
-def complete_reminder(ctx: ElroyContext, name: str, closing_comment: Optional[str] = None) -> str:
+def complete_reminder(ctx: ElroyContext, name: str, closing_comment: str | None = None) -> str:
     """Marks a reminder as completed.
 
     Args:
@@ -91,7 +89,7 @@ def complete_reminder(ctx: ElroyContext, name: str, closing_comment: Optional[st
 
 
 @tool
-def delete_reminder(ctx: ElroyContext, name: str, closing_comment: Optional[str] = None) -> str:
+def delete_reminder(ctx: ElroyContext, name: str, closing_comment: str | None = None) -> str:
     """Permanently deletes a reminder (timed, contextual, or hybrid).
 
     Args:
@@ -188,7 +186,6 @@ def update_reminder_text(ctx: ElroyContext, name: str, new_text: str) -> str:
         valid_reminders = ",".join(sorted(get_active_reminder_names(ctx)))
         raise RecoverableToolError(f"Reminder '{name}' not found. Valid reminders: {valid_reminders}")
 
-    reminder.text
     reminder.text = new_text
     reminder.updated_at = utc_now()  # noqa F841
 

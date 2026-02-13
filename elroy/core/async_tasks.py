@@ -1,6 +1,6 @@
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Optional
 
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.job import Job
@@ -52,9 +52,9 @@ def schedule_task(
     ctx: ElroyContext,
     *args,
     replace: bool = False,
-    delay_seconds: Optional[int] = None,
+    delay_seconds: int | None = None,
     **kwargs,
-) -> Optional[Job]:
+) -> Job | None:
     """
     Args:
         fn: The function to run
@@ -94,7 +94,8 @@ def schedule_task(
     # Determine job parameters
     job_kwargs = {}
     if replace is not None:
-        job_kwargs["id"] = fn.__name__ + "___" + str(ctx.user_id)
+        fn_name = getattr(fn, "__name__", "unknown")
+        job_kwargs["id"] = fn_name + "___" + str(ctx.user_id)
         job_kwargs["replace_existing"] = True
 
     if delay_seconds is not None:
@@ -105,10 +106,11 @@ def schedule_task(
 
     job = scheduler.add_job(wrapped_fn, "date", **job_kwargs)
 
+    fn_name = getattr(fn, "__name__", "unknown")
     if delay_seconds is not None:
-        logger.info(f"Scheduled task {fn.__name__} to run in {delay_seconds} seconds with job ID {job.id}")
+        logger.info(f"Scheduled task {fn_name} to run in {delay_seconds} seconds with job ID {job.id}")
     else:
-        logger.info(f"Scheduled task {fn.__name__} with job ID {job.id}")
+        logger.info(f"Scheduled task {fn_name} with job ID {job.id}")
     return job
 
 

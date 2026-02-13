@@ -1,4 +1,5 @@
-from typing import Iterable, List, Optional, Type, TypeVar
+from collections.abc import Iterable
+from typing import TypeVar
 
 from pydantic import ValidationError
 from toolz import identity, pipe
@@ -13,7 +14,7 @@ from ...models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
 
 
-def get_recall_metadata(context_message: ContextMessage, recall_type: Optional[Type[EmbeddableSqlModel]] = None) -> List[RecallMetadata]:
+def get_recall_metadata(context_message: ContextMessage, recall_type: type[EmbeddableSqlModel] | None = None) -> list[RecallMetadata]:
     if context_message.role != TOOL or not context_message.content:
         return []
     else:
@@ -24,7 +25,7 @@ def get_recall_metadata(context_message: ContextMessage, recall_type: Optional[T
                 lambda x: x.recall_metadata,
                 filter(lambda m: m.memory_type == recall_type.__name__) if recall_type else identity,
                 list,
-            )  # type: ignore
+            )
         except ValidationError:
             return []
 
@@ -42,9 +43,9 @@ T = TypeVar("T", bound=EmbeddableSqlModel)
 
 @tracer.chain
 def query_vector(
-    table: Type[T],
+    table: type[T],
     ctx: ElroyContext,
-    query: List[float],
+    query: list[float],
 ) -> Iterable[T]:
     """
     Perform a vector search on the specified table using the given query.
@@ -101,12 +102,12 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
 
 @tracer.chain
 @log_execution_time
-def get_most_relevant_memories(ctx: ElroyContext, query: List[float]) -> List[Memory]:
+def get_most_relevant_memories(ctx: ElroyContext, query: list[float]) -> list[Memory]:
     """Get the most relevant memory for the given query."""
     return list(query_vector(Memory, ctx, query))[:2]
 
 
 @tracer.chain
 @log_execution_time
-def get_most_relevant_reminders(ctx: ElroyContext, query: List[float]) -> List[Reminder]:
+def get_most_relevant_reminders(ctx: ElroyContext, query: list[float]) -> list[Reminder]:
     return list(query_vector(Reminder, ctx, query))[:2]

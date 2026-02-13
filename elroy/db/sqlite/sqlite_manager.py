@@ -32,10 +32,10 @@ class SqliteManager(DbManager):
             if "ELFCLASS32" in str(e) and str(self.engine.url).startswith("sqlite"):
                 raise Exception(
                     "Architecture mismatch between compiled SQLite extension and env os. If you are using docker, consider adding --platform linux/amd64 to your command, or provide a Postgres value for --database-url."
-                )
+                ) from e
             else:
                 logging.error(f"Database connectivity check failed: {e}")
-                raise Exception(f"Could not connect to database {self.engine.url.render_as_string(hide_password=True)}: {e}")
+                raise Exception(f"Could not connect to database {self.engine.url.render_as_string(hide_password=True)}: {e}") from e
 
     @classmethod
     def is_url_valid(cls, url: str) -> bool:

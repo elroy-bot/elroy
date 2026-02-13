@@ -1,10 +1,11 @@
 """ChromaDB manager for vector storage operations."""
 
 import re
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import chromadb
 from sqlalchemy import Engine, create_engine, text
@@ -100,17 +101,17 @@ class ChromaManager(DbManager):
         # Check relational DB
         try:
             with Session(self.engine) as session:
-                session.exec(text("SELECT 1")).first()
+                session.exec(text("SELECT 1")).first()  # type: ignore
         except Exception as e:
             logger.error(f"Relational database connectivity check failed: {e}")
-            raise Exception(f"Could not connect to database {self.engine.url.render_as_string(hide_password=True)}: {e}")
+            raise Exception(f"Could not connect to database {self.engine.url.render_as_string(hide_password=True)}: {e}") from e
 
         # Check ChromaDB
         try:
             self.chroma_client.heartbeat()
         except Exception as e:
             logger.error(f"ChromaDB connectivity check failed: {e}")
-            raise Exception(f"Could not connect to ChromaDB at {self.chroma_path}: {e}")
+            raise Exception(f"Could not connect to ChromaDB at {self.chroma_path}: {e}") from e
 
     @classmethod
     def is_url_valid(cls, url: str) -> bool:

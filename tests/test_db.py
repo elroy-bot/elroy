@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import List, Pattern, Set
+from re import Pattern
 
 from sqlmodel import SQLModel
 
@@ -14,7 +14,7 @@ def test_migrations_in_sync(ctx: ElroyContext):
     db_manager = ctx.db_manager
 
     # Define regex patterns for tables to ignore
-    IGNORED_TABLE_PATTERNS = {
+    ignored_table_patterns = {
         r".*vectorstorage.*",  # anything starting with vectorstorage
         r".*sqlite_.*",
         # In future: remove these:
@@ -25,14 +25,14 @@ def test_migrations_in_sync(ctx: ElroyContext):
     }
 
     # Compile patterns for better performance
-    compiled_patterns: Set[Pattern] = {re.compile(pattern) for pattern in IGNORED_TABLE_PATTERNS}
+    compiled_patterns: set[Pattern] = {re.compile(pattern) for pattern in ignored_table_patterns}
 
     with db_manager.engine.connect() as conn:
         db_ctx = MigrationContext.configure(conn)
         diff = compare_metadata(db_ctx, SQLModel.metadata)
 
     # Convert all changes to strings first
-    changes: List[str] = [str(change) for change in diff]
+    changes: list[str] = [str(change) for change in diff]
 
     # Filter out changes mentioning ignored tables
     filtered_changes = []
@@ -42,4 +42,4 @@ def test_migrations_in_sync(ctx: ElroyContext):
         else:
             logging.info(f"Ignoring migration: {change}")
 
-    assert not filtered_changes, f"Database migrations are not in sync with models: " + ",".join(filtered_changes)
+    assert not filtered_changes, "Database migrations are not in sync with models: " + ",".join(filtered_changes)

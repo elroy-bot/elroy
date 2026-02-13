@@ -3,7 +3,6 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Union
 
 import discord
 from discord import app_commands
@@ -146,7 +145,7 @@ class PrivateChannelResponder(DiscordResponder):
         )
 
 
-def get_discord_responder(input: Union[discord.Interaction, discord.Message]) -> DiscordResponder:
+def get_discord_responder(input: discord.Interaction | discord.Message) -> DiscordResponder:
     if isinstance(input, discord.Interaction):
         if input.guild_id is None:
             # DM with bot
@@ -259,7 +258,7 @@ async def on_message(message: discord.Message):
 
     # Check if bot was mentioned
     was_mentioned = client.user in message.mentions
-    is_dm = type(responder) == DMResponder
+    is_dm = isinstance(responder, DMResponder)
 
     if was_mentioned or is_dm:
         logging.info(f"responding: was_mentioned={was_mentioned}, is_dm={is_dm}")

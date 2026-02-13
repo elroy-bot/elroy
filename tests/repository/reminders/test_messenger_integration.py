@@ -2,17 +2,16 @@
 
 from datetime import timedelta
 
+from elroy.core.ctx import ElroyContext
+from elroy.repository.reminders.operations import do_create_reminder
+from elroy.repository.reminders.queries import get_due_reminder_context_msgs
+from elroy.utils.clock import utc_now
 from tests.utils import (
     MockCliIO,
     create_reminder_in_past,
     process_test_message,
     quiz_assistant_bool,
 )
-
-from elroy.core.ctx import ElroyContext
-from elroy.repository.reminders.operations import do_create_reminder
-from elroy.repository.reminders.queries import get_due_reminder_context_msgs
-from elroy.utils.clock import utc_now
 
 
 def test_due_reminder_surfaces_in_conversation(io: MockCliIO, ctx: ElroyContext):

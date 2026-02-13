@@ -1,5 +1,5 @@
+from collections.abc import Iterable
 from struct import unpack
-from typing import Iterable, List, Optional, Type
 
 import sqlite_vec
 from sqlalchemy import text
@@ -12,17 +12,15 @@ from ..db_session import DbSession
 
 
 class SqliteSession(DbSession):
-    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
+    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> VectorStorage | None:
         """Get vector storage entry for a given source type and id"""
-        result = self.session.exec(
+        result = self.session.exec(  # type: ignore
             text(
                 """
                 SELECT * FROM vectorstorage
                 WHERE source_type = :source_type AND source_id = :source_id
             """
-            ).bindparams(
-                source_type=row.__class__.__name__, source_id=row.id
-            )  # type: ignore
+            ).bindparams(source_type=row.__class__.__name__, source_id=row.id)
         ).first()
 
         if result is None:
@@ -33,14 +31,14 @@ class SqliteSession(DbSession):
             dict(result._mapping),  # Convert SQLAlchemy Row to dict
             lambda d: assoc(d, "embedding_data", self._deserialize_embedding(d["embedding_data"])),
             VectorStorage.model_validate,
-        )  # type: ignore
+        )
 
-    def update_embedding(self, vector_storage: VectorStorage, embedding: List[float], embedding_text_md5: str):
+    def update_embedding(self, vector_storage: VectorStorage, embedding: list[float], embedding_text_md5: str):
         # Use sqlite_vec's serialize_float32 to properly format the vector data
         serialized_vector = sqlite_vec.serialize_float32(embedding)
 
         # Use raw SQL with proper parameter binding
-        self.session.exec(
+        self.session.exec(  # type: ignore
             text(
                 """
                 UPDATE vectorstorage
@@ -54,7 +52,7 @@ class SqliteSession(DbSession):
                 embedding_text_md5=embedding_text_md5,
                 source_type=vector_storage.source_type,
                 source_id=vector_storage.source_id,
-            )  # type: ignore
+            )
         )
         self.session.commit()
 
@@ -64,7 +62,7 @@ class SqliteSession(DbSession):
         row_id = row.id
         assert row_id
 
-        self.session.exec(
+        self.session.exec(  # type: ignore
             text(
                 """
                 INSERT INTO vectorstorage
@@ -78,12 +76,12 @@ class SqliteSession(DbSession):
                 embedding_data=sqlite_vec.serialize_float32(embedding_data),
                 embedding_text_md5=embedding_text_md5,
                 user_id=row.user_id,
-            )  # type: ignore
+            )
         )
         self.session.commit()
 
-    def get_embedding(self, row: EmbeddableSqlModel) -> Optional[List[float]]:
-        result = self.session.exec(
+    def get_embedding(self, row: EmbeddableSqlModel) -> list[float] | None:
+        result = self.session.exec(  # type: ignore
             text(
                 """
                 SELECT embedding_data
@@ -91,9 +89,7 @@ class SqliteSession(DbSession):
                 WHERE source_id = :source_id
                 AND source_type = :source_type
             """
-            ).bindparams(
-                source_id=row.id, source_type=row.__class__.__name__
-            )  # type: ignore
+            ).bindparams(source_id=row.id, source_type=row.__class__.__name__)
         ).first()
 
         if result is None:
@@ -103,7 +99,7 @@ class SqliteSession(DbSession):
         return self._deserialize_embedding(result[0])
 
     def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
+        self, l2_distance_threshold: float, table: type[EmbeddableSqlModel], user_id: int, query: list[float]
     ) -> Iterable[EmbeddableSqlModel]:
         import time
 
@@ -117,7 +113,7 @@ class SqliteSession(DbSession):
         # Time the SQL query execution
         start_time = time.perf_counter()
 
-        results = self.session.exec(
+        results = self.session.exec(  # type: ignore
             text(
                 f"""
                 SELECT {table.__tablename__}.*, vec_distance_L2(vectorstorage.embedding_data, :query_vec) as distance
@@ -136,7 +132,7 @@ class SqliteSession(DbSession):
                 user_id=user_id,
                 threshold=l2_distance_threshold,
                 limit=RESULT_SET_LIMIT_COUNT,
-            )  # type: ignore
+            )
         )
 
         # Log SQL execution time
@@ -159,6 +155,6 @@ class SqliteSession(DbSession):
 
         return processed_results
 
-    def _deserialize_embedding(self, data: bytes) -> List[float]:
+    def _deserialize_embedding(self, data: bytes) -> list[float]:
         """Deserialize binary vector data from SQLite into a list of floats"""
         return list(unpack(f"{EMBEDDING_SIZE}f", data))

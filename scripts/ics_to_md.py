@@ -8,47 +8,46 @@ import argparse
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 
 class ICSEvent:
     """Represents a single calendar event from an ICS file."""
 
     def __init__(self):
-        self.summary: Optional[str] = None
-        self.description: Optional[str] = None
-        self.location: Optional[str] = None
-        self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
-        self.uid: Optional[str] = None
-        self.created: Optional[datetime] = None
-        self.last_modified: Optional[datetime] = None
-        self.organizer: Optional[str] = None
-        self.attendees: List[str] = []
-        self.categories: List[str] = []
-        self.status: Optional[str] = None
-        self.priority: Optional[str] = None
-        self.url: Optional[str] = None
+        self.summary: str | None = None
+        self.description: str | None = None
+        self.location: str | None = None
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
+        self.uid: str | None = None
+        self.created: datetime | None = None
+        self.last_modified: datetime | None = None
+        self.organizer: str | None = None
+        self.attendees: list[str] = []
+        self.categories: list[str] = []
+        self.status: str | None = None
+        self.priority: str | None = None
+        self.url: str | None = None
 
 
 class ICSParser:
     """Parser for ICS calendar files."""
 
     def __init__(self):
-        self.events: List[ICSEvent] = []
+        self.events: list[ICSEvent] = []
 
-    def parse_file(self, file_path: Path) -> List[ICSEvent]:
+    def parse_file(self, file_path: Path) -> list[ICSEvent]:
         """Parse an ICS file and return list of events."""
         self.events = []
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
         except UnicodeDecodeError:
             # Try with different encodings
             for encoding in ["latin-1", "cp1252"]:
                 try:
-                    with open(file_path, "r", encoding=encoding) as f:
+                    with open(file_path, encoding=encoding) as f:
                         content = f.read()
                     break
                 except UnicodeDecodeError:
@@ -182,7 +181,7 @@ class ICSParser:
 
         return text
 
-    def _parse_datetime(self, value: str, params: str) -> Optional[datetime]:
+    def _parse_datetime(self, value: str, params: str) -> datetime | None:
         """Parse ICS datetime value."""
         try:
             # Remove timezone info for now (basic parsing)
@@ -211,10 +210,7 @@ class ICSParser:
         # Extract email and name from formats like:
         # MAILTO:john@example.com
         # CN=John Doe:MAILTO:john@example.com
-        if "MAILTO:" in value:
-            email = value.split("MAILTO:")[1]
-        else:
-            email = value
+        email = value.split("MAILTO:")[1] if "MAILTO:" in value else value
 
         if "CN=" in value:
             name = value.split("CN=")[1].split(":")[0]
@@ -397,7 +393,7 @@ def main():
         except Exception as e:
             print(f"  Error processing {ics_file.name}: {e}")
 
-    print(f"\nConversion complete!")
+    print("\nConversion complete!")
     print(f"Total events processed: {total_events}")
     print(f"Markdown files saved to: {output_dir}")
 

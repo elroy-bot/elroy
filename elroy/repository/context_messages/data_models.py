@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, cast
 
 from ...core.constants import ASSISTANT, TOOL
 from ...db.db_models import ToolCall
@@ -9,13 +9,13 @@ from ...utils.clock import utc_now
 
 @dataclass
 class ContextMessage:
-    content: Optional[str]
+    content: str | None
     role: str
-    chat_model: Optional[str]
-    id: Optional[int] = None
+    chat_model: str | None
+    id: int | None = None
     created_at: datetime = field(default_factory=utc_now)
-    tool_calls: Optional[List[ToolCall]] = None
-    tool_call_id: Optional[str] = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None
 
     def as_dict(self):
         return {
@@ -30,7 +30,7 @@ class ContextMessage:
 
     def __post_init__(self):
         if self.tool_calls is not None:
-            self.tool_calls = [ToolCall(**tc) if isinstance(tc, dict) else tc for tc in self.tool_calls]
+            self.tool_calls = [ToolCall(**cast(dict[str, Any], tc)) if isinstance(tc, dict) else tc for tc in self.tool_calls]
         # as per openai requirements, empty arrays are disallowed
         if self.tool_calls == []:
             self.tool_calls = None

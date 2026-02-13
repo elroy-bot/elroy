@@ -9,10 +9,7 @@ def get_home_dir() -> Path:
 
     Can be overridden with ELROY_HOME environment variable.
     """
-    if env_home := os.environ.get("ELROY_HOME"):
-        home_dir = Path(env_home)
-    else:
-        home_dir = Path.home() / ".elroy"
+    home_dir = Path(env_home) if (env_home := os.environ.get("ELROY_HOME")) else Path.home() / ".elroy"
 
     home_dir.mkdir(parents=True, exist_ok=True)
     return home_dir

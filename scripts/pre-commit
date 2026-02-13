@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import shlex
 import subprocess
 import sys
 
@@ -30,26 +31,26 @@ def run_command(command, print_stdout: bool = False):
     return result.stdout.decode('utf-8')
 
 
-def run_black_formatting():
-    """Run Black for code formatting and add changes to the commit."""
-    print("Running black for code formatting...")
-    run_command('uv run black . --exclude ".venv/*"')
-    run_command('git add .')
+def format_file_args(files: list[str]) -> str:
+    return " ".join(shlex.quote(path) for path in files)
 
-def run_isort():
-    """Run isort to sort and deduplicate imports."""
-    print("Running isort for import sorting and deduplication...")
-    run_command('uv run isort .')
-    run_command('git add .')
 
-def autoflake_files():
-    print("Running autoflake...")
-    run_command('uv run find . -type f -name "*.py" ! -path "./.venv/*" -exec autoflake --ignore-init-module-imports --in-place --remove-unused-variables --remove-all-unused-imports {} +')
-    run_command('git add .')
+def run_ruff_formatting(files: list[str]):
+    """Run Ruff formatter and add changes to the commit."""
+    print("Running ruff format...")
+    run_command(f"uv run --extra dev ruff format {format_file_args(files)}")
+    run_command("git add .")
 
-def run_vulture():
-    print("Running vulture...")
-    run_command("""uv run vulture --exclude ".venv,alembic/,examples/,scripts/,api/main.py,mcp/,markdown_formatter.py" --ignore-decorators="@pytest.fixture,@allow_unused,@mcp_app.command,@app.command,@app.get,@app.post,@field_validator,@app.exception_handler" .""", True)
+def run_ruff_check(files: list[str]):
+    """Run Ruff linting with autofix and add changes to the commit."""
+    print("Running ruff check (with fixes)...")
+    run_command(f"uv run --extra dev ruff check {format_file_args(files)} --fix")
+    run_command("git add .")
+
+def run_ty_check(files: list[str]):
+    """Run Ty type checking."""
+    print("Running ty check...")
+    run_command(f"uv run --extra dev ty check {format_file_args(files)}", True)
 
 def ensure_not_main():
     protected_branch = "main"
@@ -70,11 +71,11 @@ def main():
 
     changed_files = get_changed_files()
 
-    if any(file.endswith('.py') for file in changed_files):
-        run_black_formatting()
-        autoflake_files()
-        run_isort()
-        run_vulture()
+    python_files = [file for file in changed_files if file.endswith(".py")]
+    if python_files:
+        run_ruff_formatting(python_files)
+        run_ruff_check(python_files)
+        run_ty_check(python_files)
 
 
     # Continue with the commit
@@ -82,4 +83,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

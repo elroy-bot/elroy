@@ -38,11 +38,7 @@ def test_user_id(chroma_manager):
     with chroma_manager.open_session() as session:
         user = User(
             id=1,
-            email="test@example.com",
-            name="Test User",
-            preferred_name="Test",
             token="test-token",
-            is_active=True,
         )
         session.add(user)
         session.commit()
@@ -181,8 +177,8 @@ class TestChromaSession:
         """Test that vector search respects user_id isolation."""
         with chroma_manager.open_session() as session:
             # Create two users
-            user1 = User(id=1, email="user1@test.com", name="User 1", token="token-1", is_active=True)
-            user2 = User(id=2, email="user2@test.com", name="User 2", token="token-2", is_active=True)
+            user1 = User(id=1, token="token-1")
+            user2 = User(id=2, token="token-2")
             session.add(user1)
             session.add(user2)
             session.commit()
@@ -190,8 +186,13 @@ class TestChromaSession:
             # Create memories for each user with same embedding
             embedding = [1.0] * 1536
 
-            memory1 = Memory(user_id=user1.id, name="User 1 Memory", text="Content 1", is_active=True)
-            memory2 = Memory(user_id=user2.id, name="User 2 Memory", text="Content 2", is_active=True)
+            assert user1.id is not None
+            assert user2.id is not None
+            user1_id = user1.id
+            user2_id = user2.id
+
+            memory1 = Memory(user_id=user1_id, name="User 1 Memory", text="Content 1", is_active=True)
+            memory2 = Memory(user_id=user2_id, name="User 2 Memory", text="Content 2", is_active=True)
 
             session.add(memory1)
             session.add(memory2)
@@ -203,10 +204,10 @@ class TestChromaSession:
             session.insert_embedding(memory2, embedding, "md5_2")
 
             # Query for user1 should only return user1's memory
-            results = list(session.query_vector(10.0, Memory, user1.id, embedding))
+            results = list(session.query_vector(10.0, Memory, user1_id, embedding))
 
             assert len(results) == 1
-            assert results[0].user_id == user1.id
+            assert results[0].user_id == user1_id
             assert results[0].name == "User 1 Memory"
 
 
@@ -226,7 +227,7 @@ class TestChromaManager:
         manager = ChromaManager("sqlite:///:memory:", chroma_path=temp_chroma_dir)
 
         # Access chroma_client to trigger initialization
-        manager.chroma_client
+        _ = manager.chroma_client
 
         # Verify persistence directory was created
         assert temp_chroma_dir.exists()
@@ -263,4 +264,4 @@ class TestBackendParity:
         2. Run same queries on both backends
         3. Verify results match (within floating point precision)
         """
-        pytest.skip("Integration test - requires both backends initialized")
+        pytest.skip("Integration test - requires both backends initialized")  # type: ignore

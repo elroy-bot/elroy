@@ -26,7 +26,7 @@ def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> BaseMo
             lambda args: function_to_call.__call__(**args),
             lambda result: "Success" if result is None else result,
             lambda result: result if isinstance(result, BaseModel) else AssistantToolResult(content=str(result)),
-        )  # type: ignore
+        )
 
     except RecoverableToolError as e:
         return AssistantToolResult(content=f"{error_msg_prefix} {e}", is_error=True)

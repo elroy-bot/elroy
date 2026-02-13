@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from toolz import pipe
 from toolz.curried import filter, map
 
@@ -12,8 +10,8 @@ logger = get_logger()
 
 
 def has_assistant_tool_call(
-    tool_call_id: Optional[str],
-    context_messages: List[ContextMessage],
+    tool_call_id: str | None,
+    context_messages: list[ContextMessage],
 ) -> bool:
     """
     Assistant tool call message must be in the most recent assistant message

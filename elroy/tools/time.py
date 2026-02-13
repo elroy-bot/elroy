@@ -11,4 +11,6 @@ def get_current_date(ctx: ElroyContext) -> str:
     Returns:
         str: The current date and time in the format "Day, Month DD, YYYY HH:MM AM/PM TZ"
     """
-    return datetime_to_string(local_now())
+    current = datetime_to_string(local_now())
+    assert current is not None
+    return current

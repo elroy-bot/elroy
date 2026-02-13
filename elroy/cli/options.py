@@ -1,10 +1,11 @@
 import logging
 import os
 import sys
+from collections.abc import Callable
 from functools import lru_cache
 from multiprocessing import get_logger
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 import click
 import typer
@@ -26,7 +27,7 @@ DEPRECATED_KEYS = {
 }
 
 
-def resolve_model_alias(alias: str) -> Optional[str]:
+def resolve_model_alias(alias: str) -> str | None:
     return {
         "sonnet": CLAUDE_3_5_SONNET,
         "claude-3.5": CLAUDE_3_5_SONNET,
@@ -40,7 +41,7 @@ def resolve_model_alias(alias: str) -> Optional[str]:
     }.get(alias)
 
 
-def load_config_file_params(config_path: Optional[str] = None) -> Dict:
+def load_config_file_params(config_path: str | None = None) -> dict:
     # Looks for user specified config path, then merges with default values packaged with the lib
 
     user_config_path = config_path or os.environ.get(get_env_var_name("config_path"))
@@ -48,7 +49,6 @@ def load_config_file_params(config_path: Optional[str] = None) -> Dict:
     if not user_config_path:
         return {}
     else:
-
         if user_config_path and not Path(user_config_path).is_absolute():
             logger.info("Resolving relative user config path")
             # convert to absolute path if not already, relative to working dir
@@ -56,13 +56,13 @@ def load_config_file_params(config_path: Optional[str] = None) -> Dict:
         return load_config_if_exists(user_config_path)
 
 
-def ElroyOption(
+def ElroyOption(  # noqa: N802
     key: str,
     rich_help_panel: str,
     help: str,
     deprecated: bool = False,
     hidden: bool = False,
-    default_factory: Optional[Callable] = None,
+    default_factory: Callable | None = None,
     *args,
 ):
     """
@@ -92,11 +92,11 @@ def get_env_var_name(parameter_name: str):
     }.get(parameter_name, f"ELROY_{parameter_name.upper()}")
 
 
-def get_resolved_params(**kwargs) -> Dict[str, Any]:
+def get_resolved_params(**kwargs) -> dict[str, Any]:
     """Get resolved parameter values from environment and config."""
     # n.b merge priority is lib default < user config file < env var < explicit CLI arg
 
-    def convert_comma_separated_to_list(d: Dict[str, Any]) -> Dict[str, Any]:
+    def convert_comma_separated_to_list(d: dict[str, Any]) -> dict[str, Any]:
         """Convert comma-separated string for background_ingest_paths to list if needed."""
         if "background_ingest_paths" in d and isinstance(d["background_ingest_paths"], str):
             paths = [p.strip() for p in d["background_ingest_paths"].split(",") if p.strip()]
@@ -107,18 +107,18 @@ def get_resolved_params(**kwargs) -> Dict[str, Any]:
         [
             DEFAULTS_CONFIG,  # package defaults
             load_config_file_params(kwargs.get("config_path")),  # user specified config file
-            {k: os.environ.get(get_env_var_name(k)) for k in DEFAULTS_CONFIG.keys()},  # env vars
+            {k: os.environ.get(get_env_var_name(k)) for k in DEFAULTS_CONFIG},  # env vars
             kwargs,  # explicit params
         ],
         map(valfilter(lambda x: x is not None and x != ())),
         merge,
         lambda d: assoc(d, "database_url", get_default_sqlite_url()) if not d.get("database_url") else d,
         convert_comma_separated_to_list,
-    )  # type: ignore
+    )
 
 
 @lru_cache
-def load_config_if_exists(user_config_path: Optional[str]) -> dict:
+def load_config_if_exists(user_config_path: str | None) -> dict:
     """
     Load configuration values in order of precedence:
     1. defaults.yml (base defaults)
@@ -136,14 +136,14 @@ def load_config_if_exists(user_config_path: Optional[str]) -> dict:
         return {}
     else:
         try:
-            with open(user_config_path, "r") as user_config_file:
+            with open(user_config_path) as user_config_file:
                 return yaml.safe_load(user_config_file)
         except Exception as e:
             logging.error(f"Failed to load user config file {user_config_path}: {e}")
             return {}
 
 
-def get_str_from_stdin_or_arg(ctx: typer.Context, param: click.Parameter, value: Optional[str]) -> str:
+def get_str_from_stdin_or_arg(ctx: typer.Context, param: click.Parameter, value: str | None) -> str:
     """Callback to get message from stdin if no argument is provided and stdin is not a terminal."""
     if value:
         return value

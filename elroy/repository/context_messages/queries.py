@@ -1,4 +1,5 @@
-from typing import Iterable, Optional
+from collections.abc import Iterable
+from typing import Any, cast
 
 from sqlmodel import select
 from toolz import first
@@ -13,7 +14,7 @@ def get_or_create_context_message_set(ctx: ElroyContext) -> ContextMessageSetWit
     db_entry = ctx.db.exec(
         select(ContextMessageSet).where(
             ContextMessageSet.user_id == ctx.user_id,
-            ContextMessageSet.is_active == True,
+            cast(Any, ContextMessageSet.is_active),
         )
     ).first()
     if db_entry:
@@ -31,7 +32,7 @@ def get_context_messages(ctx: ElroyContext) -> Iterable[ContextMessage]:
     yield from get_or_create_context_message_set(ctx).messages
 
 
-def get_current_system_instruct(ctx: ElroyContext) -> Optional[ContextMessage]:
+def get_current_system_instruct(ctx: ElroyContext) -> ContextMessage | None:
     try:
         return first(get_context_messages(ctx))
     except StopIteration:

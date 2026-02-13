@@ -1,5 +1,6 @@
 import uuid
-from typing import Iterator, List, Optional
+from collections.abc import Iterator
+from typing import Any, cast
 
 from pydantic import BaseModel
 from toolz import pipe
@@ -30,7 +31,7 @@ def process_message(
     ctx: ElroyContext,
     msg: str,
     enable_tools: bool = True,
-    force_tool: Optional[str] = None,
+    force_tool: str | None = None,
 ) -> Iterator[BaseModel]:
     assert role in [USER, ASSISTANT, SYSTEM]
 
@@ -43,14 +44,14 @@ def process_message(
         logger.warning("force_tool set, but enable_tools is False. Ignoring force_tool.")
 
     with ctx.latency_tracker.measure("load_context_messages"):
-        context_messages: List[ContextMessage] = pipe(
+        context_messages: list[ContextMessage] = pipe(
             get_context_messages(ctx),
             lambda msgs: Validator(ctx, msgs).validated_msgs(),
             list,
-        )  # type: ignore
+        )
         logger.debug(f"[{request_id}] Loaded {len(context_messages)} context messages")
 
-    new_msgs: List[ContextMessage] = [
+    new_msgs: list[ContextMessage] = [
         ContextMessage(
             role=role,
             content=msg,
@@ -96,11 +97,12 @@ def process_message(
     while True:
         # new_msgs accumulates across all loops, so we can only store new messages once
         # tool_context_messages and function_calls reset each loop: we need to keep track so we can determine whether we need to continue looping
-        function_calls: List[FunctionCall] = []
-        tool_context_messages: List[ContextMessage] = []
+        function_calls: list[FunctionCall] = []
+        tool_context_messages: list[ContextMessage] = []
 
         with ctx.latency_tracker.measure("llm_completion", loop=loops):
-            stream = ctx.llm.generate_chat_completion_message(
+            llm = cast(Any, ctx.llm)
+            stream = llm.generate_chat_completion_message(
                 context_messages=context_messages + new_msgs,
                 tool_schemas=ctx.tool_registry.get_schemas(),
                 enable_tools=enable_tools and (not ctx.chat_model.inline_tool_calls) and loops <= ctx.max_assistant_loops,

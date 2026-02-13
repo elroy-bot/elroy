@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +15,7 @@ class ChatRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
-    messages: List[MessageResponse] = Field(description="List of messages in the conversation")
+    messages: list[MessageResponse] = Field(description="List of messages in the conversation")
 
 
 class IngestMemoRequest(BaseModel):
@@ -24,8 +23,8 @@ class IngestMemoRequest(BaseModel):
 
 
 class IngestMemoResponse(BaseModel):
-    reminders: List[str] = Field(description="The names of the reminder that was created")
-    memories: List[str] = Field(description="The names of the memory that was created")
+    reminders: list[str] = Field(description="The names of the reminder that was created")
+    memories: list[str] = Field(description="The names of the memory that was created")
 
 
 class CreateMemoryRequest(BaseModel):
@@ -45,13 +44,13 @@ class ApiResponse(BaseModel):
 class CreateReminderRequest(BaseModel):
     name: str = Field(description="Name/title for the reminder")
     text: str = Field(description="The text content of the reminder")
-    trigger_time: Optional[str] = Field(
+    trigger_time: str | None = Field(
         None, description="When the reminder should trigger (ISO format string). Must be a date in the future, or null"
     )
-    reminder_context: Optional[str] = Field(None, description="Additional context for when this reminder should be shown")
+    reminder_context: str | None = Field(None, description="Additional context for when this reminder should be shown")
 
     @property
-    def trigger_datetime(self) -> Optional[datetime]:
+    def trigger_datetime(self) -> datetime | None:
         if self.trigger_time:
             return string_to_datetime(self.trigger_time)
         else:
@@ -60,15 +59,15 @@ class CreateReminderRequest(BaseModel):
 
 class CompleteReminderRequest(BaseModel):
     name: str = Field(description="Name of the reminder to mark complete")
-    closing_comment: Optional[str] = Field(None, description="Optional comment on why the reminder was completed")
+    closing_comment: str | None = Field(None, description="Optional comment on why the reminder was completed")
 
 
 class ReminderResponse(BaseModel):
     id: int = Field(description="Unique identifier for the reminder")
     name: str = Field(description="Name/title of the reminder")
     text: str = Field(description="The text content of the reminder")
-    trigger_datetime: Optional[str] = Field(None, description="When the reminder triggers (ISO format string)")
-    reminder_context: Optional[str] = Field(None, description="Additional context for the reminder")
+    trigger_datetime: str | None = Field(None, description="When the reminder triggers (ISO format string)")
+    reminder_context: str | None = Field(None, description="Additional context for the reminder")
 
 
 class RecallMetadata(BaseModel):
@@ -79,4 +78,4 @@ class RecallMetadata(BaseModel):
 
 class RecallResponse(BaseModel):
     content: str
-    recall_metadata: List[RecallMetadata]  # noqa F841
+    recall_metadata: list[RecallMetadata]  # noqa F841

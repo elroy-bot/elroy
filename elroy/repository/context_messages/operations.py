@@ -1,8 +1,9 @@
 import json
 import time
 import traceback
+from collections.abc import Callable, Iterable, Iterator
 from functools import partial, wraps
-from typing import Any, Callable, Iterable, Iterator, List, TypeVar
+from typing import Any, TypeVar, cast
 
 from sqlmodel import select
 from toolz import concatv, pipe
@@ -66,7 +67,7 @@ def replace_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessag
     existing_context = ctx.db.exec(
         select(ContextMessageSet).where(
             ContextMessageSet.user_id == ctx.user_id,
-            ContextMessageSet.is_active == True,
+            cast(Any, ContextMessageSet.is_active),
         )
     ).first()
 
@@ -106,7 +107,7 @@ def retry_on_integrity_error(fn: Callable[..., T]) -> Callable[..., T]:
 
 
 @retry_on_integrity_error
-def remove_context_messages(ctx: ElroyContext, messages: List[ContextMessage]) -> None:
+def remove_context_messages(ctx: ElroyContext, messages: list[ContextMessage]) -> None:
     if not messages:
         return
     logger.info(f"Removing {len(messages)} messages")
@@ -159,7 +160,7 @@ def get_refreshed_system_message(ctx: ElroyContext) -> ContextMessage:
             inline_tool_instruct(ctx.tool_registry.get_schemas()) if ctx.chat_model.inline_tool_calls else None,
             "From now on, converse as your persona.",
             SYSTEM_INSTRUCTION_LABEL_END,
-        ],  # type: ignore
+        ],
         remove(lambda _: _ is None),
         list,
         "\n".join,
@@ -241,7 +242,12 @@ def save(ctx: ElroyContext, n: int = 1000) -> str:
         list,
     )
 
-    filename = db_time_to_local(msgs[0].created_at).strftime("%Y-%m-%d_%H-%M-%S") + "__" + db_time_to_local(msgs[-1].created_at).strftime("%Y-%m-%d_%H-%M-%S") + ".json"  # type: ignore
+    filename = (
+        db_time_to_local(msgs[0].created_at).strftime("%Y-%m-%d_%H-%M-%S")
+        + "__"
+        + db_time_to_local(msgs[-1].created_at).strftime("%Y-%m-%d_%H-%M-%S")
+        + ".json"
+    )
     full_path = get_save_dir() / filename
 
     with open(full_path, "w") as f:

@@ -1,5 +1,6 @@
 import json
-from typing import Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any, cast
 
 from sqlmodel import select
 
@@ -46,7 +47,7 @@ def create_mem_from_current_context(ctx: ElroyContext):
     do_create_memory_from_ctx_msgs(ctx, memory_title, memory_text)
 
 
-def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str] = None) -> None:
+def manually_record_user_memory(ctx: ElroyContext, text: str, name: str | None = None) -> None:
     """Manually record a memory for the user.
 
     Args:
@@ -71,7 +72,7 @@ def manually_record_user_memory(ctx: ElroyContext, text: str, name: Optional[str
     do_create_memory(ctx, name, text, [], True)
 
 
-def formulate_memory(ctx: ElroyContext, context_messages: List[ContextMessage]) -> Tuple[str, str]:
+def formulate_memory(ctx: ElroyContext, context_messages: list[ContextMessage]) -> tuple[str, str]:
     from ...llm.prompts import summarize_for_memory
     from ..context_messages.transforms import format_context_messages
 
@@ -95,7 +96,7 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
     ctx.db.add(item)
     ctx.db.commit()
     if hasattr(ctx.db, "update_embedding_active"):
-        ctx.db.update_embedding_active(item)
+        cast(Any, ctx.db).update_embedding_active(item)
     remove_from_context(ctx, item)
 
 

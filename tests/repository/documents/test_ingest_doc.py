@@ -2,8 +2,6 @@ import os
 from pathlib import Path
 
 import pytest
-from tests import fixtures
-from tests.utils import process_test_message
 
 from elroy.core.ctx import ElroyContext
 from elroy.repository.context_messages.operations import reset_messages
@@ -14,6 +12,8 @@ from elroy.repository.documents.operations import (
 )
 from elroy.repository.documents.queries import get_source_docs
 from elroy.repository.documents.tools import ingest_doc
+from tests import fixtures
+from tests.utils import process_test_message
 
 
 def test_ingest_doc(ctx: ElroyContext, midnight_garden_md_path: str):
@@ -26,7 +26,6 @@ def test_ingest_doc(ctx: ElroyContext, midnight_garden_md_path: str):
     response = process_test_message(ctx, "What was the last sentence of the story, The Midnight Garden?")
 
     try:
-
         assert (
             """She knew that somewhere, perhaps even in her small town, there was another soul who would see the magic in her midnight garden and ensure its secrets would continue to flourish under the watchful eye of the moon."""
             in response
@@ -81,7 +80,7 @@ def test_recursive_dir_ingest(ctx: ElroyContext, test_docs_dir: Path):
     results = list(do_ingest_dir(ctx, test_docs_dir, force_refresh=False, recursive=True, include=["*.md"], exclude=["*.log"]))[-1]
 
     # Should find all 3 markdown files (2 in root, 1 in subdir)
-    assert results[DocIngestStatus.SUCCESS] == 3
+    assert results.statuses[DocIngestStatus.SUCCESS] == 3
 
     # Verify txt file was not included due to include pattern
     assert not any(doc.address.endswith(".txt") for doc in get_source_docs(ctx))
@@ -95,7 +94,7 @@ def test_non_recursive_dir_ingest(ctx: ElroyContext, test_docs_dir: Path):
     results = do_ingest_dir(ctx, test_docs_dir, force_refresh=False, recursive=False, include=["*.md"], exclude=[])
 
     # Should only find 2 markdown files in root dir
-    assert list(results)[-1][DocIngestStatus.SUCCESS] == 2
+    assert list(results)[-1].statuses[DocIngestStatus.SUCCESS] == 2
 
     # Verify no files from subdirectory were ingested
     assert not any("subdir" in doc.address for doc in get_source_docs(ctx))
@@ -113,7 +112,7 @@ def test_dir_ingest_exclude_patterns(ctx: ElroyContext, test_docs_dir: Path):
     )
 
     # Should only find 2 markdown files from root
-    assert list(results)[-1][DocIngestStatus.SUCCESS] == 2
+    assert list(results)[-1].statuses[DocIngestStatus.SUCCESS] == 2
 
     # Verify excluded patterns worked
     docs = list(get_source_docs(ctx))
@@ -143,7 +142,7 @@ def test_dir_ingest_ignores_dot_files(ctx: ElroyContext, tmpdir: str):
     results = list(do_ingest_dir(ctx, docs_dir, force_refresh=False, recursive=True, include=[], exclude=[]))[-1]
 
     # Should only find the 2 regular files (normal.md and regular.txt)
-    assert results[DocIngestStatus.SUCCESS] == 2
+    assert results.statuses[DocIngestStatus.SUCCESS] == 2
 
     # Verify dot files and dot directories were ignored
     docs = list(get_source_docs(ctx))
@@ -190,7 +189,7 @@ def very_large_document_path(tmpdir: str) -> Path:
     for i in range(100):  # Generate 100 variations of paragraphs
         for topic in topics:
             paragraph = f"""
-            Chapter {i+1}: Advanced {topic} Concepts
+            Chapter {i + 1}: Advanced {topic} Concepts
 
             In the evolving landscape of {topic.lower()}, practitioners must constantly adapt to new methodologies
             and frameworks. The fundamental principles of {topic.lower()} remain consistent, yet their applications
