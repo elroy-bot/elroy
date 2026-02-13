@@ -3,7 +3,8 @@ import logging
 import os
 import time
 import warnings
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any, cast
 
 from ..config.env_vars import get_log_level
 from ..config.paths import get_log_file_path
@@ -18,7 +19,7 @@ def log_execution_time(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         logger = get_logger()
-        task_name = func.__name__
+        task_name = getattr(func, "__name__", func.__class__.__name__)
 
         start_time = time.perf_counter()
 
@@ -53,12 +54,13 @@ def setup_core_logging():
     # Handle litellm logging
     import litellm
 
-    litellm.set_verbose = False  # noqa F841 # type: ignore
-    litellm.suppress_debug_info = True  # noqa F841
-    litellm.verbose_logger.setLevel(logging.WARNING)  # type: ignore
+    litellm_any = cast(Any, litellm)
+    litellm_any.set_verbose = False  # noqa F841
+    litellm_any.suppress_debug_info = True  # noqa F841
+    litellm_any.verbose_logger.setLevel(logging.WARNING)
 
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger that is a child of the main Elroy logger.
 
     Args:

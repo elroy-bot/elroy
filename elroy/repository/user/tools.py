@@ -1,5 +1,3 @@
-from typing import Optional
-
 from ...core.constants import DEFAULT_USER_NAME, tool
 from ...core.ctx import ElroyContext
 from .operations import get_or_create_user_preference
@@ -7,7 +5,7 @@ from .queries import do_get_user_preferred_name
 
 
 @tool
-def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: Optional[bool] = False) -> str:
+def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: bool | None = False) -> str:
     """Sets the user's full name.
 
     Guidance for usage:
@@ -35,7 +33,7 @@ def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: Opt
 
 
 @tool
-def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_existing: Optional[bool] = False) -> str:
+def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_existing: bool | None = False) -> str:
     """
     Set the user's preferred name. Should predominantly be used relatively early in first conversations, and relatively rarely afterward.
 

@@ -1,5 +1,6 @@
 import os
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 from prompt_toolkit.completion import Completion, PathCompleter, WordCompleter
 
@@ -7,10 +8,7 @@ from prompt_toolkit.completion import Completion, PathCompleter, WordCompleter
 def show_in_file_filter(file_path: str) -> bool:
     # check if it's actually a file
     file_path = file_path.rstrip(os.sep)
-    if os.path.basename(file_path).startswith("."):
-        return False
-    else:
-        return True
+    return not os.path.basename(file_path).startswith(".")
 
 
 def get_path_completions(document, complete_event) -> Generator[Completion, Any, None]:
@@ -21,7 +19,8 @@ def get_path_completions(document, complete_event) -> Generator[Completion, Any,
     path_text = document.text[len("/ingest_doc") :].lstrip()
     # Get cursor position relative to the path, ensuring it stays within bounds
     path_cursor_position = min(
-        len(path_text), max(0, document.cursor_position - len("/ingest_doc"))  # Don't go beyond text length  # Don't go negative
+        len(path_text),
+        max(0, document.cursor_position - len("/ingest_doc")),  # Don't go beyond text length  # Don't go negative
     )
 
     # Create a new document for the path part only

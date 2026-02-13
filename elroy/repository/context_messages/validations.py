@@ -1,4 +1,4 @@
-from typing import Generator, Iterable, List
+from collections.abc import Generator, Iterable
 
 from toolz import identity, pipe
 
@@ -18,7 +18,7 @@ class Validator:
     def __init__(self, ctx: ElroyContext, context_messages: Iterable[ContextMessage]):
         self.ctx = ctx
         self.errors = []
-        self.original_context_messages: List[ContextMessage] = list(context_messages)
+        self.original_context_messages: list[ContextMessage] = list(context_messages)
 
     def assistant_tool_calls_followed_by_tool(self, context_messages: Iterable[ContextMessage]) -> Iterable[ContextMessage]:
         """
@@ -77,7 +77,7 @@ class Validator:
 
         for idx, message in enumerate(ctx_msg_list):
             if idx == 0 and not is_system_instruction(message):
-                self.errors.append(f"First message is not system instruction, repairing by inserting system instruction")
+                self.errors.append("First message is not system instruction, repairing by inserting system instruction")
                 yield get_refreshed_system_message(self.ctx)
                 yield message
             elif idx != 0 and is_system_instruction(message):
@@ -104,14 +104,14 @@ class Validator:
                 yield msg
 
     def validated_msgs(self) -> Generator[ContextMessage, None, None]:
-        messages: List[ContextMessage] = pipe(
+        messages: list[ContextMessage] = pipe(
             self.original_context_messages,
             self.system_instruction_correctly_placed,
             self.assistant_tool_calls_followed_by_tool,
             self.tool_messages_have_assistant_tool_call,
             self.first_user_precedes_first_assistant if self.ctx.chat_model.ensure_alternating_roles else identity,
             list,
-        )  # type: ignore
+        )
 
         if self.errors:
             logger.info("Context messages have been repaired")

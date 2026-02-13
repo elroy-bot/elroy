@@ -1,5 +1,3 @@
-from typing import Optional
-
 from sqlmodel import Session, select
 
 from ...core.constants import (
@@ -40,19 +38,13 @@ def get_persona(ctx: ElroyContext):
 
     """
     user_preference = get_or_create_user_preference(ctx)
-    if user_preference.system_persona:
-        raw_persona = user_preference.system_persona
-    else:
-        raw_persona = ctx.default_persona
+    raw_persona = user_preference.system_persona or ctx.default_persona or ""
 
-    if user_preference.preferred_name:
-        user_noun = user_preference.preferred_name
-    else:
-        user_noun = "my user"
+    user_noun = user_preference.preferred_name or "my user"
     return raw_persona.replace(USER_ALIAS_STRING, user_noun).replace(ASSISTANT_ALIAS_STRING, get_assistant_name(ctx))
 
 
-def get_user_id_if_exists(db: DbSession, user_token: str) -> Optional[int]:
+def get_user_id_if_exists(db: DbSession, user_token: str) -> int | None:
     user = db.exec(select(User).where(User.token == user_token)).first()
     if user:
         id = user.id

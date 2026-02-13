@@ -1,5 +1,3 @@
-from typing import List
-
 from litellm.types.utils import Delta, ModelResponse, StreamingChoices
 from pydantic import BaseModel
 
@@ -28,7 +26,7 @@ def text_to_model_response(text: str) -> ModelResponse:
     return ModelResponse(choices=[StreamingChoices(delta=Delta(content=text))])
 
 
-def parse(chunks: List[str]) -> List[BaseModel]:
+def parse(chunks: list[str]) -> list[BaseModel]:
     parser = StreamParser(
         CHAT_MODEL,
         iter([text_to_model_response(chunk) for chunk in chunks]),

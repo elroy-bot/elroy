@@ -1,6 +1,6 @@
 import hashlib
 from functools import partial
-from typing import Type
+from typing import Any, cast
 
 from sqlmodel import select
 from toolz import pipe
@@ -28,7 +28,7 @@ def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> No
     if vector_storage_row and vector_storage_row.embedding_text_md5 == new_md5:
         logger.info("Old and new text matches md5, skipping")
         if row.is_active is not True and hasattr(ctx.db, "update_embedding_active"):
-            ctx.db.update_embedding_active(row)
+            cast(Any, ctx.db).update_embedding_active(row)
         return
     else:
         embedding = ctx.llm.get_embedding(new_text, ctx=ctx)
@@ -37,7 +37,7 @@ def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> No
         else:
             ctx.db.insert_embedding(row=row, embedding_data=embedding, embedding_text_md5=new_md5)
         if row.is_active is not True and hasattr(ctx.db, "update_embedding_active"):
-            ctx.db.update_embedding_active(row)
+            cast(Any, ctx.db).update_embedding_active(row)
 
 
 def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
@@ -63,7 +63,7 @@ def remove_from_context(ctx: ElroyContext, memory: EmbeddableSqlModel):
     )
 
 
-def add_to_current_context_by_name(ctx: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
+def add_to_current_context_by_name(ctx: ElroyContext, name: str, memory_type: type[EmbeddableSqlModel]) -> str:
     item = ctx.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
 
     if item:
@@ -73,7 +73,7 @@ def add_to_current_context_by_name(ctx: ElroyContext, name: str, memory_type: Ty
         return f"{memory_type.__name__} '{name}' not found."
 
 
-def drop_from_context_by_name(ctx: ElroyContext, name: str, memory_type: Type[EmbeddableSqlModel]) -> str:
+def drop_from_context_by_name(ctx: ElroyContext, name: str, memory_type: type[EmbeddableSqlModel]) -> str:
     item = ctx.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
 
     if item:

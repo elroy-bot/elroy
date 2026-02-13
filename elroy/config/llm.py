@@ -1,7 +1,6 @@
 import os
 from dataclasses import dataclass
 from importlib.resources import open_text
-from typing import Optional
 
 import yaml
 
@@ -24,16 +23,16 @@ with open_text(APP_NAME, "defaults.yml") as f:
 class ChatModel:
     name: str
     enable_caching: bool
-    api_key: Optional[str]
+    api_key: str | None
     provider: Provider
     inline_tool_calls: bool
     ensure_alternating_roles: (
         bool  # Whether to ensure that the first message is system message, and thereafter alternating between user and assistant.
     )
-    api_base: Optional[str] = None
+    api_base: str | None = None
 
 
-def get_provider(model_name: str, api_base: Optional[str]) -> Provider:
+def get_provider(model_name: str, api_base: str | None) -> Provider:
     # check a hard coded dict to short circuit API calls to list models, if possible:
 
     for provider, models in KNOWN_MODELS.items():
@@ -54,8 +53,8 @@ class EmbeddingModel:
     name: str
     embedding_size: int
     enable_caching: bool
-    api_key: Optional[str] = None
-    api_base: Optional[str] = None
+    api_key: str | None = None
+    api_base: str | None = None
 
 
 def infer_chat_model_name() -> str:
@@ -73,10 +72,10 @@ def infer_chat_model_name() -> str:
 
 def get_chat_model(
     model_name: str,
-    api_key: Optional[str],  # recommended key to pass in
-    api_base: Optional[str],  # recommended base to pass in
-    openai_api_key: Optional[str],  # supported for backwards compatibility
-    openai_api_base: Optional[str],  # supported for backwards compatibility
+    api_key: str | None,  # recommended key to pass in
+    api_base: str | None,  # recommended base to pass in
+    openai_api_key: str | None,  # supported for backwards compatibility
+    openai_api_base: str | None,  # supported for backwards compatibility
     enable_caching: bool,
     inline_tool_calls: bool,
 ) -> ChatModel:
@@ -106,11 +105,11 @@ def get_chat_model(
 def get_embedding_model(
     model_name: str,
     embedding_size: int,
-    api_key: Optional[str],  # recommended key to pass in
-    api_base: Optional[str],  # recommended base to pass in
-    openai_api_key: Optional[str],  # supported for backwards compatibility
-    openai_api_base: Optional[str],  # supported for backwards compatibility
-    openai_embedding_api_base: Optional[str],  # supported for backwards compatibility
+    api_key: str | None,  # recommended key to pass in
+    api_base: str | None,  # recommended base to pass in
+    openai_api_key: str | None,  # supported for backwards compatibility
+    openai_api_base: str | None,  # supported for backwards compatibility
+    openai_embedding_api_base: str | None,  # supported for backwards compatibility
     enable_caching: bool,
 ) -> EmbeddingModel:
 

@@ -1,7 +1,7 @@
+from typing import Any, cast
+
 import typer
 from sqlmodel import Session, select
-from toolz import do
-from toolz.curried import do
 
 from ...core.constants import user_only_tool
 from ...core.ctx import ElroyContext
@@ -28,7 +28,7 @@ def do_get_or_create_user_preference(session: Session, user_id: int) -> UserPref
     user_preference = session.exec(
         select(UserPreference).where(
             UserPreference.user_id == user_id,
-            UserPreference.is_active == True,
+            cast(Any, UserPreference.is_active),
         )
     ).first()
 
@@ -89,10 +89,8 @@ def set_persona(ctx: ElroyContext, system_persona: str) -> str:
     user_preference = get_or_create_user_preference(ctx)
 
     if user_preference.system_persona == system_persona:
-        return do(
-            logger.info,
-            "New system persona and old system persona are identical",
-        )  # type: ignore
+        logger.info("New system persona and old system persona are identical")
+        return "New system persona and old system persona are identical"
 
     user_preference.system_persona = system_persona
 

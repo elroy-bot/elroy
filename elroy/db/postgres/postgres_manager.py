@@ -40,7 +40,7 @@ class PostgresManager(DbManager[PostgresSession]):
             with Session(self.engine) as session:
                 session.exec(text("SELECT 1")).first()  # type: ignore
         except Exception as e:
-            raise Exception(f"Could not connect to database {self.engine.url.render_as_string(hide_password=True)}: {e}")
+            raise Exception(f"Could not connect to database {self.engine.url.render_as_string(hide_password=True)}: {e}") from e
 
     def migrate(self):
         with Session(self.engine) as session:

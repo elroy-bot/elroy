@@ -1,4 +1,5 @@
-from typing import Any, Iterator, Union
+from collections.abc import Iterator
+from typing import Any
 
 from rich.console import Console, RenderableType
 
@@ -35,13 +36,13 @@ class ElroyIO:
         else:
             raise NotImplementedError(f"Invalid message type: {type(message)}")
 
-    def info(self, message: Union[str, RenderableType]):
+    def info(self, message: str | RenderableType):
         if isinstance(message, str):
             self.print(SystemInfo(content=message))
         else:
             self.print(message)
 
-    def warning(self, message: Union[str, RenderableType]):
+    def warning(self, message: str | RenderableType):
         if isinstance(message, str):
             self.print(SystemWarning(content=message))
         else:
@@ -69,9 +70,7 @@ class PlainIO(ElroyIO):
             logger.warning(message)
         elif isinstance(message, FunctionCall):
             logger.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
-        elif isinstance(message, SystemInfo):
-            logger.info(message)
-        elif isinstance(message, AssistantToolResult):
+        elif isinstance(message, (SystemInfo, AssistantToolResult)):
             logger.info(message)
         else:
             raise NotImplementedError(f"Invalid message type: {type(message)}")

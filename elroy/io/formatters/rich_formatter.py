@@ -1,4 +1,4 @@
-from typing import Dict, Generator, Union
+from collections.abc import Generator
 
 from rich.console import RenderableType
 from rich.pretty import Pretty
@@ -36,7 +36,7 @@ class RichFormatter(Formatter):
         self.user_input_color = user_input_color
         self.internal_thought_color = internal_thought_color
 
-    def format(self, message: ElroyPrintable) -> Generator[Union[str, RenderableType], None, None]:
+    def format(self, message: ElroyPrintable) -> Generator[str | RenderableType, None, None]:
         if isinstance(message, RenderableType):
             yield message
         elif isinstance(message, CodeBlock):
@@ -52,7 +52,7 @@ class RichFormatter(Formatter):
             text = Text("Executing function call: ", style=self.system_message_color)
             text.append(message.function_name, style=f"bold {self.system_message_color}")
             if message.arguments:
-                text.append(f" with arguments: ", style=self.system_message_color)
+                text.append(" with arguments: ", style=self.system_message_color)
                 yield text
                 yield Pretty(message.arguments)
             else:
@@ -61,7 +61,7 @@ class RichFormatter(Formatter):
             color = self.warning_color if message.is_error else self.system_message_color
             yield Text(message.content, style=color)
         elif isinstance(message, TextOutput):
-            styles: Dict[type[TextOutput], str] = {
+            styles: dict[type[TextOutput], str] = {
                 AssistantInternalThought: f"italic {self.internal_thought_color}",
                 SystemWarning: self.warning_color,
                 AssistantResponse: self.assistant_message_color,
@@ -91,9 +91,9 @@ class RichFormatter(Formatter):
                     word_wrap=True,
                     code_width=88,
                 ),
-            )  # type: ignore
+            )
 
-        elif isinstance(message, Dict):
+        elif isinstance(message, dict):
             yield Pretty(message)
         else:
             raise Exception(f"Unrecognized type: {type(message)}")

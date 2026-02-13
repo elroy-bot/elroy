@@ -6,7 +6,6 @@ Discord bot for announcing Elroy releases.
 import argparse
 import os
 import sys
-from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -52,7 +51,7 @@ class ReleaseBot:
         release_url = self._get_release_url(self.version)
         release_notes = self._get_release_notes(self.version)
 
-        description = f"A new version of Elroy has been released!\n\n"
+        description = "A new version of Elroy has been released!\n\n"
         description += f"**Changes in this release:**\n{release_notes}\n\n"
         description += f"View the full release on GitHub: {release_url}"
 
@@ -65,7 +64,7 @@ class ReleaseBot:
 
         await channel.send(embed=embed)  # type: ignore
 
-    def _get_release_notes(self, version: str) -> Optional[str]:
+    def _get_release_notes(self, version: str) -> str | None:
         """Extract release notes from CHANGELOG.md for the given version"""
         if version.startswith("v"):
             version = version[1:]
@@ -75,7 +74,7 @@ class ReleaseBot:
             sys.exit(1)
 
         try:
-            with open(CHANGELOG_LOCATION, "r") as f:
+            with open(CHANGELOG_LOCATION) as f:
                 content = f.read()
 
             # Find the section for this version
@@ -88,10 +87,7 @@ class ReleaseBot:
 
             # Find the start of the next version section or end of file
             next_version_idx = content.find("\n## [", start_idx + 1)
-            if next_version_idx == -1:
-                section_content = content[start_idx:]
-            else:
-                section_content = content[start_idx:next_version_idx]
+            section_content = content[start_idx:] if next_version_idx == -1 else content[start_idx:next_version_idx]
 
             # Extract lines after the version header
             lines = section_content.split("\n")[1:]  # Skip the version line

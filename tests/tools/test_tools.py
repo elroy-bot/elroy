@@ -1,12 +1,5 @@
 import json
-from typing import List
 
-from tests.fixtures.custom_tools import (
-    get_game_info,
-    get_user_token_first_letter,
-    netflix_show_fetcher,
-)
-from tests.utils import process_test_message
 from toolz import pipe
 from toolz.curried import map
 
@@ -17,6 +10,12 @@ from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.tools.registry import get_system_tool_schemas
+from tests.fixtures.custom_tools import (
+    get_game_info,
+    get_user_token_first_letter,
+    netflix_show_fetcher,
+)
+from tests.utils import process_test_message
 
 
 @tool
@@ -82,7 +81,7 @@ def test_tool_schema_does_not_have_elroy_ctx():
         dict,
     )
 
-    assert not any("ctx" in vals for key, vals in argument_names.items())  # type: ignore
+    assert not any("ctx" in vals for key, vals in argument_names.items())
 
 
 def test_exclude_tools(ctx: ElroyContext):
@@ -145,7 +144,7 @@ def _missing_tool_message(ctx: ElroyContext):
     ]
 
 
-def _missing_tool_call(ctx: ElroyContext) -> List[ContextMessage]:
+def _missing_tool_call(ctx: ElroyContext) -> list[ContextMessage]:
     return [
         ContextMessage(
             role=SYSTEM,

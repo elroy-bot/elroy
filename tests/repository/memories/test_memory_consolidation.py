@@ -1,5 +1,4 @@
 from functools import partial
-from typing import List
 
 from sqlmodel import select
 from toolz import pipe
@@ -57,7 +56,7 @@ def test_trigger(ctx):
     )
 
 
-def get_cluster(ctx, memories: List[Memory]) -> MemoryCluster:
+def get_cluster(ctx, memories: list[Memory]) -> MemoryCluster:
     return MemoryCluster(
         memories=memories,
         embeddings=[ctx.db.get_embedding(memory) for memory in memories],  # type: ignore

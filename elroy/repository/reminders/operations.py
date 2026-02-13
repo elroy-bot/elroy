@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, cast
 
 from sqlmodel import select
 
@@ -33,8 +33,8 @@ def do_create_reminder(
     ctx: ElroyContext,
     name: str,
     text: str,
-    trigger_time: Optional[datetime] = None,
-    reminder_context: Optional[str] = None,
+    trigger_time: datetime | None = None,
+    reminder_context: str | None = None,
 ) -> Reminder:
     """Creates a reminder that can be triggered by time and/or context.
 
@@ -64,7 +64,6 @@ def do_create_reminder(
         raise ValueError("Reminder name cannot be empty")
 
     if not trigger_time and not reminder_context:
-
         raise RecoverableToolError("Either trigger_time or reminder_context must be provided for reminders")
 
     if trigger_time and trigger_time < utc_now():
@@ -77,7 +76,7 @@ def do_create_reminder(
         select(Reminder).where(
             Reminder.user_id == ctx.user_id,
             Reminder.name == name,
-            Reminder.is_active == True,
+            cast(Any, Reminder.is_active),
         )
     ).one_or_none()
 
@@ -102,7 +101,7 @@ def do_create_reminder(
     return reminder
 
 
-def do_complete_reminder(ctx: ElroyContext, reminder_name: str, closing_comment: Optional[str] = None) -> str:
+def do_complete_reminder(ctx: ElroyContext, reminder_name: str, closing_comment: str | None = None) -> str:
     """Mark a reminder as completed
 
     Args:
@@ -141,7 +140,7 @@ def do_complete_reminder(ctx: ElroyContext, reminder_name: str, closing_comment:
         return f"Reminder '{reminder_name}' has been marked as completed."
 
 
-def do_delete_reminder(ctx: ElroyContext, reminder_name: str, closing_comment: Optional[str] = None) -> str:
+def do_delete_reminder(ctx: ElroyContext, reminder_name: str, closing_comment: str | None = None) -> str:
     """Delete a reminder (mark as deleted)
 
     Args:

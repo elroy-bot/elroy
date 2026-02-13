@@ -1,7 +1,7 @@
 import json
 from inspect import Parameter
 from multiprocessing import get_logger
-from typing import Any, Optional, Union, get_args, get_origin
+from typing import Any, Union, get_args, get_origin
 
 from rich.console import Group
 from rich.pretty import Pretty
@@ -23,7 +23,7 @@ logger = get_logger()
 
 
 @user_only_tool
-def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
+def print_context_messages(ctx: ElroyContext, n: int | None = None) -> Table:
     """Logs the last n current context messages to stdout
 
     Args:
@@ -59,7 +59,7 @@ def print_context_messages(ctx: ElroyContext, n: Optional[int] = None) -> Table:
                     tc.function["arguments"] = json.loads(tc.function["arguments"])
                 except json.JSONDecodeError:
                     logger.info("Couldn't decode arguments for tool call")
-                details.append(Pretty(tc, expand_all=True))  # type: ignore
+                details.append(Pretty(tc, expand_all=True))
 
         table.add_row(
             str(idx),
@@ -113,7 +113,7 @@ def add_internal_thought(ctx: ElroyContext, thought: str) -> str:
 
 
 @user_only_tool
-def print_system_instruction(ctx: ElroyContext) -> Optional[str]:
+def print_system_instruction(ctx: ElroyContext) -> str | None:
     """Prints the current system instruction for the assistant
 
     Args:
@@ -126,21 +126,18 @@ def print_system_instruction(ctx: ElroyContext) -> Optional[str]:
     return pipe(
         get_current_system_instruct(ctx),
         lambda _: _.content if _ else None,
-    )  # type: ignore
+    )
 
 
 def _is_optional(param: Parameter) -> bool:
     return get_origin(param.annotation) is Union and type(None) in get_args(param.annotation)
 
 
-def get_casted_value(parameter: Parameter, str_value: str) -> Optional[Any]:
+def get_casted_value(parameter: Parameter, str_value: str) -> Any | None:
     if not str_value:
         return None
     # detect if it is union
-    if _is_optional(parameter):
-        arg_type = get_args(parameter.annotation)[0]
-    else:
-        arg_type = parameter.annotation
+    arg_type = get_args(parameter.annotation)[0] if _is_optional(parameter) else parameter.annotation
     return arg_type(str_value)
 
 

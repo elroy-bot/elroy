@@ -1,15 +1,14 @@
 import re
 import traceback
 from bdb import BdbQuit
-from datetime import timedelta
+from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, timedelta
 from functools import partial
 from itertools import tee
 from multiprocessing import get_logger
 from operator import add
-from typing import AsyncIterator, Iterator, Optional
 
 from colorama import init
-from pytz import UTC
 from sqlmodel import select
 from toolz import pipe
 
@@ -21,7 +20,7 @@ from ..core.tracing import tracer
 from ..db.db_models import Message
 from ..io.base import ElroyIO
 from ..io.cli import CliIO
-from ..llm.prompts import ONBOARDING_SUPPLEMENT_INSTRUCT
+from ..llm.prompts import onboarding_supplement_instruct
 from ..llm.stream_parser import collect
 from ..messenger.messenger import process_message
 from ..messenger.slash_commands import invoke_slash_command
@@ -56,7 +55,7 @@ def handle_message_stdio(
     ctx: ElroyContext,
     io: ElroyIO,
     message: str,
-    force_tool: Optional[str],
+    force_tool: str | None,
 ):
     if not is_user_exists(ctx.db.session, ctx.user_token):
         onboard_non_interactive(ctx)
@@ -212,7 +211,7 @@ def onboard_interactive(io: CliIO, ctx: ElroyContext):
         [get_refreshed_system_message(ctx)]
         + to_synthetic_tool_call(
             "get_onboarding_instructions",
-            ONBOARDING_SUPPLEMENT_INSTRUCT(preferred_name),
+            onboarding_supplement_instruct(preferred_name),
         ),
     )
 

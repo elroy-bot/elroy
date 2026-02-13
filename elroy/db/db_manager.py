@@ -1,9 +1,10 @@
 import logging
 from abc import ABC
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Generator, Generic, Type, TypeVar
+from typing import Any, Generic, TypeVar
 
 from alembic import command
 from alembic.config import Config
@@ -20,7 +21,7 @@ TSession = TypeVar("TSession", bound=DbSession)
 class DbManager(ABC, Generic[TSession]):
     def __init__(self, url: str):
         self.url = url
-        self.session_class: Type[TSession]
+        self.session_class: type[TSession]
 
     @cached_property
     def engine(self) -> Engine:
@@ -90,10 +91,7 @@ def get_db_manager(url: str, vector_backend: str = "auto", chroma_path: Path | N
     from ..db.sqlite.sqlite_manager import SqliteManager
 
     if vector_backend == "auto" or vector_backend is None:
-        if url.startswith("sqlite:///"):
-            vector_backend = "chroma"
-        else:
-            vector_backend = "sqlite"
+        vector_backend = "chroma" if url.startswith("sqlite:///") else "sqlite"
 
     # If ChromaDB backend is selected, use ChromaManager regardless of relational DB type
     if vector_backend == "chroma":

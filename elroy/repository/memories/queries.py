@@ -1,6 +1,7 @@
 import json
+from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Callable, Iterable, List, Optional, Sequence, TypeVar, Union
+from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, Field
 from sqlmodel import col, select
@@ -38,13 +39,13 @@ from .transforms import to_fast_recall_tool_call
 logger = get_logger()
 
 
-def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> Optional[MemorySource]:
+def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> MemorySource | None:
     source_class = get_memory_source_class(source_type)
 
     if source_class == ContextMessageSetWithMessages:
         return ContextMessageSetWithMessages(ctx.db.session, int(name), ctx.user_id)
     elif hasattr(source_class, "name"):
-        return ctx.db.exec(select(source_class).where(source_class.name == name, source_class.user_id == ctx.user_id)).first()  # type: ignore
+        return ctx.db.exec(select(source_class).where(source_class.name == name, source_class.user_id == ctx.user_id)).first()
     else:
         raise NotImplementedError(f"Cannot get source of type {source_type}")
 
@@ -59,10 +60,10 @@ def db_get_source_list_for_memory(ctx: ElroyContext, memory: Memory) -> Sequence
             map(lambda x: db_get_memory_source(ctx, x["source_type"], x["id"])),
             remove(lambda x: x is None),
             list,
-        )  # type: ignore
+        )
 
 
-def db_get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> Optional[MemorySource]:
+def db_get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> MemorySource | None:
     source_class = get_memory_source_class(source_type)
 
     if source_class == ContextMessageSetWithMessages:
@@ -71,20 +72,20 @@ def db_get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> Option
         return ctx.db.exec(select(source_class).where(source_class.id == id, source_class.user_id == ctx.user_id)).first()
 
 
-def get_active_memories(ctx: ElroyContext) -> List[Memory]:
+def get_active_memories(ctx: ElroyContext) -> list[Memory]:
     """Fetch all active memories for the user"""
     return list(
         ctx.db.exec(
             select(Memory).where(
                 Memory.user_id == ctx.user_id,
-                Memory.is_active == True,
+                cast(Any, Memory.is_active),
             )
         ).all()
     )
 
 
 @tracer.chain
-def get_relevant_memories_and_reminders(ctx: ElroyContext, query: str) -> List[Union[Reminder, Memory]]:
+def get_relevant_memories_and_reminders(ctx: ElroyContext, query: str) -> list[Reminder | Memory]:
     query_embedding = ctx.llm.get_embedding(query)
 
     relevant_memories = [
@@ -102,12 +103,12 @@ def get_relevant_memories_and_reminders(ctx: ElroyContext, query: str) -> List[U
     return relevant_memories + relevant_reminders
 
 
-def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Optional[Memory]:
+def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Memory | None:
     return ctx.db.exec(
         select(Memory).where(
             Memory.user_id == ctx.user_id,
             Memory.name == memory_name,
-            Memory.is_active == True,
+            cast(Any, Memory.is_active),
         )
     ).first()
 
@@ -120,15 +121,15 @@ T = TypeVar("T")
 def filter_for_relevance(
     fast_llm: LlmClient,
     query: str,
-    memories: List[T],
+    memories: list[T],
     extraction_fn: Callable[[T], str],
-) -> List[T]:
+) -> list[T]:
     """Filter memories for relevance using fast model for efficiency."""
 
     memories_str = "\n\n".join(f"{i}. {extraction_fn(memory)}" for i, memory in enumerate(memories))
 
     class RelevanceResponse(BaseModel):
-        answers: List[bool]
+        answers: list[bool]
         reasoning: str  # noqa: F841
 
     resp = fast_llm.query_llm_with_response_format(
@@ -146,10 +147,10 @@ def filter_for_relevance(
         response_format=RelevanceResponse,
     )
 
-    return [mem for mem, r in zip(list(memories), resp.answers) if r]
+    return [mem for mem, r in zip(list(memories), resp.answers, strict=False) if r]
 
 
-def get_message_content(context_messages: List[ContextMessage], n: int) -> str:
+def get_message_content(context_messages: list[ContextMessage], n: int) -> str:
     return pipe(
         context_messages,
         remove(lambda x: x.role == SYSTEM),
@@ -163,7 +164,7 @@ def get_message_content(context_messages: List[ContextMessage], n: int) -> str:
 
 
 @tracer.chain
-def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[ContextMessage]) -> List[ContextMessage]:
+def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[ContextMessage]) -> list[ContextMessage]:
     message_content = get_message_content(context_messages, 6)
 
     if not message_content:
@@ -184,7 +185,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: List[C
 
 
 @tracer.chain
-def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessage]:
+def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> list[ContextMessage]:
     """Add recalled content to context, unprocessed."""
     if not memories:
         return []
@@ -196,13 +197,13 @@ def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> List[ContextMessa
 @log_execution_time
 def get_reflective_recall(
     ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]
-) -> List[ContextMessage]:
+) -> list[ContextMessage]:
     """More process memory into more reflective recall message"""
     if not memories:
         return []
 
     class ReflectionResponse(BaseModel):
-        content: Optional[str] = Field(
+        content: str | None = Field(
             description="The content of the reflection on the memories, written in the first person. If memories are irrelevant, this field should be empty"
         )
         is_relevant: bool = Field(description="Whether or not any of the recalled information is relevant to the conversation.")
@@ -211,13 +212,15 @@ def get_reflective_recall(
         memories,
         map(lambda x: x.to_fact()),
         "\n\n".join,
-        lambda x: "Recalled Memory Content\n\n"
-        + x
-        + "#Converstaion Transcript:\n"
-        + format_context_messages(
-            tail(3, list(context_messages)[1:]),  # type: ignore
-            do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-            get_assistant_name(ctx),
+        lambda x: (
+            "Recalled Memory Content\n\n"
+            + x
+            + "#Converstaion Transcript:\n"
+            + format_context_messages(
+                tail(3, list(context_messages)[1:]),
+                do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+                get_assistant_name(ctx),
+            )
         ),
         lambda x: ctx.llm.query_llm_with_response_format(
             x,
@@ -246,7 +249,7 @@ def get_reflective_recall(
         """,
             response_format=ReflectionResponse,
         ),
-    )  # type: ignore
+    )
 
     assert isinstance(output, ReflectionResponse)
     if not output.is_relevant:
@@ -258,21 +261,26 @@ def get_reflective_recall(
         assert output.content
         return to_synthetic_tool_call(
             "get_reflective_recall",
-            RecallResponse(
-                content=output.content,
-                recall_metadata=[
-                    RecallMetadata(
-                        memory_type=x.__class__.__name__,
-                        memory_id=x.id,  # type: ignore
-                        name=x.get_name(),
-                    )
-                    for x in memories
-                ],  # type: ignore
-            ),
+            RecallResponse(content=output.content, recall_metadata=_build_recall_metadata(cast(list[MemorySource], list(memories)))),
         )
 
 
-def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> List[str]:
+def _build_recall_metadata(memories: list[MemorySource]) -> list[RecallMetadata]:
+    recall_metadata: list[RecallMetadata] = []
+    for memory in memories:
+        memory_id = memory.id
+        assert memory_id is not None
+        recall_metadata.append(
+            RecallMetadata(
+                memory_type=memory.__class__.__name__,
+                memory_id=memory_id,
+                name=memory.get_name(),
+            )
+        )
+    return recall_metadata
+
+
+def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> list[str]:
     return pipe(
         context_messages,
         map(get_recall_metadata),
@@ -281,8 +289,8 @@ def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage])
         unique,
         list,
         sorted,
-    )  # type: ignore
+    )
 
 
-def get_memories(ctx: ElroyContext, memory_ids: List[int]) -> List[Memory]:
+def get_memories(ctx: ElroyContext, memory_ids: list[int]) -> list[Memory]:
     return list(ctx.db.exec(select(Memory).where(Memory.user_id == ctx.user_id, col(Memory.id).in_(memory_ids))).all())

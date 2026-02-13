@@ -1,8 +1,4 @@
-from typing import List
-
 from sqlmodel import select
-from tests.conftest import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME
-from tests.utils import process_test_message, vector_search_by_text
 from toolz import pipe
 from toolz.curried import filter
 
@@ -10,6 +6,8 @@ from elroy.db.db_models import Reminder
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.recall.queries import is_in_context_message
+from tests.conftest import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME
+from tests.utils import process_test_message, vector_search_by_text
 
 
 def test_reminder_relevance(george_ctx):
@@ -50,7 +48,7 @@ def test_reminder_in_context(george_ctx):
     assert len(messages_with_reminder(context_messages, reminder)) == 1
 
 
-def messages_with_reminder(context_messages: List[ContextMessage], reminder: Reminder) -> List[ContextMessage]:
+def messages_with_reminder(context_messages: list[ContextMessage], reminder: Reminder) -> list[ContextMessage]:
     return pipe(
         context_messages,
         filter(lambda msg: is_in_context_message(reminder, msg)),

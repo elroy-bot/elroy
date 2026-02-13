@@ -15,6 +15,7 @@ Recent improvements (2026-01):
 - Added error handling and cleanup on failure
 - Made tag operations idempotent (safe to retry)
 """
+
 import argparse
 import json
 import os
@@ -29,7 +30,7 @@ from semantic_version import Version
 from elroy.tools.registry import get_system_tool_schemas
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-with open(os.path.join(REPO_ROOT, "elroy", "__init__.py"), "r") as f:
+with open(os.path.join(REPO_ROOT, "elroy", "__init__.py")) as f:
     for line in f:
         if line.startswith("__version__"):
             current_version = line.split('"')[1]
@@ -199,7 +200,7 @@ def update_schema_doc():
     schema_md_path = os.path.join(REPO_ROOT, "docs", "tools_schema.md")
 
     # Read the existing markdown file
-    with open(schema_md_path, "r") as f:
+    with open(schema_md_path) as f:
         content = f.read()
 
     # Get schemas and sort by function name
@@ -223,15 +224,14 @@ def check_most_recent_changelog_consistent(errors: Errors):
     changelog_path = os.path.join(REPO_ROOT, "CHANGELOG.md")
 
     try:
-        with open(changelog_path, "r") as f:
+        with open(changelog_path) as f:
             # Find the first version header line
             for line in f:
                 if match := re.search(r"\[(\d+\.\d+\.\d+)\]", line):
                     changelog_version = match.group(1)
                     if changelog_version != current_version:
                         errors.messages.append(
-                            f"Error: Most recent changelog version [{changelog_version}] "
-                            f"doesn't match current version [{current_version}]"
+                            f"Error: Most recent changelog version [{changelog_version}] doesn't match current version [{current_version}]"
                         )
                     return
 
@@ -245,13 +245,13 @@ def check_bumpversion_config_consistent(errors: Errors):
     """Ensure version in .bumpversion.cfg matches current version"""
     config_path = os.path.join(REPO_ROOT, ".bumpversion.cfg")
     try:
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             for line in f:
                 if line.startswith("current_version = "):
                     config_version = line.strip().split(" = ")[1]
                     if config_version != current_version:
                         errors.messages.append(
-                            f"Error: Version mismatch in .bumpversion.cfg: " f"config: {config_version}, current: {current_version}"
+                            f"Error: Version mismatch in .bumpversion.cfg: config: {config_version}, current: {current_version}"
                         )
                     return
 
@@ -267,7 +267,7 @@ def is_local_git_clean():
 
 
 def _get_version_from_pyproject() -> str:
-    with open(os.path.join(REPO_ROOT, "pyproject.toml"), "r") as f:
+    with open(os.path.join(REPO_ROOT, "pyproject.toml")) as f:
         for line in f:
             if line.startswith("version = "):
                 return line.split('"')[1]

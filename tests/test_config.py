@@ -2,12 +2,12 @@ from inspect import signature
 from pathlib import Path
 
 from rich.table import Table
-from tests.utils import process_test_message
 
 from elroy.cli.main import CLI_ONLY_PARAMS, MODEL_ALIASES, common
 from elroy.cli.options import DEPRECATED_KEYS
 from elroy.config.llm import DEFAULTS_CONFIG
 from elroy.tools.developer import print_config
+from tests.utils import process_test_message
 
 
 def test_cli_params_match_defaults():

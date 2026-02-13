@@ -1,8 +1,9 @@
 import asyncio
 import threading
+from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, Iterator, Optional, TypeVar, Union
+from typing import Any, Optional, TypeVar, Union
 
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
@@ -27,7 +28,7 @@ def run_async(thread_pool: ThreadPoolExecutor, coro):
     return thread_pool.submit(asyncio.run, coro).result()
 
 
-def is_blank(input: Optional[str]) -> bool:
+def is_blank(input: str | None) -> bool:
     assert isinstance(input, (str, type(None)))
     return not input or not input.strip()
 
@@ -41,11 +42,11 @@ def first_or_none(x: Union[Iterator[T], Iterable[T]]) -> Optional[T]:  # noqa
         raise ValueError(f"Expected an iterable or iterator, got {x}")
 
 
-def last_or_none(iterable: Iterator[T]) -> Optional[T]:
+def last_or_none(iterable: Iterator[T]) -> T | None:
     return next(reversed(list(iterable)), None)
 
 
-def datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
+def datetime_to_string(dt: datetime | None) -> str | None:
     if dt:
         return dt.strftime("%A, %B %d, %Y %I:%M %p %Z")
 
@@ -53,7 +54,7 @@ def datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
 REDACT_KEYWORDS = ("api_key", "password", "secret", "token", "url")
 
 
-def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
+def obscure_sensitive_info(d: dict[str, Any]) -> dict[str, Any]:
     """
     Recursively process dictionary to obscure sensitive information.
 
@@ -69,16 +70,16 @@ def obscure_sensitive_info(d: Dict[str, Any]) -> Dict[str, Any]:
             result[k] = obscure_sensitive_info(v)
         elif isinstance(v, (list, tuple)):
             result[k] = [obscure_sensitive_info(i) if isinstance(i, dict) else i for i in v]
-        elif any(sensitive in k.lower() for sensitive in REDACT_KEYWORDS):
-            result[k] = "[REDACTED]" if v else None
-        elif any(sensitive in str(v).lower() for sensitive in REDACT_KEYWORDS):
+        elif any(sensitive in k.lower() for sensitive in REDACT_KEYWORDS) or any(
+            sensitive in str(v).lower() for sensitive in REDACT_KEYWORDS
+        ):
             result[k] = "[REDACTED]" if v else None
         else:
             result[k] = v
     return result
 
 
-def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> Optional[threading.Thread]:
+def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> threading.Thread | None:
     from ..core.ctx import ElroyContext
 
     if not ctx.use_background_threads:

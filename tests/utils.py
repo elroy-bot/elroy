@@ -3,7 +3,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from functools import partial
-from typing import Any, List, Optional, Type, Union
+from typing import Any
 
 from rich.console import RenderableType
 from toolz import pipe
@@ -34,9 +34,9 @@ class MockCliIO(CliIO):
             show_memory_panel=True,
         )
 
-        self._user_responses: List[str] = []
-        self._sys_messages: List[str] = []
-        self._warnings: List[Any] = []
+        self._user_responses: list[str] = []
+        self._sys_messages: list[str] = []
+        self._warnings: list[Any] = []
 
     def print(self, message: ElroyPrintable, end: str = "\n") -> None:
         if isinstance(message, SystemInfo):
@@ -51,7 +51,7 @@ class MockCliIO(CliIO):
             self._sys_messages.clear()
             return response
 
-    def warning(self, message: Union[str, RenderableType]):
+    def warning(self, message: str | RenderableType):
         self._warnings.append(message)
         super().warning(message)
 
@@ -65,7 +65,7 @@ class MockCliIO(CliIO):
 
 
 @tracer.chain
-def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] = None) -> str:
+def process_test_message(ctx: ElroyContext, msg: str, force_tool: str | None = None) -> str:
     logging.info(f"USER MESSAGE: {msg}")
 
     return pipe(
@@ -79,15 +79,15 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: Optional[str] 
         list,
         "".join,
         do(lambda x: logging.info(f"ASSISTANT MESSAGE: {x}")),
-    )  # type: ignore
+    )
 
 
-def vector_search_by_text(ctx: ElroyContext, query: str, table: Type[EmbeddableSqlModel]) -> Optional[EmbeddableSqlModel]:
+def vector_search_by_text(ctx: ElroyContext, query: str, table: type[EmbeddableSqlModel]) -> EmbeddableSqlModel | None:
     return pipe(
         ctx.llm.get_embedding(query),
         partial(query_vector, table, ctx),
         first_or_none,
-    )  # type: ignore
+    )
 
 
 def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str) -> None:
@@ -117,18 +117,18 @@ def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str)
                 "For example, if the question is, is the 1 greater than 0, your answer could be:"
                 "TRUE: 1 is greater than 0 as per basic math.",
                 prompt=response,
-            ),  # type: ignore
+            ),
             attempt + 1,
         )
 
     question += " Your response to this question is being evaluated as part of an automated test. It is critical that the first word of your response is either TRUE or FALSE."
 
-    MAX_ATTEMPTS = 3
+    max_attempts = 3
     attempt = 1
 
     full_response = None
 
-    while attempt <= MAX_ATTEMPTS:
+    while attempt <= max_attempts:
         try:
             full_response = "".join(process_test_message(ctx, question))
             break
@@ -176,10 +176,10 @@ def get_active_reminders_summary(ctx: ElroyContext) -> str:
         map(lambda x: x.to_fact()),
         list,
         "\n\n".join,
-    )  # type: ignore
+    )
 
 
-def create_reminder_in_past(ctx: ElroyContext, name: str, text: str, reminder_context: Optional[str] = None):
+def create_reminder_in_past(ctx: ElroyContext, name: str, text: str, reminder_context: str | None = None):
 
     ctx.db.persist(
         Reminder(

@@ -24,19 +24,18 @@ def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool,
         session_id = str(uuid.uuid4())
         logger.debug(f"OpenTelemetry instrumentation enabled with session ID: {session_id}")
 
-        with using_user(ctx.user_token):
-            with ctx.db_manager.open_session() as dbsession:
-                ctx.set_db_session(dbsession)
+        with using_user(ctx.user_token), ctx.db_manager.open_session() as dbsession:
+            ctx.set_db_session(dbsession)
 
-                if not get_user_id_if_exists(dbsession, ctx.user_token):
-                    if should_onboard_interactive and isinstance(io, CliIO):
-                        onboard_interactive(io, ctx)
-                    else:
-                        onboard_non_interactive(ctx)
+            if not get_user_id_if_exists(dbsession, ctx.user_token):
+                if should_onboard_interactive and isinstance(io, CliIO):
+                    onboard_interactive(io, ctx)
+                else:
+                    onboard_non_interactive(ctx)
 
-                verify_inline_tool_call_instruct_matches_ctx(ctx)
+            verify_inline_tool_call_instruct_matches_ctx(ctx)
 
-                yield
+            yield
 
     finally:
         ctx.unset_db_session()

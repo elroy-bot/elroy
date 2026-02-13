@@ -1,8 +1,5 @@
 import re
-from datetime import datetime, tzinfo
-
-import pytz
-from pytz import UTC
+from datetime import UTC, datetime, tzinfo
 
 from ..core.logging import get_logger
 
@@ -38,9 +35,9 @@ def utc_now():
 def ensure_utc(dt: datetime) -> datetime:
     """Convert a datetime object to UTC if it contains time; leave date-only as naive."""
     if dt.tzinfo is None:
-        return pytz.utc.localize(dt)
+        return dt.replace(tzinfo=UTC)
     else:
-        return dt.astimezone(pytz.UTC)
+        return dt.astimezone(UTC)
 
 
 def string_to_datetime(date_string: str) -> datetime:

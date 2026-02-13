@@ -1,6 +1,7 @@
 import os
+from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 from ..config.env_vars import is_tracing_enabled
 from .logging import get_logger

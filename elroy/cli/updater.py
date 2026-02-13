@@ -19,24 +19,25 @@ def check_updates(io: CliIO):
         with io.status("Checking for updates..."):
             logger.info("Checking for updates...")
             current_version, latest_version = check_latest_version()
-        if latest_version > current_version:
-            if typer.confirm(f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"):
-                typer.echo("Upgrading elroy...")
+        if latest_version > current_version and typer.confirm(
+            f"Currently install version is {current_version}, Would you like to upgrade elroy to {latest_version}?"
+        ):
+            typer.echo("Upgrading elroy...")
 
-                # Try uv tool first
-                if _is_uv_tool_installed():
-                    upgrade_exit_code = _upgrade_with_uv_tool(latest_version)
-                # Fall back to pip
-                elif _is_pip_available():
-                    upgrade_exit_code = _upgrade_with_pip(latest_version)
-                else:
-                    typer.echo("Error: Neither uv nor pip is available for upgrading. Please install one of them to upgrade elroy.")
-                    return
+            # Try uv tool first
+            if _is_uv_tool_installed():
+                upgrade_exit_code = _upgrade_with_uv_tool(latest_version)
+            # Fall back to pip
+            elif _is_pip_available():
+                upgrade_exit_code = _upgrade_with_pip(latest_version)
+            else:
+                typer.echo("Error: Neither uv nor pip is available for upgrading. Please install one of them to upgrade elroy.")
+                return
 
-                if upgrade_exit_code == 0:
-                    os.execv(sys.executable, [sys.executable] + sys.argv)
-                else:
-                    raise Exception("Upgrade returned nonzero exit code.")
+            if upgrade_exit_code == 0:
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            else:
+                raise Exception("Upgrade returned nonzero exit code.")
     except requests.Timeout:
         logger.warning("Failed to check for updates: Timeout")
 

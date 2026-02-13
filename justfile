@@ -30,18 +30,23 @@ docs-build:
 docs-deploy:
     mkdocs gh-deploy --force
 
-# Format code with black and isort
+# Format code with ruff
 fmt:
-    black elroy tests
-    isort elroy tests
+    ruff format elroy tests
+    ruff check --fix elroy tests
 
-# Run type checking with pyright
+# Check formatting without fixing
+check:
+    ruff format --check elroy tests
+    ruff check elroy tests
+
+# Run type checking with ty
 typecheck:
-    pyright
+    ty check elroy tests
 
-# Run linting
+# Run linting (alias for check)
 lint:
-    pylint elroy
+    just check
 
 # Clean up build artifacts and caches
 clean:

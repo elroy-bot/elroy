@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
 
 from apscheduler.job import Job
 from apscheduler.triggers.interval import IntervalTrigger
@@ -73,7 +72,7 @@ def background_ingest_task(ctx: ElroyContext) -> None:
         logger.error(f"Failed to update background ingestion last run time: {e}", exc_info=True)
 
 
-def schedule_periodic_ingestion(ctx: ElroyContext) -> Optional[Job]:
+def schedule_periodic_ingestion(ctx: ElroyContext) -> Job | None:
     """
     Schedule periodic background ingestion if enabled.
 
@@ -120,9 +119,7 @@ def schedule_periodic_ingestion(ctx: ElroyContext) -> Optional[Job]:
         if time_until_next <= 0:
             # Next run is overdue - run immediately
             initial_delay_seconds = 10
-            logger.info(
-                f"Background ingestion last ran {(now - last_run).total_seconds() / 60:.1f} minutes ago - " f"scheduling immediate run"
-            )
+            logger.info(f"Background ingestion last ran {(now - last_run).total_seconds() / 60:.1f} minutes ago - scheduling immediate run")
         else:
             # Schedule for the calculated time
             initial_delay_seconds = int(time_until_next)

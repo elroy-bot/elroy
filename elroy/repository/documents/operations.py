@@ -2,10 +2,11 @@ import fnmatch
 import hashlib
 import os
 import re
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterator, List
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -58,10 +59,10 @@ class IngestDirStatusUpdate(BaseModel):
     """Status update from directory ingestion operation."""
 
     total: int
-    statuses: Dict[DocIngestStatus, int]
+    statuses: dict[DocIngestStatus, int]
 
 
-def should_process_file(path: Path, include: List[str], exclude: List[str]) -> bool:
+def should_process_file(path: Path, include: list[str], exclude: list[str]) -> bool:
     """
     Determine if a file or directory should be processed based on include and exclude glob patterns.
 
@@ -90,7 +91,7 @@ def should_process_file(path: Path, include: List[str], exclude: List[str]) -> b
     return True
 
 
-def recursive_file_walk(directory: Path, include: List[str], exclude: List[str]) -> Generator[Path, Any, None]:
+def recursive_file_walk(directory: Path, include: list[str], exclude: list[str]) -> Generator[Path, Any, None]:
     for root, dirnames, files in os.walk(directory):
         root_path = Path(root)
 
@@ -111,8 +112,8 @@ def do_ingest_dir(
     directory: Path,
     force_refresh: bool,
     recursive: bool,
-    include: List[str],
-    exclude: List[str],
+    include: list[str],
+    exclude: list[str],
 ) -> Generator[IngestDirStatusUpdate, None, None]:
     """
     Recursively ingest all files in a directory that match the include/exclude patterns.
@@ -133,11 +134,9 @@ def do_ingest_dir(
     if recursive:
         file_paths = list(recursive_file_walk(directory, include, exclude))
     else:
-        file_paths = list(
-            (Path(os.path.join(directory, f)) for f in os.listdir(directory) if should_process_file(Path(f), include, exclude))
-        )
+        file_paths = [Path(os.path.join(directory, f)) for f in os.listdir(directory) if should_process_file(Path(f), include, exclude)]
 
-    statuses = {status: 0 for status in DocIngestStatus}
+    statuses = dict.fromkeys(DocIngestStatus, 0)
 
     # First yield includes the total count for progress bar initialization
     yield IngestDirStatusUpdate(total=len(file_paths), statuses=statuses)
@@ -177,13 +176,12 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
     if not os.path.isfile(address):
         raise NotImplementedError("Only local files are supported at the moment.")
 
-    if os.path.isfile(address):
-        if not Path(address).is_absolute():
-            logger.info(f"Converting relative path {address} to absolute path.")
-            address = address.resolve()
+    if os.path.isfile(address) and not Path(address).is_absolute():
+        logger.info(f"Converting relative path {address} to absolute path.")
+        address = address.resolve()
 
     try:
-        with open(address, "r", encoding="utf-8") as f:
+        with open(address, encoding="utf-8") as f:
             lines = f.readlines()
     except UnicodeDecodeError:
         logger.warning(f"Cannot decode file {address} as utf-8, skipping")

@@ -1,6 +1,6 @@
 import logging
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 from toolz import dissoc, pipe
@@ -32,10 +32,10 @@ class LlmClient:
     @tracer.chain
     def generate_chat_completion_message(
         self,
-        context_messages: List[ContextMessage],
-        tool_schemas: List[Dict[str, Any]],
+        context_messages: list[ContextMessage],
+        tool_schemas: list[dict[str, Any]],
         enable_tools: bool = True,
-        force_tool: Optional[str] = None,
+        force_tool: str | None = None,
     ) -> StreamParser:
         """
         Generates a chat completion message.
@@ -73,16 +73,16 @@ class LlmClient:
         )
 
         if self.chat_model.ensure_alternating_roles:
-            USER_HIDDEN_PREFIX = "[This is a system message, representing internal thought process of the assistant]"
+            user_hidden_prefix = "[This is a system message, representing internal thought process of the assistant]"
             for idx, message in enumerate(context_message_dicts):
-                assert isinstance(message, Dict)
+                assert isinstance(message, dict)
 
                 if idx == 0:
-                    assert message["role"] == SYSTEM, f"First message must be a system message, but found: " + message["role"]
+                    assert message["role"] == SYSTEM, "First message must be a system message, but found: " + message["role"]
 
                 if idx != 0 and message["role"] == SYSTEM:
                     message["role"] = USER
-                    message["content"] = f"{USER_HIDDEN_PREFIX} {message['content']}"
+                    message["content"] = f"{user_hidden_prefix} {message['content']}"
 
         if enable_tools and tool_schemas and len(tool_schemas) > 0:
             if force_tool:
@@ -99,35 +99,33 @@ class LlmClient:
             if force_tool:
                 raise ValueError(f"Requested tool {force_tool} but model {self.chat_model.name} does not support tools")
             else:
-
                 if self.chat_model.provider == Provider.ANTHROPIC and any(m.role == TOOL for m in context_messages):
                     # If tool use is in the context window, anthropic requires tools to be enabled and provided
                     from ..tools.registry import do_not_use
                     from ..tools.schema import get_function_schema
 
                     tool_choice = "auto"
-                    tool_schemas = [get_function_schema(do_not_use)]  # type: ignore
+                    tool_schemas = [get_function_schema(do_not_use)]
                 else:
                     tool_choice = None
                     # Models are inconsistent on whether they want None or an empty list when tools are disabled, but most often None seems correct.
                     tool_schemas = None  # type: ignore
 
         try:
-
             completion_kwargs = self._build_completion_kwargs(
-                messages=context_message_dicts,  # type: ignore
+                messages=context_message_dicts,
                 stream=True,
                 tool_choice=tool_choice,
                 tools=tool_schemas,
             )
 
-            return StreamParser(self.chat_model, completion(**completion_kwargs))  # type: ignore
+            return StreamParser(self.chat_model, completion(**completion_kwargs))
 
         except Exception as e:
             if isinstance(e, BadRequestError) and "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
-                raise MissingToolCallMessageError
+                raise MissingToolCallMessageError from e
             else:
-                raise e
+                raise
 
     def query_llm(self, prompt: str, system: str) -> str:
         if not prompt:
@@ -136,7 +134,7 @@ class LlmClient:
 
     T = TypeVar("T", bound=BaseModel)
 
-    def query_llm_with_response_format(self, prompt: str, system: str, response_format: Type[T]) -> T:
+    def query_llm_with_response_format(self, prompt: str, system: str, response_format: type[T]) -> T:
         response = self._query_llm(prompt=prompt, system=system, response_format=response_format)
 
         return response_format.model_validate_json(response)
@@ -154,7 +152,7 @@ class LlmClient:
             system=system,
         )
 
-    def get_embedding(self, text: str, ctx: Optional[Any] = None) -> List[float]:
+    def get_embedding(self, text: str, ctx: Any | None = None) -> list[float]:
         """
         Generate an embedding for the given text using the specified model.
 
@@ -191,7 +189,7 @@ class LlmClient:
         for attempt in range(max_attempts):
             try:
                 response = embedding(**embedding_kwargs)
-                result = response.data[0]["embedding"]  # type: ignore
+                result = response.data[0]["embedding"]
 
                 # Track latency if context is available
                 duration_ms = (time.perf_counter() - start_time) * 1000
@@ -210,12 +208,12 @@ class LlmClient:
 
     def _build_completion_kwargs(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         stream: bool,
-        tool_choice: Union[str, Dict, None],
-        tools: Optional[List[Dict[str, Any]]],
-        response_format: Optional[Type[BaseModel]] = None,
-    ) -> Dict[str, Any]:
+        tool_choice: str | dict | None,
+        tools: list[dict[str, Any]] | None,
+        response_format: type[BaseModel] | None = None,
+    ) -> dict[str, Any]:
         """Centralized configuration for LLM requests"""
         kwargs = {
             "messages": messages,
@@ -235,7 +233,7 @@ class LlmClient:
 
         return kwargs
 
-    def _query_llm(self, prompt: str, system: str, response_format: Optional[Type[BaseModel]]) -> str:
+    def _query_llm(self, prompt: str, system: str, response_format: type[BaseModel] | None) -> str:
         from litellm import completion
 
         messages = [{"role": SYSTEM, "content": system}, {"role": USER, "content": prompt}]
@@ -246,4 +244,4 @@ class LlmClient:
             tools=None,
             response_format=response_format,
         )
-        return completion(**completion_kwargs).choices[0].message.content.strip()  # type: ignore
+        return completion(**completion_kwargs).choices[0].message.content.strip()

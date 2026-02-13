@@ -65,10 +65,7 @@ def migrate_to_chroma(database_url: str, chroma_dir: str | None, validate: bool,
     console.print()
 
     # Resolve paths
-    if chroma_dir:
-        chroma_path = Path(chroma_dir).expanduser()
-    else:
-        chroma_path = Path.home() / ".elroy" / "chroma"
+    chroma_path = Path(chroma_dir).expanduser() if chroma_dir else Path.home() / ".elroy" / "chroma"
 
     console.print(f"[dim]Source Database:[/dim] {database_url}")
     console.print(f"[dim]ChromaDB Directory:[/dim] {chroma_path}")
@@ -221,23 +218,22 @@ def validate_migration(source_db_manager, chroma_manager, users):
     for user in users:
         console.print(f"  Validating user {user.id}...")
 
-        with source_db_manager.open_session() as source_session:
-            with chroma_manager.open_session() as chroma_session:
-                # Compare counts for each entity type
-                for entity_class in [Memory, Reminder, DocumentExcerpt]:
-                    source_entities = list(source_session.exec(select(entity_class).where(entity_class.user_id == user.id)).all())
+        with source_db_manager.open_session() as source_session, chroma_manager.open_session() as chroma_session:
+            # Compare counts for each entity type
+            for entity_class in [Memory, Reminder, DocumentExcerpt]:
+                source_entities = list(source_session.exec(select(entity_class).where(entity_class.user_id == user.id)).all())
 
-                    # Count how many have embeddings in source
-                    source_count = sum(1 for e in source_entities if source_session.get_embedding(e) is not None)
+                # Count how many have embeddings in source
+                source_count = sum(1 for e in source_entities if source_session.get_embedding(e) is not None)
 
-                    # Count how many have embeddings in ChromaDB
-                    chroma_count = sum(1 for e in source_entities if chroma_session.get_embedding(e) is not None)
+                # Count how many have embeddings in ChromaDB
+                chroma_count = sum(1 for e in source_entities if chroma_session.get_embedding(e) is not None)
 
-                    if source_count != chroma_count:
-                        console.print(f"    [red]✗[/red] {entity_class.__name__}: source={source_count}, chroma={chroma_count}")
-                        validation_passed = False
-                    else:
-                        console.print(f"    [green]✓[/green] {entity_class.__name__}: {source_count} vectors")
+                if source_count != chroma_count:
+                    console.print(f"    [red]✗[/red] {entity_class.__name__}: source={source_count}, chroma={chroma_count}")
+                    validation_passed = False
+                else:
+                    console.print(f"    [green]✓[/green] {entity_class.__name__}: {source_count} vectors")
 
     return validation_passed
 

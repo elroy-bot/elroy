@@ -47,10 +47,7 @@ def include_object(object, name, type_, reflected, compare_to):
 
     if type_ == "table" and name.startswith("vectorstorage"):
         # If the table exists in DB but not in models, prevent dropping it
-        if reflected and compare_to is None:
-            return False
-        # If we're comparing during autogenerate
-        elif compare_to is not None:
+        if reflected and compare_to is None or compare_to is not None:
             return False
         else:
             logging.warning("Unexpected table found in DB: %s", name)

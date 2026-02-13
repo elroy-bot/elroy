@@ -6,7 +6,7 @@ Create Date: 2024-12-17 13:39:05.264792
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
@@ -15,9 +15,9 @@ from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision: str = "140daba72332"
-down_revision: Union[str, None] = "71ffabe55f21"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "71ffabe55f21"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -43,7 +43,7 @@ def upgrade() -> None:
             """
         INSERT INTO vectorstorage (created_at, updated_at, source_type, source_id, embedding_data, embedding_text_md5)
         SELECT created_at, updated_at, 'Memory', id, embedding, embedding_text_md5
-        FROM memory 
+        FROM memory
         WHERE embedding IS NOT NULL AND embedding_text_md5 IS NOT NULL
         """
         )

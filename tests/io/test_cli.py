@@ -1,7 +1,6 @@
-from tests.utils import MockCliIO
-
 from elroy.io.cli import CliIO
 from elroy.llm.stream_parser import SystemInfo
+from tests.utils import MockCliIO
 
 
 def test_empty_output(rich_formatter):

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, List, Optional, Type
+from collections.abc import Iterable
 
 from sqlmodel import Session, select
 from toolz import compose
@@ -43,21 +43,21 @@ class DbSession(ABC):
         return self.session.refresh
 
     @abstractmethod
-    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> Optional[VectorStorage]:
+    def get_vector_storage_row(self, row: EmbeddableSqlModel) -> VectorStorage | None:
         raise NotImplementedError
 
     @abstractmethod
-    def insert_embedding(self, row: EmbeddableSqlModel, embedding_data: List[float], embedding_text_md5: str):
+    def insert_embedding(self, row: EmbeddableSqlModel, embedding_data: list[float], embedding_text_md5: str):
         raise NotImplementedError
 
-    def update_embedding(self, vector_storage: VectorStorage, embedding: List[float], embedding_text_md5: str):
+    def update_embedding(self, vector_storage: VectorStorage, embedding: list[float], embedding_text_md5: str):
         raise NotImplementedError
 
     @abstractmethod
-    def get_embedding(self, row: EmbeddableSqlModel) -> Optional[List[float]]:
+    def get_embedding(self, row: EmbeddableSqlModel) -> list[float] | None:
         raise NotImplementedError
 
-    def get_embedding_text_md5(self, row: EmbeddableSqlModel) -> Optional[str]:
+    def get_embedding_text_md5(self, row: EmbeddableSqlModel) -> str | None:
         return self.session.exec(
             select(VectorStorage.embedding_text_md5).where(
                 VectorStorage.source_id == row.id,
@@ -67,6 +67,6 @@ class DbSession(ABC):
 
     @abstractmethod
     def query_vector(
-        self, l2_distance_threshold: float, table: Type[EmbeddableSqlModel], user_id: int, query: List[float]
+        self, l2_distance_threshold: float, table: type[EmbeddableSqlModel], user_id: int, query: list[float]
     ) -> Iterable[EmbeddableSqlModel]:
         raise NotImplementedError

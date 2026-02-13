@@ -1,8 +1,6 @@
 # Triage input, creating either a memory or a reminder
 
 
-from typing import List, Optional, Union
-
 from pydantic import BaseModel
 from toolz import concat, juxt, pipe
 from toolz.curried import filter
@@ -22,7 +20,7 @@ logger = get_logger()
 
 
 def augment_text(ctx: ElroyContext, text: str) -> str:
-    memories: List[EmbeddableSqlModel] = pipe(
+    memories: list[EmbeddableSqlModel] = pipe(
         text,
         ctx.llm.get_embedding,
         lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
@@ -68,15 +66,13 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
         return text
 
 
-def do_ingest_memo(ctx: ElroyContext, text: str) -> List[Union[Reminder, Memory]]:  # noqa F841
-    def _inner(
-        ctx: ElroyContext, text: str, attempt: int = 1, prev_attempt_error_info: Optional[str] = None
-    ) -> List[Union[Reminder, Memory]]:
+def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Reminder | Memory]:  # noqa F841
+    def _inner(ctx: ElroyContext, text: str, attempt: int = 1, prev_attempt_error_info: str | None = None) -> list[Reminder | Memory]:
         try:
 
             class MemoResponse(BaseModel):
-                create_reminder_request: Optional[CreateReminderRequest] = None
-                create_memory_request: Optional[CreateMemoryRequest] = None
+                create_reminder_request: CreateReminderRequest | None = None
+                create_memory_request: CreateMemoryRequest | None = None
 
             augmented = augment_text(ctx, text)
 

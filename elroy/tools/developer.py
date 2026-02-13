@@ -25,7 +25,7 @@ def tail_elroy_logs(lines: int = 10) -> str:
     Returns:
         str: The concatenated last N lines of the Elroy log file as a single string
     """
-    with open(get_log_file_path(), "r") as f:
+    with open(get_log_file_path()) as f:
         return "".join(f.readlines()[-lines:])
 
 

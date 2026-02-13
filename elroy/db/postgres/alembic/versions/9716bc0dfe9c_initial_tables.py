@@ -6,7 +6,7 @@ Create Date: 2024-10-05 16:00:21.417357
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
@@ -15,9 +15,9 @@ from sqlmodel.sql.sqltypes import AutoString
 
 # revision identifiers, used by Alembic.
 revision: str = "9716bc0dfe9c"
-down_revision: Union[str, None] = "45223a2c0c67"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "45223a2c0c67"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

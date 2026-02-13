@@ -7,8 +7,6 @@ This module implements a two-stage hybrid approach:
 The classifier helps reduce latency by skipping unnecessary memory recall.
 """
 
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 from ...core.ctx import ElroyContext
@@ -29,7 +27,7 @@ class MemoryRecallDecision(BaseModel):
 def should_recall_memory(
     ctx: ElroyContext,
     current_message: str,
-    recent_messages: List[ContextMessage],
+    recent_messages: list[ContextMessage],
 ) -> MemoryRecallDecision:
     """Determine if memory recall is necessary for the current message.
 
@@ -54,7 +52,7 @@ def should_recall_memory(
     return _classify_with_llm(ctx, current_message, recent_messages)
 
 
-def _apply_heuristics(message: str) -> Optional[MemoryRecallDecision]:
+def _apply_heuristics(message: str) -> MemoryRecallDecision | None:
     """Apply fast heuristics to determine if recall is obviously not needed.
 
     Returns None if uncertain (needs LLM classification).
@@ -107,7 +105,7 @@ def _apply_heuristics(message: str) -> Optional[MemoryRecallDecision]:
 def _classify_with_llm(
     ctx: ElroyContext,
     current_message: str,
-    recent_messages: List[ContextMessage],
+    recent_messages: list[ContextMessage],
 ) -> MemoryRecallDecision:
     """Use fast_llm to classify if memory recall is needed.
 

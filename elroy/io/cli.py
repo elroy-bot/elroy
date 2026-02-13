@@ -1,8 +1,8 @@
 import json
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from itertools import product
-from typing import Iterable, List
 
 from prompt_toolkit import HTML, PromptSession
 from prompt_toolkit.history import FileHistory
@@ -99,7 +99,7 @@ class CliIO(ElroyIO):
 
         if not self.last_output_type and isinstance(message, TextOutput):
             message.content = message.content.lstrip()
-        elif self.last_output_type and not self.last_output_type == type(message):
+        elif self.last_output_type and self.last_output_type is not type(message):
             self.console.print("\n\n", end="")
 
         if isinstance(message, AssistantToolResult) and len(message.content) > 500:
@@ -135,7 +135,7 @@ class CliIO(ElroyIO):
         except KeyboardInterrupt:
             keyboard_interrupt_count += 1
             if keyboard_interrupt_count >= retries:
-                raise EOFError
+                raise EOFError from None
             elif keyboard_interrupt_count == 2:
                 self.info("To exit, type /exit, exit, or press Ctrl-D.")
             return self.prompt_user(thread_pool, retries, prompt, prefill, keyboard_interrupt_count)
@@ -143,7 +143,7 @@ class CliIO(ElroyIO):
     async def _prompt_user(self, prompt=">", prefill: str = "") -> str:
         return await self.prompt_session.prompt_async(HTML(f"<b>{prompt} </b>"), default=prefill, style=self.style)
 
-    def update_completer(self, memories: List[Memory], reminders: List, context_messages: List[ContextMessage]) -> None:
+    def update_completer(self, memories: list[Memory], reminders: list, context_messages: list[ContextMessage]) -> None:
         from ..repository.recall.queries import is_in_context
         from ..tools.tools_and_commands import (
             ALL_ACTIVE_MEMORY_COMMANDS,
@@ -159,7 +159,7 @@ class CliIO(ElroyIO):
 
         reminder_names = sorted([r.get_name() for r in reminders])
 
-        self.prompt_session.completer = pipe(  # type: ignore # noqa F841
+        self.prompt_session.completer = pipe(
             concatv(
                 product(IN_CONTEXT_MEMORY_COMMANDS, in_context_memories),
                 product(NON_CONTEXT_MEMORY_COMMANDS, non_context_memories),
@@ -168,7 +168,7 @@ class CliIO(ElroyIO):
             ),
             map(lambda x: f"/{x[0].__name__} {x[1]}"),
             list,
-            lambda x: x + [f"/{f.__name__}" for f in NON_ARG_PREFILL_COMMANDS | USER_ONLY_COMMANDS],
+            lambda x: x + [f"/{getattr(f, '__name__', f.__class__.__name__)}" for f in NON_ARG_PREFILL_COMMANDS | USER_ONLY_COMMANDS],
             ["/" + EXIT, "/help"].__add__,
-            lambda x: SlashCompleter(words=x),  # type: ignore
+            lambda x: SlashCompleter(words=x),
         )

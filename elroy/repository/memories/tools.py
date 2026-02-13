@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import Any, cast
 
 from rich.table import Table
 from sqlmodel import desc, select
@@ -18,7 +18,7 @@ from .queries import (
 )
 
 
-def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> List[Tuple[str, str]]:
+def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> list[tuple[str, str]]:
     """Get a list of the sources of a memory by its name. This can be useful for retrieving more precise information that a memory is based on.
 
     Once the source is retrieved, the content of the source can be retrieved using the get_source_content tool.
@@ -44,7 +44,7 @@ def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> List[Tupl
                 sources,
                 map(lambda x: (x.source_type(), x.get_name())),
                 list,
-            )  # type: ignore
+            )
 
 
 @tool
@@ -58,7 +58,7 @@ def get_source_content_for_memory(ctx: ElroyContext, memory_name: str, index: in
         index (int): 0-indexed index of which source to retrieve.
     """
 
-    metadata: List[Tuple[str, str]] = get_source_list_for_memory(ctx, memory_name)
+    metadata: list[tuple[str, str]] = get_source_list_for_memory(ctx, memory_name)
 
     if not metadata:
         return f"No sources found for memory '{memory_name}'"
@@ -77,7 +77,7 @@ def get_source_content_for_memory(ctx: ElroyContext, memory_name: str, index: in
 
 
 @tool
-def examine_memories(ctx: ElroyContext, question: str) -> List[str]:
+def examine_memories(ctx: ElroyContext, question: str) -> list[str]:
     """Search through memories for the answer to a question.
 
     This function searches summarized memories and goals. Each memory also contains source information.
@@ -133,7 +133,7 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
 
 
 @user_only_tool
-def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, str]:
+def print_memories(ctx: ElroyContext, n: int | None = None) -> Table | str:
     """Print all memories.
 
     Returns:
@@ -141,7 +141,7 @@ def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, s
     """
     memories = ctx.db.exec(
         select(Memory)
-        .where(Memory.user_id == ctx.user_id, Memory.is_active == True)
+        .where(Memory.user_id == ctx.user_id, cast(Any, Memory.is_active))
         .order_by(desc(Memory.created_at))
         .limit(n if n else 1000)
     ).all()
@@ -165,7 +165,7 @@ def print_memories(ctx: ElroyContext, n: Optional[int] = None) -> Union[Table, s
 
 
 @user_only_tool
-def search_memories(ctx: ElroyContext, query: str) -> Union[str, Table]:
+def search_memories(ctx: ElroyContext, query: str) -> str | Table:
     """Search for a memory by its text content.
 
     Args:
@@ -215,7 +215,7 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
     updated_text = f"{original_memory.text}\n\nUpdate ({update_time}):\n{update_text}"
     ctx.db.commit()
     if hasattr(ctx.db, "update_embedding_active"):
-        ctx.db.update_embedding_active(original_memory)
+        cast(Any, ctx.db).update_embedding_active(original_memory)
 
     do_create_memory(
         ctx,

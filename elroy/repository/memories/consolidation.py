@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property, partial
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 from pydantic import BaseModel
@@ -20,7 +20,7 @@ logger = get_logger()
 
 @dataclass
 class MemoryCluster:
-    memories: List[Memory]
+    memories: list[Memory]
     embeddings: np.ndarray
 
     def __len__(self):
@@ -34,7 +34,7 @@ class MemoryCluster:
             list,
             "\n".join,
             lambda x: "#Memory Cluster:\n" + x,
-        )  # type: ignore
+        )
 
     def __lt__(self, other: "MemoryCluster") -> bool:
         """Define default sorting behavior.
@@ -109,7 +109,7 @@ class MemoryCluster:
 
 
 @tracer.chain
-def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: Optional[ElroyIO] = None):
+def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: ElroyIO | None = None):
     """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
     from .queries import get_active_memories
 
@@ -134,7 +134,7 @@ def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: Optional
         consolidate_memory_cluster(ctx, cluster)
 
 
-def _find_clusters(ctx: ElroyContext, memories: List[Memory], io: Optional[ElroyIO] = None) -> List[MemoryCluster]:
+def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None = None) -> list[MemoryCluster]:
 
     import time
 
@@ -159,7 +159,7 @@ def _find_clusters(ctx: ElroyContext, memories: List[Memory], io: Optional[Elroy
     if not embeddings:
         raise ValueError("No embeddings found for memories")
 
-    logger.info(f"Creating np array")
+    logger.info("Creating np array")
     embeddings_array = np.array(embeddings)
 
     from sklearn.cluster import DBSCAN  # lazy load
@@ -198,7 +198,7 @@ def _find_clusters(ctx: ElroyContext, memories: List[Memory], io: Optional[Elroy
 
 
 @tracer.chain
-def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: List[Memory]):
+def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: list[Memory]):
     from .operations import do_create_memory, mark_inactive
 
     logger.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
@@ -225,7 +225,7 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
 
     class ConsolidationResponse(BaseModel):
         reasoning: Optional[str] = None  # noqa F841
-        memories: List[MemoryResponse]
+        memories: list[MemoryResponse]
 
     logger.info(f"Consolidating memories {len(cluster)} memories in cluster.")
     for memory in cluster.memories:

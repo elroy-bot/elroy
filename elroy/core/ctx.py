@@ -1,9 +1,10 @@
 import re
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, List, Optional, TypeVar
+from typing import Any, TypeVar
 
 from toolz import pipe
 from toolz.curried import dissoc
@@ -36,78 +37,78 @@ logger = get_logger()
 
 
 class ElroyContext:
-    _db: Optional[DbSession] = None
-    latency_tracker: Optional[Any] = None  # LatencyTracker, avoiding circular import
+    _db: DbSession | None = None
+    latency_tracker: Any | None = None  # LatencyTracker, avoiding circular import
 
     def __init__(
         self,
         *,
         # Config objects (preferred approach)
-        database_config: Optional[DatabaseConfig] = None,
-        model_config: Optional[ModelConfig] = None,
-        ui_config: Optional[UIConfig] = None,
-        memory_config: Optional[MemoryConfig] = None,
-        tool_config: Optional[ToolConfig] = None,
-        runtime_config: Optional[RuntimeConfig] = None,
+        database_config: DatabaseConfig | None = None,
+        model_config: ModelConfig | None = None,
+        ui_config: UIConfig | None = None,
+        memory_config: MemoryConfig | None = None,
+        tool_config: ToolConfig | None = None,
+        runtime_config: RuntimeConfig | None = None,
         # Individual parameters (for backward compatibility)
-        config_path: Optional[str] = None,
-        database_url: Optional[str] = None,
-        vector_backend: Optional[str] = None,
-        chroma_path: Optional[str] = None,
-        show_internal_thought: Optional[bool] = None,
-        system_message_color: Optional[str] = None,
-        assistant_color: Optional[str] = None,
-        user_input_color: Optional[str] = None,
-        warning_color: Optional[str] = None,
-        internal_thought_color: Optional[str] = None,
-        user_token: Optional[str] = None,
-        custom_tools_path: Optional[List[str]] = None,
+        config_path: str | None = None,
+        database_url: str | None = None,
+        vector_backend: str | None = None,
+        chroma_path: str | None = None,
+        show_internal_thought: bool | None = None,
+        system_message_color: str | None = None,
+        assistant_color: str | None = None,
+        user_input_color: str | None = None,
+        warning_color: str | None = None,
+        internal_thought_color: str | None = None,
+        user_token: str | None = None,
+        custom_tools_path: list[str] | None = None,
         # API Configuration
-        openai_api_key: Optional[str] = None,
-        openai_api_base: Optional[str] = None,
-        openai_embedding_api_base: Optional[str] = None,
+        openai_api_key: str | None = None,
+        openai_api_base: str | None = None,
+        openai_embedding_api_base: str | None = None,
         # Model Configuration
-        chat_model: Optional[str] = None,
-        chat_model_api_key: Optional[str] = None,
-        chat_model_api_base: Optional[str] = None,
-        fast_model: Optional[str] = None,
-        fast_model_api_key: Optional[str] = None,
-        fast_model_api_base: Optional[str] = None,
-        embedding_model: Optional[str] = None,
-        embedding_model_api_key: Optional[str] = None,
-        embedding_model_api_base: Optional[str] = None,
-        embedding_model_size: Optional[int] = None,
-        enable_caching: Optional[bool] = None,
-        inline_tool_calls: Optional[bool] = None,
+        chat_model: str | None = None,
+        chat_model_api_key: str | None = None,
+        chat_model_api_base: str | None = None,
+        fast_model: str | None = None,
+        fast_model_api_key: str | None = None,
+        fast_model_api_base: str | None = None,
+        embedding_model: str | None = None,
+        embedding_model_api_key: str | None = None,
+        embedding_model_api_base: str | None = None,
+        embedding_model_size: int | None = None,
+        enable_caching: bool | None = None,
+        inline_tool_calls: bool | None = None,
         # Context Management
-        max_assistant_loops: Optional[int] = None,
-        max_tokens: Optional[int] = None,
-        max_context_age_minutes: Optional[float] = None,
-        min_convo_age_for_greeting_minutes: Optional[float] = None,
+        max_assistant_loops: int | None = None,
+        max_tokens: int | None = None,
+        max_context_age_minutes: float | None = None,
+        min_convo_age_for_greeting_minutes: float | None = None,
         # Memory Management
-        memory_cluster_similarity_threshold: Optional[float] = None,
-        max_memory_cluster_size: Optional[int] = None,
-        min_memory_cluster_size: Optional[int] = None,
-        memories_between_consolidation: Optional[int] = None,
-        messages_between_memory: Optional[int] = None,
-        l2_memory_relevance_distance_threshold: Optional[float] = None,
-        memory_recall_classifier_enabled: Optional[bool] = None,
-        memory_recall_classifier_window: Optional[int] = None,
+        memory_cluster_similarity_threshold: float | None = None,
+        max_memory_cluster_size: int | None = None,
+        min_memory_cluster_size: int | None = None,
+        memories_between_consolidation: int | None = None,
+        messages_between_memory: int | None = None,
+        l2_memory_relevance_distance_threshold: float | None = None,
+        memory_recall_classifier_enabled: bool | None = None,
+        memory_recall_classifier_window: int | None = None,
         # Basic Configuration
-        debug: Optional[bool] = None,
-        default_persona: Optional[str] = None,
-        default_assistant_name: Optional[str] = None,
-        use_background_threads: Optional[bool] = None,
-        max_ingested_doc_lines: Optional[int] = None,
-        exclude_tools: Optional[List[str]] = None,
-        include_base_tools: Optional[bool] = None,
-        reflect: Optional[bool] = None,
-        shell_commands: Optional[bool] = None,
-        allowed_shell_command_prefixes: Optional[List[str]] = None,
+        debug: bool | None = None,
+        default_persona: str | None = None,
+        default_assistant_name: str | None = None,
+        use_background_threads: bool | None = None,
+        max_ingested_doc_lines: int | None = None,
+        exclude_tools: list[str] | None = None,
+        include_base_tools: bool | None = None,
+        reflect: bool | None = None,
+        shell_commands: bool | None = None,
+        allowed_shell_command_prefixes: list[str] | None = None,
         # Background Ingestion
-        background_ingest_enabled: Optional[bool] = None,
-        background_ingest_paths: Optional[List[str]] = None,
-        background_ingest_interval_minutes: Optional[int] = None,
+        background_ingest_enabled: bool | None = None,
+        background_ingest_paths: list[str] | None = None,
+        background_ingest_interval_minutes: int | None = None,
     ):
         # Handle both config objects approach and individual parameters approach
         if database_config is not None:
@@ -268,7 +269,7 @@ class ElroyContext:
             else:
                 logger.warning(f"Ignoring invalid parameter: {k}")
 
-        return cls(**dissoc(params, *invalid_params))  # type: ignore
+        return cls(**dissoc(params, *invalid_params))
 
     @cached_property
     def tool_registry(self) -> ToolRegistry:
@@ -309,10 +310,7 @@ class ElroyContext:
 
     @cached_property
     def chat_model(self) -> ChatModel:
-        if not self.model_config.chat_model:
-            chat_model_name = infer_chat_model_name()
-        else:
-            chat_model_name = self.model_config.chat_model
+        chat_model_name = infer_chat_model_name() if not self.model_config.chat_model else self.model_config.chat_model
 
         return get_chat_model(
             model_name=chat_model_name,
@@ -380,10 +378,11 @@ class ElroyContext:
     @cached_property
     def db_manager(self) -> DbManager:
         assert self.database_config.database_url, "Database URL not set"
+        chroma_path = Path(self.database_config.chroma_path) if self.database_config.chroma_path else None
         return get_db_manager(
             self.database_config.database_url,
             self.database_config.vector_backend,
-            chroma_path=self.database_config.chroma_path,
+            chroma_path=chroma_path,
         )
 
     @allow_unused

@@ -6,7 +6,7 @@ Create Date: 2024-12-23 14:46:07.728126
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 import sqlite_vec
@@ -15,9 +15,9 @@ from sqlmodel.sql.sqltypes import AutoString
 
 # revision identifiers, used by Alembic.
 revision: str = "955beece0126"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -117,7 +117,6 @@ def upgrade() -> None:
     connection = op.get_bind().connection
 
     try:
-
         connection.enable_load_extension(True)  # type: ignore
         sqlite_vec.load(connection)  # type: ignore
         connection.enable_load_extension(False)  # type: ignore
