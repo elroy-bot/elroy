@@ -1,6 +1,7 @@
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
+from types import UnionType
 from typing import Any, Union, get_args, get_origin
 
 from docstring_parser import parse
@@ -14,6 +15,7 @@ PY_TO_JSON_TYPE = {
     bool: "boolean",
     float: "number",
     str | None: "string",
+    bool | None: "boolean",
 }
 
 
@@ -55,7 +57,11 @@ def get_json_type(py_type: type) -> str | dict[str, Any]:
     if py_type in PY_TO_JSON_TYPE:
         return PY_TO_JSON_TYPE[py_type]
 
-    if get_origin(py_type) is Union:
+    # Handle both typing.Union and types.UnionType (Python 3.10+ | syntax)
+    origin = get_origin(py_type)
+    is_union = origin is Union or origin is UnionType
+
+    if is_union:
         args = get_args(py_type)
         if type(None) in args:  # This is an Optional type
             non_none_args = [arg for arg in args if arg is not type(None)]
