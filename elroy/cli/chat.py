@@ -9,10 +9,12 @@ from multiprocessing import get_logger
 from operator import add
 
 from colorama import init
+from rich.live import Live
+from rich.table import Table
 from sqlmodel import select
 from toolz import pipe
 
-from ..cli.ui import print_memory_panel, print_model_selection, print_title_ruler
+from ..cli.ui import print_memory_panel, print_model_selection, print_status_panel, print_title_ruler, update_memory_panel
 from ..core.async_tasks import schedule_task
 from ..core.constants import EXIT, USER
 from ..core.ctx import ElroyContext
@@ -123,31 +125,36 @@ def handle_chat(io: CliIO, enable_greeting: bool, ctx: ElroyContext):
             "<Empty user response>",
             False,
         )
-    if io.show_memory_panel:
-        print_memory_panel(io, ctx)
 
-    while True:
-        io.update_completer(
-            get_active_memories(ctx),
-            get_active_reminders(ctx),
-            list(get_context_messages(ctx)),
-        )
+    display = Table()
+    display.add_column("Memories")
 
-        user_input = io.prompt_user(ctx.thread_pool, 3)
-        if user_input.lower().startswith(f"/{EXIT}") or user_input == EXIT:
-            break
-        elif user_input:
-            process_and_deliver_msg(
-                io,
-                USER,
-                ctx,
-                user_input,
+    with Live(display, refresh_per_second=4):
+        update_memory_panel(display, ctx)
+
+        while True:
+            io.update_completer(
+                get_active_memories(ctx),
+                get_active_reminders(ctx),
+                list(get_context_messages(ctx)),
             )
 
-            if io.show_memory_panel:
-                io.rule()
-                print_memory_panel(io, ctx)
-            schedule_task(refresh_context_if_needed, ctx, replace=True, delay_seconds=5)
+            user_input = io.prompt_user(ctx.thread_pool, 3)
+            if user_input.lower().startswith(f"/{EXIT}") or user_input == EXIT:
+                break
+            elif user_input:
+                process_and_deliver_msg(
+                    io,
+                    USER,
+                    ctx,
+                    user_input,
+                )
+
+                if io.show_memory_panel:
+                    io.rule()
+                    print_memory_panel(io, ctx)
+                    print_status_panel(io, ctx)
+                schedule_task(refresh_context_if_needed, ctx, replace=True, delay_seconds=5)
 
 
 @tracer.agent
