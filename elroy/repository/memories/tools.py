@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, cast
 
 from rich.table import Table
@@ -16,6 +17,15 @@ from .queries import (
     get_memory_by_name,
     get_relevant_memories_and_reminders,
 )
+
+
+def _memory_text_content(memory: Memory) -> str:
+    """Get memory text content regardless of storage backend."""
+    if memory.file_path:
+        from .file_storage import read_memory_text
+
+        return read_memory_text(Path(memory.file_path))
+    return memory.text or ""
 
 
 def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> list[tuple[str, str]]:
@@ -105,7 +115,7 @@ def examine_memories(ctx: ElroyContext, question: str) -> list[str]:
 
 *to view the source content this memory is based on, call tool `{get_source_content_for_memory.__name__}({memory.name}, idx)`
 
-{memory.text}"""
+{_memory_text_content(memory)}"""
             )
 
     if relevant_reminders:
@@ -157,7 +167,7 @@ def print_memories(ctx: ElroyContext, n: int | None = None) -> Table | str:
     for memory in reversed(memories):
         table.add_row(
             memory.name,
-            memory.text,
+            _memory_text_content(memory),
             db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S"),
         )
 
@@ -212,7 +222,7 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
 
     # Create new memory with updated text
     update_time = db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
-    updated_text = f"{original_memory.text}\n\nUpdate ({update_time}):\n{update_text}"
+    updated_text = f"{_memory_text_content(original_memory)}\n\nUpdate ({update_time}):\n{update_text}"
     ctx.db.commit()
     if hasattr(ctx.db, "update_embedding_active"):
         cast(Any, ctx.db).update_embedding_active(original_memory)

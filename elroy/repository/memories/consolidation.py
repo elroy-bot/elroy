@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property, partial
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -18,6 +19,18 @@ from .prompts import get_memory_consolidation_prompt
 logger = get_logger()
 
 
+def _get_memory_text(memory: Memory) -> str:
+    """Return memory text content, reading from file if file-backed."""
+    if memory.file_path:
+        try:
+            from .file_storage import read_memory_text
+
+            return read_memory_text(Path(memory.file_path))
+        except OSError:
+            return ""
+    return memory.text or ""
+
+
 @dataclass
 class MemoryCluster:
     memories: list[Memory]
@@ -30,7 +43,7 @@ class MemoryCluster:
         # Return a string representation of the object
         return pipe(
             self.memories,
-            map(lambda x: "\n".join(["## Memory Title:", x.name, x.text])),
+            map(lambda x: "\n".join(["## Memory Title:", x.name, _get_memory_text(x)])),
             list,
             "\n".join,
             lambda x: "#Memory Cluster:\n" + x,

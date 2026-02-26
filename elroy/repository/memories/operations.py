@@ -1,5 +1,6 @@
 import json
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any, cast
 
 from sqlmodel import select
@@ -92,6 +93,14 @@ def formulate_memory(ctx: ElroyContext, context_messages: list[ContextMessage]) 
 def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
     from ..recall.operations import remove_from_context
 
+    # Archive file if this is a file-backed memory
+    if isinstance(item, Memory) and item.file_path and ctx.memory_dir_path:
+        from ..memories.file_storage import archive_memory_file
+
+        file_path = Path(item.file_path)
+        if file_path.exists():
+            archive_memory_file(file_path, ctx.memory_dir_path / "archive")
+
     item.is_active = False
     ctx.db.add(item)
     ctx.db.commit()
@@ -132,6 +141,18 @@ def do_create_memory(
             ),
         )
     )
+
+    # Write to file if memory_dir is configured
+    if ctx.memory_dir_path:
+        from ..memories.file_storage import write_memory_file
+
+        assert memory.id is not None
+        existing_paths: set[str] = {str(p) for p in ctx.memory_dir_path.glob("*.md")}
+        file_path = write_memory_file(ctx.memory_dir_path, memory, text, existing_paths)
+        memory.file_path = str(file_path)
+        memory.text = None
+        ctx.db.add(memory)
+        ctx.db.commit()
 
     upsert_embedding_if_needed(ctx, memory)
     if add_mem_to_context:

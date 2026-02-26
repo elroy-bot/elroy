@@ -94,6 +94,7 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
             "Max Context Age (minutes)": ctx.memory_config.max_context_age_minutes,
         },
         "Memory Management": {
+            "Memory Dir": str(ctx.memory_dir_path) if ctx.memory_dir_path else "None",
             "Memory Cluster Similarity": ctx.memory_cluster_similarity_threshold,
             "Max Memory Cluster Size": ctx.max_memory_cluster_size,
             "Min Memory Cluster Size": ctx.min_memory_cluster_size,
