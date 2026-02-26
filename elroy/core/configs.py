@@ -73,6 +73,9 @@ class MemoryConfig:
     memory_recall_classifier_enabled: bool = True
     memory_recall_classifier_window: int = 3
 
+    # File-backed memories (Obsidian integration)
+    memory_dir: str | None = None
+
 
 @dataclass
 class ToolConfig:

@@ -95,7 +95,7 @@ async def get_current_memories():
 
     memories = []
     for memory in elroy.get_current_memories():
-        memories.append(MemoryResponse(name=memory.name, text=memory.text))
+        memories.append(MemoryResponse(name=memory.name, text=memory.to_fact()))
 
     return memories
 

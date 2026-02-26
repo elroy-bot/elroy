@@ -284,6 +284,12 @@ def common(
         help="Minutes between background ingestion runs (default: 60).",
         rich_help_panel="Background Ingestion",
     ),
+    # File-backed Memories
+    memory_dir: str | None = ElroyOption(
+        "memory_dir",
+        help="Directory to store memory text as markdown files (enables Obsidian integration).",
+        rich_help_panel="Memory",
+    ),
     system_message_color: str = ElroyOption(
         "system_message_color",
         help="Color for system messages.",
@@ -452,6 +458,14 @@ def chat(typer_ctx: typer.Context):
                 )
 
                 schedule_periodic_ingestion(ctx)
+
+            # Initialize file-backed memories if memory_dir is configured
+            if ctx.memory_dir:
+                from ..repository.memories.background import schedule_memory_file_sync
+                from ..repository.memories.file_storage import migrate_memories_to_files
+
+                migrate_memories_to_files(ctx)
+                schedule_memory_file_sync(ctx)
 
             try:
                 handle_chat(io, params["enable_assistant_greeting"], ctx)

@@ -69,3 +69,6 @@ allowed_shell_command_prefixes:
 background_ingest_enabled: false  # Whether to enable background document ingestion
 background_ingest_paths: []  # List of paths to automatically ingest in the background
 background_ingest_interval_minutes: 60  # Minutes between background ingestion runs
+
+# File-backed Memories (Obsidian Integration)
+memory_dir: null  # Directory to store memory text as markdown files (enables Obsidian integration)

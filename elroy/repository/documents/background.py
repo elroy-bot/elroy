@@ -32,11 +32,28 @@ def background_ingest_task(ctx: ElroyContext) -> None:
     # Record the start time
     start_time = utc_now()
 
+    # Build exclude list for memory_dir
+    exclude: list[str] = []
+    if ctx.memory_dir:
+        memory_dir_resolved = Path(ctx.memory_dir).expanduser().resolve()
+        exclude.append(str(memory_dir_resolved))
+        exclude.append(str(memory_dir_resolved / "**"))
+
     for path_str in paths:
         path = Path(path_str).expanduser().resolve()
         if not path.exists():
             logger.warning(f"Background ingest path does not exist: {path}")
             continue
+
+        # Skip if this path is the memory_dir itself
+        if ctx.memory_dir:
+            memory_dir_resolved = Path(ctx.memory_dir).expanduser().resolve()
+            try:
+                path.relative_to(memory_dir_resolved)
+                logger.debug(f"Skipping memory_dir path from background ingestion: {path}")
+                continue
+            except ValueError:
+                pass
 
         try:
             if path.is_file():
@@ -51,7 +68,7 @@ def background_ingest_task(ctx: ElroyContext) -> None:
                     force_refresh=False,
                     recursive=True,
                     include=[],
-                    exclude=[],
+                    exclude=exclude,
                 ):
                     total_processed = sum(status_update.statuses.values())
 

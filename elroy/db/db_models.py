@@ -2,6 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
@@ -110,7 +111,8 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the context")
-    text: str = Field(..., description="The text of the message")
+    text: str | None = Field(default=None, description="The text of the message")
+    file_path: str | None = Field(default=None, description="Path to markdown file if memory is file-backed")
     source_metadata: str = Field(sa_column=SAColumn(Text), default="[]", description="Metadata for the memory as JSON string")
     is_active: bool | None = Field(default=True, description="Whether the context is active")
 
@@ -118,7 +120,16 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return self.name
 
     def to_fact(self) -> str:
-        return f"#{self.name}\n{self.text}"
+        if self.file_path:
+            import re
+
+            content = Path(self.file_path).read_text()
+            # Strip YAML frontmatter if present
+            m = re.match(r"^---\n.*?\n---\n?", content, re.DOTALL)
+            text = content[m.end() :] if m else content
+        else:
+            text = self.text or ""
+        return f"#{self.name}\n{text}"
 
 
 class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):

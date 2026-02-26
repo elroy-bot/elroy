@@ -109,6 +109,8 @@ class ElroyContext:
         background_ingest_enabled: bool | None = None,
         background_ingest_paths: list[str] | None = None,
         background_ingest_interval_minutes: int | None = None,
+        # File-backed memories
+        memory_dir: str | None = None,
     ):
         # Handle both config objects approach and individual parameters approach
         if database_config is not None:
@@ -168,6 +170,7 @@ class ElroyContext:
                 l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold or 0.7,
                 memory_recall_classifier_enabled=memory_recall_classifier_enabled if memory_recall_classifier_enabled is not None else True,
                 memory_recall_classifier_window=memory_recall_classifier_window or 3,
+                memory_dir=memory_dir,
             )
 
         if tool_config is not None:
@@ -224,6 +227,7 @@ class ElroyContext:
         self.background_ingest_enabled = self.runtime_config.background_ingest_enabled
         self.background_ingest_paths = self.runtime_config.background_ingest_paths
         self.background_ingest_interval_minutes = self.runtime_config.background_ingest_interval_minutes
+        self.memory_dir = self.memory_config.memory_dir
 
     @property
     def include_base_tools(self) -> bool:
@@ -291,6 +295,15 @@ class ElroyContext:
             return Path(self.runtime_config.config_path)
         else:
             return get_default_config_path()
+
+    @cached_property
+    def memory_dir_path(self) -> Path | None:
+        if not self.memory_config.memory_dir:
+            return None
+        path = Path(self.memory_config.memory_dir).expanduser().resolve()
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "archive").mkdir(parents=True, exist_ok=True)
+        return path
 
     @cached_property
     def thread_pool(self) -> ThreadPoolExecutor:
