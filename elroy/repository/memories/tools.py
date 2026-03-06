@@ -224,8 +224,7 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
     update_time = db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
     updated_text = f"{_memory_text_content(original_memory)}\n\nUpdate ({update_time}):\n{update_text}"
     ctx.db.commit()
-    if hasattr(ctx.db, "update_embedding_active"):
-        cast(Any, ctx.db).update_embedding_active(original_memory)
+    ctx.db.update_embedding_active(original_memory)
 
     do_create_memory(
         ctx,

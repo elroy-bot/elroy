@@ -2,14 +2,6 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class DatabaseConfig:
-    """Database connection and session configuration."""
-
-    database_url: str
-    chroma_path: str | None = None
-
-
-@dataclass
 class ModelConfig:
     """LLM and embedding model configuration."""
 
@@ -66,7 +58,7 @@ class MemoryConfig:
     min_memory_cluster_size: int = 2
     memories_between_consolidation: int = 5
     messages_between_memory: int = 10
-    l2_memory_relevance_distance_threshold: float = 0.7
+    l2_memory_relevance_distance_threshold: float = 1.4
 
     # Memory Recall Classifier
     memory_recall_classifier_enabled: bool = True

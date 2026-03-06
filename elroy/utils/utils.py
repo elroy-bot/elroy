@@ -91,7 +91,8 @@ def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> threading.Threa
     def wrapped_fn():
         # Create completely new connection in the new thread
         new_ctx = ElroyContext(
-            database_config=ctx.database_config,
+            database_url=ctx.database_url,
+            chroma_path=ctx.chroma_path,
             model_config=ctx.model_config,
             ui_config=ctx.ui_config,
             memory_config=ctx.memory_config,

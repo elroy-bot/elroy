@@ -89,3 +89,9 @@ def setup_file_logging():
     for handler in logger.handlers:
         logger.removeHandler(handler)
     logger.addHandler(file_handler)
+
+    # Route APScheduler logs to the same file instead of stderr
+    apscheduler_logger = logging.getLogger("apscheduler")
+    apscheduler_logger.handlers.clear()
+    apscheduler_logger.addHandler(file_handler)
+    apscheduler_logger.propagate = False

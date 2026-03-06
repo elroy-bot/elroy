@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from elroy.api.main import Elroy
 from elroy.core.constants import ELROY_DATABASE_URL, TOOL
-from elroy.db.db_manager import get_db_manager
+from elroy.db.db_manager import DbManager
 from elroy.db.db_models import Memory, Reminder
 from elroy.db.db_models import WaitlistSignup as WaitlistSignupModel
 from elroy.utils.clock import string_to_datetime
@@ -166,7 +166,7 @@ async def waitlist_signup(signup: WaitlistSignup):
 
     try:
         # Get database manager and create session
-        db_manager = get_db_manager(os.environ[ELROY_DATABASE_URL])
+        db_manager = DbManager(os.environ[ELROY_DATABASE_URL])
 
         with db_manager.open_session() as session:
             # Check if email already exists

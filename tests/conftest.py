@@ -21,7 +21,6 @@ from elroy.db.db_models import (
     UserPreference,
 )
 from elroy.db.db_session import DbSession
-from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
@@ -56,7 +55,7 @@ def db_manager(tmp_path_factory):
         do(lambda x: x.mkdir(exist_ok=True)),
         lambda x: f"sqlite:///{x}/test.db",
     )
-    db_manager = SqliteManager(url)
+    db_manager = DbManager(url)
 
     db_manager.migrate()
 

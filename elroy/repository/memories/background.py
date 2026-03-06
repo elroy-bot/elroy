@@ -160,7 +160,8 @@ def schedule_memory_file_sync(ctx: ElroyContext) -> Job | None:
 
     def wrapped_sync():
         new_ctx = ElroyContext(
-            database_config=ctx.database_config,
+            database_url=ctx.database_url,
+            chroma_path=ctx.chroma_path,
             model_config=ctx.model_config,
             ui_config=ctx.ui_config,
             memory_config=ctx.memory_config,
