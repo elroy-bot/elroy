@@ -605,7 +605,7 @@ def user_stats(
     with init_elroy_session(ctx, io, True, False):
         from sqlmodel import func, select
 
-        from ..db.db_models import DocumentExcerpt, Memory, Message, VectorStorage
+        from ..db.db_models import DocumentExcerpt, Memory, Message
 
         # Get counts for all data types
         total_messages = ctx.db.exec(select(func.count(col(Message.id))).where(Message.user_id == ctx.user_id)).first() or 0
@@ -633,39 +633,6 @@ def user_stats(
             ctx.db.exec(select(func.count(col(Reminder.id))).where(Reminder.user_id == ctx.user_id, Reminder.is_active)).first() or 0
         )
 
-        # Count vectors for this user's entities
-        vectors_for_memories = (
-            ctx.db.exec(
-                select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == Memory.__class__.__name__,
-                    col(VectorStorage.source_id).in_(select(col(Memory.id)).where(Memory.user_id == ctx.user_id)),
-                )
-            ).first()
-            or 0
-        )
-
-        vectors_for_documents = (
-            ctx.db.exec(
-                select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == DocumentExcerpt.__class__.__name__,
-                    col(VectorStorage.source_id).in_(select(col(DocumentExcerpt.id)).where(DocumentExcerpt.user_id == ctx.user_id)),
-                )
-            ).first()
-            or 0
-        )
-
-        vectors_for_reminders = (
-            ctx.db.exec(
-                select(func.count(col(VectorStorage.id))).where(
-                    VectorStorage.source_type == Reminder.__class__.__name__,
-                    col(VectorStorage.source_id).in_(select(col(Reminder.id)).where(Reminder.user_id == ctx.user_id)),
-                )
-            ).first()
-            or 0
-        )
-
-        total_vectors = vectors_for_memories + vectors_for_documents + vectors_for_reminders
-
         # Create and display the table
         table = Table(title=f"User Statistics (Token: {ctx.user_token})")
         table.add_column("Metric", style="bold")
@@ -678,7 +645,6 @@ def user_stats(
         table.add_row("Active Document Excerpts", str(active_document_excerpts))
         table.add_row("Total Reminders", str(total_reminders))
         table.add_row("Active Reminders", str(active_reminders))
-        table.add_row("Total Vectors Stored", str(total_vectors))
 
         io.console.print(table)
         raise typer.Exit()

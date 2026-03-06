@@ -1,6 +1,5 @@
 import hashlib
 from functools import partial
-from typing import Any, cast
 
 from sqlmodel import select
 from toolz import pipe
@@ -18,26 +17,23 @@ logger = get_logger()
 
 
 def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> None:
-
     new_text = row.to_fact()
     new_md5 = hashlib.md5(new_text.encode()).hexdigest()
+    current_md5 = ctx.db.get_embedding_text_md5(row)
 
-    # Check if vector storage exists for this row
-    vector_storage_row = ctx.db.get_vector_storage_row(row)
-
-    if vector_storage_row and vector_storage_row.embedding_text_md5 == new_md5:
+    if current_md5 == new_md5:
         logger.info("Old and new text matches md5, skipping")
-        if row.is_active is not True and hasattr(ctx.db, "update_embedding_active"):
-            cast(Any, ctx.db).update_embedding_active(row)
+        if row.is_active is not True:
+            ctx.db.update_embedding_active(row)
         return
+
+    embedding = ctx.llm.get_embedding(new_text, ctx=ctx)
+    if current_md5 is not None:
+        ctx.db.update_embedding(row, embedding, new_md5)
     else:
-        embedding = ctx.llm.get_embedding(new_text, ctx=ctx)
-        if vector_storage_row:
-            ctx.db.update_embedding(vector_storage_row, embedding, new_md5)
-        else:
-            ctx.db.insert_embedding(row=row, embedding_data=embedding, embedding_text_md5=new_md5)
-        if row.is_active is not True and hasattr(ctx.db, "update_embedding_active"):
-            cast(Any, ctx.db).update_embedding_active(row)
+        ctx.db.insert_embedding(row=row, embedding_data=embedding, embedding_text_md5=new_md5)
+    if row.is_active is not True:
+        ctx.db.update_embedding_active(row)
 
 
 def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:

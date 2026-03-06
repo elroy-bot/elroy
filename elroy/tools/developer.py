@@ -63,7 +63,7 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
             "Debug Mode": ctx.debug,
             "Default Assistant Name": ctx.default_assistant_name,
             "User Token": ctx.user_token,
-            "Database URL": ctx.database_config.database_url,
+            "Database URL": ctx.database_url,
         },
         "Model Configuration": {
             "Chat Model": ctx.chat_model.name,

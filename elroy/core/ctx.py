@@ -19,11 +19,10 @@ from ..config.llm import (
 )
 from ..config.paths import get_default_config_path
 from ..config.personas import PERSONA
-from ..db.db_manager import DbManager, get_db_manager
+from ..db.db_manager import DbManager
 from ..db.db_session import DbSession
 from ..llm.client import LlmClient
 from .configs import (
-    DatabaseConfig,
     MemoryConfig,
     ModelConfig,
     RuntimeConfig,
@@ -44,7 +43,6 @@ class ElroyContext:
         self,
         *,
         # Config objects (preferred approach)
-        database_config: DatabaseConfig | None = None,
         model_config: ModelConfig | None = None,
         ui_config: UIConfig | None = None,
         memory_config: MemoryConfig | None = None,
@@ -111,14 +109,8 @@ class ElroyContext:
         # File-backed memories
         memory_dir: str | None = None,
     ):
-        # Handle both config objects approach and individual parameters approach
-        if database_config is not None:
-            self.database_config = database_config
-        else:
-            self.database_config = DatabaseConfig(
-                database_url=database_url or "",
-                chroma_path=chroma_path,
-            )
+        self.database_url = database_url or ""
+        self.chroma_path = chroma_path
 
         if model_config is not None:
             self.model_config = model_config
@@ -165,7 +157,7 @@ class ElroyContext:
                 min_memory_cluster_size=min_memory_cluster_size or 2,
                 memories_between_consolidation=memories_between_consolidation or 5,
                 messages_between_memory=messages_between_memory or 10,
-                l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold or 0.7,
+                l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold or 1.4,
                 memory_recall_classifier_enabled=memory_recall_classifier_enabled if memory_recall_classifier_enabled is not None else True,
                 memory_recall_classifier_window=memory_recall_classifier_window or 3,
                 memory_dir=memory_dir,
@@ -388,12 +380,9 @@ class ElroyContext:
 
     @cached_property
     def db_manager(self) -> DbManager:
-        assert self.database_config.database_url, "Database URL not set"
-        chroma_path = Path(self.database_config.chroma_path) if self.database_config.chroma_path else None
-        return get_db_manager(
-            self.database_config.database_url,
-            chroma_path=chroma_path,
-        )
+        assert self.database_url, "Database URL not set"
+        chroma_path = Path(self.chroma_path) if self.chroma_path else None
+        return DbManager(self.database_url, chroma_path=chroma_path)
 
     @allow_unused
     def is_db_connected(self) -> bool:

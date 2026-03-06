@@ -78,7 +78,8 @@ def schedule_task(
         # Create completely new connection in the new thread
         # Use config objects directly - much cleaner than extracting individual parameters
         new_ctx = ElroyContext(
-            database_config=ctx.database_config,
+            database_url=ctx.database_url,
+            chroma_path=ctx.chroma_path,
             model_config=ctx.model_config,
             ui_config=ctx.ui_config,
             memory_config=ctx.memory_config,

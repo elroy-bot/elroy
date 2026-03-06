@@ -1,35 +1,57 @@
 import logging
-from abc import ABC
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any
 
+import chromadb
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Engine
+from sqlalchemy import Engine, create_engine, text
 from sqlmodel import Session
 
+from .. import PACKAGE_ROOT
+from ..core.logging import get_logger
 from .db_session import DbSession
 
-TSession = TypeVar("TSession", bound=DbSession)
+logger = get_logger(__name__)
 
 
-class DbManager(ABC, Generic[TSession]):
-    def __init__(self, url: str):
+class DbManager:
+    def __init__(self, url: str, chroma_path: Path | str | None = None):
         self.url = url
-        self.session_class: type[TSession]
+        if chroma_path:
+            self.chroma_path = Path(chroma_path).expanduser()
+        else:
+            self.chroma_path = Path.home() / ".elroy" / "chroma"
+
+    @cached_property
+    def chroma_client(self) -> chromadb.ClientAPI:
+        self.chroma_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Initializing ChromaDB at {self.chroma_path}")
+        return chromadb.PersistentClient(path=str(self.chroma_path))
 
     @cached_property
     def engine(self) -> Engine:
-        raise NotImplementedError
+        import sqlite3
+
+        if not self.url.startswith("sqlite:///"):
+            raise ValueError(f"Unsupported database URL: {self.url}. Must be a sqlite:/// URL")
+
+        def _sqlite_connect(url):
+            db_path = url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            logger.debug(f"SQLite version: {sqlite3.sqlite_version}")
+            return conn
+
+        return create_engine(self.url, creator=lambda: _sqlite_connect(self.url))
 
     @cached_property
-    def alembic_config(self):
-        config = Config(self._get_config_path())
+    def alembic_config(self) -> Config:
+        config = Config(Path(str(PACKAGE_ROOT / "db" / "sqlite" / "alembic" / "alembic.ini")))
         config.set_main_option("sqlalchemy.url", self.engine.url.render_as_string(hide_password=False))
         return config
 
@@ -37,31 +59,32 @@ class DbManager(ABC, Generic[TSession]):
     def alembic_script(self) -> ScriptDirectory:
         return ScriptDirectory.from_config(self.alembic_config)
 
-    @classmethod
-    def is_url_valid(cls, url: str) -> bool:
-        raise NotImplementedError
-
     @contextmanager
-    def open_session(self) -> Generator[TSession, Any, None]:
+    def open_session(self) -> Generator[DbSession, Any, None]:
         session = Session(self.engine)
         try:
-            yield self.session_class(self.url, session)
-            if session.is_active:  # Only commit if the session is still active
+            yield DbSession(self.url, session, self.chroma_client)
+            if session.is_active:
                 session.commit()
         except Exception:
-            if session.is_active:  # Only rollback if the session is still active
+            if session.is_active:
                 session.rollback()
             raise
         finally:
-            if session.is_active:  # Only close if not already closed
+            if session.is_active:
                 session.close()
-                session = None
-
-    def _get_config_path(self) -> Path:
-        raise NotImplementedError
 
     def check_connection(self):
-        raise NotImplementedError
+        try:
+            with Session(self.engine) as session:
+                session.exec(text("SELECT 1")).first()  # type: ignore
+        except Exception as e:
+            raise Exception(f"Could not connect to database {self.engine.url.render_as_string(hide_password=True)}: {e}") from e
+
+        try:
+            self.chroma_client.heartbeat()
+        except Exception as e:
+            raise Exception(f"Could not connect to ChromaDB at {self.chroma_path}: {e}") from e
 
     def migrate_if_needed(self):
         if self.is_migration_needed():
@@ -76,19 +99,5 @@ class DbManager(ABC, Generic[TSession]):
             return current_rev != head_rev
 
     def migrate(self):
-        """Check if all migrations have been run.
-        Returns True if migrations are up to date, False otherwise."""
         logging.getLogger("alembic").setLevel(logging.INFO)
-
         command.upgrade(self.alembic_config, "head")
-
-
-def get_db_manager(url: str, chroma_path: Path | None = None) -> DbManager:
-
-    from ..db.chroma.chroma_manager import ChromaManager
-    from ..db.chroma.migration import migrate_sqlite_vectorstorage_if_needed
-
-    manager = ChromaManager(url, chroma_path=chroma_path)
-    if url.startswith("sqlite:///"):
-        migrate_sqlite_vectorstorage_if_needed(url, manager)
-    return manager

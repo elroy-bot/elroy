@@ -45,18 +45,6 @@ class FunctionCall(BaseModel):
         return ToolCall(id=self.id, function={"name": self.function_name, "arguments": json.dumps(self.arguments)})
 
 
-@dataclass
-class VectorStorage:
-    """In-memory representation of a vector embedding entry."""
-
-    source_type: str
-    source_id: int
-    user_id: int
-    embedding_data: list[float]
-    embedding_text_md5: str
-    id: int | None = None
-
-
 class MemorySource(ABC):
     """Abstract base class for memory sources"""
 
