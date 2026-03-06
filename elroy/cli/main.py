@@ -100,11 +100,6 @@ def common(
         help="Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.",
         rich_help_panel="Basic Configuration",
     ),
-    vector_backend: str = ElroyOption(
-        "vector_backend",
-        help='Vector storage backend: "auto", "sqlite" (native), or "chroma".',
-        rich_help_panel="Basic Configuration",
-    ),
     chroma_path: str = ElroyOption(
         "chroma_path",
         help="Filesystem path for ChromaDB storage (default: ~/.elroy/chroma).",

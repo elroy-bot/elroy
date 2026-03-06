@@ -83,24 +83,12 @@ class DbManager(ABC, Generic[TSession]):
         command.upgrade(self.alembic_config, "head")
 
 
-def get_db_manager(url: str, vector_backend: str = "auto", chroma_path: Path | None = None) -> DbManager:
+def get_db_manager(url: str, chroma_path: Path | None = None) -> DbManager:
 
     from ..db.chroma.chroma_manager import ChromaManager
     from ..db.chroma.migration import migrate_sqlite_vectorstorage_if_needed
-    from ..db.sqlite.sqlite_manager import SqliteManager
 
-    if vector_backend == "auto" or vector_backend is None:
-        vector_backend = "chroma"
-
-    # If ChromaDB backend is selected, use ChromaManager
-    if vector_backend == "chroma":
-        manager = ChromaManager(url, chroma_path=chroma_path)
-        if url.startswith("sqlite:///"):
-            migrate_sqlite_vectorstorage_if_needed(url, manager)
-        return manager
-
-    # Native sqlite-vec backend
+    manager = ChromaManager(url, chroma_path=chroma_path)
     if url.startswith("sqlite:///"):
-        return SqliteManager(url)
-    else:
-        raise ValueError(f"Unsupported database URL: {url}. Must be a sqlite:/// URL")
+        migrate_sqlite_vectorstorage_if_needed(url, manager)
+    return manager

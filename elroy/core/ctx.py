@@ -53,7 +53,6 @@ class ElroyContext:
         # Individual parameters (for backward compatibility)
         config_path: str | None = None,
         database_url: str | None = None,
-        vector_backend: str | None = None,
         chroma_path: str | None = None,
         show_internal_thought: bool | None = None,
         system_message_color: str | None = None,
@@ -118,7 +117,6 @@ class ElroyContext:
         else:
             self.database_config = DatabaseConfig(
                 database_url=database_url or "",
-                vector_backend=vector_backend or "auto",
                 chroma_path=chroma_path,
             )
 
@@ -394,7 +392,6 @@ class ElroyContext:
         chroma_path = Path(self.database_config.chroma_path) if self.database_config.chroma_path else None
         return get_db_manager(
             self.database_config.database_url,
-            self.database_config.vector_backend,
             chroma_path=chroma_path,
         )
 

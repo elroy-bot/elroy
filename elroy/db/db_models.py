@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, field_validator
 from sqlalchemy import Column as SAColumn
-from sqlalchemy import LargeBinary, Text, UniqueConstraint
+from sqlalchemy import Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from ..core.constants import RecoverableToolError
@@ -45,16 +45,16 @@ class FunctionCall(BaseModel):
         return ToolCall(id=self.id, function={"name": self.function_name, "arguments": json.dumps(self.arguments)})
 
 
-class VectorStorage(SQLModel, table=True):
-    """Table for storing vector embeddings for any model type"""
+@dataclass
+class VectorStorage:
+    """In-memory representation of a vector embedding entry."""
 
-    __table_args__ = {"extend_existing": True}
-    id: int | None = Field(default=None, primary_key=True)
-    source_type: str = Field(..., description="The type of model this embedding is for (e.g. Memory, Reminder)")
-    source_id: int = Field(..., description="The ID of the source model")
-    user_id: int = Field(..., description="The user ID for the vector")
-    embedding_data: list[float] = Field(..., description="The vector embedding data", sa_column=SAColumn(LargeBinary, nullable=False))
-    embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
+    source_type: str
+    source_id: int
+    user_id: int
+    embedding_data: list[float]
+    embedding_text_md5: str
+    id: int | None = None
 
 
 class MemorySource(ABC):

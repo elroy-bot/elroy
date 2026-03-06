@@ -25,8 +25,6 @@ dependencies = [
     "pygments>=2.18.0",
     "litellm>=1.75.5",
     "semantic-version>=2.10.0",
-    # Kept for backward compatibility with sqlite-vec vector storage and auto-migration.
-    "sqlite-vec>=0.1.6",
     "scikit-learn>=1.6.0",
     "lock>=2018.3.25.2110",
     "importlib-resources",

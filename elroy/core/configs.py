@@ -6,7 +6,6 @@ class DatabaseConfig:
     """Database connection and session configuration."""
 
     database_url: str
-    vector_backend: str = "auto"  # "auto", "sqlite" (native), or "chroma"
     chroma_path: str | None = None
 
 
