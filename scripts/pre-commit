@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import shlex
 import subprocess
 import sys
@@ -71,7 +72,7 @@ def main():
 
     changed_files = get_changed_files()
 
-    python_files = [file for file in changed_files if file.endswith(".py")]
+    python_files = [file for file in changed_files if file.endswith(".py") and os.path.exists(file)]
     if python_files:
         run_ruff_formatting(python_files)
         run_ruff_check(python_files)

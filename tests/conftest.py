@@ -1,5 +1,3 @@
-import os
-import subprocess
 import uuid
 from collections.abc import Generator
 from typing import Any
@@ -23,7 +21,6 @@ from elroy.db.db_models import (
     UserPreference,
 )
 from elroy.db.db_session import DbSession
-from elroy.db.postgres.postgres_manager import PostgresManager
 from elroy.db.sqlite.sqlite_manager import SqliteManager
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
@@ -32,45 +29,17 @@ from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.user.operations import create_user_id
 from tests.utils import MockCliIO
 
-ELROY_TEST_POSTGRES_URL = "ELROY_TEST_POSTGRES_URL"
-
 BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketball shots"
 
 
 @allow_unused
 def pytest_addoption(parser):
-    parser.addoption("--postgres-url", action="store", default=None, help="Database URL from either environment or command line")
     parser.addoption(
         "--chat-models",
         action="store",
         default="gpt-5-nano",
         help="Comma-separated list of chat models to test",
     )
-    parser.addoption(
-        "--db-type",
-        action="store",
-        default="sqlite",
-        help="Database type to use for testing (postgres or sqlite)",
-    )
-
-
-@pytest.fixture(scope="session")
-def postgres_url(request):
-    if request.config.getoption("--postgres-url"):
-        yield request.config.getoption("--postgres-url")
-    elif ELROY_TEST_POSTGRES_URL in os.environ:
-        yield os.environ[ELROY_TEST_POSTGRES_URL]
-    elif not is_docker_running():
-        raise Exception(
-            f"Tests configured to run via PostGreSQL, but no PostGreSQL URL provided. Please either set the {ELROY_TEST_POSTGRES_URL} environment variable, provide a --postgres-url argument, or run tests with Docker."
-        )
-    else:
-        from testcontainers.postgres import PostgresContainer
-
-        with PostgresContainer("ankane/pgvector:v0.5.1") as postgres_container:
-            postgres_host = postgres_container.get_container_host_ip()
-            postgres_port = postgres_container.get_exposed_port(5432)
-            yield f"postgresql://test:test@{postgres_host}:{postgres_port}/test"
 
 
 @allow_unused
@@ -79,28 +48,15 @@ def pytest_generate_tests(metafunc):
         models = [resolve_model_alias(m) or m for m in metafunc.config.getoption("--chat-models").split(",")]
         metafunc.parametrize("chat_model_name", models, scope="session")
 
-    if "db_type" in metafunc.fixturenames:
-        db_types = metafunc.config.getoption("--db-type").split(",")
-        metafunc.parametrize("db_type", db_types, scope="session")
-
 
 @pytest.fixture(scope="session")
-def db_manager(
-    request,
-    tmp_path_factory,
-    db_type: str,
-):
-    if db_type == "postgres":
-        database_url = request.getfixturevalue("postgres_url")
-        db_manager = PostgresManager(database_url)
-
-    else:
-        url = pipe(
-            tmp_path_factory.mktemp("data"),
-            do(lambda x: x.mkdir(exist_ok=True)),
-            lambda x: f"sqlite:///{x}/test.db",
-        )
-        db_manager = SqliteManager(url)
+def db_manager(tmp_path_factory):
+    url = pipe(
+        tmp_path_factory.mktemp("data"),
+        do(lambda x: x.mkdir(exist_ok=True)),
+        lambda x: f"sqlite:///{x}/test.db",
+    )
+    db_manager = SqliteManager(url)
 
     db_manager.migrate()
 
@@ -236,12 +192,3 @@ def rich_formatter():
         warning_color="yellow",
         internal_thought_color="magenta",
     )
-
-
-def is_docker_running():
-    """Checks if docker daemon is running by trying to execute docker info"""
-    try:
-        result = subprocess.run(["docker", "info"], capture_output=True, check=True)
-        return result.returncode == 0
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
