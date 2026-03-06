@@ -45,18 +45,11 @@ class ChromaManager(DbManager):
 
     @cached_property
     def engine(self) -> Engine:
-        """Create relational DB engine based on URL."""
-        # Delegate to SQLite or Postgres engine creation
-        if self.url.startswith("sqlite:///"):
-            return self._create_sqlite_engine()
-        elif self.url.startswith("postgresql://"):
-            return self._create_postgres_engine()
-        else:
-            raise ValueError(f"Unsupported database URL for ChromaDB backend: {self.url}")
-
-    def _create_sqlite_engine(self) -> Engine:
         """Create SQLite engine (vectors handled by ChromaDB, not sqlite-vec)."""
         import sqlite3
+
+        if not self.url.startswith("sqlite:///"):
+            raise ValueError(f"Unsupported database URL for ChromaDB backend: {self.url}")
 
         def _sqlite_connect(url):
             db_path = url.replace("sqlite:///", "")
@@ -66,10 +59,6 @@ class ChromaManager(DbManager):
             return conn
 
         return create_engine(self.url, creator=lambda: _sqlite_connect(self.url))
-
-    def _create_postgres_engine(self) -> Engine:
-        """Create PostgreSQL engine (vectors handled by ChromaDB, not pgvector)."""
-        return create_engine(self.url)
 
     @contextmanager
     def open_session(self) -> Generator[ChromaSession, Any, None]:
@@ -88,13 +77,7 @@ class ChromaManager(DbManager):
                 session.close()
 
     def _get_config_path(self) -> Path:
-        """Get Alembic config path based on underlying DB type."""
-        if self.url.startswith("sqlite:///"):
-            return Path(str(PACKAGE_ROOT / "db" / "sqlite" / "alembic" / "alembic.ini"))
-        elif self.url.startswith("postgresql://"):
-            return Path(str(PACKAGE_ROOT / "db" / "postgres" / "alembic" / "alembic.ini"))
-        else:
-            raise ValueError(f"Unsupported database URL: {self.url}")
+        return Path(str(PACKAGE_ROOT / "db" / "sqlite" / "alembic" / "alembic.ini"))
 
     def check_connection(self):
         """Verify both relational DB and ChromaDB are accessible."""
@@ -115,7 +98,6 @@ class ChromaManager(DbManager):
 
     @classmethod
     def is_url_valid(cls, url: str) -> bool:
-        """Validate database URL (supports both SQLite and Postgres)."""
+        """Validate database URL (SQLite only)."""
         sqlite_pattern = r"^sqlite:\/\/(?:\/)?(?::memory:|\/[^?]+)(?:\?[^#]+)?$"
-        postgres_pattern = r"^postgresql:\/\/.+"
-        return bool(re.match(sqlite_pattern, url) or re.match(postgres_pattern, url))
+        return bool(re.match(sqlite_pattern, url))

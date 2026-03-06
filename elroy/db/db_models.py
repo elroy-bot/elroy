@@ -5,13 +5,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from pgvector.sqlalchemy import Vector
 from pydantic import BaseModel, field_validator
 from sqlalchemy import Column as SAColumn
-from sqlalchemy import Text, UniqueConstraint
+from sqlalchemy import LargeBinary, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from ..core.constants import EMBEDDING_SIZE, RecoverableToolError
+from ..core.constants import RecoverableToolError
 from ..utils.clock import utc_now
 
 
@@ -54,9 +53,7 @@ class VectorStorage(SQLModel, table=True):
     source_type: str = Field(..., description="The type of model this embedding is for (e.g. Memory, Reminder)")
     source_id: int = Field(..., description="The ID of the source model")
     user_id: int = Field(..., description="The user ID for the vector")
-    embedding_data: list[float] = Field(
-        ..., description="The vector embedding data", sa_column=SAColumn(Vector(EMBEDDING_SIZE), nullable=False)
-    )
+    embedding_data: list[float] = Field(..., description="The vector embedding data", sa_column=SAColumn(LargeBinary, nullable=False))
     embedding_text_md5: str = Field(..., description="Hash of the text used to generate the embedding")
 
 

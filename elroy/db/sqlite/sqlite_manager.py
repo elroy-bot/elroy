@@ -31,7 +31,7 @@ class SqliteManager(DbManager):
         except Exception as e:
             if "ELFCLASS32" in str(e) and str(self.engine.url).startswith("sqlite"):
                 raise Exception(
-                    "Architecture mismatch between compiled SQLite extension and env os. If you are using docker, consider adding --platform linux/amd64 to your command, or provide a Postgres value for --database-url."
+                    "Architecture mismatch between compiled SQLite extension and env os. If you are using docker, consider adding --platform linux/amd64 to your command."
                 ) from e
             else:
                 logging.error(f"Database connectivity check failed: {e}")

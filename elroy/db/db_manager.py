@@ -87,23 +87,20 @@ def get_db_manager(url: str, vector_backend: str = "auto", chroma_path: Path | N
 
     from ..db.chroma.chroma_manager import ChromaManager
     from ..db.chroma.migration import migrate_sqlite_vectorstorage_if_needed
-    from ..db.postgres.postgres_manager import PostgresManager
     from ..db.sqlite.sqlite_manager import SqliteManager
 
     if vector_backend == "auto" or vector_backend is None:
-        vector_backend = "chroma" if url.startswith("sqlite:///") else "sqlite"
+        vector_backend = "chroma"
 
-    # If ChromaDB backend is selected, use ChromaManager regardless of relational DB type
+    # If ChromaDB backend is selected, use ChromaManager
     if vector_backend == "chroma":
         manager = ChromaManager(url, chroma_path=chroma_path)
         if url.startswith("sqlite:///"):
             migrate_sqlite_vectorstorage_if_needed(url, manager)
         return manager
 
-    # Otherwise, use native vector storage (sqlite-vec or pgvector)
-    if url.startswith("postgresql://"):
-        return PostgresManager(url)
-    elif url.startswith("sqlite:///"):
+    # Native sqlite-vec backend
+    if url.startswith("sqlite:///"):
         return SqliteManager(url)
     else:
-        raise ValueError(f"Unsupported database URL: {url}. Must be either a postgresql:// or sqlite:/// URL")
+        raise ValueError(f"Unsupported database URL: {url}. Must be a sqlite:/// URL")

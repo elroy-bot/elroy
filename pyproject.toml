@@ -8,8 +8,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "pgvector>=0.3.6",
-    "psycopg2-binary>=2.9.9",
     "sqlalchemy>=2.0.29",
     "click>=8.1.7",
     "typer>=0.20.0",
