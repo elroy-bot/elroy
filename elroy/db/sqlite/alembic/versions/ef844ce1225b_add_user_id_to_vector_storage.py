@@ -9,9 +9,6 @@ Create Date: 2025-07-27 12:40:54.080721
 import logging
 from collections.abc import Sequence
 
-import sqlite_vec
-from alembic import op
-
 # revision identifiers, used by Alembic.
 revision: str = "ef844ce1225b"
 down_revision: str | None = "9eb7c341e950"
@@ -20,102 +17,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Add nullable user_id column to vectorstorage table
-    connection = op.get_bind().connection
-
-    try:
-        connection.enable_load_extension(True)  # type: ignore
-        sqlite_vec.load(connection)  # type: ignore
-        connection.enable_load_extension(False)  # type: ignore
-    except Exception as e:
-        logging.error(f"Failed to load sqlite_vec extension: {e}")
-        raise
-
-    logging.debug("Attempting to create vectorstorage table...")
-
-    op.execute(
-        """
-        CREATE VIRTUAL TABLE IF NOT EXISTS vectorstorage_bkp USING vec0(
-            id INTEGER PRIMARY KEY,  -- This aliases rowid
-            source_type TEXT,
-            source_id INTEGER,
-            embedding_data FLOAT[1536],
-            embedding_text_md5 TEXT
-        )
-    """
-    )
-
-    op.execute(
-        """
-    INSERT INTO vectorstorage_bkp SELECT * FROM vectorstorage
-    """
-    )
-
-    op.execute(
-        """
-    DROP TABLE vectorstorage
-    """
-    )
-
-    op.execute(
-        """
-        CREATE VIRTUAL TABLE IF NOT EXISTS vectorstorage USING vec0(
-            id INTEGER PRIMARY KEY,  -- This aliases rowid
-            source_type TEXT,
-            source_id INTEGER,
-            user_id INTEGER,
-            embedding_data FLOAT[1536],
-            embedding_text_md5 TEXT
-            )
-    """
-    )
-
-    op.execute(
-        """
-        INSERT INTO vectorstorage (id, source_type, source_id, embedding_data, embedding_text_md5, user_id) SELECT
-        v.id,
-        v.source_type,
-        v.source_id,
-        v.embedding_data,
-        v.embedding_text_md5,
-        t.user_id
-        FROM vectorstorage_bkp v
-        JOIN goal t
-        ON v.source_type = 'Goal' and v.source_id = t.id
-        """
-    )
-
-    op.execute(
-        """
-        INSERT INTO vectorstorage (id, source_type, source_id, embedding_data, embedding_text_md5, user_id) SELECT
-        v.id,
-        v.source_type,
-        v.source_id,
-        v.embedding_data,
-        v.embedding_text_md5,
-        t.user_id
-        FROM vectorstorage_bkp v
-        JOIN memory t
-        ON v.source_type = 'Memory' and v.source_id = t.id
-        """
-    )
-
-    op.execute(
-        """
-        INSERT INTO vectorstorage (id, source_type, source_id, embedding_data, embedding_text_md5, user_id) SELECT
-        v.id,
-        v.source_type,
-        v.source_id,
-        v.embedding_data,
-        v.embedding_text_md5,
-        t.user_id
-        FROM vectorstorage_bkp v
-        JOIN documentexcerpt t
-        ON v.source_type = 'DocumentExcerpt' and v.source_id = t.id
-        """
-    )
+    # Previously migrated vectorstorage to include user_id (sqlite-vec virtual table).
+    # sqlite-vec is no longer supported; vectors are stored in ChromaDB.
+    # This migration is a no-op for new installs; existing vec0 tables are read-only
+    # by the ChromaDB migration utility and then abandoned.
+    logging.debug("Skipping vectorstorage user_id migration (sqlite-vec no longer supported)")
 
 
 def downgrade() -> None:
-    # Remove user_id column from vectorstorage table
-    op.drop_column("vectorstorage", "user_id")
+    pass

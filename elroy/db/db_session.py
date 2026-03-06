@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
-from sqlmodel import Session, select
+from sqlmodel import Session
 from toolz import compose
 from toolz.curried import do
 
@@ -57,13 +57,9 @@ class DbSession(ABC):
     def get_embedding(self, row: EmbeddableSqlModel) -> list[float] | None:
         raise NotImplementedError
 
+    @abstractmethod
     def get_embedding_text_md5(self, row: EmbeddableSqlModel) -> str | None:
-        return self.session.exec(
-            select(VectorStorage.embedding_text_md5).where(
-                VectorStorage.source_id == row.id,
-                VectorStorage.source_type == row.__class__.__name__,
-            )
-        ).first()
+        raise NotImplementedError
 
     @abstractmethod
     def query_vector(
