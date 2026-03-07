@@ -287,10 +287,9 @@ class ElroyContext:
             return get_default_config_path()
 
     @cached_property
-    def memory_dir_path(self) -> Path | None:
-        if not self.memory_config.memory_dir:
-            return None
-        path = Path(self.memory_config.memory_dir).expanduser().resolve()
+    def memory_dir_path(self) -> Path:
+        memory_dir = self.memory_config.memory_dir or str(Path.home() / ".elroy" / "memories")
+        path = Path(memory_dir).expanduser().resolve()
         path.mkdir(parents=True, exist_ok=True)
         (path / "archive").mkdir(parents=True, exist_ok=True)
         return path

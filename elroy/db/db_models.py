@@ -96,8 +96,7 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the context")
-    text: str | None = Field(default=None, description="The text of the message")
-    file_path: str | None = Field(default=None, description="Path to markdown file if memory is file-backed")
+    file_path: str | None = Field(default=None, description="Path to markdown file storing memory content")
     source_metadata: str = Field(sa_column=SAColumn(Text), default="[]", description="Metadata for the memory as JSON string")
     is_active: bool | None = Field(default=True, description="Whether the context is active")
 
@@ -105,15 +104,13 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return self.name
 
     def to_fact(self) -> str:
-        if self.file_path:
-            import re
+        import re
 
-            content = Path(self.file_path).read_text()
-            # Strip YAML frontmatter if present
-            m = re.match(r"^---\n.*?\n---\n?", content, re.DOTALL)
-            text = content[m.end() :] if m else content
-        else:
-            text = self.text or ""
+        if not self.file_path:
+            return f"#{self.name}\n"
+        content = Path(self.file_path).read_text()
+        m = re.match(r"^---\n.*?\n---\n?", content, re.DOTALL)
+        text = content[m.end() :] if m else content
         return f"#{self.name}\n{text}"
 
 

@@ -20,15 +20,15 @@ logger = get_logger()
 
 
 def _get_memory_text(memory: Memory) -> str:
-    """Return memory text content, reading from file if file-backed."""
-    if memory.file_path:
-        try:
-            from .file_storage import read_memory_text
+    """Return memory text content from file."""
+    if not memory.file_path:
+        return ""
+    try:
+        from .file_storage import read_memory_text
 
-            return read_memory_text(Path(memory.file_path))
-        except OSError:
-            return ""
-    return memory.text or ""
+        return read_memory_text(Path(memory.file_path))
+    except OSError:
+        return ""
 
 
 @dataclass

@@ -165,7 +165,7 @@ def user_token() -> Generator[str, None, None]:
 
 
 @pytest.fixture(scope="function")
-def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str) -> Generator[ElroyContext, None, None]:
+def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str, tmp_path) -> Generator[ElroyContext, None, None]:
     """Create an ElroyContext for testing, using the same defaults as the CLI"""
 
     # Create new context with all parameters
@@ -174,6 +174,7 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
         database_url=db_manager.url,
         chat_model=chat_model_name,
         use_background_threads=True,
+        memory_dir=str(tmp_path / "memories"),
     )
     ctx.set_db_session(db_session)
 

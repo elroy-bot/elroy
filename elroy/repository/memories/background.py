@@ -87,7 +87,6 @@ def sync_memory_files(ctx: ElroyContext) -> None:
                     if new_path.exists() and new_path != path:
                         new_path.unlink()
                     memory.file_path = str(path)
-                    memory.text = None
                     ctx.db.add(memory)
                     ctx.db.commit()
                     write_id_to_frontmatter(path, memory.id)
@@ -115,7 +114,6 @@ def sync_memory_files(ctx: ElroyContext) -> None:
             new_name = disk_path.stem.replace("_", " ")
             db_memory.file_path = str(disk_path)
             db_memory.name = new_name
-            db_memory.text = None
             ctx.db.add(db_memory)
             ctx.db.commit()
             logger.info(f"Memory {mid} renamed: {old_name!r} -> {new_name!r}, path updated")

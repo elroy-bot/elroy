@@ -38,29 +38,17 @@ def get_memory_file_path(memory_dir: Path, name: str, existing_paths: set[str]) 
         counter += 1
 
 
-def _build_file_content(memory: Memory, text: str) -> str:
-    fm: dict[str, Any] = {"id": memory.id, "name": memory.name}
-    if memory.created_at:
-        fm["created_at"] = memory.created_at.isoformat()
-    if memory.updated_at:
-        fm["updated_at"] = memory.updated_at.isoformat()
-    fm["is_active"] = memory.is_active
-    try:
-        sources = json.loads(memory.source_metadata or "[]")
-        if sources:
-            fm["sources"] = sources
-    except (json.JSONDecodeError, TypeError):
-        pass
-    frontmatter = yaml.dump(fm, default_flow_style=False).strip()
-    return f"---\n{frontmatter}\n---\n\n{text}"
+def _build_file_content(memory_id: int, text: str) -> str:
+    return f"---\nid: {memory_id}\n---\n\n{text}"
 
 
 def write_memory_file(memory_dir: Path, memory: Memory, text: str, existing_paths: set[str] | None = None) -> Path:
-    """Write a memory markdown file with frontmatter id and timestamps. Returns the path."""
+    """Write a memory markdown file with frontmatter id. Returns the path."""
     if existing_paths is None:
         existing_paths = {str(p) for p in memory_dir.glob("*.md")}
+    assert memory.id is not None
     path = get_memory_file_path(memory_dir, memory.name, existing_paths)
-    path.write_text(_build_file_content(memory, text))
+    path.write_text(_build_file_content(memory.id, text))
     return path
 
 
@@ -126,23 +114,17 @@ def _is_document_sourced(memory: Memory) -> bool:
 
 
 def migrate_memories_to_files(ctx: ElroyContext) -> int:
-    """Migrate active memories to files in memory_dir.
+    """Migrate file-backed memories from another directory into memory_dir.
 
-    Handles two cases:
-    - text-backed (text IS NOT NULL, file_path IS NULL): write new file
-    - file-backed from a different dir (file_path outside memory_dir): copy file to new dir
-
+    Handles memories whose file_path is outside the current memory_dir.
     Skips memories sourced from ingested documents (DocumentExcerpt).
     Returns the count of memories migrated.
     """
     from typing import cast
 
-    from sqlalchemy import or_
     from sqlmodel import select
 
     memory_dir = ctx.memory_dir_path
-    if not memory_dir:
-        return 0
 
     existing_paths: set[str] = {str(p) for p in memory_dir.glob("*.md")}
 
@@ -151,10 +133,7 @@ def migrate_memories_to_files(ctx: ElroyContext) -> int:
             select(Memory).where(
                 Memory.user_id == ctx.user_id,
                 cast(Any, Memory.is_active),
-                or_(
-                    Memory.text.is_not(None),  # type: ignore[union-attr]
-                    Memory.file_path.is_not(None),  # type: ignore[union-attr]
-                ),
+                Memory.file_path.is_not(None),  # type: ignore[union-attr]
             )
         ).all()
     )
@@ -164,28 +143,22 @@ def migrate_memories_to_files(ctx: ElroyContext) -> int:
         if _is_document_sourced(memory):
             continue
         assert memory.id is not None
+        assert memory.file_path is not None
 
         # Already in the right dir — nothing to do
-        if memory.file_path and Path(memory.file_path).parent.resolve() == memory_dir.resolve():
+        if Path(memory.file_path).parent.resolve() == memory_dir.resolve():
+            continue
+
+        old_path = Path(memory.file_path)
+        if not old_path.exists():
+            logger.warning(f"Memory {memory.id} file_path {old_path} missing, skipping dir migration")
             continue
 
         try:
-            if memory.file_path:
-                # File-backed but in a different dir — copy content to new dir
-                old_path = Path(memory.file_path)
-                if not old_path.exists():
-                    logger.warning(f"Memory {memory.id} file_path {old_path} missing, skipping dir migration")
-                    continue
-                text = read_memory_text(old_path)
-            else:
-                # Text-backed — use DB text
-                assert memory.text is not None
-                text = memory.text
-
+            text = read_memory_text(old_path)
             path = write_memory_file(memory_dir, memory, text, existing_paths)
             existing_paths.add(str(path))
             memory.file_path = str(path)
-            memory.text = None
             ctx.db.add(memory)
             count += 1
         except Exception as e:
