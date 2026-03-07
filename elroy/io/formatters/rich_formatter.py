@@ -1,7 +1,7 @@
+import json
 from collections.abc import Generator
 
 from rich.console import RenderableType
-from rich.pretty import Pretty
 from rich.syntax import Syntax
 from rich.text import Text
 from toolz import pipe
@@ -53,10 +53,8 @@ class RichFormatter(Formatter):
             text.append(message.function_name, style=f"bold {self.system_message_color}")
             if message.arguments:
                 text.append(" with arguments: ", style=self.system_message_color)
-                yield text
-                yield Pretty(message.arguments)
-            else:
-                yield text
+                text.append(json.dumps(message.arguments, indent=2), style=self.system_message_color)
+            yield text
         elif isinstance(message, AssistantToolResult):
             color = self.warning_color if message.is_error else self.system_message_color
             yield Text(message.content, style=color)
@@ -94,6 +92,6 @@ class RichFormatter(Formatter):
             )
 
         elif isinstance(message, dict):
-            yield Pretty(message)
+            yield Text(json.dumps(message, indent=2), style=self.system_message_color)
         else:
             raise Exception(f"Unrecognized type: {type(message)}")

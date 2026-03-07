@@ -108,7 +108,10 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
 
         if not self.file_path:
             return f"#{self.name}\n"
-        content = Path(self.file_path).read_text()
+        try:
+            content = Path(self.file_path).read_text()
+        except OSError:
+            return f"#{self.name}\n"
         m = re.match(r"^---\n.*?\n---\n?", content, re.DOTALL)
         text = content[m.end() :] if m else content
         return f"#{self.name}\n{text}"

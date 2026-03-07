@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from rich.console import Console, RenderableType
@@ -47,6 +48,9 @@ class ElroyIO:
             self.print(SystemWarning(content=message))
         else:
             self.print(message)
+
+    def prompt_user(self, thread_pool: ThreadPoolExecutor, retries: int, prompt: str = ">", prefill: str = "") -> str:
+        raise NotImplementedError
 
 
 class PlainIO(ElroyIO):

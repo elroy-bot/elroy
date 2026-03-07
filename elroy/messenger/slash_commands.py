@@ -9,7 +9,7 @@ from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..core.tracing import tracer
-from ..io.cli import CliIO
+from ..io.base import ElroyIO
 from ..llm.stream_parser import (
     AssistantInternalThought,
     AssistantResponse,
@@ -22,7 +22,7 @@ logger = get_logger()
 
 @tracer.chain
 def invoke_slash_command(
-    io: CliIO, ctx: ElroyContext, msg: str
+    io: ElroyIO, ctx: ElroyContext, msg: str
 ) -> str | Iterator[AssistantResponse | AssistantInternalThought | AssistantToolResult]:
     """
     Takes user input and executes a system command. For commands with a single non-context argument,
