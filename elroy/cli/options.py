@@ -1,18 +1,13 @@
 import logging
 import os
-import sys
-from collections.abc import Callable
 from functools import lru_cache
 from multiprocessing import get_logger
 from pathlib import Path
 from typing import Any
 
-import click
-import typer
 import yaml
 from toolz import assoc, merge, pipe
 from toolz.curried import map, valfilter
-from typer import Option
 
 from ..config.llm import DEFAULTS_CONFIG
 from ..config.paths import get_default_sqlite_url
@@ -25,6 +20,9 @@ DEPRECATED_KEYS = {
     "context_refresh_target_tokens",
     "context_refresh_trigger_tokens",
 }
+
+MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
+CLI_ONLY_PARAMS = {"enable_assistant_greeting", "show_memory_panel"}
 
 
 def resolve_model_alias(alias: str) -> str | None:
@@ -54,35 +52,6 @@ def load_config_file_params(config_path: str | None = None) -> dict:
             # convert to absolute path if not already, relative to working dir
             user_config_path = Path(user_config_path).resolve()
         return load_config_if_exists(user_config_path)
-
-
-def ElroyOption(  # noqa: N802
-    key: str,
-    rich_help_panel: str,
-    help: str,
-    deprecated: bool = False,
-    hidden: bool = False,
-    default_factory: Callable | None = None,
-    *args,
-):
-    """
-    Typer options that have values in the user config file
-
-    Creates a typer Option with value priority:
-    1. CLI provided value (handled by typer)
-    2. User config file value (if provided)
-    3. defaults.yml value
-    """
-
-    return Option(
-        *args,
-        default_factory=default_factory if default_factory else lambda: load_config_file_params().get(key),
-        envvar=get_env_var_name(key) if not deprecated else None,
-        rich_help_panel=rich_help_panel,
-        help=help,
-        show_default=str(DEFAULTS_CONFIG.get(key)),
-        hidden=hidden or deprecated,
-    )
 
 
 def get_env_var_name(parameter_name: str):
@@ -141,12 +110,3 @@ def load_config_if_exists(user_config_path: str | None) -> dict:
         except Exception as e:
             logging.error(f"Failed to load user config file {user_config_path}: {e}")
             return {}
-
-
-def get_str_from_stdin_or_arg(ctx: typer.Context, param: click.Parameter, value: str | None) -> str:
-    """Callback to get message from stdin if no argument is provided and stdin is not a terminal."""
-    if value:
-        return value
-    if not sys.stdin.isatty():
-        return sys.stdin.read()
-    raise typer.BadParameter("Must be a valid string")

@@ -98,7 +98,8 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
 
         file_path = Path(item.file_path)
         if file_path.exists():
-            archive_memory_file(file_path, ctx.memory_dir_path / "archive")
+            dest = archive_memory_file(file_path, ctx.memory_dir_path / "archive")
+            item.file_path = str(dest)
 
     item.is_active = False
     ctx.db.add(item)

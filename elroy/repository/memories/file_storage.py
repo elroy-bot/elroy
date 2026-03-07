@@ -76,8 +76,8 @@ def read_memory_text(path: Path) -> str:
     return content
 
 
-def archive_memory_file(file_path: Path, archive_dir: Path) -> None:
-    """Move a memory file to the archive directory."""
+def archive_memory_file(file_path: Path, archive_dir: Path) -> Path:
+    """Move a memory file to the archive directory. Returns the destination path."""
     archive_dir.mkdir(parents=True, exist_ok=True)
     dest = archive_dir / file_path.name
     # Avoid collision in archive
@@ -88,6 +88,7 @@ def archive_memory_file(file_path: Path, archive_dir: Path) -> None:
             dest = archive_dir / f"{stem}-{counter}.md"
             counter += 1
     file_path.rename(dest)
+    return dest
 
 
 def write_id_to_frontmatter(path: Path, memory_id: int) -> None:
