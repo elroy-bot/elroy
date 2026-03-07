@@ -93,7 +93,7 @@ def mark_inactive(ctx: ElroyContext, item: EmbeddableSqlModel):
     from ..recall.operations import remove_from_context
 
     # Archive file if this is a file-backed memory
-    if isinstance(item, Memory) and item.file_path and ctx.memory_dir_path:
+    if isinstance(item, Memory) and item.file_path:
         from ..memories.file_storage import archive_memory_file
 
         file_path = Path(item.file_path)
@@ -127,30 +127,25 @@ def do_create_memory(
     source_metadata: Iterable[MemorySource],
     add_mem_to_context: bool,
 ) -> Memory:
+    from ..memories.file_storage import write_memory_file
     from ..recall.operations import add_to_context, upsert_embedding_if_needed
 
     memory = ctx.db.persist(
         Memory(
             user_id=ctx.user_id,
             name=name,
-            text=text,
             source_metadata=json.dumps(
                 [x.to_memory_source_d() for x in source_metadata],
             ),
         )
     )
 
-    # Write to file if memory_dir is configured
-    if ctx.memory_dir_path:
-        from ..memories.file_storage import write_memory_file
-
-        assert memory.id is not None
-        existing_paths: set[str] = {str(p) for p in ctx.memory_dir_path.glob("*.md")}
-        file_path = write_memory_file(ctx.memory_dir_path, memory, text, existing_paths)
-        memory.file_path = str(file_path)
-        memory.text = None
-        ctx.db.add(memory)
-        ctx.db.commit()
+    assert memory.id is not None
+    existing_paths: set[str] = {str(p) for p in ctx.memory_dir_path.glob("*.md")}
+    file_path = write_memory_file(ctx.memory_dir_path, memory, text, existing_paths)
+    memory.file_path = str(file_path)
+    ctx.db.add(memory)
+    ctx.db.commit()
 
     upsert_embedding_if_needed(ctx, memory)
     if add_mem_to_context:

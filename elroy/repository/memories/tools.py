@@ -20,12 +20,12 @@ from .queries import (
 
 
 def _memory_text_content(memory: Memory) -> str:
-    """Get memory text content regardless of storage backend."""
-    if memory.file_path:
-        from .file_storage import read_memory_text
+    """Get memory text content from file."""
+    if not memory.file_path:
+        return ""
+    from .file_storage import read_memory_text
 
-        return read_memory_text(Path(memory.file_path))
-    return memory.text or ""
+    return read_memory_text(Path(memory.file_path))
 
 
 def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> list[tuple[str, str]]:
