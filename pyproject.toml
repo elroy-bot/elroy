@@ -75,7 +75,7 @@ elroy = "elroy.cli.main:app"
 
 [tool.ruff]
 line-length = 140
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
@@ -100,7 +100,7 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.ty.environment]
-python-version = "3.11"
+python-version = "3.12"
 
 [tool.ty.src]
 include = ["elroy/**/*.py", "tests/**/*.py"]

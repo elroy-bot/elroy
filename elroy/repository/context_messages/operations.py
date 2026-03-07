@@ -86,7 +86,7 @@ def replace_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessag
 T = TypeVar("T")
 
 
-def retry_on_integrity_error(fn: Callable[..., T]) -> Callable[..., T]:
+def retry_on_integrity_error[T](fn: Callable[..., T]) -> Callable[..., T]:
     @wraps(fn)
     def wrapper(ctx: ElroyContext, *args: Any, **kwargs: Any) -> T:
         max_retries = 3

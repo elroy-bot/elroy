@@ -3,7 +3,7 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from litellm.types.utils import Delta, ModelResponse
 from pydantic import BaseModel
@@ -84,7 +84,7 @@ class TagSet:
 T = TypeVar("T", bound=BaseModel)
 
 
-class TextProcessor(ABC, Generic[T]):
+class TextProcessor[T: BaseModel](ABC):
     tags: list[TagSet]
 
     def __init__(self):
