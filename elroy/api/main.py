@@ -53,7 +53,7 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 
-def db(f: Callable[P, T]) -> Callable[P, T]:
+def db[**P, T](f: Callable[P, T]) -> Callable[P, T]:
     """Decorator to wrap non-generator function calls with database session context"""
 
     @wraps(f)

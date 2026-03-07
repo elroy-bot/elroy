@@ -42,7 +42,7 @@ def first_or_none(x: Union[Iterator[T], Iterable[T]]) -> Optional[T]:  # noqa
         raise ValueError(f"Expected an iterable or iterator, got {x}")
 
 
-def last_or_none(iterable: Iterator[T]) -> T | None:
+def last_or_none[T](iterable: Iterator[T]) -> T | None:
     return next(reversed(list(iterable)), None)
 
 

@@ -42,7 +42,7 @@ T = TypeVar("T", bound=EmbeddableSqlModel)
 
 
 @tracer.chain
-def query_vector(
+def query_vector[T: EmbeddableSqlModel](
     table: type[T],
     ctx: ElroyContext,
     query: list[float],
