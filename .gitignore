@@ -19,3 +19,5 @@ dist/
 benchmarking_data
 .coverage
 site/
+*.svg
+old_screenshot.png

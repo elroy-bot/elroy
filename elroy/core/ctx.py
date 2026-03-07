@@ -235,7 +235,7 @@ class ElroyContext:
 
     @classmethod
     def init(cls, **kwargs):
-        from ..cli.main import CLI_ONLY_PARAMS, MODEL_ALIASES
+        from ..cli.options import CLI_ONLY_PARAMS, MODEL_ALIASES
 
         for m in MODEL_ALIASES:
             if kwargs.get(m):

@@ -1,6 +1,5 @@
 from typing import Any, cast
 
-import typer
 from sqlmodel import Session, select
 
 from ...core.constants import user_only_tool
@@ -84,7 +83,7 @@ def set_persona(ctx: ElroyContext, system_persona: str) -> str:
     system_persona = system_persona.strip()
 
     if is_blank(system_persona):
-        raise typer.BadParameter("System persona cannot be blank.")
+        raise ValueError("System persona cannot be blank.")
 
     user_preference = get_or_create_user_preference(ctx)
 

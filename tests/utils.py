@@ -5,7 +5,7 @@ from datetime import timedelta
 from functools import partial
 from typing import Any
 
-from rich.console import RenderableType
+from rich.console import Console, RenderableType
 from toolz import pipe
 from toolz.curried import do, map
 
@@ -13,7 +13,7 @@ from elroy.core.constants import USER, RecoverableToolError
 from elroy.core.ctx import ElroyContext
 from elroy.core.tracing import tracer
 from elroy.db.db_models import EmbeddableSqlModel, Reminder
-from elroy.io.cli import CliIO
+from elroy.io.base import ElroyIO
 from elroy.io.formatters.base import ElroyPrintable
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.llm.stream_parser import SystemInfo
@@ -26,13 +26,11 @@ from elroy.utils.clock import utc_now
 from elroy.utils.utils import first_or_none
 
 
-class MockCliIO(CliIO):
+class MockIO(ElroyIO):
     def __init__(self, formatter: RichFormatter) -> None:
-        super().__init__(
-            formatter=formatter,
-            show_internal_thought=False,
-            show_memory_panel=True,
-        )
+        self.console = Console(force_terminal=False, no_color=True)
+        self.formatter = formatter
+        self.show_memory_panel = True
 
         self._user_responses: list[str] = []
         self._sys_messages: list[str] = []
@@ -62,6 +60,10 @@ class MockCliIO(CliIO):
         if not self._user_responses:
             raise ValueError(f"No more responses queued for prompt: {prompt}")
         return self._user_responses.pop(0)
+
+
+# Alias for backward compatibility
+MockCliIO = MockIO
 
 
 @tracer.chain

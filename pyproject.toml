@@ -9,13 +9,9 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "sqlalchemy>=2.0.29",
-    "click>=8.1.7",
-    "typer>=0.20.0",
     "pyyaml>=6.0.1",
     "requests>=2.32.2",
     "tiktoken>=0.8.0",
-    "prompt-toolkit>=3.0.47",
-    "colorama>=0.4.6",
     "rich>=13.7.1",
     "toolz>=0.12.1",
     "alembic>=1.13.2",
@@ -29,9 +25,8 @@ dependencies = [
     "lock>=2018.3.25.2110",
     "importlib-resources",
     "apscheduler>=3.11.0",
-    "fastapi>=0.104.0",
-    "uvicorn>=0.24.0",
     "chromadb>=0.4.22",
+    "textual>=0.90.0",
 ]
 
 [project.optional-dependencies]
@@ -71,7 +66,7 @@ tracing = [
 ]
 
 [project.scripts]
-elroy = "elroy.cli.main:app"
+elroy = "elroy.io.textual_app:main"
 
 [tool.ruff]
 line-length = 140

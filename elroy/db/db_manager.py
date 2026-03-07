@@ -43,7 +43,7 @@ class DbManager:
 
         def _sqlite_connect(url):
             db_path = url.replace("sqlite:///", "")
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, check_same_thread=False)
             logger.debug(f"SQLite version: {sqlite3.sqlite_version}")
             return conn
 
