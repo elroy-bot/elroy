@@ -1,7 +1,7 @@
 """update reminders
 
 Revision ID: 899126f0e215
-Revises: 1c74c74a43e2
+Revises: c3f1051dfe01
 Create Date: 2025-08-15 12:02:55.852145
 
 """
@@ -14,7 +14,7 @@ from sqlmodel.sql.sqltypes import AutoString
 
 # revision identifiers, used by Alembic.
 revision: str = "899126f0e215"
-down_revision: str | None = "1c74c74a43e2"
+down_revision: str | None = "c3f1051dfe01"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
