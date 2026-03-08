@@ -5,28 +5,6 @@ from pydantic import BaseModel, Field
 from .utils.clock import string_to_datetime
 
 
-class MessageResponse(BaseModel):
-    role: str = Field(description="The role of the message sender (e.g., 'user' or 'assistant')")
-    content: str = Field(description="The content/text of the message")
-
-
-class ChatRequest(BaseModel):
-    message: str = Field(description="The message text to send to the assistant")
-
-
-class ChatResponse(BaseModel):
-    messages: list[MessageResponse] = Field(description="List of messages in the conversation")
-
-
-class IngestMemoRequest(BaseModel):
-    text: str = Field(description="The text content of the memo to ingest")
-
-
-class IngestMemoResponse(BaseModel):
-    reminders: list[str] = Field(description="The names of the reminder that was created")
-    memories: list[str] = Field(description="The names of the memory that was created")
-
-
 class CreateMemoryRequest(BaseModel):
     name: str = Field(description="Name/title for the memory - should be specific and describe one topic")
     text: str = Field(description="The detailed text content of the memory")
@@ -35,10 +13,6 @@ class CreateMemoryRequest(BaseModel):
 class MemoryResponse(BaseModel):
     name: str = Field(description="The name/title of the memory")
     text: str = Field(description="The text content of the memory")
-
-
-class ApiResponse(BaseModel):
-    result: str = Field(description="The result or response from the API operation")
 
 
 class CreateReminderRequest(BaseModel):
@@ -55,19 +29,6 @@ class CreateReminderRequest(BaseModel):
             return string_to_datetime(self.trigger_time)
         else:
             return None
-
-
-class CompleteReminderRequest(BaseModel):
-    name: str = Field(description="Name of the reminder to mark complete")
-    closing_comment: str | None = Field(None, description="Optional comment on why the reminder was completed")
-
-
-class ReminderResponse(BaseModel):
-    id: int = Field(description="Unique identifier for the reminder")
-    name: str = Field(description="Name/title of the reminder")
-    text: str = Field(description="The text content of the reminder")
-    trigger_datetime: str | None = Field(None, description="When the reminder triggers (ISO format string)")
-    reminder_context: str | None = Field(None, description="Additional context for the reminder")
 
 
 class RecallMetadata(BaseModel):
