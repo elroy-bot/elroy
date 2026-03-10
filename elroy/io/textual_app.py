@@ -6,7 +6,6 @@ from datetime import timedelta
 from pathlib import Path
 from typing import ClassVar, cast
 
-from rich.console import Console
 from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
@@ -20,67 +19,11 @@ from ..core.constants import EXIT, USER
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..io.base import ElroyIO
+from ..io.completions import build_completions, get_memory_panel_titles
 from ..io.formatters.rich_formatter import RichFormatter
+from ..io.textual_io import TextualIO
 
 logger = get_logger()
-
-
-class TextualIO(ElroyIO):
-    """IO implementation that writes to the Textual app."""
-
-    def __init__(self, app: "ElroyApp", formatter: RichFormatter, show_internal_thought: bool) -> None:
-        self.app = app
-        self.formatter = formatter
-        self.show_internal_thought = show_internal_thought
-        self.console = Console()  # kept for ElroyIO compatibility
-
-    def print(self, message, end: str = "\n") -> None:
-        from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, AssistantToolResult
-
-        if isinstance(message, AssistantInternalThought):
-            if not self.show_internal_thought:
-                logger.debug(f"Internal thought: {message}")
-                return
-            # Buffer thought tokens — flush as one block when thought ends
-            self.app.call_from_thread(self.app._append_thought_token, message.content)
-            return
-
-        # Any non-thought message flushes the thought buffer first
-        self.app.call_from_thread(self.app._flush_thought_buffer)
-
-        if isinstance(message, AssistantToolResult) and len(message.content) > 500:
-            message = AssistantToolResult(
-                content=f"< {len(message.content)} char tool result >",
-                is_error=message.is_error,
-            )
-
-        if isinstance(message, AssistantResponse):
-            # Streaming text — accumulate in the live streaming buffer
-            self.app.call_from_thread(
-                self.app._append_streaming_token,
-                message.content,
-                self.formatter.assistant_message_color,
-            )
-        else:
-            # Non-streaming output — write directly to history log
-            for renderable in self.formatter.format(message):
-                self.app.call_from_thread(self.app._write_to_history, renderable)
-
-    def info(self, message) -> None:
-        from ..llm.stream_parser import SystemInfo
-
-        if isinstance(message, str):
-            self.print(SystemInfo(content=message))
-        else:
-            self.print(message)
-
-    def warning(self, message) -> None:
-        from ..llm.stream_parser import SystemWarning
-
-        if isinstance(message, str):
-            self.print(SystemWarning(content=message))
-        else:
-            self.print(message)
 
 
 class ElroyApp(App):
@@ -176,7 +119,7 @@ class ElroyApp(App):
         self.ctx = ctx
         self.formatter = formatter
         self.enable_greeting = enable_greeting
-        self.io = TextualIO(self, formatter, show_internal_thought)
+        self.io: ElroyIO = TextualIO(self, formatter, show_internal_thought)
         self._streaming = False
         self._streaming_buffer = ""
         self._streaming_style = ""
@@ -251,8 +194,8 @@ class ElroyApp(App):
         ):
             self._run_stream(process_message(role=USER, ctx=self.ctx, msg="<Empty user response>", enable_tools=False))
 
-        self.call_from_thread(self._refresh_memory_panel)
-        self.call_from_thread(self._update_completions)
+        self._refresh_memory_panel()
+        self._update_completions()
 
     # ── streaming helpers ─────────────────────────────────────────────────────
 
@@ -369,8 +312,8 @@ class ElroyApp(App):
             self.call_from_thread(self._write_to_history, Text(f"Error: {e}", style=self.formatter.warning_color))
             logger.exception("Error processing input")
         finally:
-            self.call_from_thread(self._refresh_memory_panel)
-            self.call_from_thread(self._update_completions)
+            self._refresh_memory_panel()
+            self._update_completions()
             from ..core.async_tasks import schedule_task
             from ..repository.context_messages.operations import refresh_context_if_needed
 
@@ -396,64 +339,23 @@ class ElroyApp(App):
 
     # ── periodic updates ──────────────────────────────────────────────────────
 
+    @work(thread=True)
     def _refresh_memory_panel(self) -> None:
         try:
-            from ..repository.context_messages.queries import get_context_messages
-            from ..repository.memories.queries import get_in_context_memories_metadata
-
-            raw = get_in_context_memories_metadata(get_context_messages(self.ctx))
-            # Strip "Type: " prefix — the sidebar heading already gives context
-            titles = [t.split(": ", 1)[-1] for t in raw]
+            titles = get_memory_panel_titles(self.ctx)
             list_view = self.query_one("#memory-list", ListView)
-            list_view.clear()
+            self.call_from_thread(list_view.clear)
             for title in titles[:15]:
-                list_view.append(ListItem(Label(title)))
+                self.call_from_thread(list_view.append, ListItem(Label(title)))
         except Exception:
             logger.debug("Failed to refresh memory panel", exc_info=True)
 
+    @work(thread=True)
     def _update_completions(self) -> None:
         try:
-            from itertools import product
-
-            from toolz import concatv, pipe
-            from toolz.curried import map as tmap
-
-            from ..repository.context_messages.queries import get_context_messages
-            from ..repository.memories.queries import get_active_memories
-            from ..repository.recall.queries import is_in_context
-            from ..repository.reminders.queries import get_active_reminders
-            from ..tools.tools_and_commands import (
-                ALL_ACTIVE_MEMORY_COMMANDS,
-                ALL_ACTIVE_REMINDER_COMMANDS,
-                IN_CONTEXT_MEMORY_COMMANDS,
-                NON_ARG_PREFILL_COMMANDS,
-                NON_CONTEXT_MEMORY_COMMANDS,
-                USER_ONLY_COMMANDS,
-            )
-
-            context_messages = list(get_context_messages(self.ctx))
-            memories = get_active_memories(self.ctx)
-            reminders = get_active_reminders(self.ctx)
-
-            in_context_memories = sorted([m.get_name() for m in memories if is_in_context(context_messages, m)])
-            non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
-            reminder_names = sorted([r.get_name() for r in reminders])
-
-            suggestions: list[str] = pipe(
-                concatv(
-                    product(IN_CONTEXT_MEMORY_COMMANDS, in_context_memories),
-                    product(NON_CONTEXT_MEMORY_COMMANDS, non_context_memories),
-                    product(ALL_ACTIVE_MEMORY_COMMANDS, [m.get_name() for m in memories]),
-                    product(ALL_ACTIVE_REMINDER_COMMANDS, reminder_names),
-                ),
-                tmap(lambda x: f"/{x[0].__name__} {x[1]}"),
-                list,
-                lambda x: x + [f"/{getattr(f, '__name__', f.__class__.__name__)}" for f in NON_ARG_PREFILL_COMMANDS | USER_ONLY_COMMANDS],
-                ["/" + EXIT, "/help"].__add__,
-            )
-
+            suggestions = build_completions(self.ctx)
             input_widget = self.query_one("#chat-input", Input)
-            input_widget.suggester = SuggestFromList(suggestions, case_sensitive=False)
+            self.call_from_thread(setattr, input_widget, "suggester", SuggestFromList(suggestions, case_sensitive=False))
         except Exception:
             logger.debug("Failed to update completions", exc_info=True)
 
