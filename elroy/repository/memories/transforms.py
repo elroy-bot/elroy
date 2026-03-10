@@ -1,8 +1,8 @@
 from elroy.repository.context_messages.data_models import ContextMessage
 
 from ...db.db_models import EmbeddableSqlModel
-from ...models import RecallMetadata, RecallResponse
 from ..context_messages.tools import to_synthetic_tool_call
+from ..data_models import RecallMetadata, RecallResponse
 
 
 def to_fast_recall_tool_call(memories: EmbeddableSqlModel | list[EmbeddableSqlModel]) -> list[ContextMessage]:

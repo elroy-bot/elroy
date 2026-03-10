@@ -20,13 +20,13 @@ from ...db.db_models import (
     get_memory_source_class,
 )
 from ...llm.client import LlmClient
-from ...models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.tools import to_synthetic_tool_call
 from ..context_messages.transforms import (
     ContextMessageSetWithMessages,
     format_context_messages,
 )
+from ..data_models import RecallMetadata, RecallResponse
 from ..recall.queries import (
     get_most_relevant_memories,
     get_most_relevant_reminders,

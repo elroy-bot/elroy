@@ -13,7 +13,7 @@ from ...core.logging import get_logger
 from ...core.tracing import tracer
 from ...db.db_models import Memory
 from ...io.base import ElroyIO
-from ...models import MemoryResponse
+from ..data_models import MemoryResponse
 from .prompts import get_memory_consolidation_prompt
 
 logger = get_logger()
