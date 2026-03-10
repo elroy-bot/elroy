@@ -10,7 +10,7 @@ from ...core.ctx import ElroyContext
 from ...core.logging import log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Memory, Reminder
-from ...models import RecallMetadata, RecallResponse
+from ...repository.data_models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
 
 

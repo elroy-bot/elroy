@@ -9,8 +9,8 @@ from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..db.db_models import EmbeddableSqlModel, Memory, Reminder
-from ..models import CreateMemoryRequest, CreateReminderRequest
 from ..utils.clock import local_now, utc_now
+from .data_models import CreateMemoryRequest, CreateReminderRequest
 from .memories.operations import do_create_memory
 from .memories.queries import filter_for_relevance
 from .recall.queries import get_most_relevant_memories, get_most_relevant_reminders
