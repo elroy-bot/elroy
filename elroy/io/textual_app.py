@@ -95,7 +95,7 @@ class ElroyApp(App):
 
     #status-bar {
         height: 1;
-        background: $panel;
+        background: $surface;
         color: $text-muted;
         padding: 0 1;
     }
@@ -127,6 +127,9 @@ class ElroyApp(App):
         self._memory_panel_visible = show_memory_panel
         self._input_history: list[str] = []
         self._history_index = -1
+        self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        self._spinner_index = 0
+        self._spinner_handle = None
         self._load_input_history()
 
     # ── history ──────────────────────────────────────────────────────────────
@@ -170,8 +173,7 @@ class ElroyApp(App):
         from ..repository.user.queries import get_assistant_name
 
         self.title = get_assistant_name(self.ctx)
-        self._update_status_bar()
-        self.set_interval(5.0, self._update_status_bar)
+        self._stop_spinner()  # initialise status bar with model name
         self._start_session()
 
     # ── session init ─────────────────────────────────────────────────────────
@@ -203,7 +205,7 @@ class ElroyApp(App):
         """Consume a message stream (call from worker thread)."""
         self._streaming = True
         self.call_from_thread(self._set_input_disabled, True)
-        self.call_from_thread(self._update_status_bar)
+        self.call_from_thread(self._start_spinner)
         try:
             for item in stream:
                 self.io.print(item, end="")
@@ -211,8 +213,8 @@ class ElroyApp(App):
             self.call_from_thread(self._flush_thought_buffer)
             self.call_from_thread(self._flush_streaming_buffer)
             self._streaming = False
+            self.call_from_thread(self._stop_spinner)
             self.call_from_thread(self._set_input_disabled, False)
-            self.call_from_thread(self._update_status_bar)
 
     def _append_streaming_token(self, token: str, style: str) -> None:
         """Append a token to the live streaming area (main thread)."""
@@ -359,11 +361,26 @@ class ElroyApp(App):
         except Exception:
             logger.debug("Failed to update completions", exc_info=True)
 
-    def _update_status_bar(self) -> None:
+    def _start_spinner(self) -> None:
+        self._spinner_index = 0
+        if self._spinner_handle:
+            self._spinner_handle.stop()
+        self._spinner_handle = self.set_interval(0.08, self._tick_spinner)
+
+    def _tick_spinner(self) -> None:
+        import contextlib
+
+        self._spinner_index = (self._spinner_index + 1) % len(self._spinner_chars)
+        with contextlib.suppress(Exception):
+            self.query_one("#status-bar", Label).update(f"{self._spinner_chars[self._spinner_index]} thinking...")
+
+    def _stop_spinner(self) -> None:
+        if self._spinner_handle:
+            self._spinner_handle.stop()
+            self._spinner_handle = None
         try:
             model_name = self.ctx.chat_model.name
-            status = "⏳ streaming..." if self._streaming else f"● {model_name}"
-            self.query_one("#status-bar", Label).update(status)
+            self.query_one("#status-bar", Label).update(f"● {model_name}")
         except Exception:
             pass
 
