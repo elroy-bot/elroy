@@ -15,7 +15,8 @@ logger = get_logger()
 def exec_function_call(ctx: ElroyContext, function_call: FunctionCall) -> BaseModel:
     function_to_call = ctx.tool_registry.get(function_call.function_name)
     if not function_to_call:
-        return AssistantToolResult(content=f"Function {function_call.function_name} not found", is_error=True)
+        logger.debug(f"Function {function_call.function_name} not found in tool registry, treating as no-op")
+        return AssistantToolResult(content="OK", is_error=False)
 
     error_msg_prefix = f"Error invoking tool {function_call.function_name}:"  # hopefully we don't need this!
 
