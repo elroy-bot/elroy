@@ -1,32 +1,29 @@
 """File storage helpers for file-backed memories (Obsidian integration)."""
 
 import json
-import re
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import Memory
+from ..file_utils import (
+    read_file_text,
+    read_frontmatter,
+    sanitize_filename,
+    update_frontmatter_fields,
+)
 
 logger = get_logger()
 
-_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.DOTALL)
-
-
-def sanitize_filename(name: str) -> str:
-    """Replace special chars with underscores, truncate to 80 chars."""
-    sanitized = re.sub(r"[^\w\s-]", "_", name)
-    sanitized = re.sub(r"\s+", "_", sanitized)
-    sanitized = sanitized.strip("_")
-    return sanitized[:80] or "memory"
+# Aliases kept for callers that import these names directly
+read_memory_frontmatter = read_frontmatter
+read_memory_text = read_file_text
 
 
 def get_memory_file_path(memory_dir: Path, name: str, existing_paths: set[str]) -> Path:
     """Return a unique path for a new memory file in memory_dir."""
-    base = sanitize_filename(name)
+    base = sanitize_filename(name, fallback="memory")
     candidate = memory_dir / f"{base}.md"
     if str(candidate) not in existing_paths:
         return candidate
@@ -52,30 +49,6 @@ def write_memory_file(memory_dir: Path, memory: Memory, text: str, existing_path
     return path
 
 
-def read_memory_frontmatter(path: Path) -> dict[str, Any]:
-    """Parse YAML frontmatter from a markdown file. Returns {} if none."""
-    try:
-        content = path.read_text()
-    except OSError:
-        return {}
-    m = _FRONTMATTER_RE.match(content)
-    if not m:
-        return {}
-    try:
-        return yaml.safe_load(m.group(1)) or {}
-    except yaml.YAMLError:
-        return {}
-
-
-def read_memory_text(path: Path) -> str:
-    """Return the text content after frontmatter."""
-    content = path.read_text()
-    m = _FRONTMATTER_RE.match(content)
-    if m:
-        return content[m.end() :]
-    return content
-
-
 def archive_memory_file(file_path: Path, archive_dir: Path) -> Path:
     """Move a memory file to the archive directory. Returns the destination path."""
     archive_dir.mkdir(parents=True, exist_ok=True)
@@ -93,16 +66,7 @@ def archive_memory_file(file_path: Path, archive_dir: Path) -> Path:
 
 def write_id_to_frontmatter(path: Path, memory_id: int) -> None:
     """Write/update the id field in the frontmatter of a markdown file."""
-    content = path.read_text()
-    m = _FRONTMATTER_RE.match(content)
-    body = content[m.end() :] if m else content
-    try:
-        fm: dict[str, Any] = yaml.safe_load(m.group(1)) or {} if m else {}
-    except yaml.YAMLError:
-        fm = {}
-    fm["id"] = memory_id
-    frontmatter_str = yaml.dump(fm, default_flow_style=False).strip()
-    path.write_text(f"---\n{frontmatter_str}\n---\n\n{body.lstrip()}")
+    update_frontmatter_fields(path, {"id": memory_id})
 
 
 def _is_document_sourced(memory: Memory) -> bool:
