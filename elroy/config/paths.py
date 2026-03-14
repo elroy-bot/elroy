@@ -43,3 +43,9 @@ def get_log_file_path():
     logs_dir = get_home_dir() / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     return logs_dir / "elroy.log"
+
+
+def get_agenda_dir() -> Path:
+    agenda_dir = get_home_dir() / "agenda"
+    agenda_dir.mkdir(parents=True, exist_ok=True)
+    return agenda_dir
