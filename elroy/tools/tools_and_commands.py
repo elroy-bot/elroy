@@ -24,6 +24,12 @@ from ..repository.context_messages.tools import (
     add_memory_to_current_context,
     drop_memory_from_current_context,
 )
+from ..repository.agenda.tools import (
+    add_agenda_item,
+    complete_agenda_item,
+    delete_agenda_item,
+    list_agenda_items_cmd,
+)
 from ..repository.documents.tools import (
     get_document_excerpt,
     get_source_doc_metadata,
@@ -81,7 +87,12 @@ ALL_ACTIVE_REMINDER_COMMANDS: set[Callable] = {
     rename_reminder,
     update_reminder_text,
 }
+ALL_ACTIVE_AGENDA_COMMANDS: set[Callable] = {
+    complete_agenda_item,
+    delete_agenda_item,
+}
 NON_ARG_PREFILL_COMMANDS: set[Callable] = {
+    add_agenda_item,
     get_source_content_for_memory,
     create_reminder,
     create_memory,
@@ -115,6 +126,7 @@ USER_ONLY_COMMANDS = {
     search_memories,
     print_active_reminders,
     print_inactive_reminders,
+    list_agenda_items_cmd,
     set_assistant_name,
 }
 ASSISTANT_VISIBLE_COMMANDS: set[Callable] = {
@@ -125,6 +137,7 @@ ASSISTANT_VISIBLE_COMMANDS: set[Callable] = {
         | NON_CONTEXT_MEMORY_COMMANDS
         | ALL_ACTIVE_MEMORY_COMMANDS
         | ALL_ACTIVE_REMINDER_COMMANDS
+        | ALL_ACTIVE_AGENDA_COMMANDS
     )
     if getattr(f, IS_ENABLED, True)
 }
