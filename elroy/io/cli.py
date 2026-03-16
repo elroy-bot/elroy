@@ -9,6 +9,7 @@ from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style as PTKStyle
 from pygments.lexers.special import TextLexer
+from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -120,6 +121,11 @@ class CliIO(ElroyIO):
 
             panel = Panel("\n".join(display_titles), title="Relevant Context", expand=False, border_style=self.user_input_color)
             self.console.print(panel)
+
+    def print_status_panel(self, message_count: int, memories_count: int) -> None:
+        cols = Columns(["Messages", str(message_count), "Memories", str(memories_count)])
+        panel = Panel(cols, title="System status")
+        self.console.print(panel)
 
     def rule(self):
         self.last_output_type = None
