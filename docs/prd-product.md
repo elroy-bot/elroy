@@ -239,5 +239,6 @@ These principles should guide all future development:
 1. **Memory first** — every feature should consider how it interacts with the memory system. New structured data (agenda items, reminders) should be candidatesfor memory extraction.
 2. **File-backed where possible** — markdown + YAML frontmatter is the persistence format for user-visible data. Database rows are indexes, not sources of truth.
 3. **Config-driven, not code-driven** — behavioral tuning (thresholds, intervals, limits) belongs in config, not in code.
-4. **Tool-centric agent loop** — the assistant gains capabilities through tools, not special-cased prompt logic.
-5. **No breaking changes without migration** — schema migrations via Alembic; config changes with documented deprecation path.
+4. **Minimal configuration, sensible defaults** — a fresh install with zero configuration should work well for the typical user. New options should only be added when the right behavior genuinely varies by user or environment, and every option must have a default that is correct without any tuning. Prefer removing a config knob over proliferating them.
+5. **Tool-centric agent loop** — the assistant gains capabilities through tools, not special-cased prompt logic.
+6. **No breaking changes without migration** — schema migrations via Alembic; config changes with documented deprecation path.
