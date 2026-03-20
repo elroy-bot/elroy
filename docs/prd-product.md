@@ -146,7 +146,42 @@ This is the foundation for future integrations (Slack, Discord, Raycast, etc.).
 
 ---
 
-### Priority 6: TUI Improvements
+### Priority 6: Processing Transparency
+
+**Current state**: The TUI status bar shows a generic "⠋ thinking..." spinner from the moment the user submits a message until the full response is complete. The underlying pipeline — memory recall classification, vector search, LLM completion, tool execution, context persistence — is completely opaque. The `LatencyTracker` already instruments every phase internally (logged at DEBUG level); none of it surfaces to the user.
+
+**Gap**: Users have no visibility into what is taking time. A 3-second pause before a response could be memory consolidation, a slow tool call, or a large LLM context — the user can't tell. This makes the assistant feel unreliable rather than deliberate.
+
+**Goal**: The status bar (and equivalent output in CLI/PlainIO mode) should update in real time as the pipeline progresses.
+
+**Proposed status messages**:
+
+| Pipeline phase | Status bar text |
+|----------------|----------------|
+| Memory recall classification | `⠋ checking memory relevance…` |
+| Memory vector search | `⠋ recalling memories…` |
+| Due reminders check | `⠋ checking reminders…` |
+| LLM completion (first loop) | `⠋ thinking…` |
+| Tool execution | `⠋ running: <tool_name>…` |
+| Memory consolidation (background) | *(non-blocking; shown in sidebar or as a transient notice)* |
+| Context persistence | *(silent; too fast to surface)* |
+
+**Implementation notes**:
+- The messenger's generator already yields typed stream chunks (`AssistantInternalThought`, `FunctionCall`, token strings). Add a new `ProcessingStatus` yield type (a lightweight dataclass with a `message: str` field) emitted at each phase boundary.
+- `TextualIO` and `PlainIO` consume the stream; `PlainIO` can print status lines to stderr so they don't pollute piped output.
+- The `_run_stream` loop in `textual_app.py` handles each item type; add a branch for `ProcessingStatus` that calls `_update_status_bar(message)`.
+- Background consolidation is fire-and-forget; surface it as a brief sidebar notice ("Consolidating memories…") rather than blocking the status bar.
+- No new config needed — this is always-on behavior.
+
+**Acceptance criteria**:
+- Submitting a message that triggers memory recall causes the status bar to read `⠋ recalling memories…` before switching to `⠋ thinking…`
+- A tool call that takes > 0.5s shows `⠋ running: <tool_name>…` for its duration
+- `echo "hi" | elroy` (PlainIO mode) produces status lines on stderr only, with `--quiet` suppressing them
+- Existing snapshot/integration tests are not broken by the new yield type
+
+---
+
+### Priority 7: TUI Improvements
 
 **Current state**: The TUI provides a functional terminal interface but has several usability gaps.
 
@@ -162,7 +197,7 @@ This is the foundation for future integrations (Slack, Discord, Raycast, etc.).
 
 ---
 
-### Priority 7: Data Portability
+### Priority 8: Data Portability
 
 **Current state**: Memories are backed by markdown files, making read access easy. But there is no standard export for the full dataset (memories + reminders + agenda items), and no import path.
 
