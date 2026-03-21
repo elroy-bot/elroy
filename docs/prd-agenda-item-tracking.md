@@ -2,7 +2,6 @@
 
 **Status**: Draft
 **Date**: 2026-03-20
-**Branch**: `claude/agenda-item-tracking-prd-Od5k0`
 
 ---
 
@@ -56,7 +55,7 @@ checklist:
 
 ### Body (text section)
 
-The markdown body below the frontmatter fence continues to hold the main item description **plus** an optional **Updates** section appended by the tool.
+The markdown body below the frontmatter fence holds the main item description plus an optional **Updates** section appended over time.
 
 ```markdown
 ---
@@ -76,129 +75,64 @@ Write the Q2 report.
 - **2026-03-20 14:02**: First section done, two sections remaining.
 ```
 
-The `## Updates` header is inserted automatically on first `add_agenda_item_update` call and all subsequent entries are appended under it.
+The Updates section is created automatically on the first update and all subsequent entries are appended under it.
 
 ---
 
-## New Tools
+## New Capabilities
 
-### `add_agenda_item_checklist_item`
+### Add checklist item
 
-Add a new checklist entry to an existing agenda item.
+Add a sub-task to an agenda item. The item is identified by partial name match. The sub-task is appended to the checklist with a unique sequential id. Returns confirmation with the assigned id.
 
-```
-add_agenda_item_checklist_item(ctx, item_name, checklist_text) -> str
-```
+### Complete checklist item
 
-- `item_name`: substring match against file stems (same logic as `complete_agenda_item`)
-- `checklist_text`: description of the sub-task
-- Appends to `checklist` list in frontmatter; auto-assigns next integer `id`
-- Returns confirmation with the assigned id
+Mark a single checklist sub-task as done. Does not auto-complete the parent agenda item.
 
-### `complete_agenda_item_checklist_item`
+### Edit checklist item
 
-Mark a single checklist entry as completed.
+Update the text of a checklist sub-task.
 
-```
-complete_agenda_item_checklist_item(ctx, item_name, checklist_id) -> str
-```
+### Add agenda item update
 
-- `item_name`: substring match against file stems
-- `checklist_id`: integer id of the checklist entry
-- Sets `completed: true` on that entry; does **not** auto-complete the parent item
-- Returns confirmation
-
-### `update_agenda_item_checklist_item`
-
-Edit the text of an existing checklist entry.
-
-```
-update_agenda_item_checklist_item(ctx, item_name, checklist_id, new_text) -> str
-```
-
-- Updates `text` field on the matching checklist entry
-- Returns confirmation
-
-### `add_agenda_item_update`
-
-Append a timestamped text note to an agenda item.
-
-```
-add_agenda_item_update(ctx, item_name, update_text) -> str
-```
-
-- `item_name`: substring match against file stems
-- `update_text`: free-form note
-- Inserts `## Updates` section if not present, then appends a bullet: `- **<ISO datetime>**: <update_text>`
-- Returns confirmation with the timestamp used
+Append a timestamped note to an agenda item. Creates an Updates section in the item if one does not yet exist. Returns confirmation with the timestamp used.
 
 ---
 
-## Changes to Existing Tools
+## Changes to Existing Behavior
 
-### `list_agenda_items_cmd`
+### Agenda item listing
 
-The table should show checklist progress when present:
+Add a checklist progress column showing `<completed>/<total> done` for items that have checklist entries, empty otherwise. Example:
 
 | Item | Text | Checklist |
 |---|---|---|
 | write-q2-report | Write the Q2 report. | 1/3 done |
 
-Add a `Checklist` column that shows `<completed>/<total> done` when the item has checklist entries, empty otherwise.
+### Completing an agenda item
 
-### `complete_agenda_item`
-
-No change in behavior. Completing the parent item does not forcibly complete all checklist items — the file is marked `completed: true` and hidden from listings. Open checklist items are simply carried in the file as historical record.
-
----
-
-## File Storage Changes (`file_storage.py`)
-
-Add helpers:
-
-- `read_checklist(path) -> list[dict]` — returns the `checklist` list from frontmatter (empty list if absent)
-- `append_checklist_item(path, text) -> int` — appends entry, returns new id
-- `set_checklist_item_completed(path, checklist_id, completed=True) -> None`
-- `update_checklist_item_text(path, checklist_id, new_text) -> None`
-- `append_update(path, update_text, timestamp=None) -> str` — appends to `## Updates` section, returns formatted timestamp
-
-All checklist mutations use `update_frontmatter_fields` for frontmatter writes. The `append_update` helper performs a raw file append after the frontmatter body.
-
----
-
-## Tool Registration
-
-New tools go in `tools_and_commands.py` under `ASSISTANT_VISIBLE_COMMANDS`:
-
-- `add_agenda_item_checklist_item`
-- `complete_agenda_item_checklist_item`
-- `update_agenda_item_checklist_item`
-- `add_agenda_item_update`
+No change in behavior. Completing the parent item does not forcibly complete checklist sub-tasks. Open sub-tasks are carried in the file as historical record.
 
 ---
 
 ## Tests
 
-| Test | What it checks |
-|---|---|
-| `test_add_checklist_item` | Adds two items, verifies frontmatter ids |
-| `test_complete_checklist_item` | Marks one item completed, other unchanged |
-| `test_update_checklist_item_text` | Edits text of entry |
-| `test_add_agenda_item_update` | First call inserts `## Updates` header; second appends |
-| `test_list_shows_checklist_progress` | Table `Checklist` column shows correct fraction |
-| `test_complete_parent_does_not_force_checklist` | Parent completed, checklist entries keep their state |
-| `test_substring_match_ambiguity` | Multiple matches raise `RecoverableToolError` |
-
-Tests use pytest fixtures for a temporary agenda directory.
+- Adding two checklist sub-tasks produces entries with sequential ids
+- Completing one sub-task does not affect others
+- Editing a sub-task's text is reflected in the stored item
+- First update creates an Updates section; subsequent updates append to it
+- The agenda item listing shows checklist progress as a fraction
+- Completing the parent item leaves sub-task completion states unchanged
+- Ambiguous partial name matches produce a clear error to the user
 
 ---
 
 ## Acceptance Criteria
 
-1. `add_agenda_item_checklist_item("report", "Draft outline")` succeeds and the markdown file contains a `checklist` entry with `id: 1`.
-2. `complete_agenda_item_checklist_item("report", 1)` sets that entry to `completed: true`.
-3. `add_agenda_item_update("report", "Finished the draft")` appends a timestamped bullet under `## Updates`.
-4. `list_agenda_items_cmd` shows checklist progress (`1/3 done`) for items with a checklist.
-5. All new tools are accessible as slash commands.
+1. Adding a checklist sub-task to an agenda item stores it with a sequential id.
+2. Completing a checklist sub-task marks only that entry done, not the parent.
+3. Appending an update adds a timestamped bullet under an Updates section, creating it if absent.
+4. The agenda item listing shows checklist progress (e.g. "1/3 done") for items with sub-tasks.
+5. All new capabilities are accessible as slash commands.
 6. All agenda item tests continue to pass.
-7. An agenda item without a checklist continues to work exactly as before.
+7. An agenda item without a checklist works exactly as before.
