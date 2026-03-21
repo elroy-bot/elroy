@@ -140,15 +140,6 @@ The TUI status bar and CLI output should update in real time as the pipeline pro
 
 ---
 
-### Priority 7: Data Portability
-
-**Goal**:
-- Add `elroy export --output <dir>` CLI command that writes all active data to a structured directory of markdown files (one subdirectory per feature)
-- Add `elroy import --input <dir>` that re-ingests an export bundle (idempotent, skips existing records by content hash)
-- Document the export format so users can migrate between machines or back up to git
-
----
-
 ## Non-Priorities (Explicit)
 
 The following are **out of scope** for the foreseeable future:
