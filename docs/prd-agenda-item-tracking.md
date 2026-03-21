@@ -24,7 +24,7 @@ This PRD covers **structured checklist items within an agenda item**, and **appe
 
 - No database migration — checklist and notes data uses the markdown / YAML-frontmatter file format.
 - No nested checklists (one level only).
-- No due-dates or owners on individual checklist items.
+- No owners on individual checklist items.
 - No full-text search across agenda items (that is a separate feature).
 
 ---
@@ -48,10 +48,13 @@ checklist:
   - id: 1
     text: "Draft outline"
     completed: false
+    due_date: "2026-03-25"
   - id: 2
     text: "Write first section"
     completed: true
 ```
+
+`due_date` is optional (`YYYY-MM-DD`).
 
 ### Body (text section)
 
@@ -83,7 +86,7 @@ The Updates section is created automatically on the first update and all subsequ
 
 ### Add checklist item
 
-Add a sub-task to an agenda item. The item is identified by partial name match. The sub-task is appended to the checklist with a unique sequential id. Returns confirmation with the assigned id.
+Add a sub-task to an agenda item. The item is identified by partial name match. The sub-task is appended to the checklist with a unique sequential id and an optional due date. Returns confirmation with the assigned id.
 
 ### Complete checklist item
 
