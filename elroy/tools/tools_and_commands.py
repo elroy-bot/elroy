@@ -13,6 +13,12 @@ from ..cli.slash_commands import (
 )
 from ..core.constants import IS_ENABLED, user_only_tool
 from ..core.ctx import ElroyContext
+from ..repository.agenda.tools import (
+    add_agenda_item,
+    complete_agenda_item,
+    delete_agenda_item,
+    list_agenda_items_cmd,
+)
 from ..repository.context_messages.operations import (
     pop,
     refresh_system_instructions,
@@ -23,12 +29,6 @@ from ..repository.context_messages.operations import (
 from ..repository.context_messages.tools import (
     add_memory_to_current_context,
     drop_memory_from_current_context,
-)
-from ..repository.agenda.tools import (
-    add_agenda_item,
-    complete_agenda_item,
-    delete_agenda_item,
-    list_agenda_items_cmd,
 )
 from ..repository.documents.tools import (
     get_document_excerpt,

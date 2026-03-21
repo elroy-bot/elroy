@@ -1,9 +1,9 @@
 import uuid
 from collections.abc import Generator
-from typing import Any
+from typing import Any, cast
 
 import pytest
-from sqlmodel import delete
+from sqlmodel import delete, select
 from toolz import pipe
 from toolz.curried import do
 
@@ -14,6 +14,7 @@ from elroy.core.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     ContextMessageSet,
+    DocumentExcerpt,
     Memory,
     Message,
     Reminder,
@@ -26,7 +27,26 @@ from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.reminders.operations import do_create_reminder
 from elroy.repository.user.operations import create_user_id
-from tests.utils import MockCliIO
+from tests.utils import MockCliIO, MockLlmClient, _match_score
+
+
+def _mock_query_vector(self: DbSession, l2_distance_threshold: float, table, user_id: int, query: list[float]):
+    del l2_distance_threshold
+    query_text = getattr(self, "_test_embedding_queries", {}).get(tuple(query), "")
+    rows = list(self.exec(select(table).where(table.user_id == user_id, table.is_active.is_(True))).all())
+
+    def _row_text(row) -> str:
+        if isinstance(row, Memory):
+            return row.to_fact()
+        if isinstance(row, Reminder):
+            return row.to_fact()
+        if isinstance(row, DocumentExcerpt):
+            return row.to_fact()
+        return str(row)
+
+    ranked = sorted(rows, key=lambda row: _match_score(query_text, _row_text(row)), reverse=True)
+    return [row for row in ranked if _match_score(query_text, _row_text(row)) > 0]
+
 
 BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketball shots"
 
@@ -50,12 +70,13 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="session")
 def db_manager(tmp_path_factory):
+    data_dir = tmp_path_factory.mktemp("data")
     url = pipe(
-        tmp_path_factory.mktemp("data"),
+        data_dir,
         do(lambda x: x.mkdir(exist_ok=True)),
         lambda x: f"sqlite:///{x}/test.db",
     )
-    db_manager = DbManager(url)
+    db_manager = DbManager(url, chroma_path=data_dir / "chroma")
 
     db_manager.migrate()
 
@@ -177,6 +198,10 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
         memory_dir=str(tmp_path / "memories"),
     )
     ctx.set_db_session(db_session)
+    ctx.db.query_vector = _mock_query_vector.__get__(ctx.db, DbSession)
+    cast(Any, ctx.db)._test_embedding_queries = {}
+    ctx.__dict__["llm"] = MockLlmClient(ctx)
+    ctx.__dict__["fast_llm"] = MockLlmClient(ctx)
 
     onboard_non_interactive(ctx)
     yield ctx
