@@ -100,20 +100,7 @@ The agenda system is the user's primary way to manage structured work.
 
 ---
 
-### Priority 5: REST API / HTTP Interface
-
-**Goal**: Add an optional HTTP server mode (`elroy serve`) with:
-- `POST /message` — send a message, get a response (streaming via SSE)
-- `GET /memories` — list active memories
-- `GET /reminders` — list active reminders
-- Authentication via a configurable API key
-- JSON request/response bodies following existing context conventions
-
-This is the foundation for future integrations (Slack, Discord, Raycast, etc.).
-
----
-
-### Priority 6: Processing Transparency
+### Priority 5: Processing Transparency
 
 The TUI status bar and CLI output should update in real time as the pipeline progresses, giving users visibility into what the assistant is doing.
 
@@ -144,7 +131,7 @@ The TUI status bar and CLI output should update in real time as the pipeline pro
 
 ---
 
-### Priority 7: TUI Improvements
+### Priority 6: TUI Improvements
 
 **Goals**:
 - Memory sidebar: add `D` (delete) and `E` (edit) keybindings to selected memory
@@ -153,7 +140,7 @@ The TUI status bar and CLI output should update in real time as the pipeline pro
 
 ---
 
-### Priority 8: Data Portability
+### Priority 7: Data Portability
 
 **Goal**:
 - Add `elroy export --output <dir>` CLI command that writes all active data to a structured directory of markdown files (one subdirectory per feature)
