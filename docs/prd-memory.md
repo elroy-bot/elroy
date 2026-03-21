@@ -7,28 +7,7 @@
 
 ## Overview
 
-Elroy's memory system automatically extracts facts from conversations, stores them as semantic embeddings, surfaces them in future conversations, and periodically consolidates redundant entries. This PRD describes the current system, its known gaps, and the improvements needed to make memories more useful, accurate, and maintainable.
-
----
-
-## Current System Summary
-
-### How it works today
-
-1. **Automatic extraction** — every `messages_between_memory` messages (default 10), the assistant summarizes the conversation into a new memory file (`~/.elroy/memories/<slug>.md`).
-2. **Manual creation** — users can call `create_memory` or the assistant can be asked to record something explicitly.
-3. **Semantic recall** — on each incoming message, a recall classifier decides whether to search. If yes, the last few messages are embedded and vector-searched against all memories. Top matches are injected into context as synthetic tool-call messages.
-4. **Consolidation** — after every `memories_between_consolidation` new memories (default 4), a background job clusters all active memories with DBSCAN and asks the fast LLM to merge each cluster into a single canonical memory. Originals are archived.
-5. **File backing** — each memory is a markdown file with a YAML frontmatter `id`. An optional background sync watches `memory_dir` for external edits (e.g. Obsidian) and re-embeds changed files.
-
-### What is working well
-
-- Core pipeline is end-to-end functional and battle-tested
-- DBSCAN + density-based cluster reduction handles diverse memory sizes gracefully
-- Recall classifier avoids unnecessary LLM calls on trivial messages
-- File-backed format supports Obsidian integration out of the box
-- Source metadata tracks what conversation or document created each memory
-- Configurable via ~12 parameters without code changes
+Elroy's memory system automatically extracts facts from conversations, stores them as semantic embeddings, surfaces them in future conversations, and periodically consolidates redundant entries. This PRD describes known gaps and the improvements needed to make memories more useful, accurate, and maintainable.
 
 ---
 
@@ -149,7 +128,7 @@ Elroy's memory system automatically extracts facts from conversations, stores th
 | # | Criterion |
 |---|-----------|
 | 1 | Consolidation prompt explicitly addresses contradictions; consolidated memory text differs meaningfully from a naive concatenation when tested with conflicting source memories |
-| 2 | `recency_weight=0` (default) produces identical ranking to today; `recency_weight=0.5` demonstrably ranks a 1-day-old memory above a 365-day-old memory with equal cosine distance |
+| 2 | `recency_weight=0` (default) produces identical ranking to unweighted; `recency_weight=0.5` demonstrably ranks a 1-day-old memory above a 365-day-old memory with equal cosine distance |
 | 3 | Consolidation for a user with 100 memories makes exactly 1 DB call for embeddings (verified by query count in tests) |
 | 4 | `python -c "from elroy.core.configs import MemoryConfig; import yaml; ..."` assert passes: all four reconciled fields match |
 | 5 | All four new update-memory tests pass |

@@ -8,7 +8,7 @@
 
 ## Overview
 
-Elroy already has basic agenda item support (add, complete, delete, list). This PRD covers the next phase: **structured checklist items within an agenda item**, and **append-only text updates** so users can log progress over time.
+This PRD covers **structured checklist items within an agenda item**, and **append-only text updates** so users can log progress over time.
 
 ---
 
@@ -17,13 +17,13 @@ Elroy already has basic agenda item support (add, complete, delete, list). This 
 1. An agenda item can contain an ordered list of checklist sub-items, each with its own completion state.
 2. Users (and the assistant) can update individual checklist items independently.
 3. Users can append timestamped text notes to any agenda item over time.
-4. The existing plain-text agenda item flow remains fully supported — checklist and notes are additive.
+4. The plain-text agenda item flow remains fully supported — checklist and notes are additive.
 
 ---
 
 ## Non-Goals
 
-- No database migration — checklist and notes data stays in the existing markdown / YAML-frontmatter file format.
+- No database migration — checklist and notes data uses the markdown / YAML-frontmatter file format.
 - No nested checklists (one level only).
 - No due-dates or owners on individual checklist items.
 - No full-text search across agenda items (that is a separate feature).
@@ -148,7 +148,7 @@ Add a `Checklist` column that shows `<completed>/<total> done` when the item has
 
 ### `complete_agenda_item`
 
-No change in behavior. Completing the parent item does not forcibly complete all checklist items — the file is marked `completed: true` and hidden from listings as today. Open checklist items are simply carried in the file as historical record.
+No change in behavior. Completing the parent item does not forcibly complete all checklist items — the file is marked `completed: true` and hidden from listings. Open checklist items are simply carried in the file as historical record.
 
 ---
 
@@ -162,7 +162,7 @@ Add helpers:
 - `update_checklist_item_text(path, checklist_id, new_text) -> None`
 - `append_update(path, update_text, timestamp=None) -> str` — appends to `## Updates` section, returns formatted timestamp
 
-All checklist mutations use `update_frontmatter_fields` for frontmatter writes (existing utility). The `append_update` helper performs a raw file append after the frontmatter body.
+All checklist mutations use `update_frontmatter_fields` for frontmatter writes. The `append_update` helper performs a raw file append after the frontmatter body.
 
 ---
 
@@ -189,7 +189,7 @@ New tools go in `tools_and_commands.py` under `ASSISTANT_VISIBLE_COMMANDS`:
 | `test_complete_parent_does_not_force_checklist` | Parent completed, checklist entries keep their state |
 | `test_substring_match_ambiguity` | Multiple matches raise `RecoverableToolError` |
 
-Tests follow the existing pattern in `tests/` using pytest fixtures for a temporary agenda directory.
+Tests use pytest fixtures for a temporary agenda directory.
 
 ---
 
@@ -200,5 +200,5 @@ Tests follow the existing pattern in `tests/` using pytest fixtures for a tempor
 3. `add_agenda_item_update("report", "Finished the draft")` appends a timestamped bullet under `## Updates`.
 4. `list_agenda_items_cmd` shows checklist progress (`1/3 done`) for items with a checklist.
 5. All new tools are accessible as slash commands.
-6. All existing agenda item tests continue to pass.
+6. All agenda item tests continue to pass.
 7. An agenda item without a checklist continues to work exactly as before.
