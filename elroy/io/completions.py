@@ -20,11 +20,11 @@ def build_completions(ctx: ElroyContext) -> list[str]:
     from toolz.curried import map as tmap
 
     from ..core.constants import EXIT
+    from ..repository.agenda.tools import get_today_agenda_titles
     from ..repository.context_messages.queries import get_context_messages
     from ..repository.memories.queries import get_active_memories
     from ..repository.recall.queries import is_in_context
     from ..repository.reminders.queries import get_active_reminders
-    from ..repository.agenda.tools import get_today_agenda_titles
     from ..tools.tools_and_commands import (
         ALL_ACTIVE_AGENDA_COMMANDS,
         ALL_ACTIVE_MEMORY_COMMANDS,
