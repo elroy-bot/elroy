@@ -17,7 +17,7 @@ It is designed for individuals who prefer working in a terminal, want an AI assi
 
 **Primary**: Developers and power users who live in a terminal.
 - Want an AI assistant that remembers previous conversations
-- Value scriptability and automation over a polished GUI
+- Prefer a polished CLI experience over scriptability and automation
 - Comfortable configuring tools via YAML and CLI flags
 
 **Secondary**: Knowledge workers managing personal information (notes, reminders, recurring tasks).
