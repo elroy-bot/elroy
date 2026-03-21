@@ -31,7 +31,7 @@ This PRD covers **structured checklist items within an agenda item**, and **appe
 
 ## Data Model
 
-All data remains in `~/.elroy/agenda/<slug>.md` markdown files with YAML frontmatter.
+All recallable information is stored in markdown files with YAML frontmatter, within elroy's configurable home directory.
 
 ### Frontmatter fields (extended)
 
