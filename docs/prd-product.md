@@ -9,7 +9,7 @@
 
 Elroy is a **memory-augmented AI personal assistant** for the command line. It wraps a large language model with persistent memory, reminders, agenda tracking, and document understanding — so every conversation benefits from what the assistant already knows about you.
 
-It is designed for individuals who prefer working in a terminal, want an AI assistant they can script and automate, and don't want to re-explain context every session.
+It is designed for individuals who prefer working in a terminal and don't want to re-explain context every session.
 
 ---
 
@@ -33,7 +33,7 @@ It is designed for individuals who prefer working in a terminal, want an AI assi
 
 ---
 
-## Current Capabilities
+## Capabilities
 
 ### Memory
 Automatically extracts facts from conversations, stores them as vector-embedded markdown files, surfaces relevant memories in future conversations, and periodically consolidates redundant entries. Supports Obsidian sync via a configurable `memory_dir`.
@@ -41,20 +41,19 @@ Automatically extracts facts from conversations, stores them as vector-embedded 
 See: [prd-memory.md](prd-memory.md)
 
 ### Reminders
-Time-based and context-triggered reminders. The assistant surfaces due reminders during relevant conversations. Full lifecycle management (create, update, delete, complete).
+Time-based and context-triggered reminders, including recurring schedules and snooze/defer. The assistant surfaces due reminders during relevant conversations. Full lifecycle management (create, update, delete, complete, snooze).
 
 ### Agenda / Task Tracking
-Daily agenda items organized by date. Basic add/complete/delete flow. Expanding to support checklist sub-items and timestamped text updates.
+Daily agenda items organized by date. Items support checklist sub-tasks with independent completion state and optional due dates, plus append-only timestamped progress notes.
 
 See: [prd-agenda-item-tracking.md](prd-agenda-item-tracking.md)
 
 ### Document Understanding
 Ingest documents (text, markdown) into a searchable store. RAG-style retrieval surfaces relevant excerpts in context. Background ingestion watches a configurable directory.
 
-### Multiple Interfaces
-- **TUI** — Textual-based terminal UI with streaming responses, memory sidebar, slash-command autocomplete
-- **CLI** — Single-command mode for scripting (`echo "what did we discuss?" | elroy`)
-- **Python API** — `from elroy import Elroy` for programmatic use in scripts and applications
+### Interface
+- **TUI** — Textual-based terminal UI with streaming responses, memory sidebar, slash-command autocomplete, and real-time pipeline status
+- **CLI** — Single-command mode (`echo "what did we discuss?" | elroy`)
 
 ### Multi-Model Support
 OpenAI (GPT-4o, o1), Anthropic (Claude 3.5 Sonnet, Opus), Google Gemini, and any OpenAI-compatible API via LiteLLM. Model aliases (`--sonnet`, `--4o`) for quick selection.
@@ -71,39 +70,19 @@ The following areas represent the most impactful improvements, ordered roughly b
 
 Memory is the core differentiator. Before adding new features, memory must be accurate, deduplicated, and surfaced at the right moment.
 
-**Gaps**:
-- Consolidation does not resolve contradictions in merged memories
-- Recency is not a factor in recall ranking — old memories compete equally with recent ones
-- Reflection word limit is hardcoded and inflexible
-- Update-memory tool has no test coverage
-- Archived memories accumulate with no cleanup path
-- Consolidation has an N+1 query performance problem
-
 **Goals**: See [prd-memory.md](prd-memory.md) for full detail.
 
 ---
 
 ### Priority 2: Agenda & Task Tracking
 
-The agenda system is the user's primary way to manage structured work. It must support real task tracking, not just plain-text notes.
-
-**Gaps**:
-- No sub-task (checklist) support
-- No progress notes over time
-- List view does not show completion status of sub-tasks
+The agenda system is the user's primary way to manage structured work.
 
 **Goals**: See [prd-agenda-item-tracking.md](prd-agenda-item-tracking.md) for full detail.
 
 ---
 
 ### Priority 3: Reminders — Recurrence & Snooze
-
-**Current state**: One-shot time-based or context-based reminders only.
-
-**Gaps**:
-- No recurring reminders (daily standup, weekly review)
-- No snooze / defer (push a reminder forward by N hours/days)
-- No batch management (list all reminders due this week)
 
 **Goals**:
 - Add `recurrence` field to reminders: `daily`, `weekly`, `monthly`, or cron expression
@@ -114,14 +93,6 @@ The agenda system is the user's primary way to manage structured work. It must s
 
 ### Priority 4: Memory Discoverability
 
-**Current state**: Memories can be searched via `examine_memories` (semantic search) and `search_memories` (user-only). There is no browsing, filtering, or tagging.
-
-**Gaps**:
-- No way to browse memories by topic or time period
-- No tagging or categorization
-- Memory timeline is not visible
-- Archived memories have no management UI
-
 **Goals**:
 - Add `list_memories_by_date(ctx, start_date, end_date)` user-only tool
 - Add optional `tags` field to memory frontmatter; expose `tag_memory` and `search_memories_by_tag` tools
@@ -130,10 +101,6 @@ The agenda system is the user's primary way to manage structured work. It must s
 ---
 
 ### Priority 5: REST API / HTTP Interface
-
-**Current state**: Elroy is accessible only as a Python library or via CLI. There is no HTTP interface.
-
-**Gap**: Integrating Elroy into other tools (scripts, web hooks, other apps) requires spawning a subprocess or importing Python directly.
 
 **Goal**: Add an optional HTTP server mode (`elroy serve`) with:
 - `POST /message` — send a message, get a response (streaming via SSE)
@@ -148,11 +115,7 @@ This is the foundation for future integrations (Slack, Discord, Raycast, etc.).
 
 ### Priority 6: Processing Transparency
 
-**Current state**: The TUI status bar shows a generic "⠋ thinking..." spinner from the moment the user submits a message until the full response is complete. The underlying pipeline — memory recall classification, vector search, LLM completion, tool execution, context persistence — is completely opaque. The `LatencyTracker` already instruments every phase internally (logged at DEBUG level); none of it surfaces to the user.
-
-**Gap**: Users have no visibility into what is taking time. A 3-second pause before a response could be memory consolidation, a slow tool call, or a large LLM context — the user can't tell. This makes the assistant feel unreliable rather than deliberate.
-
-**Goal**: The status bar (and equivalent output in CLI/PlainIO mode) should update in real time as the pipeline progresses.
+The TUI status bar and CLI output should update in real time as the pipeline progresses, giving users visibility into what the assistant is doing.
 
 **Proposed status messages**:
 
@@ -183,13 +146,6 @@ This is the foundation for future integrations (Slack, Discord, Raycast, etc.).
 
 ### Priority 7: TUI Improvements
 
-**Current state**: The TUI provides a functional terminal interface but has several usability gaps.
-
-**Gaps**:
-- Memory sidebar (`F2`) is read-only — cannot edit or delete memories from the sidebar
-- Internal thought display is on by default and can be overwhelming for casual users
-- No help screen for available slash commands
-
 **Goals**:
 - Memory sidebar: add `D` (delete) and `E` (edit) keybindings to selected memory
 - Change `show_internal_thought` default to `false` (breaking change, needs migration note)
@@ -198,8 +154,6 @@ This is the foundation for future integrations (Slack, Discord, Raycast, etc.).
 ---
 
 ### Priority 8: Data Portability
-
-**Current state**: Memories are backed by markdown files, making read access easy. But there is no standard export for the full dataset (memories + reminders + agenda items), and no import path.
 
 **Goal**:
 - Add `elroy export --output <dir>` CLI command that writes all active data to a structured directory of markdown files (one subdirectory per feature)
