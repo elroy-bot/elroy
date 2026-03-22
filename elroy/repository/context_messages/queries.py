@@ -1,3 +1,4 @@
+import time
 from collections.abc import Iterable
 from typing import Any, cast
 
@@ -11,17 +12,30 @@ from .transforms import ContextMessageSetWithMessages
 
 
 def get_or_create_context_message_set(ctx: ElroyContext) -> ContextMessageSetWithMessages:
-    db_entry = ctx.db.exec(
-        select(ContextMessageSet).where(
-            ContextMessageSet.user_id == ctx.user_id,
-            cast(Any, ContextMessageSet.is_active),
-        )
-    ).first()
-    if db_entry:
-        return ContextMessageSetWithMessages.from_context_message_set(ctx.db.session, db_entry)
-    else:
-        db_entry = ctx.db.persist(ContextMessageSet(user_id=ctx.user_id, message_ids="[]", is_active=True))
-        return ContextMessageSetWithMessages.from_context_message_set(ctx.db.session, db_entry)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            db_entry = ctx.db.exec(
+                select(ContextMessageSet).where(
+                    ContextMessageSet.user_id == ctx.user_id,
+                    cast(Any, ContextMessageSet.is_active),
+                )
+            ).first()
+            if db_entry:
+                return ContextMessageSetWithMessages.from_context_message_set(ctx.db.session, db_entry)
+
+            db_entry = ContextMessageSet(user_id=ctx.user_id, message_ids="[]", is_active=True)
+            ctx.db.add(db_entry)
+            ctx.db.commit()
+            ctx.db.refresh(db_entry)
+            return ContextMessageSetWithMessages.from_context_message_set(ctx.db.session, db_entry)
+        except Exception:
+            ctx.db.rollback()
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(0.1 * 2**attempt)
+
+    raise RuntimeError("Failed to get or create context message set")
 
 
 def get_context_messages(ctx: ElroyContext) -> Iterable[ContextMessage]:

@@ -14,9 +14,14 @@ from ..cli.slash_commands import (
 from ..core.constants import IS_ENABLED, user_only_tool
 from ..core.ctx import ElroyContext
 from ..repository.agenda.tools import (
+    add_agenda_checklist_item,
     add_agenda_item,
+    add_agenda_item_update,
+    complete_agenda_checklist_item,
     complete_agenda_item,
     delete_agenda_item,
+    edit_agenda_checklist_item,
+    list_agenda_items,
     list_agenda_items_cmd,
 )
 from ..repository.context_messages.operations import (
@@ -89,10 +94,18 @@ ALL_ACTIVE_REMINDER_COMMANDS: set[Callable] = {
 }
 ALL_ACTIVE_AGENDA_COMMANDS: set[Callable] = {
     complete_agenda_item,
+    complete_agenda_checklist_item,
     delete_agenda_item,
+    edit_agenda_checklist_item,
+    add_agenda_checklist_item,
+    add_agenda_item_update,
+    list_agenda_items,
 }
 NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     add_agenda_item,
+    list_agenda_items,
+    add_agenda_checklist_item,
+    add_agenda_item_update,
     get_source_content_for_memory,
     create_reminder,
     create_memory,
