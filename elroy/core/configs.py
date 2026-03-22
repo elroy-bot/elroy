@@ -49,7 +49,7 @@ class MemoryConfig:
     """Memory management and context configuration."""
 
     # Context Management
-    max_context_age_minutes: float = 60.0
+    max_context_age_minutes: float = 1440.0
     min_convo_age_for_greeting_minutes: float = 5.0
 
     # Memory Clustering

@@ -26,7 +26,7 @@ from ...core.tracing import tracer
 from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
-from ...utils.clock import db_time_to_local
+from ...utils.clock import db_time_to_local, utc_now
 from ..memories.operations import (
     create_mem_from_current_context,
     formulate_memory,
@@ -222,6 +222,15 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
     else:
         # No user messages yet, just use compressed messages
         replace_context_messages(ctx, compressed_messages)
+
+
+def drop_old_context_messages(ctx: ElroyContext) -> None:
+    now = utc_now()
+    context_messages = list(get_context_messages(ctx))
+    to_keep = [m for m in context_messages if m.role == SYSTEM or not m.created_at or m.created_at >= now - ctx.max_in_context_message_age]
+    if len(to_keep) < len(context_messages):
+        logger.info(f"Dropping {len(context_messages) - len(to_keep)} messages older than {ctx.max_in_context_message_age}")
+        replace_context_messages(ctx, to_keep)
 
 
 def refresh_context_if_needed(ctx: ElroyContext):
