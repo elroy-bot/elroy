@@ -11,6 +11,7 @@ from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
 from textual.suggester import SuggestFromList
 from textual.widgets import Input, Label, ListItem, ListView, RichLog, Static
 
@@ -24,6 +25,48 @@ from ..io.formatters.rich_formatter import RichFormatter
 from ..io.textual_io import TextualIO
 
 logger = get_logger()
+
+
+class MemoryDetailModal(ModalScreen):
+    """Shows the full content of a single in-context memory."""
+
+    DEFAULT_CSS = """
+    MemoryDetailModal {
+        align: center middle;
+    }
+    #memory-detail-container {
+        width: 80%;
+        height: 80%;
+        background: $surface;
+        border: solid $primary;
+        padding: 1 2;
+    }
+    #memory-detail-title {
+        height: 1;
+        background: $primary;
+        color: $text;
+        padding: 0 1;
+        text-align: center;
+    }
+    #memory-detail-log {
+        height: 1fr;
+    }
+    """
+
+    BINDINGS = [Binding("escape,enter,q", "dismiss", "Close", show=False)]
+
+    def __init__(self, title: str, content: str):
+        super().__init__()
+        self._memory_title = title
+        self._memory_content = content
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="memory-detail-container"):
+            yield Label(self._memory_title, id="memory-detail-title")
+            yield RichLog(id="memory-detail-log", wrap=True, highlight=False, markup=False)
+
+    def on_mount(self) -> None:
+        self.query_one("#memory-detail-log", RichLog).write(self._memory_content)
 
 
 class ElroyApp(App):
@@ -175,6 +218,20 @@ class ElroyApp(App):
         self.title = get_assistant_name(self.ctx)
         self._stop_spinner()  # initialise status bar with model name
         self._start_session()
+
+    # ── memory panel ─────────────────────────────────────────────────────────
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        if event.list_view.id != "memory-list":
+            return
+        from ..repository.memories.queries import get_memory_by_name
+
+        memory_name = event.item.name
+        if not memory_name:
+            return
+        memory = get_memory_by_name(self.ctx, memory_name)
+        if memory:
+            self.push_screen(MemoryDetailModal(memory_name, memory.to_fact()))
 
     # ── session init ─────────────────────────────────────────────────────────
 
@@ -348,7 +405,7 @@ class ElroyApp(App):
             list_view = self.query_one("#memory-list", ListView)
             self.call_from_thread(list_view.clear)
             for title in titles[:15]:
-                self.call_from_thread(list_view.append, ListItem(Label(title)))
+                self.call_from_thread(list_view.append, ListItem(Label(title), name=title))
         except Exception:
             logger.debug("Failed to refresh memory panel", exc_info=True)
 
