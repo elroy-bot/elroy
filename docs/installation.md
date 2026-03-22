@@ -2,12 +2,11 @@
 
 ## Prerequisites
 
+- Python 3.12
 - Relevant API keys (for simplest setup, set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
-- Database, either:
-    - SQLite (sqlite-vec will be installed)
-    - PostgreSQL with pgvector extension
+- SQLite (included with Python; sqlite-vec will be installed automatically)
 
-By default, Elroy will use SQLite. To add a custom DB, you can provide your database url either via the `ELROY_DATABASE_URL`, the `database_url` config value, or via the `--database-url` startup flag.
+By default, Elroy uses SQLite. To use a custom database path, set `ELROY_DATABASE_URL` or the `database_url` config value.
 
 ## Option 1: Using Install Script (Recommended)
 
@@ -26,8 +25,7 @@ This install script is based on [Aider's installation script](https://aider.chat
 ## Option 2: Using UV Manually
 
 ### Prerequisites
-- Python 3.10 or higher
-- Database (SQLite or PostgreSQL with pgvector extension)
+- Python 3.12
 - Relevant API keys (for simplest setup, set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
 
 1. Install UV:
@@ -61,8 +59,6 @@ elroy
 ### Prerequisites
 - Docker and Docker Compose
 
-This option automatically sets up everything you need, including the required PostgreSQL database with pgvector extension.
-
 1. Download the docker-compose.yml:
 ```bash
 curl -O https://raw.githubusercontent.com/elroy-bot/elroy/main/docker-compose.yml
@@ -74,11 +70,8 @@ curl -O https://raw.githubusercontent.com/elroy-bot/elroy/main/docker-compose.ym
 docker compose build --no-cache
 docker compose run --rm elroy
 
-# Add parameters as needed, e.g. here to use Anthropic's Sonnet model
-docker compose run --rm elroy --sonnet
-
 # Pass through all environment variables from host
-docker compose run --rm -e elroy
+docker compose run --rm -e OPENAI_API_KEY -e ANTHROPIC_API_KEY elroy
 
 # Or pass specific environment variable patterns
 docker compose run --rm -e "ELROY_*" -e "OPENAI_*" -e "ANTHROPIC_*" elroy
@@ -89,10 +82,9 @@ The Docker image is publicly available at `ghcr.io/elroy-bot/elroy`.
 ## Option 4: Installing from Source
 
 ### Prerequisites
-- Python 3.10 or higher
+- Python 3.12
 - uv package manager (install with `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Relevant API keys (for simplest setup, set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
-- PostgreSQL database with pgvector extension
 
 ```bash
 # Clone the repository
@@ -101,7 +93,7 @@ cd elroy
 
 # Create virtual environment and install dependencies
 uv venv
-source .venv/bin/activate  # On Unix/MacOS
+source .venv/bin/activate  # On Unix/macOS
 # or
 .venv\Scripts\activate  # On Windows
 

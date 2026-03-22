@@ -1,67 +1,37 @@
 # Scripting
 
-Elroy can be scripted and automated, making it a powerful tool for integrating AI capabilities into your workflows and applications.
+Elroy is primarily a terminal UI application. For automation and scripting use cases, configure Elroy via environment variables and use the background ingestion feature.
 
-## Python API
+## Configuration via Environment Variables
 
-Elroy provides a Python API that allows you to integrate it into your Python scripts and applications:
+All Elroy settings can be set through environment variables prefixed with `ELROY_`:
 
-```python
-from elroy import Elroy
+```bash
+# Set the model
+export ELROY_CHAT_MODEL=gpt-5
 
-ai = Elroy()
+# Set user token for separate memory namespaces in scripts
+export ELROY_USER_TOKEN=my_script_user
 
-# Create a memory
-ai.remember("Important project context")
-
-# Process a message with memory augmentation
-response = ai.message("What should I do next on the project?")
-print(response)
+# Launch elroy
+elroy
 ```
 
-## Example: Automating Release Notes
+## Background Document Ingestion
 
-Here's an example of using Elroy to automate the creation of release notes:
+For workflows that need Elroy to process documents automatically, use background ingestion:
 
-```python
-from elroy import Elroy
-
-def generate_release_notes(version, changes):
-    ai = Elroy()
-
-    # Provide context about the changes
-    ai.remember(f"Changes for version {version}: {changes}")
-
-    # Ask Elroy to generate release notes
-    prompt = f"Generate release notes for version {version} based on the changes I've shared."
-    release_notes = ai.message(prompt)
-
-    return release_notes
-
-# Usage
-changes = """
-- Fixed bug in memory consolidation
-- Added support for new models
-- Improved CLI interface
-"""
-
-notes = generate_release_notes("1.2.0", changes)
-print(notes)
+```yaml
+# ~/.elroy/elroy.conf.yaml
+background_ingest_enabled: true
+background_ingest_paths:
+  - ~/documents/
+  - ~/notes/
+background_ingest_interval_minutes: 60
 ```
 
 ## Shell Scripting
 
-The chat interface accepts input from stdin, so you can pipe text to Elroy:
-
-```bash
-# Process a single question
-echo "What is 2+2?" | elroy chat
-
-# Create a memory from file content
-cat meeting_notes.txt | elroy remember
-
-# Use a specific tool with piped input
-echo "Buy groceries" | elroy message --tool create_reminder
-```
+Elroy's terminal UI reads from stdin when it is not a TTY, allowing basic piped input. However, interactive scripting workflows are best handled via the slash commands inside the TUI.
 
 For more examples, see the [examples directory](https://github.com/elroy-bot/elroy/tree/main/examples) in the Elroy repository.
