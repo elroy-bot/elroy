@@ -45,6 +45,7 @@ The memory panel collapses (M to toggle), the status footer collapses (S to togg
 - Updates after each exchange without redrawing the conversation
 - Toggled with `M` key; when dismissed, conversation pane expands to full width
 - Default state: visible
+- Pressing `Enter` on a memory opens a modal showing its full content; dismiss with `Escape`, `Enter`, or `q`
 
 ### 3. Input bar
 - Single-line `Input` widget at the bottom, always visible
@@ -87,7 +88,7 @@ The memory panel collapses (M to toggle), the status footer collapses (S to togg
 
 | Key | Action |
 |-----|--------|
-| `Enter` | Submit message |
+| `Enter` | Submit message; or open selected memory detail |
 | `M` | Toggle memory panel |
 | `S` | Toggle system status footer / open detail panel |
 | `Ctrl-C` | Cancel in-progress stream |
@@ -118,6 +119,6 @@ The memory panel collapses (M to toggle), the status footer collapses (S to togg
 
 ## Out of scope
 - Mobile / web rendering
-- Mouse-driven memory panel interactions (keyboard-only for v1)
+- Mouse-driven memory panel interactions (keyboard-only)
 - Editing past messages
 - Multi-session tabs
