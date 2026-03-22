@@ -1,7 +1,7 @@
 """Textual TUI for Elroy chat interface."""
 
 import re
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import timedelta
 from pathlib import Path
 from typing import ClassVar, cast
@@ -51,22 +51,52 @@ class MemoryDetailModal(ModalScreen):
     #memory-detail-log {
         height: 1fr;
     }
+    #memory-detail-footer {
+        height: 1;
+        background: $surface;
+        color: $text-muted;
+        padding: 0 1;
+    }
+    #memory-detail-footer.confirm {
+        color: $warning;
+    }
     """
 
     BINDINGS = [Binding("escape,enter,q", "dismiss", "Close", show=False)]
 
-    def __init__(self, title: str, content: str):
+    def __init__(self, title: str, content: str, on_delete: "Callable[[], None] | None" = None):
         super().__init__()
         self._memory_title = title
         self._memory_content = content
+        self._on_delete = on_delete
+        self._confirming_delete = False
 
     def compose(self) -> ComposeResult:
         with Vertical(id="memory-detail-container"):
             yield Label(self._memory_title, id="memory-detail-title")
             yield RichLog(id="memory-detail-log", wrap=True, highlight=False, markup=False)
+            footer_text = "D: delete  |  Escape/Enter/Q: close" if self._on_delete else "Escape/Enter/Q: close"
+            yield Label(footer_text, id="memory-detail-footer")
 
     def on_mount(self) -> None:
         self.query_one("#memory-detail-log", RichLog).write(self._memory_content)
+
+    def on_key(self, event) -> None:
+        if event.key == "d" and self._on_delete:
+            if self._confirming_delete:
+                self._on_delete()
+                self.dismiss()
+            else:
+                self._confirming_delete = True
+                footer = self.query_one("#memory-detail-footer", Label)
+                footer.update("Press D again to confirm deletion, any other key to cancel")
+                footer.add_class("confirm")
+            event.stop()
+        elif self._confirming_delete:
+            self._confirming_delete = False
+            footer = self.query_one("#memory-detail-footer", Label)
+            footer.update("D: delete  |  Escape/Enter/Q: close")
+            footer.remove_class("confirm")
 
 
 class ElroyApp(App):
@@ -229,10 +259,20 @@ class ElroyApp(App):
         type_key = event.item.name
         if not type_key or ": " not in type_key:
             return
+        from ..db.db_models import EmbeddableSqlModel
+        from ..repository.memories.operations import mark_inactive
+
         source_type, name = type_key.split(": ", 1)
         source = db_get_memory_source_by_name(self.ctx, source_type, name)
         if source:
-            self.push_screen(MemoryDetailModal(name, source.to_fact()))
+            on_delete = None
+            if isinstance(source, EmbeddableSqlModel):
+
+                def on_delete(s=source) -> None:
+                    mark_inactive(self.ctx, s)
+                    self._refresh_memory_panel()
+
+            self.push_screen(MemoryDetailModal(name, source.to_fact(), on_delete=on_delete))
 
     # ── session init ─────────────────────────────────────────────────────────
 
