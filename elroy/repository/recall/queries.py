@@ -9,7 +9,7 @@ from ...core.constants import TOOL, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import log_execution_time
 from ...core.tracing import tracer
-from ...db.db_models import DocumentExcerpt, EmbeddableSqlModel, Memory, Reminder
+from ...db.db_models import AgendaItem, DocumentExcerpt, EmbeddableSqlModel, Memory, Reminder
 from ...repository.data_models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
 
@@ -111,3 +111,9 @@ def get_most_relevant_memories(ctx: ElroyContext, query: list[float]) -> list[Me
 @log_execution_time
 def get_most_relevant_reminders(ctx: ElroyContext, query: list[float]) -> list[Reminder]:
     return list(query_vector(Reminder, ctx, query))[:2]
+
+
+@tracer.chain
+@log_execution_time
+def get_most_relevant_agenda_items(ctx: ElroyContext, query: list[float]) -> list[AgendaItem]:
+    return list(query_vector(AgendaItem, ctx, query))[:2]

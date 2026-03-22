@@ -1,4 +1,5 @@
 import json
+import types
 from inspect import Parameter
 from multiprocessing import get_logger
 from typing import Any, Union, get_args, get_origin
@@ -130,7 +131,8 @@ def print_system_instruction(ctx: ElroyContext) -> str | None:
 
 
 def _is_optional(param: Parameter) -> bool:
-    return get_origin(param.annotation) is Union and type(None) in get_args(param.annotation)
+    origin = get_origin(param.annotation)
+    return origin in (Union, types.UnionType) and type(None) in get_args(param.annotation)
 
 
 def get_casted_value(parameter: Parameter, str_value: str) -> Any | None:

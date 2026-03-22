@@ -28,6 +28,7 @@ from ..context_messages.transforms import (
 )
 from ..data_models import RecallMetadata, RecallResponse
 from ..recall.queries import (
+    get_most_relevant_agenda_items,
     get_most_relevant_memories,
     get_most_relevant_reminders,
     get_recall_metadata,
@@ -175,7 +176,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[C
     return pipe(
         message_content,
         lambda x: ctx.llm.get_embedding(x, ctx=ctx),
-        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
+        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders, get_most_relevant_agenda_items)(ctx, x),
         concat,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),

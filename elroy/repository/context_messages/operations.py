@@ -74,6 +74,9 @@ def replace_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessag
     if existing_context:
         existing_context.is_active = None
         ctx.db.add(existing_context)
+        # Flush the deactivation before inserting the replacement so the
+        # unique (user_id, is_active) constraint does not see two active rows.
+        ctx.db.session.flush()
     new_context = ContextMessageSet(
         user_id=ctx.user_id,
         message_ids=json.dumps(msg_ids),

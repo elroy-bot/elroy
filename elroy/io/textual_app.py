@@ -20,7 +20,7 @@ from ..core.constants import EXIT, USER
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..io.base import ElroyIO
-from ..io.completions import build_completions, get_memory_panel_titles
+from ..io.completions import build_completions, get_memory_panel_entries
 from ..io.formatters.rich_formatter import RichFormatter
 from ..io.textual_io import TextualIO
 
@@ -224,14 +224,15 @@ class ElroyApp(App):
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if event.list_view.id != "memory-list":
             return
-        from ..repository.memories.queries import get_memory_by_name
+        from ..repository.memories.queries import db_get_memory_source_by_name
 
-        memory_name = event.item.name
-        if not memory_name:
+        type_key = event.item.name
+        if not type_key or ": " not in type_key:
             return
-        memory = get_memory_by_name(self.ctx, memory_name)
-        if memory:
-            self.push_screen(MemoryDetailModal(memory_name, memory.to_fact()))
+        source_type, name = type_key.split(": ", 1)
+        source = db_get_memory_source_by_name(self.ctx, source_type, name)
+        if source:
+            self.push_screen(MemoryDetailModal(name, source.to_fact()))
 
     # ── session init ─────────────────────────────────────────────────────────
 
@@ -401,11 +402,11 @@ class ElroyApp(App):
     @work(thread=True)
     def _refresh_memory_panel(self) -> None:
         try:
-            titles = get_memory_panel_titles(self.ctx)
+            entries = get_memory_panel_entries(self.ctx)
             list_view = self.query_one("#memory-list", ListView)
             self.call_from_thread(list_view.clear)
-            for title in titles[:15]:
-                self.call_from_thread(list_view.append, ListItem(Label(title), name=title))
+            for display_name, type_key in entries[:15]:
+                self.call_from_thread(list_view.append, ListItem(Label(display_name), name=type_key))
         except Exception:
             logger.debug("Failed to refresh memory panel", exc_info=True)
 
@@ -466,8 +467,10 @@ def make_app(**overrides) -> ElroyApp:
 
 
 def main() -> None:
+    from ..core.logging import setup_file_logging
     from ..core.session import init_elroy_session
 
+    setup_file_logging()
     app = make_app()
     with init_elroy_session(app.ctx, app.io, check_db_migration=True, should_onboard_interactive=False):
         app.run()

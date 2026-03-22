@@ -3,13 +3,21 @@
 from ..core.ctx import ElroyContext
 
 
-def get_memory_panel_titles(ctx: ElroyContext) -> list[str]:
-    """Return display titles for the in-context memories sidebar."""
+def get_memory_panel_entries(ctx: ElroyContext) -> list[tuple[str, str]]:
+    """Return (display_name, type_key) pairs for the in-context memories sidebar.
+
+    type_key is the raw "{MemoryType}: {name}" string used to look up the source.
+    """
     from ..repository.context_messages.queries import get_context_messages
     from ..repository.memories.queries import get_in_context_memories_metadata
 
     raw = get_in_context_memories_metadata(get_context_messages(ctx))
-    return [t.split(": ", 1)[-1] for t in raw]
+    return [(t.split(": ", 1)[-1], t) for t in raw]
+
+
+def get_memory_panel_titles(ctx: ElroyContext) -> list[str]:
+    """Return display titles for the in-context memories sidebar."""
+    return [display for display, _ in get_memory_panel_entries(ctx)]
 
 
 def build_completions(ctx: ElroyContext) -> list[str]:

@@ -187,6 +187,31 @@ class DocumentExcerpt(EmbeddableSqlModel, MemorySource, table=True):
         return f"#{self.name}\n{self.content}"
 
 
+class AgendaItem(EmbeddableSqlModel, SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    user_id: int = Field(..., description="Elroy user for context")
+    name: str = Field(..., description="The name of the agenda item")
+    file_path: str = Field(..., description="Path to the agenda item markdown file")
+    is_active: bool | None = Field(default=True, description="Whether the agenda item is active")
+
+    def get_name(self) -> str:
+        return self.name
+
+    def to_fact(self) -> str:
+        import re
+
+        try:
+            content = Path(self.file_path).read_text()
+        except OSError:
+            return f"#Agenda: {self.name}\n"
+        m = re.match(r"^---\n.*?\n---\n?", content, re.DOTALL)
+        text = content[m.end() :] if m else content
+        return f"#Agenda: {self.name}\n{text}"
+
+
 class MemoryOperationTracker(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id"), {"extend_existing": True})
     id: int | None = Field(default=None, primary_key=True)
