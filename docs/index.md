@@ -63,17 +63,14 @@ Ensure your env has `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or whatever model prov
 elroy
 
 # Run with a specific model
-elroy --chat-model "gemini/gemini-2.0-flash"
-
-# To see more detailed CLI options
-elroy --help
+ELROY_CHAT_MODEL=gemini/gemini-2.0-flash elroy
 ```
 
 ## Slash Commands
 
 ![Slash Commands](images/slash_commands.gif)
 
-Elroy's CLI supports slash commands for quick actions. Some examples (run `/help` to see the full list):
+Elroy's TUI supports slash commands for quick actions. Some examples (run `/help` to see the full list):
 
 ```bash
 # Create a memory
@@ -82,37 +79,20 @@ Elroy's CLI supports slash commands for quick actions. Some examples (run `/help
 # Create a reminder
 /create_reminder Learn how to use Elroy effectively
 
-# Process a single message and exit
-elroy message "Say hello world"
+# Search memories
+/search_memories project notes
 
-# Force use of a specific tool
-elroy message "Create a reminder" --tool create_reminder
-```
-
-## Scripting with Elroy
-
-Elroy can be used in scripts and automated workflows:
-
-```python
-from elroy import Elroy
-
-ai = Elroy()
-
-# Create a memory
-ai.remember("Important project context")
-
-# Process a message with memory augmentation
-response = ai.message("What should I do next on the project?")
-print(response)
+# Show configuration
+/print_config
 ```
 
 ## Supported Models
 
 Elroy works with:
 
-- **OpenAI**: GPT-4o, GPT-4o-mini, o1, o1-mini
-- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus
-- **Google**: Gemini
+- **OpenAI**: GPT-5, GPT-5-mini, o1
+- **Anthropic**: Claude 4.5 Sonnet, Claude 4.5 Opus, Claude 3.5 Haiku
+- **Google**: Gemini 2.0 Flash
 - Any OpenAI-compatible API
 
 Under the hood, Elroy uses [LiteLLM](https://www.litellm.ai/) to interface with model providers.

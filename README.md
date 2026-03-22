@@ -36,32 +36,22 @@ For detailed installation instructions including Docker and source installation 
 
 ## Basic Usage
 
-Once installed locally you can:
+Once installed, run `elroy` to open the interactive chat interface:
+
 ```bash
-# Start the chat interface
-elroy chat
-
-# Or just 'elroy' which defaults to chat mode
 elroy
-
-# Process a single message and exit
-elroy message "Say hello world"
-
-# Force use of a specific tool
-elroy message "Create a reminder" --tool create_reminder
-
-# Elroy also accepts stdin
-echo "Say hello world" | elroy
 ```
+
+Elroy opens a terminal UI where you can chat, create memories, and manage reminders. Use `/help` inside the chat to see available slash commands.
 
 ## Memory and Reminder Tools
 ![Slash commands](images/slash_commands.gif)
 
-Elroy's tools allow it to create and manager memories and reminders. In the background, redundant memories are consolidated.
+Elroy's tools allow it to create and manage memories and reminders. In the background, redundant memories are consolidated.
 
 As reminders or memories become relevant to the conversation, they are recalled into context. A `Relevant Context` panel makes all information being surfaced to the assistant available to the user.
 
-All commands available to the assisstant are available to the user via `/` commands.
+All commands available to the assistant are also available to the user via `/` slash commands in the chat interface.
 
 For a guide of what tools are available and what they do, see: [tools guide](docs/tools_guide.md).
 
@@ -69,60 +59,35 @@ For a full reference of tools and their schemas, see: [tools schema reference](d
 
 
 ### Configuration
-Elroy is designed to be highly customizable, including CLI appearance and memory consolidation parameters.
+Elroy is designed to be highly customizable, including appearance and memory consolidation parameters.
 
-For full configuration options, see [configuration documentation](docs/configuration.md).
+Configuration can be provided via environment variables (e.g. `ELROY_CHAT_MODEL=gpt-5`) or a config file at `~/.elroy/elroy.conf.yaml`.
+
+For full configuration options, see [configuration documentation](docs/configuration/index.md).
 
 
 ### Supported Models
 
-Elroy supports OpenAI, Anthropic, Google (Gemini), and any OpenAI-compatible API's.
+Elroy supports OpenAI, Anthropic, Google (Gemini), and any OpenAI-compatible API.
 
-Model aliases are available for quick selection:
-- `--sonnet`: Anthropic's Sonnet model
-- `--opus`: Anthropic's Opus model
-- `--4o`: OpenAI's GPT-4o model
-- `--4o-mini`: OpenAI's GPT-4o-mini model
-- `--o1`: OpenAI's o1 model
-- `--o1-mini`: OpenAI's o1-mini model
+The model is selected automatically based on which API key is set, or can be configured explicitly:
 
-
-### Scripting Elroy
-
-![Remember command](images/remember_command.gif)
-
-You can script with elroy, using both the CLI package and the Python interface.
-
-#### Python scripts
-Elroy's API interface accepts the same parameters as the CLI. Scripting can be as simple as:
-
-
-```python
-ai = Elroy()
-
-# some other task
-ai.remember("This is how the task went")
-
-
-# Elroy will automatically reference memory against incoming messages
-ai.message("Here are memory augmented instructions")
-```
-
-To see a working example using, see [release_patch.py](scripts/release_patch.py)
-
-#### Shell scripting
-
-The chat interface accepts input from stdin, so you can pipe text to Elroy:
 ```bash
-# Process a single question
-echo "What is 2+2?" | elroy chat
+# Use an Anthropic model
+ELROY_CHAT_MODEL=claude-sonnet-4-5-20250929 elroy
 
-# Create a memory from file content
-cat meeting_notes.txt | elroy remember
+# Use a specific OpenAI model
+ELROY_CHAT_MODEL=gpt-5 elroy
 
-# Use a specific tool with piped input
-echo "Buy groceries" | elroy message --tool create_reminder
+# Use Gemini
+ELROY_CHAT_MODEL=gemini/gemini-2.0-flash elroy
 ```
+
+Common model aliases can be used as the `chat_model` config value:
+- `sonnet`: Anthropic's Claude 4.5 Sonnet
+- `opus`: Anthropic's Claude 4.5 Opus
+- `haiku`: Anthropic's Claude 3.5 Haiku
+- `o1`: OpenAI's o1 model
 
 ## Claude Code Integration
 

@@ -1,26 +1,19 @@
 # CLI
 
-Elroy provides a powerful command-line interface that makes it easy to interact with the AI assistant directly from your terminal.
+Elroy provides a terminal UI (TUI) for interacting with the AI assistant directly from your terminal.
 
-## Basic Usage
+## Starting Elroy
 
 ```bash
-# Start the chat interface
-elroy chat
-
-# Or just 'elroy' which defaults to chat mode
+# Open the interactive chat interface
 elroy
-
-# Process a single message and exit
-elroy message "Say hello world"
-
-# Create a memory
-elroy remember "This is important information I want to save"
 ```
+
+This opens a full-screen terminal application where you can chat with the assistant, create memories, and manage reminders.
 
 ## Slash Commands
 
-Elroy supports powerful slash commands for quick actions:
+Inside the chat interface, Elroy supports slash commands for quick actions:
 
 <div align="center">
   <img src="../images/slash_commands.gif" alt="Slash Commands demonstration" style="max-width: 100%; margin: 20px 0;">
@@ -33,62 +26,49 @@ Elroy supports powerful slash commands for quick actions:
 # Create a reminder
 /create_reminder Learn how to use Elroy effectively
 
+# List memories
+/print_memories
+
+# Search memories
+/search_memories project notes
+
+# Show configuration
+/print_config
+
+# See all available commands
+/help
 ```
 
 For a full list of available tools and slash commands, see the [Tools Guide](tools_guide.md).
 
-## Command Reference
+## Keyboard Shortcuts
 
-| Command | Description |
-|---------|-------------|
-| `elroy chat` | Opens an interactive chat session (default command) |
-| `elroy message TEXT` | Process a single message and exit. Use `--plain` for plaintext output instead of rich text |
-| `elroy remember [TEXT]` | Create a new memory from text or interactively |
-| `elroy ingest PATH` | Ingests document(s) at the given path into memory. Can process single files or directories |
-| `elroy list-models` | Lists supported chat models and exits |
-| `elroy list-tools` | Lists all available tools |
-| `elroy print-config` | Shows current configuration and exits |
-| `elroy version` | Show version and exit |
-| `elroy print-tool-schemas` | Prints the schema for a tool and exits |
-| `elroy set-persona TEXT` | Set a custom persona for the assistant |
-| `elroy reset-persona` | Removes any custom persona, reverting to the default |
-| `elroy show-persona` | Print the system persona and exit |
+| Key | Action |
+|-----|--------|
+| `Ctrl+D` | Exit |
+| `Ctrl+C` | Cancel current response |
+| `F2` | Toggle memory panel |
+
+## Configuration
+
+Elroy is configured via environment variables or a config file — there are no command-line flags. See the [Configuration Guide](configuration/index.md) for details.
+
+```bash
+# Use a specific model
+ELROY_CHAT_MODEL=claude-sonnet-4-5-20250929 elroy
+
+# Use a custom config file
+ELROY_CONFIG_PATH=~/my-elroy-config.yaml elroy
+```
 
 ## Document Ingestion
 
-Elroy supports ingesting documents to make their content available for memory and retrieval:
+To ingest documents into Elroy's memory, use the `/ingest_doc` slash command inside the chat interface, or configure background ingestion via the config file:
 
-```bash
-# Ingest a single file
-elroy ingest document.md
-
-# Ingest all files in a directory
-elroy ingest ./documents/
-
-# Ingest recursively with pattern matching
-elroy ingest ./documents/ --recursive --include "*.md,*.txt" --exclude "*.log"
-```
-
-### Ingest Command Options
-
-| Option | Description |
-|--------|-------------|
-| `--force-refresh, -f` | If true, any existing ingested documents will be discarded and re-ingested |
-| `--recursive, -r` | If path is a directory, recursively ingest all documents within it |
-| `--include, -i` | Glob pattern for files to include (e.g., '*.txt,*.md'). Multiple patterns can be comma-separated |
-| `--exclude, -e` | Glob pattern for files to exclude (e.g., '*.log'). Can also be used to exclude directories |
-
-## Shell Integration
-
-Elroy can be used in scripts and automated workflows:
-
-```bash
-# Process a single question
-echo "What is 2+2?" | elroy chat
-
-# Create a memory from file content
-cat meeting_notes.txt | elroy remember
-
-# Use a specific tool with piped input
-echo "Buy groceries" | elroy message --tool create_reminder
+```yaml
+# ~/.elroy/elroy.conf.yaml
+background_ingest_enabled: true
+background_ingest_paths:
+  - ~/documents/
+background_ingest_interval_minutes: 60
 ```
