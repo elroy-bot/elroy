@@ -11,7 +11,7 @@ from ..core.latency import LatencyTracker
 from ..core.logging import get_logger
 from ..core.tracing import tracer
 from ..db.db_models import FunctionCall
-from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, CodeBlock
+from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, CodeBlock, StatusUpdate
 from ..repository.context_messages.data_models import ContextMessage
 from ..repository.context_messages.operations import add_context_messages
 from ..repository.context_messages.queries import get_context_messages
@@ -43,6 +43,7 @@ def process_message(
     if force_tool and not enable_tools:
         logger.warning("force_tool set, but enable_tools is False. Ignoring force_tool.")
 
+    yield StatusUpdate(content="loading context...")
     with ctx.latency_tracker.measure("load_context_messages"):
         context_messages: list[ContextMessage] = pipe(
             get_context_messages(ctx),
@@ -61,6 +62,7 @@ def process_message(
 
     # Use classifier to determine if memory recall is necessary
     if ctx.memory_config.memory_recall_classifier_enabled:
+        yield StatusUpdate(content="classifying recall...")
         with ctx.latency_tracker.measure("memory_recall_classification"):
             recall_decision = should_recall_memory(
                 ctx=ctx,
@@ -70,6 +72,7 @@ def process_message(
 
         if recall_decision.needs_recall:
             logger.debug(f"Memory recall enabled: {recall_decision.reasoning}")
+            yield StatusUpdate(content="fetching memories...")
             with ctx.latency_tracker.measure("memory_recall", needs_recall=True):
                 new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
         else:
@@ -77,6 +80,7 @@ def process_message(
             ctx.latency_tracker.track("memory_recall", 0, skipped=True)
     else:
         # Classifier disabled, always do recall (backward compatibility)
+        yield StatusUpdate(content="fetching memories...")
         with ctx.latency_tracker.measure("memory_recall", classifier_disabled=True):
             new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
@@ -93,6 +97,7 @@ def process_message(
                 yield AssistantInternalThought(content=new_msg.content)
         yield AssistantInternalThought(content="\n\n")  # empty line to separate internal thoughts from assistant responses
 
+    yield StatusUpdate(content="thinking...")
     loops = 0
     while True:
         # new_msgs accumulates across all loops, so we can only store new messages once
@@ -118,6 +123,7 @@ def process_message(
                     # Note: there's some slightly weird behavior here if the tool call results in context messages being added.
                     # Since we're not persisting new context messages until the end of this loop, context messages from within
                     # tool call executions will show up before the user message it's responding to.
+                    yield StatusUpdate(content=f"running {stream_chunk.function_name}...")
                     with ctx.latency_tracker.measure("tool_execution", tool=stream_chunk.function_name):
                         tool_call_result = exec_function_call(ctx, stream_chunk)
                         tool_context_messages.append(
@@ -130,6 +136,7 @@ def process_message(
                         )
 
                         yield tool_call_result
+                    yield StatusUpdate(content="thinking...")
 
         new_msgs.append(
             ContextMessage(

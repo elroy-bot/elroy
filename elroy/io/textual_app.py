@@ -203,6 +203,8 @@ class ElroyApp(App):
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
         self._spinner_index = 0
         self._spinner_handle = None
+        self._status_message = "thinking..."
+        self._bg_status_handle = None
         self._load_input_history()
 
     # ── history ──────────────────────────────────────────────────────────────
@@ -247,6 +249,7 @@ class ElroyApp(App):
 
         self.title = get_assistant_name(self.ctx)
         self._stop_spinner()  # initialise status bar with model name
+        self._bg_status_handle = self.set_interval(1.0, self._tick_background_status)
         self._start_session()
 
     # ── memory panel ─────────────────────────────────────────────────────────
@@ -301,12 +304,18 @@ class ElroyApp(App):
 
     def _run_stream(self, stream: Iterator) -> None:
         """Consume a message stream (call from worker thread)."""
+        from ..llm.stream_parser import StatusUpdate
+
         self._streaming = True
         self.call_from_thread(self._set_input_disabled, True)
         self.call_from_thread(self._start_spinner)
         try:
             for item in stream:
-                self.io.print(item, end="")
+                if isinstance(item, StatusUpdate):
+                    self._status_message = item.content
+                    self.call_from_thread(self._update_spinner_text)
+                else:
+                    self.io.print(item, end="")
         finally:
             self.call_from_thread(self._flush_thought_buffer)
             self.call_from_thread(self._flush_streaming_buffer)
@@ -461,6 +470,7 @@ class ElroyApp(App):
 
     def _start_spinner(self) -> None:
         self._spinner_index = 0
+        self._status_message = "thinking..."
         if self._spinner_handle:
             self._spinner_handle.stop()
         self._spinner_handle = self.set_interval(0.08, self._tick_spinner)
@@ -470,17 +480,42 @@ class ElroyApp(App):
 
         self._spinner_index = (self._spinner_index + 1) % len(self._spinner_chars)
         with contextlib.suppress(Exception):
-            self.query_one("#status-bar", Label).update(f"{self._spinner_chars[self._spinner_index]} thinking...")
+            self.query_one("#status-bar", Label).update(f"{self._spinner_chars[self._spinner_index]} {self._status_message}")
+
+    def _update_spinner_text(self) -> None:
+        """Immediately refresh the status bar text without advancing the spinner frame."""
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            spinner_char = self._spinner_chars[self._spinner_index]
+            self.query_one("#status-bar", Label).update(f"{spinner_char} {self._status_message}")
 
     def _stop_spinner(self) -> None:
         if self._spinner_handle:
             self._spinner_handle.stop()
             self._spinner_handle = None
+        self._status_message = "thinking..."
+        self._update_idle_status()
+
+    def _update_idle_status(self) -> None:
+        """Refresh the status bar when not streaming, incorporating background task status."""
+        import contextlib
+
+        from ..core.status import get_background_status
+
         try:
             model_name = self.ctx.chat_model.name
-            self.query_one("#status-bar", Label).update(f"● {model_name}")
         except Exception:
-            pass
+            return
+        bg = get_background_status()
+        text = f"● {model_name}  ⟳ {bg}" if bg else f"● {model_name}"
+        with contextlib.suppress(Exception):
+            self.query_one("#status-bar", Label).update(text)
+
+    def _tick_background_status(self) -> None:
+        """Periodically update the idle status bar with background task activity."""
+        if not self._streaming:
+            self._update_idle_status()
 
 
 def make_app(**overrides) -> ElroyApp:

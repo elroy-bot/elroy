@@ -24,9 +24,12 @@ class TextualIO(ElroyIO):
 
     def print(self, message, end: str = "\n") -> None:
         from ..core.logging import get_logger
-        from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, AssistantToolResult
+        from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, AssistantToolResult, StatusUpdate
 
         logger = get_logger()
+
+        if isinstance(message, StatusUpdate):
+            return  # handled by _run_stream directly; never written to chat history
 
         if isinstance(message, AssistantInternalThought):
             if not self.show_internal_thought:
