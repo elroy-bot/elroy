@@ -9,6 +9,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from ...core.async_tasks import get_scheduler, schedule_task
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
+from ...core.status import clear_background_status, set_background_status
 from ...repository.user.operations import get_or_create_user_preference
 from ...utils.clock import utc_now
 from .operations import do_ingest, do_ingest_dir
@@ -28,6 +29,8 @@ def background_ingest_task(ctx: ElroyContext) -> None:
         return
 
     logger.info(f"Starting background ingestion for {len(paths)} paths")
+    status_key = f"ingest_{ctx.user_id}"
+    set_background_status(status_key, "ingesting documents...")
 
     # Record the start time
     start_time = utc_now()
@@ -77,6 +80,7 @@ def background_ingest_task(ctx: ElroyContext) -> None:
             logger.error(f"Background ingestion failed for {path}: {e}", exc_info=True)
 
     logger.info("Background ingestion completed")
+    clear_background_status(status_key)
 
     # Update the last run time in user preferences
     try:

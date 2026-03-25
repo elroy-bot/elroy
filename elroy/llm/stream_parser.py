@@ -44,6 +44,12 @@ class SystemWarning(TextOutput):
     content: str
 
 
+class StatusUpdate(BaseModel):
+    """Transient status message for display in the status bar (never written to chat history)."""
+
+    content: str
+
+
 class CodeBlock(BaseModel):
     """Represents a code block that can be formatted with Rich"""
 

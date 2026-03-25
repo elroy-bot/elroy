@@ -10,6 +10,7 @@ from sqlmodel import select
 from ...core.async_tasks import get_scheduler
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
+from ...core.status import clear_background_status, set_background_status
 from ...db.db_models import Memory
 from .file_storage import (
     read_memory_frontmatter,
@@ -35,6 +36,9 @@ def sync_memory_files(ctx: ElroyContext) -> None:
     memory_dir = ctx.memory_dir_path
     if not memory_dir:
         return
+
+    status_key = f"memory_sync_{ctx.user_id}"
+    set_background_status(status_key, "syncing memories...")
 
     # Scan all .md files in memory_dir root (non-recursive, skip archive/)
     disk_files: list[Path] = [p for p in memory_dir.glob("*.md") if p.is_file()]
@@ -140,6 +144,8 @@ def sync_memory_files(ctx: ElroyContext) -> None:
                 mark_inactive(ctx, db_memory)
             except Exception as e:
                 logger.error(f"Failed to mark memory {db_memory.id} inactive: {e}", exc_info=True)
+
+    clear_background_status(status_key)
 
 
 def schedule_memory_file_sync(ctx: ElroyContext) -> Job | None:
