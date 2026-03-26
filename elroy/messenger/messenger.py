@@ -92,9 +92,16 @@ def process_message(
         new_msgs += due_reminder_msgs
 
     if ctx.show_internal_thought:
+        from ..repository.data_models import RecallResponse
+
         for new_msg in new_msgs[1:]:
             if new_msg.content:
-                yield AssistantInternalThought(content=new_msg.content)
+                try:
+                    recall = RecallResponse.model_validate_json(new_msg.content)
+                    display_content = recall.content
+                except Exception:
+                    display_content = new_msg.content
+                yield AssistantInternalThought(content=display_content)
         yield AssistantInternalThought(content="\n\n")  # empty line to separate internal thoughts from assistant responses
 
     yield StatusUpdate(content="thinking...")
