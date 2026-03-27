@@ -13,14 +13,14 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.suggester import SuggestFromList
-from textual.widgets import Input, Label, ListItem, ListView, RichLog, Static
+from textual.widgets import Input, Label, ListItem, ListView, RichLog, Static, Tab, Tabs
 
 from ..config.paths import get_prompt_history_path
 from ..core.constants import EXIT, USER
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..io.base import ElroyIO
-from ..io.completions import build_completions, get_memory_panel_entries
+from ..io.completions import build_completions
 from ..io.formatters.rich_formatter import RichFormatter
 from ..io.textual_io import TextualIO
 
@@ -149,12 +149,9 @@ class ElroyApp(App):
         display: none;
     }
 
-    #memory-title {
-        height: 1;
-        background: $primary;
-        color: $text;
-        padding: 0 1;
-        text-align: center;
+    #buffer-tabs {
+        height: auto;
+        dock: top;
     }
 
     #memory-list {
@@ -177,7 +174,10 @@ class ElroyApp(App):
     BINDINGS: ClassVar[list[Binding]] = [
         Binding("ctrl+d", "quit", "Exit"),
         Binding("ctrl+c", "cancel_stream", "Cancel", show=False),
-        Binding("f2", "toggle_memory", "Memory Panel"),
+        Binding("f2", "toggle_memory", "Toggle Panel"),
+        Binding("f3", "open_memories", "Memories"),
+        Binding("f4", "open_reminders", "Reminders"),
+        Binding("f5", "open_agenda", "Agenda"),
     ]
 
     def __init__(
@@ -198,6 +198,7 @@ class ElroyApp(App):
         self._streaming_style = ""
         self._thought_buffer = ""
         self._memory_panel_visible = show_memory_panel
+        self._right_panel_mode = "memories"  # "memories", "reminders", "agenda"
         self._input_history: list[str] = []
         self._history_index = -1
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -234,7 +235,12 @@ class ElroyApp(App):
                 yield RichLog(id="history-log", wrap=True, highlight=False, markup=False)
                 yield Static("", id="streaming-output")
             with Vertical(id="memory-panel"):
-                yield Label("In-Context Memories", id="memory-title")
+                yield Tabs(
+                    Tab("Memories", id="tab-memories"),
+                    Tab("Reminders", id="tab-reminders"),
+                    Tab("Agenda", id="tab-agenda"),
+                    id="buffer-tabs",
+                )
                 yield ListView(id="memory-list")
         yield Input(placeholder="> ", id="chat-input")
         yield Label("", id="status-bar")
@@ -252,30 +258,99 @@ class ElroyApp(App):
         self._bg_status_handle = self.set_interval(1.0, self._tick_background_status)
         self._start_session()
 
-    # ── memory panel ─────────────────────────────────────────────────────────
+    # ── buffer tabs ───────────────────────────────────────────────────────────
+
+    def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
+        if event.tabs.id != "buffer-tabs":
+            return
+        if event.tab is None:
+            return
+        tab_id = event.tab.id
+        if tab_id == "tab-memories":
+            self._right_panel_mode = "memories"
+            self._refresh_memory_panel()
+        elif tab_id == "tab-reminders":
+            self._right_panel_mode = "reminders"
+            self._refresh_reminders_panel()
+        elif tab_id == "tab-agenda":
+            self._right_panel_mode = "agenda"
+            self._refresh_agenda_panel()
+
+    def _show_panel(self) -> None:
+        """Ensure the right panel is visible."""
+        panel = self.query_one("#memory-panel")
+        if not self._memory_panel_visible:
+            self._memory_panel_visible = True
+            panel.remove_class("hidden")
+
+    # ── list selection ────────────────────────────────────────────────────────
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if event.list_view.id != "memory-list":
             return
-        from ..repository.memories.queries import db_get_memory_source_by_name
 
         type_key = event.item.name
-        if not type_key or ": " not in type_key:
+        if not type_key:
             return
-        from ..db.db_models import EmbeddableSqlModel
-        from ..repository.memories.operations import mark_inactive
 
-        source_type, name = type_key.split(": ", 1)
-        source = db_get_memory_source_by_name(self.ctx, source_type, name)
-        if source:
-            on_delete = None
-            if isinstance(source, EmbeddableSqlModel):
+        if type_key.startswith("reminder:"):
+            reminder_name = type_key[len("reminder:"):]
+            self._open_reminder_detail(reminder_name)
+        elif type_key.startswith("agenda:"):
+            item_stem = type_key[len("agenda:"):]
+            self._open_agenda_detail(item_stem)
+        elif ": " in type_key:
+            # Memory
+            from ..db.db_models import EmbeddableSqlModel
+            from ..repository.memories.operations import mark_inactive
+            from ..repository.memories.queries import db_get_memory_source_by_name
 
-                def on_delete(s=source) -> None:
-                    mark_inactive(self.ctx, s)
-                    self._refresh_memory_panel()
+            source_type, name = type_key.split(": ", 1)
+            source = db_get_memory_source_by_name(self.ctx, source_type, name)
+            if source:
+                on_delete = None
+                if isinstance(source, EmbeddableSqlModel):
 
-            self.push_screen(MemoryDetailModal(name, source.to_fact(), on_delete=on_delete))
+                    def on_delete(s=source) -> None:
+                        mark_inactive(self.ctx, s)
+                        self._refresh_memory_panel()
+
+                self.push_screen(MemoryDetailModal(name, source.to_fact(), on_delete=on_delete))
+
+    def _open_reminder_detail(self, reminder_name: str) -> None:
+        from ..repository.reminders.operations import do_delete_reminder
+        from ..repository.reminders.queries import get_db_reminder_by_name
+        from ..utils.clock import db_time_to_local
+
+        reminder = get_db_reminder_by_name(self.ctx, reminder_name)
+        if not reminder:
+            return
+
+        parts = [f"Text: {reminder.text}"]
+        if reminder.trigger_datetime:
+            dt = db_time_to_local(reminder.trigger_datetime)
+            parts.append(f"\nDue: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        if reminder.reminder_context:
+            parts.append(f"\nContext: {reminder.reminder_context}")
+        parts.append(f"\nCreated: {db_time_to_local(reminder.created_at).strftime('%Y-%m-%d %H:%M:%S')}")
+
+        def on_delete() -> None:
+            do_delete_reminder(self.ctx, reminder_name)
+            self._refresh_reminders_panel()
+
+        self.push_screen(MemoryDetailModal(reminder_name, "\n".join(parts), on_delete=on_delete))
+
+    def _open_agenda_detail(self, item_stem: str) -> None:
+        from ..config.paths import get_agenda_dir
+        from ..repository.agenda.file_storage import find_matching_agenda_item
+
+        try:
+            agenda_dir = get_agenda_dir()
+            path = find_matching_agenda_item(agenda_dir, item_stem)
+            content = path.read_text()
+            self.push_screen(MemoryDetailModal(item_stem, content))
+        except Exception:
+            logger.debug("Failed to open agenda detail for %s", item_stem, exc_info=True)
 
     # ── session init ─────────────────────────────────────────────────────────
 
@@ -297,7 +372,7 @@ class ElroyApp(App):
         ):
             self._run_stream(process_message(role=USER, ctx=self.ctx, msg="<Empty user response>", enable_tools=False))
 
-        self._refresh_memory_panel()
+        self._refresh_right_panel()
         self._update_completions()
 
     # ── streaming helpers ─────────────────────────────────────────────────────
@@ -421,7 +496,7 @@ class ElroyApp(App):
             self.call_from_thread(self._write_to_history, Text(f"Error: {e}", style=self.formatter.warning_color))
             logger.exception("Error processing input")
         finally:
-            self._refresh_memory_panel()
+            self._refresh_right_panel()
             self._update_completions()
             from ..core.async_tasks import schedule_task
             from ..repository.context_messages.operations import refresh_context_if_needed
@@ -446,18 +521,97 @@ class ElroyApp(App):
         else:
             panel.add_class("hidden")
 
-    # ── periodic updates ──────────────────────────────────────────────────────
+    def action_open_memories(self) -> None:
+        self._show_panel()
+        self.query_one("#buffer-tabs", Tabs).active = "tab-memories"
+
+    def action_open_reminders(self) -> None:
+        self._show_panel()
+        self.query_one("#buffer-tabs", Tabs).active = "tab-reminders"
+
+    def action_open_agenda(self) -> None:
+        self._show_panel()
+        self.query_one("#buffer-tabs", Tabs).active = "tab-agenda"
+
+    # ── panel refresh ─────────────────────────────────────────────────────────
+
+    def _refresh_right_panel(self) -> None:
+        """Refresh whichever buffer is currently active."""
+        if self._right_panel_mode == "memories":
+            self._refresh_memory_panel()
+        elif self._right_panel_mode == "reminders":
+            self._refresh_reminders_panel()
+        elif self._right_panel_mode == "agenda":
+            self._refresh_agenda_panel()
 
     @work(thread=True)
     def _refresh_memory_panel(self) -> None:
         try:
-            entries = get_memory_panel_entries(self.ctx)
+            from ..repository.context_messages.queries import get_context_messages
+            from ..repository.memories.queries import get_active_memories
+            from ..repository.recall.queries import is_in_context
+
+            context_messages = list(get_context_messages(self.ctx))
+            memories = get_active_memories(self.ctx)
+            in_context_names = {m.get_name() for m in memories if is_in_context(context_messages, m)}
+
             list_view = self.query_one("#memory-list", ListView)
             self.call_from_thread(list_view.clear)
-            for display_name, type_key in entries[:15]:
-                self.call_from_thread(list_view.append, ListItem(Label(display_name), name=type_key))
+            for memory in memories:
+                name = memory.get_name()
+                marker = "● " if name in in_context_names else "  "
+                display = f"{marker}{name}"
+                type_key = f"Memory: {name}"
+                self.call_from_thread(list_view.append, ListItem(Label(display), name=type_key))
         except Exception:
             logger.debug("Failed to refresh memory panel", exc_info=True)
+
+    @work(thread=True)
+    def _refresh_reminders_panel(self) -> None:
+        try:
+            from ..repository.reminders.queries import get_active_reminders
+            from ..utils.clock import db_time_to_local
+
+            reminders = get_active_reminders(self.ctx)
+            list_view = self.query_one("#memory-list", ListView)
+            self.call_from_thread(list_view.clear)
+            for r in reminders:
+                if r.trigger_datetime:
+                    dt = db_time_to_local(r.trigger_datetime)
+                    display = f"{r.name} [{dt.strftime('%m/%d %H:%M')}]"
+                elif r.reminder_context:
+                    display = f"{r.name} [ctx]"
+                else:
+                    display = r.name
+                self.call_from_thread(list_view.append, ListItem(Label(display), name=f"reminder:{r.name}"))
+        except Exception:
+            logger.debug("Failed to refresh reminders panel", exc_info=True)
+
+    @work(thread=True)
+    def _refresh_agenda_panel(self) -> None:
+        try:
+            from datetime import date
+
+            from ..config.paths import get_agenda_dir
+            from ..repository.agenda.file_storage import get_checklist
+            from ..repository.agenda.file_storage import list_agenda_items as list_agenda_items_from_dir
+
+            agenda_dir = get_agenda_dir()
+            items = list_agenda_items_from_dir(agenda_dir, for_date=date.today())
+            list_view = self.query_one("#memory-list", ListView)
+            self.call_from_thread(list_view.clear)
+            for path, _fm, _text in items:
+                checklist = get_checklist(path)
+                if checklist:
+                    done = sum(1 for c in checklist if c["completed"])
+                    display = f"{path.stem} [{done}/{len(checklist)}]"
+                else:
+                    display = path.stem
+                self.call_from_thread(list_view.append, ListItem(Label(display), name=f"agenda:{path.stem}"))
+        except Exception:
+            logger.debug("Failed to refresh agenda panel", exc_info=True)
+
+    # ── completions ───────────────────────────────────────────────────────────
 
     @work(thread=True)
     def _update_completions(self) -> None:
@@ -467,6 +621,8 @@ class ElroyApp(App):
             self.call_from_thread(setattr, input_widget, "suggester", SuggestFromList(suggestions, case_sensitive=False))
         except Exception:
             logger.debug("Failed to update completions", exc_info=True)
+
+    # ── spinner / status bar ──────────────────────────────────────────────────
 
     def _start_spinner(self) -> None:
         self._spinner_index = 0
