@@ -440,7 +440,7 @@ class ElroyApp(App):
         input_widget.disabled = disabled
         if not disabled:
             input_widget.focus()
-            self._update_hints()
+            self.call_later(self._update_hints)
 
     def _update_hints(self) -> None:
         """Refresh the hints bar with context-sensitive keybinding help."""
@@ -498,7 +498,7 @@ class ElroyApp(App):
             if event.key in ("i", "a"):
                 # Insert/append → return to chat input (vim-like)
                 input_widget.focus()
-                self._update_hints()
+                self.call_later(self._update_hints)
                 event.prevent_default()
                 event.stop()
             elif event.key == "j":
