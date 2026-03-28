@@ -169,6 +169,13 @@ class ElroyApp(App):
         color: $text-muted;
         padding: 0 1;
     }
+
+    #hints-bar {
+        height: 1;
+        background: $boost;
+        color: $text-disabled;
+        padding: 0 1;
+    }
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
@@ -242,6 +249,7 @@ class ElroyApp(App):
                 yield ListView(id="memory-list")
         yield Input(placeholder="> ", id="chat-input")
         yield Label("", id="status-bar")
+        yield Label("", id="hints-bar")
 
     def on_mount(self) -> None:
         if not self._memory_panel_visible:
@@ -253,6 +261,7 @@ class ElroyApp(App):
 
         self.title = get_assistant_name(self.ctx)
         self._stop_spinner()  # initialise status bar with model name
+        self._update_hints()
         self._bg_status_handle = self.set_interval(1.0, self._tick_background_status)
         self._start_session()
 
@@ -273,6 +282,7 @@ class ElroyApp(App):
         elif tab_id == "tab-agenda":
             self._right_panel_mode = "agenda"
             self._refresh_agenda_panel()
+        self._update_hints()
 
     def _show_panel(self) -> None:
         """Ensure the right panel is visible."""
@@ -430,6 +440,20 @@ class ElroyApp(App):
         input_widget.disabled = disabled
         if not disabled:
             input_widget.focus()
+            self._update_hints()
+
+    def _update_hints(self) -> None:
+        """Refresh the hints bar with context-sensitive keybinding help."""
+        import contextlib
+
+        list_view = self.query_one("#memory-list", ListView)
+        if list_view.has_focus:
+            buf = self._right_panel_mode.capitalize()
+            text = f"[{buf}]  ↑↓/jk: move  ·  Tab/Shift+Tab: cycle buffers  ·  Enter: open  ·  i/a: back to chat  ·  Esc: back"
+        else:
+            text = "Esc: browse panel  ·  F2: toggle panel  ·  Ctrl+D: exit"
+        with contextlib.suppress(Exception):
+            self.query_one("#hints-bar", Label).update(text)
 
     # ── input handling ────────────────────────────────────────────────────────
 
@@ -474,6 +498,7 @@ class ElroyApp(App):
             if event.key in ("i", "a"):
                 # Insert/append → return to chat input (vim-like)
                 input_widget.focus()
+                self._update_hints()
                 event.prevent_default()
                 event.stop()
             elif event.key == "j":
@@ -486,10 +511,12 @@ class ElroyApp(App):
                 event.stop()
             elif event.key == "tab":
                 self._cycle_buffer(1)
+                self.call_later(self._update_hints)
                 event.prevent_default()
                 event.stop()
             elif event.key == "shift+tab":
                 self._cycle_buffer(-1)
+                self.call_later(self._update_hints)
                 event.prevent_default()
                 event.stop()
 
@@ -550,6 +577,7 @@ class ElroyApp(App):
         else:
             self._show_panel()
             list_view.focus()
+        self.call_later(self._update_hints)
 
     def _cycle_buffer(self, direction: int) -> None:
         """Cycle through Memories → Reminders → Agenda (Tab/Shift+Tab in browse mode)."""
