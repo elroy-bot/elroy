@@ -175,9 +175,7 @@ class ElroyApp(App):
         Binding("ctrl+d", "quit", "Exit"),
         Binding("ctrl+c", "cancel_stream", "Cancel", show=False),
         Binding("f2", "toggle_memory", "Toggle Panel"),
-        Binding("f3", "open_memories", "Memories"),
-        Binding("f4", "open_reminders", "Reminders"),
-        Binding("f5", "open_agenda", "Agenda"),
+        Binding("escape", "toggle_browse_mode", "Browse", show=False),
     ]
 
     def __init__(
@@ -454,24 +452,46 @@ class ElroyApp(App):
 
     def on_key(self, event) -> None:
         input_widget = self.query_one("#chat-input", Input)
-        if not input_widget.has_focus:
-            return
+        list_view = self.query_one("#memory-list", ListView)
 
-        if event.key == "up":
-            if self._input_history and self._history_index < len(self._input_history) - 1:
-                self._history_index += 1
-                input_widget.value = self._input_history[self._history_index]
-                input_widget.cursor_position = len(input_widget.value)
-            event.prevent_default()
-        elif event.key == "down":
-            if self._history_index > 0:
-                self._history_index -= 1
-                input_widget.value = self._input_history[self._history_index]
-                input_widget.cursor_position = len(input_widget.value)
-            elif self._history_index == 0:
-                self._history_index = -1
-                input_widget.value = ""
-            event.prevent_default()
+        if input_widget.has_focus:
+            if event.key == "up":
+                if self._input_history and self._history_index < len(self._input_history) - 1:
+                    self._history_index += 1
+                    input_widget.value = self._input_history[self._history_index]
+                    input_widget.cursor_position = len(input_widget.value)
+                event.prevent_default()
+            elif event.key == "down":
+                if self._history_index > 0:
+                    self._history_index -= 1
+                    input_widget.value = self._input_history[self._history_index]
+                    input_widget.cursor_position = len(input_widget.value)
+                elif self._history_index == 0:
+                    self._history_index = -1
+                    input_widget.value = ""
+                event.prevent_default()
+        elif list_view.has_focus:
+            if event.key in ("i", "a"):
+                # Insert/append → return to chat input (vim-like)
+                input_widget.focus()
+                event.prevent_default()
+                event.stop()
+            elif event.key == "j":
+                list_view.action_cursor_down()
+                event.prevent_default()
+                event.stop()
+            elif event.key == "k":
+                list_view.action_cursor_up()
+                event.prevent_default()
+                event.stop()
+            elif event.key == "tab":
+                self._cycle_buffer(1)
+                event.prevent_default()
+                event.stop()
+            elif event.key == "shift+tab":
+                self._cycle_buffer(-1)
+                event.prevent_default()
+                event.stop()
 
     @work(thread=True, exclusive=True)
     def _process_input(self, text: str) -> None:
@@ -521,17 +541,22 @@ class ElroyApp(App):
         else:
             panel.add_class("hidden")
 
-    def action_open_memories(self) -> None:
-        self._show_panel()
-        self.query_one("#buffer-tabs", Tabs).active = "tab-memories"
+    def action_toggle_browse_mode(self) -> None:
+        """Escape: toggle between chat input and right-panel browse mode."""
+        input_widget = self.query_one("#chat-input", Input)
+        list_view = self.query_one("#memory-list", ListView)
+        if list_view.has_focus:
+            input_widget.focus()
+        else:
+            self._show_panel()
+            list_view.focus()
 
-    def action_open_reminders(self) -> None:
-        self._show_panel()
-        self.query_one("#buffer-tabs", Tabs).active = "tab-reminders"
-
-    def action_open_agenda(self) -> None:
-        self._show_panel()
-        self.query_one("#buffer-tabs", Tabs).active = "tab-agenda"
+    def _cycle_buffer(self, direction: int) -> None:
+        """Cycle through Memories → Reminders → Agenda (Tab/Shift+Tab in browse mode)."""
+        modes = ["memories", "reminders", "agenda"]
+        tab_ids = ["tab-memories", "tab-reminders", "tab-agenda"]
+        idx = modes.index(self._right_panel_mode)
+        self.query_one("#buffer-tabs", Tabs).active = tab_ids[(idx + direction) % len(modes)]
 
     # ── panel refresh ─────────────────────────────────────────────────────────
 
@@ -560,7 +585,7 @@ class ElroyApp(App):
             for memory in memories:
                 name = memory.get_name()
                 marker = "● " if name in in_context_names else "  "
-                display = f"{marker}{name}"
+                display = Text(f"{marker}{name}", no_wrap=True, overflow="ellipsis")
                 type_key = f"Memory: {name}"
                 self.call_from_thread(list_view.append, ListItem(Label(display), name=type_key))
         except Exception:
@@ -578,11 +603,12 @@ class ElroyApp(App):
             for r in reminders:
                 if r.trigger_datetime:
                     dt = db_time_to_local(r.trigger_datetime)
-                    display = f"{r.name} [{dt.strftime('%m/%d %H:%M')}]"
+                    raw = f"{r.name} [{dt.strftime('%m/%d %H:%M')}]"
                 elif r.reminder_context:
-                    display = f"{r.name} [ctx]"
+                    raw = f"{r.name} [ctx]"
                 else:
-                    display = r.name
+                    raw = r.name
+                display = Text(raw, no_wrap=True, overflow="ellipsis")
                 self.call_from_thread(list_view.append, ListItem(Label(display), name=f"reminder:{r.name}"))
         except Exception:
             logger.debug("Failed to refresh reminders panel", exc_info=True)
@@ -604,9 +630,10 @@ class ElroyApp(App):
                 checklist = get_checklist(path)
                 if checklist:
                     done = sum(1 for c in checklist if c["completed"])
-                    display = f"{path.stem} [{done}/{len(checklist)}]"
+                    raw = f"{path.stem} [{done}/{len(checklist)}]"
                 else:
-                    display = path.stem
+                    raw = path.stem
+                display = Text(raw, no_wrap=True, overflow="ellipsis")
                 self.call_from_thread(list_view.append, ListItem(Label(display), name=f"agenda:{path.stem}"))
         except Exception:
             logger.debug("Failed to refresh agenda panel", exc_info=True)
