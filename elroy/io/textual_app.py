@@ -3,7 +3,7 @@
 import re
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import timedelta
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import ClassVar, cast
 
@@ -28,7 +28,7 @@ from ..io.textual_io import TextualIO
 logger = get_logger()
 
 
-class BufferMode(str, Enum):
+class BufferMode(StrEnum):
     MEMORIES = "memories"
     REMINDERS = "reminders"
     AGENDA = "agenda"
@@ -305,10 +305,10 @@ class ElroyApp(App):
             return
 
         if type_key.startswith("reminder:"):
-            reminder_name = type_key[len("reminder:"):]
+            reminder_name = type_key[len("reminder:") :]
             self._open_reminder_detail(reminder_name)
         elif type_key.startswith("agenda:"):
-            item_stem = type_key[len("agenda:"):]
+            item_stem = type_key[len("agenda:") :]
             self._open_agenda_detail(item_stem)
         elif type_key.startswith("Memory: "):
             # Memory
@@ -326,7 +326,10 @@ class ElroyApp(App):
                         mark_inactive(self.ctx, s)
                         self._refresh_memory_panel()
 
-                self.push_screen(MemoryDetailModal(name, source.to_fact(), on_delete=on_delete))
+                self.push_screen(
+                    MemoryDetailModal(name, source.to_fact(), on_delete=on_delete),
+                    callback=lambda _result: self._focus_chat_input(),
+                )
 
     @work(thread=True)
     def _open_reminder_detail(self, reminder_name: str) -> None:
@@ -350,7 +353,11 @@ class ElroyApp(App):
             do_delete_reminder(self.ctx, reminder_name)
             self._refresh_reminders_panel()
 
-        self.call_from_thread(self.push_screen, MemoryDetailModal(reminder_name, "\n".join(parts), on_delete=on_delete))
+        self.call_from_thread(
+            self.push_screen,
+            MemoryDetailModal(reminder_name, "\n".join(parts), on_delete=on_delete),
+            lambda _result: self._focus_chat_input(),
+        )
 
     def _open_agenda_detail(self, item_stem: str) -> None:
         from ..config.paths import get_agenda_dir
@@ -360,7 +367,7 @@ class ElroyApp(App):
             agenda_dir = get_agenda_dir()
             path = find_matching_agenda_item(agenda_dir, item_stem)
             content = path.read_text()
-            self.push_screen(MemoryDetailModal(item_stem, content))
+            self.push_screen(MemoryDetailModal(item_stem, content), callback=lambda _result: self._focus_chat_input())
         except Exception:
             logger.debug("Failed to open agenda detail for %s", item_stem, exc_info=True)
 
@@ -439,12 +446,16 @@ class ElroyApp(App):
         """Write a Rich renderable to the history log (main thread)."""
         self.query_one("#history-log", RichLog).write(renderable)
 
+    def _focus_chat_input(self) -> None:
+        """Return keyboard focus to the chat input and refresh hints after focus settles."""
+        self.query_one("#chat-input", Input).focus()
+        self.call_later(self._update_hints)
+
     def _set_input_disabled(self, disabled: bool) -> None:
         input_widget = self.query_one("#chat-input", Input)
         input_widget.disabled = disabled
         if not disabled:
-            input_widget.focus()
-            self.call_later(self._update_hints)
+            self._focus_chat_input()
 
     def _update_hints(self) -> None:
         """Refresh the hints bar with context-sensitive keybinding help."""
@@ -620,7 +631,10 @@ class ElroyApp(App):
             in_context_names = {m.get_name() for m in memories if is_in_context(context_messages, m)}
 
             items = [
-                (Text(f"{'● ' if m.get_name() in in_context_names else '  '}{m.get_name()}", no_wrap=True, overflow="ellipsis"), f"Memory: {m.get_name()}")
+                (
+                    Text(f"{'● ' if m.get_name() in in_context_names else '  '}{m.get_name()}", no_wrap=True, overflow="ellipsis"),
+                    f"Memory: {m.get_name()}",
+                )
                 for m in memories
             ]
             self.call_from_thread(self._populate_list, items)
