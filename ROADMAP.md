@@ -18,9 +18,35 @@ The TUI is implemented in `elroy/io/textual_app.py` using the [Textual](https://
 
 #### Layout
 - **Left panel**: scrolling `RichLog` (history) + `Static` streaming buffer below
-- **Right panel** (toggleable, `F2` key): in-context memories sidebar, 36 columns wide
+- **Right panel** (toggleable, `F2` key): tabbed buffer panel — Memories, Reminders, Agenda — 36 columns wide
 - **Input bar**: full-width `Input` widget with slash-command autocomplete and up/down history
-- **Status bar**: model name or "⏳ streaming..." indicator
+- **Status bar**: model name or spinner + status indicator while streaming
+- **Hints bar**: context-sensitive keybinding hints that change based on focus mode
+
+#### Vim modal navigation
+
+The TUI uses a two-mode interaction model:
+
+- **Insert mode** (default): chat input is focused; type messages normally
+- **Browse mode**: right panel `ListView` is focused; navigate with keyboard
+
+| Key | Context | Action |
+|---|---|---|
+| `Escape` | Insert mode | Enter browse mode (focus right panel) |
+| `Escape` | Browse mode | Return to insert mode (focus chat input) |
+| `i` / `a` | Browse mode | Return to insert mode (vim-like) |
+| `j` / `k` | Browse mode | Move cursor down/up |
+| `Tab` / `Shift+Tab` | Browse mode | Cycle buffers (Memories → Reminders → Agenda) |
+| `Enter` | Browse mode | Open detail modal for selected item |
+| `F2` | Any | Toggle right panel visibility |
+| `Ctrl+D` | Any | Exit |
+
+#### Buffer tabs
+
+The right panel has three tabs managed by `BufferMode` enum (`MEMORIES`, `REMINDERS`, `AGENDA`):
+- **Memories**: lists active memories; in-context items marked with `●`; supports deletion via detail modal
+- **Reminders**: lists active reminders with trigger time or `[ctx]` label; supports deletion
+- **Agenda**: lists today's agenda items with checklist progress; opens item file in detail modal
 
 #### Color Differentiation (required — must be preserved)
 
