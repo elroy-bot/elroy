@@ -3,6 +3,7 @@
 import re
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import timedelta
+from enum import Enum
 from pathlib import Path
 from typing import ClassVar, cast
 
@@ -25,6 +26,12 @@ from ..io.formatters.rich_formatter import RichFormatter
 from ..io.textual_io import TextualIO
 
 logger = get_logger()
+
+
+class BufferMode(str, Enum):
+    MEMORIES = "memories"
+    REMINDERS = "reminders"
+    AGENDA = "agenda"
 
 
 class MemoryDetailModal(ModalScreen):
@@ -203,7 +210,7 @@ class ElroyApp(App):
         self._streaming_style = ""
         self._thought_buffer = ""
         self._memory_panel_visible = show_memory_panel
-        self._right_panel_mode = "memories"  # "memories", "reminders", "agenda"
+        self._right_panel_mode = BufferMode.MEMORIES
         self._input_history: list[str] = []
         self._history_index = -1
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -268,20 +275,13 @@ class ElroyApp(App):
     # ── buffer tabs ───────────────────────────────────────────────────────────
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
-        if event.tabs.id != "buffer-tabs":
+        if event.tabs.id != "buffer-tabs" or event.tab is None:
             return
-        if event.tab is None:
+        try:
+            self._right_panel_mode = BufferMode(event.tab.id.removeprefix("tab-"))
+        except ValueError:
             return
-        tab_id = event.tab.id
-        if tab_id == "tab-memories":
-            self._right_panel_mode = "memories"
-            self._refresh_memory_panel()
-        elif tab_id == "tab-reminders":
-            self._right_panel_mode = "reminders"
-            self._refresh_reminders_panel()
-        elif tab_id == "tab-agenda":
-            self._right_panel_mode = "agenda"
-            self._refresh_agenda_panel()
+        self._refresh_right_panel()
         self._update_hints()
 
     def _show_panel(self) -> None:
@@ -307,7 +307,7 @@ class ElroyApp(App):
         elif type_key.startswith("agenda:"):
             item_stem = type_key[len("agenda:"):]
             self._open_agenda_detail(item_stem)
-        elif ": " in type_key:
+        elif type_key.startswith("Memory: "):
             # Memory
             from ..db.db_models import EmbeddableSqlModel
             from ..repository.memories.operations import mark_inactive
@@ -325,6 +325,7 @@ class ElroyApp(App):
 
                 self.push_screen(MemoryDetailModal(name, source.to_fact(), on_delete=on_delete))
 
+    @work(thread=True)
     def _open_reminder_detail(self, reminder_name: str) -> None:
         from ..repository.reminders.operations import do_delete_reminder
         from ..repository.reminders.queries import get_db_reminder_by_name
@@ -346,7 +347,7 @@ class ElroyApp(App):
             do_delete_reminder(self.ctx, reminder_name)
             self._refresh_reminders_panel()
 
-        self.push_screen(MemoryDetailModal(reminder_name, "\n".join(parts), on_delete=on_delete))
+        self.call_from_thread(self.push_screen, MemoryDetailModal(reminder_name, "\n".join(parts), on_delete=on_delete))
 
     def _open_agenda_detail(self, item_stem: str) -> None:
         from ..config.paths import get_agenda_dir
@@ -448,7 +449,7 @@ class ElroyApp(App):
 
         list_view = self.query_one("#memory-list", ListView)
         if list_view.has_focus:
-            buf = self._right_panel_mode.capitalize()
+            buf = self._right_panel_mode.value.capitalize()
             text = f"[{buf}]  ↑↓/jk: move  ·  Tab/Shift+Tab: cycle buffers  ·  Enter: open  ·  i/a: back to chat  ·  Esc: back"
         else:
             text = "Esc: browse panel  ·  F2: toggle panel  ·  Ctrl+D: exit"
@@ -581,20 +582,27 @@ class ElroyApp(App):
 
     def _cycle_buffer(self, direction: int) -> None:
         """Cycle through Memories → Reminders → Agenda (Tab/Shift+Tab in browse mode)."""
-        modes = ["memories", "reminders", "agenda"]
-        tab_ids = ["tab-memories", "tab-reminders", "tab-agenda"]
+        modes = list(BufferMode)
         idx = modes.index(self._right_panel_mode)
-        self.query_one("#buffer-tabs", Tabs).active = tab_ids[(idx + direction) % len(modes)]
+        next_mode = modes[(idx + direction) % len(modes)]
+        self.query_one("#buffer-tabs", Tabs).active = f"tab-{next_mode.value}"
 
     # ── panel refresh ─────────────────────────────────────────────────────────
 
+    def _populate_list(self, items: list[tuple[Text, str]]) -> None:
+        """Replace list contents with (display_text, name) pairs (main thread)."""
+        list_view = self.query_one("#memory-list", ListView)
+        list_view.clear()
+        for display, name in items:
+            list_view.append(ListItem(Label(display), name=name))
+
     def _refresh_right_panel(self) -> None:
         """Refresh whichever buffer is currently active."""
-        if self._right_panel_mode == "memories":
+        if self._right_panel_mode == BufferMode.MEMORIES:
             self._refresh_memory_panel()
-        elif self._right_panel_mode == "reminders":
+        elif self._right_panel_mode == BufferMode.REMINDERS:
             self._refresh_reminders_panel()
-        elif self._right_panel_mode == "agenda":
+        elif self._right_panel_mode == BufferMode.AGENDA:
             self._refresh_agenda_panel()
 
     @work(thread=True)
@@ -608,14 +616,11 @@ class ElroyApp(App):
             memories = get_active_memories(self.ctx)
             in_context_names = {m.get_name() for m in memories if is_in_context(context_messages, m)}
 
-            list_view = self.query_one("#memory-list", ListView)
-            self.call_from_thread(list_view.clear)
-            for memory in memories:
-                name = memory.get_name()
-                marker = "● " if name in in_context_names else "  "
-                display = Text(f"{marker}{name}", no_wrap=True, overflow="ellipsis")
-                type_key = f"Memory: {name}"
-                self.call_from_thread(list_view.append, ListItem(Label(display), name=type_key))
+            items = [
+                (Text(f"{'● ' if m.get_name() in in_context_names else '  '}{m.get_name()}", no_wrap=True, overflow="ellipsis"), f"Memory: {m.get_name()}")
+                for m in memories
+            ]
+            self.call_from_thread(self._populate_list, items)
         except Exception:
             logger.debug("Failed to refresh memory panel", exc_info=True)
 
@@ -626,8 +631,7 @@ class ElroyApp(App):
             from ..utils.clock import db_time_to_local
 
             reminders = get_active_reminders(self.ctx)
-            list_view = self.query_one("#memory-list", ListView)
-            self.call_from_thread(list_view.clear)
+            items = []
             for r in reminders:
                 if r.trigger_datetime:
                     dt = db_time_to_local(r.trigger_datetime)
@@ -636,8 +640,8 @@ class ElroyApp(App):
                     raw = f"{r.name} [ctx]"
                 else:
                     raw = r.name
-                display = Text(raw, no_wrap=True, overflow="ellipsis")
-                self.call_from_thread(list_view.append, ListItem(Label(display), name=f"reminder:{r.name}"))
+                items.append((Text(raw, no_wrap=True, overflow="ellipsis"), f"reminder:{r.name}"))
+            self.call_from_thread(self._populate_list, items)
         except Exception:
             logger.debug("Failed to refresh reminders panel", exc_info=True)
 
@@ -651,18 +655,17 @@ class ElroyApp(App):
             from ..repository.agenda.file_storage import list_agenda_items as list_agenda_items_from_dir
 
             agenda_dir = get_agenda_dir()
-            items = list_agenda_items_from_dir(agenda_dir, for_date=date.today())
-            list_view = self.query_one("#memory-list", ListView)
-            self.call_from_thread(list_view.clear)
-            for path, _fm, _text in items:
+            agenda_items = list_agenda_items_from_dir(agenda_dir, for_date=date.today())
+            items = []
+            for path, _fm, _text in agenda_items:
                 checklist = get_checklist(path)
                 if checklist:
                     done = sum(1 for c in checklist if c["completed"])
                     raw = f"{path.stem} [{done}/{len(checklist)}]"
                 else:
                     raw = path.stem
-                display = Text(raw, no_wrap=True, overflow="ellipsis")
-                self.call_from_thread(list_view.append, ListItem(Label(display), name=f"agenda:{path.stem}"))
+                items.append((Text(raw, no_wrap=True, overflow="ellipsis"), f"agenda:{path.stem}"))
+            self.call_from_thread(self._populate_list, items)
         except Exception:
             logger.debug("Failed to refresh agenda panel", exc_info=True)
 
