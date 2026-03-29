@@ -262,6 +262,9 @@ class ElroyApp(App):
         if not self._memory_panel_visible:
             self.query_one("#memory-panel").add_class("hidden")
 
+        # Prevent Tabs from stealing focus on click (it calls self.focus() internally)
+        self.query_one("#buffer-tabs", Tabs).can_focus = False
+
         self.query_one("#chat-input").focus()
 
         from ..repository.user.queries import get_assistant_name
