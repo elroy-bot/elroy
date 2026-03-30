@@ -1,8 +1,10 @@
 """Textual TUI for Elroy chat interface."""
 
+import contextlib
 import re
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import timedelta
+from enum import StrEnum
 from pathlib import Path
 from typing import ClassVar, cast
 
@@ -12,7 +14,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.suggester import SuggestFromList
+from textual.suggester import Suggester
 from textual.widgets import Input, Label, ListItem, ListView, RichLog, Static, Tab, Tabs
 
 from ..config.paths import get_prompt_history_path
@@ -25,6 +27,38 @@ from ..io.formatters.rich_formatter import RichFormatter
 from ..io.textual_io import TextualIO
 
 logger = get_logger()
+
+
+class BufferMode(StrEnum):
+    MEMORIES = "memories"
+    REMINDERS = "reminders"
+    AGENDA = "agenda"
+
+    @property
+    def tab_id(self) -> str:
+        return f"tab-{self.value}"
+
+
+class SlashCommandSuggester(Suggester):
+    """Only suggests completions when the input starts with '/'.
+
+    Filtering the full completion list on every keystroke (even plain text) is
+    the main source of typing lag.  Skipping it for non-slash input keeps the
+    main thread free.
+    """
+
+    def __init__(self, suggestions: list[str]) -> None:
+        super().__init__(use_cache=False, case_sensitive=False)
+        self._suggestions = suggestions
+
+    async def get_suggestion(self, value: str) -> str | None:
+        if not value.startswith("/"):
+            return None
+        value_lower = value.lower()
+        for s in self._suggestions:
+            if s.lower().startswith(value_lower):
+                return s
+        return None
 
 
 class MemoryDetailModal(ModalScreen):
@@ -203,7 +237,7 @@ class ElroyApp(App):
         self._streaming_style = ""
         self._thought_buffer = ""
         self._memory_panel_visible = show_memory_panel
-        self._right_panel_mode = "memories"  # "memories", "reminders", "agenda"
+        self._right_panel_mode = BufferMode.MEMORIES
         self._input_history: list[str] = []
         self._history_index = -1
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -211,6 +245,8 @@ class ElroyApp(App):
         self._spinner_handle = None
         self._status_message = "thinking..."
         self._bg_status_handle = None
+        self._input_widget: Input | None = None
+        self._list_view: ListView | None = None
         self._load_input_history()
 
     # ── history ──────────────────────────────────────────────────────────────
@@ -255,7 +291,17 @@ class ElroyApp(App):
         if not self._memory_panel_visible:
             self.query_one("#memory-panel").add_class("hidden")
 
-        self.query_one("#chat-input").focus()
+        # Prevent Tab-cycling from landing on widgets we don't explicitly manage.
+        # RichLog, Tabs, and ListView all have can_focus=True by default.
+        # All three must be listed here; browse mode re-enables ListView only while
+        # it is active. Losing any line causes focus to escape to that widget.
+        self._input_widget = self.query_one("#chat-input", Input)
+        self._list_view = self.query_one("#memory-list", ListView)
+
+        self.query_one("#history-log", RichLog).can_focus = False
+        self.query_one("#buffer-tabs", Tabs).can_focus = False
+        self._list_view.can_focus = False
+        self._input_widget.focus()
 
         from ..repository.user.queries import get_assistant_name
 
@@ -268,20 +314,13 @@ class ElroyApp(App):
     # ── buffer tabs ───────────────────────────────────────────────────────────
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
-        if event.tabs.id != "buffer-tabs":
+        if event.tabs.id != "buffer-tabs" or event.tab is None:
             return
-        if event.tab is None:
+        try:
+            self._right_panel_mode = BufferMode(event.tab.id.removeprefix("tab-"))
+        except ValueError:
             return
-        tab_id = event.tab.id
-        if tab_id == "tab-memories":
-            self._right_panel_mode = "memories"
-            self._refresh_memory_panel()
-        elif tab_id == "tab-reminders":
-            self._right_panel_mode = "reminders"
-            self._refresh_reminders_panel()
-        elif tab_id == "tab-agenda":
-            self._right_panel_mode = "agenda"
-            self._refresh_agenda_panel()
+        self._refresh_right_panel()
         self._update_hints()
 
     def _show_panel(self) -> None:
@@ -302,12 +341,12 @@ class ElroyApp(App):
             return
 
         if type_key.startswith("reminder:"):
-            reminder_name = type_key[len("reminder:"):]
+            reminder_name = type_key[len("reminder:") :]
             self._open_reminder_detail(reminder_name)
         elif type_key.startswith("agenda:"):
-            item_stem = type_key[len("agenda:"):]
+            item_stem = type_key[len("agenda:") :]
             self._open_agenda_detail(item_stem)
-        elif ": " in type_key:
+        elif type_key.startswith("Memory: "):
             # Memory
             from ..db.db_models import EmbeddableSqlModel
             from ..repository.memories.operations import mark_inactive
@@ -436,7 +475,7 @@ class ElroyApp(App):
         self.query_one("#history-log", RichLog).write(renderable)
 
     def _set_input_disabled(self, disabled: bool) -> None:
-        input_widget = self.query_one("#chat-input", Input)
+        input_widget = self._input_widget or self.query_one("#chat-input", Input)
         input_widget.disabled = disabled
         if not disabled:
             input_widget.focus()
@@ -444,11 +483,9 @@ class ElroyApp(App):
 
     def _update_hints(self) -> None:
         """Refresh the hints bar with context-sensitive keybinding help."""
-        import contextlib
-
-        list_view = self.query_one("#memory-list", ListView)
+        list_view = self._list_view or self.query_one("#memory-list", ListView)
         if list_view.has_focus:
-            buf = self._right_panel_mode.capitalize()
+            buf = self._right_panel_mode.value.capitalize()
             text = f"[{buf}]  ↑↓/jk: move  ·  Tab/Shift+Tab: cycle buffers  ·  Enter: open  ·  i/a: back to chat  ·  Esc: back"
         else:
             text = "Esc: browse panel  ·  F2: toggle panel  ·  Ctrl+D: exit"
@@ -475,8 +512,8 @@ class ElroyApp(App):
         self._process_input(text)
 
     def on_key(self, event) -> None:
-        input_widget = self.query_one("#chat-input", Input)
-        list_view = self.query_one("#memory-list", ListView)
+        input_widget = self._input_widget or self.query_one("#chat-input", Input)
+        list_view = self._list_view or self.query_one("#memory-list", ListView)
 
         if input_widget.has_focus:
             if event.key == "up":
@@ -494,9 +531,15 @@ class ElroyApp(App):
                     self._history_index = -1
                     input_widget.value = ""
                 event.prevent_default()
+            elif event.key == "tab":
+                # Block Textual's default focus-cycling; Input uses Tab for autocomplete
+                # completion which is handled by the widget itself before this fires.
+                event.prevent_default()
+                event.stop()
         elif list_view.has_focus:
             if event.key in ("i", "a"):
                 # Insert/append → return to chat input (vim-like)
+                list_view.can_focus = False
                 input_widget.focus()
                 self.call_later(self._update_hints)
                 event.prevent_default()
@@ -519,6 +562,11 @@ class ElroyApp(App):
                 self.call_later(self._update_hints)
                 event.prevent_default()
                 event.stop()
+        else:
+            # Focus escaped to an unexpected widget (e.g. via a Textual internal or
+            # future widget addition). Redirect to chat input on the next key press
+            # so the user is never silently stuck.
+            input_widget.focus()
 
     @work(thread=True, exclusive=True)
     def _process_input(self, text: str) -> None:
@@ -570,31 +618,39 @@ class ElroyApp(App):
 
     def action_toggle_browse_mode(self) -> None:
         """Escape: toggle between chat input and right-panel browse mode."""
-        input_widget = self.query_one("#chat-input", Input)
-        list_view = self.query_one("#memory-list", ListView)
+        input_widget = self._input_widget or self.query_one("#chat-input", Input)
+        list_view = self._list_view or self.query_one("#memory-list", ListView)
         if list_view.has_focus:
+            list_view.can_focus = False
             input_widget.focus()
         else:
             self._show_panel()
-            list_view.focus()
+            list_view.can_focus = True
+            self.call_later(list_view.focus)
         self.call_later(self._update_hints)
 
     def _cycle_buffer(self, direction: int) -> None:
         """Cycle through Memories → Reminders → Agenda (Tab/Shift+Tab in browse mode)."""
-        modes = ["memories", "reminders", "agenda"]
-        tab_ids = ["tab-memories", "tab-reminders", "tab-agenda"]
+        modes = list(BufferMode)
         idx = modes.index(self._right_panel_mode)
-        self.query_one("#buffer-tabs", Tabs).active = tab_ids[(idx + direction) % len(modes)]
+        self.query_one("#buffer-tabs", Tabs).active = modes[(idx + direction) % len(modes)].tab_id
 
     # ── panel refresh ─────────────────────────────────────────────────────────
 
+    def _populate_list(self, items: list[tuple[Text, str]]) -> None:
+        """Replace list contents with (display_text, name) pairs (main thread)."""
+        list_view = self._list_view or self.query_one("#memory-list", ListView)
+        list_view.clear()
+        for display, name in items:
+            list_view.append(ListItem(Label(display), name=name))
+
     def _refresh_right_panel(self) -> None:
         """Refresh whichever buffer is currently active."""
-        if self._right_panel_mode == "memories":
+        if self._right_panel_mode == BufferMode.MEMORIES:
             self._refresh_memory_panel()
-        elif self._right_panel_mode == "reminders":
+        elif self._right_panel_mode == BufferMode.REMINDERS:
             self._refresh_reminders_panel()
-        elif self._right_panel_mode == "agenda":
+        elif self._right_panel_mode == BufferMode.AGENDA:
             self._refresh_agenda_panel()
 
     @work(thread=True)
@@ -607,15 +663,14 @@ class ElroyApp(App):
             context_messages = list(get_context_messages(self.ctx))
             memories = get_active_memories(self.ctx)
             in_context_names = {m.get_name() for m in memories if is_in_context(context_messages, m)}
-
-            list_view = self.query_one("#memory-list", ListView)
-            self.call_from_thread(list_view.clear)
-            for memory in memories:
-                name = memory.get_name()
-                marker = "● " if name in in_context_names else "  "
-                display = Text(f"{marker}{name}", no_wrap=True, overflow="ellipsis")
-                type_key = f"Memory: {name}"
-                self.call_from_thread(list_view.append, ListItem(Label(display), name=type_key))
+            items = [
+                (
+                    Text(f"{'● ' if m.get_name() in in_context_names else '  '}{m.get_name()}", no_wrap=True, overflow="ellipsis"),
+                    f"Memory: {m.get_name()}",
+                )
+                for m in memories
+            ]
+            self.call_from_thread(self._populate_list, items)
         except Exception:
             logger.debug("Failed to refresh memory panel", exc_info=True)
 
@@ -626,8 +681,7 @@ class ElroyApp(App):
             from ..utils.clock import db_time_to_local
 
             reminders = get_active_reminders(self.ctx)
-            list_view = self.query_one("#memory-list", ListView)
-            self.call_from_thread(list_view.clear)
+            items = []
             for r in reminders:
                 if r.trigger_datetime:
                     dt = db_time_to_local(r.trigger_datetime)
@@ -636,8 +690,8 @@ class ElroyApp(App):
                     raw = f"{r.name} [ctx]"
                 else:
                     raw = r.name
-                display = Text(raw, no_wrap=True, overflow="ellipsis")
-                self.call_from_thread(list_view.append, ListItem(Label(display), name=f"reminder:{r.name}"))
+                items.append((Text(raw, no_wrap=True, overflow="ellipsis"), f"reminder:{r.name}"))
+            self.call_from_thread(self._populate_list, items)
         except Exception:
             logger.debug("Failed to refresh reminders panel", exc_info=True)
 
@@ -651,18 +705,17 @@ class ElroyApp(App):
             from ..repository.agenda.file_storage import list_agenda_items as list_agenda_items_from_dir
 
             agenda_dir = get_agenda_dir()
-            items = list_agenda_items_from_dir(agenda_dir, for_date=date.today())
-            list_view = self.query_one("#memory-list", ListView)
-            self.call_from_thread(list_view.clear)
-            for path, _fm, _text in items:
+            agenda_items = list_agenda_items_from_dir(agenda_dir, for_date=date.today())
+            items = []
+            for path, _fm, _text in agenda_items:
                 checklist = get_checklist(path)
                 if checklist:
                     done = sum(1 for c in checklist if c["completed"])
                     raw = f"{path.stem} [{done}/{len(checklist)}]"
                 else:
                     raw = path.stem
-                display = Text(raw, no_wrap=True, overflow="ellipsis")
-                self.call_from_thread(list_view.append, ListItem(Label(display), name=f"agenda:{path.stem}"))
+                items.append((Text(raw, no_wrap=True, overflow="ellipsis"), f"agenda:{path.stem}"))
+            self.call_from_thread(self._populate_list, items)
         except Exception:
             logger.debug("Failed to refresh agenda panel", exc_info=True)
 
@@ -672,8 +725,9 @@ class ElroyApp(App):
     def _update_completions(self) -> None:
         try:
             suggestions = build_completions(self.ctx)
-            input_widget = self.query_one("#chat-input", Input)
-            self.call_from_thread(setattr, input_widget, "suggester", SuggestFromList(suggestions, case_sensitive=False))
+            suggester = SlashCommandSuggester(suggestions)
+            input_widget = self._input_widget or self.query_one("#chat-input", Input)
+            self.call_from_thread(setattr, input_widget, "suggester", suggester)
         except Exception:
             logger.debug("Failed to update completions", exc_info=True)
 
@@ -687,16 +741,12 @@ class ElroyApp(App):
         self._spinner_handle = self.set_interval(0.08, self._tick_spinner)
 
     def _tick_spinner(self) -> None:
-        import contextlib
-
         self._spinner_index = (self._spinner_index + 1) % len(self._spinner_chars)
         with contextlib.suppress(Exception):
             self.query_one("#status-bar", Label).update(f"{self._spinner_chars[self._spinner_index]} {self._status_message}")
 
     def _update_spinner_text(self) -> None:
         """Immediately refresh the status bar text without advancing the spinner frame."""
-        import contextlib
-
         with contextlib.suppress(Exception):
             spinner_char = self._spinner_chars[self._spinner_index]
             self.query_one("#status-bar", Label).update(f"{spinner_char} {self._status_message}")
@@ -710,8 +760,6 @@ class ElroyApp(App):
 
     def _update_idle_status(self) -> None:
         """Refresh the status bar when not streaming, incorporating background task status."""
-        import contextlib
-
         from ..core.status import get_background_status
 
         try:
