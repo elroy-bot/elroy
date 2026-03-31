@@ -28,7 +28,7 @@
         <link rel="alternate" type="application/rss+xml" title="RSS feed of updated content" href="../feed_rss_updated.xml">
       
       <link rel="icon" href="../images/logo_circle.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -36,7 +36,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1074,109 +1074,118 @@
 <tbody>
 <tr>
 <td><code>ANTHROPIC_API_KEY</code></td>
-<td>Claude 4.5 Sonnet</td>
+<td>Claude 4.5 Sonnet (<code>claude-sonnet-4-5-20250929</code>)</td>
 <td>text-embedding-3-small</td>
 </tr>
 <tr>
 <td><code>OPENAI_API_KEY</code></td>
-<td>GPT-4o</td>
+<td>GPT-5 (<code>gpt-5</code>)</td>
 <td>text-embedding-3-small</td>
 </tr>
 <tr>
 <td><code>GEMINI_API_KEY</code></td>
-<td>Gemini 2.0 Flash</td>
+<td>Gemini 2.0 Flash (<code>gemini/gemini-2.0-flash</code>)</td>
 <td>text-embedding-3-small</td>
 </tr>
 </tbody>
 </table>
 <h2 id="model-configuration-options">Model Configuration Options<a class="headerlink" href="#model-configuration-options" title="Permanent link">&para;</a></h2>
+<p>Set via environment variable or config file:</p>
 <table>
 <thead>
 <tr>
-<th>Option</th>
+<th>Config Key</th>
+<th>Env Variable</th>
 <th>Description</th>
 <th>Default</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>--chat-model TEXT</code></td>
+<td><code>chat_model</code></td>
+<td><code>ELROY_CHAT_MODEL</code></td>
 <td>The model to use for chat completions</td>
 <td><em>Inferred from API keys</em></td>
 </tr>
 <tr>
-<td><code>--chat-model-api-base TEXT</code></td>
+<td><code>chat_model_api_base</code></td>
+<td><code>ELROY_CHAT_MODEL_API_BASE</code></td>
 <td>Base URL for OpenAI compatible chat model API</td>
 <td>-</td>
 </tr>
 <tr>
-<td><code>--chat-model-api-key TEXT</code></td>
+<td><code>chat_model_api_key</code></td>
+<td><code>ELROY_CHAT_MODEL_API_KEY</code></td>
 <td>API key for OpenAI compatible chat model API</td>
 <td>-</td>
 </tr>
 <tr>
-<td><code>--embedding-model TEXT</code></td>
+<td><code>embedding_model</code></td>
+<td><code>ELROY_EMBEDDING_MODEL</code></td>
 <td>The model to use for text embeddings</td>
-<td>text-embedding-3-small</td>
+<td><code>text-embedding-3-small</code></td>
 </tr>
 <tr>
-<td><code>--embedding-model-size INTEGER</code></td>
+<td><code>embedding_model_size</code></td>
+<td><code>ELROY_EMBEDDING_MODEL_SIZE</code></td>
 <td>The size of the embedding model</td>
-<td>1536</td>
+<td><code>1536</code></td>
 </tr>
 <tr>
-<td><code>--embedding-model-api-base TEXT</code></td>
+<td><code>embedding_model_api_base</code></td>
+<td><code>ELROY_EMBEDDING_MODEL_API_BASE</code></td>
 <td>Base URL for OpenAI compatible embedding model API</td>
 <td>-</td>
 </tr>
 <tr>
-<td><code>--embedding-model-api-key TEXT</code></td>
+<td><code>embedding_model_api_key</code></td>
+<td><code>ELROY_EMBEDDING_MODEL_API_KEY</code></td>
 <td>API key for OpenAI compatible embedding model API</td>
 <td>-</td>
 </tr>
 <tr>
-<td><code>--enable-caching / --no-enable-caching</code></td>
+<td><code>enable_caching</code></td>
+<td><code>ELROY_ENABLE_CACHING</code></td>
 <td>Whether to enable caching for the LLM</td>
-<td>true</td>
+<td><code>true</code></td>
 </tr>
 </tbody>
 </table>
 <h2 id="model-aliases">Model Aliases<a class="headerlink" href="#model-aliases" title="Permanent link">&para;</a></h2>
-<p>Shortcuts for common models:</p>
+<p>The following aliases can be used as the value of <code>chat_model</code> (via <code>ELROY_CHAT_MODEL</code> or config file):</p>
 <table>
 <thead>
 <tr>
 <th>Alias</th>
-<th>Description</th>
+<th>Model</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>--sonnet</code></td>
-<td>Use Anthropic's Claude 4.5 Sonnet model</td>
+<td><code>sonnet</code></td>
+<td>Claude 4.5 Sonnet (<code>claude-sonnet-4-5-20250929</code>)</td>
 </tr>
 <tr>
-<td><code>--opus</code></td>
-<td>Use Anthropic's Claude 4.5 Opus model</td>
+<td><code>opus</code></td>
+<td>Claude 4.5 Opus (<code>claude-opus-4-5-20251101</code>)</td>
 </tr>
 <tr>
-<td><code>--4o</code></td>
-<td>Use OpenAI's GPT-4o model</td>
+<td><code>haiku</code></td>
+<td>Claude 3.5 Haiku (<code>claude-3-5-haiku-20241022</code>)</td>
 </tr>
 <tr>
-<td><code>--4o-mini</code></td>
-<td>Use OpenAI's GPT-4o-mini model</td>
-</tr>
-<tr>
-<td><code>--o1</code></td>
-<td>Use OpenAI's o1 model</td>
-</tr>
-<tr>
-<td><code>--o1-mini</code></td>
-<td>Use OpenAI's o1-mini model</td>
+<td><code>o1</code></td>
+<td>OpenAI o1 (<code>openai/o1</code>)</td>
 </tr>
 </tbody>
 </table>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">ELROY_CHAT_MODEL</span><span class="o">=</span>sonnet<span class="w"> </span>elroy
+</code></pre></div>
+<p>Or in config file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># ~/.elroy/elroy.conf.yaml</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">chat_model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sonnet</span>
+</code></pre></div>
 
 
 
@@ -1197,7 +1206,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">December 4, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 22, 2026 18:39:04 UTC">March 22, 2026</span>
   </span>
 
     
@@ -1286,10 +1295,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
         <script src="../javascripts/blog-footer.js"></script>
       

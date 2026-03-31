@@ -28,7 +28,7 @@
         <link rel="alternate" type="application/rss+xml" title="RSS feed of updated content" href="feed_rss_updated.xml">
       
       <link rel="icon" href="images/logo_circle.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -36,7 +36,7 @@
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
@@ -444,10 +444,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
+  <a href="#starting-elroy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Basic Usage
+        Starting Elroy
       
     </span>
   </a>
@@ -466,10 +466,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#command-reference" class="md-nav__link">
+  <a href="#keyboard-shortcuts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Command Reference
+        Keyboard Shortcuts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
       
     </span>
   </a>
@@ -481,34 +492,6 @@
     <span class="md-ellipsis">
       
         Document Ingestion
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Document Ingestion">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#ingest-command-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ingest Command Options
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shell-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shell Integration
       
     </span>
   </a>
@@ -1044,10 +1027,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
+  <a href="#starting-elroy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Basic Usage
+        Starting Elroy
       
     </span>
   </a>
@@ -1066,10 +1049,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#command-reference" class="md-nav__link">
+  <a href="#keyboard-shortcuts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Command Reference
+        Keyboard Shortcuts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
       
     </span>
   </a>
@@ -1081,34 +1075,6 @@
     <span class="md-ellipsis">
       
         Document Ingestion
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Document Ingestion">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#ingest-command-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ingest Command Options
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shell-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shell Integration
       
     </span>
   </a>
@@ -1136,22 +1102,14 @@
 
 
 <h1 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h1>
-<p>Elroy provides a powerful command-line interface that makes it easy to interact with the AI assistant directly from your terminal.</p>
-<h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Start the chat interface</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>elroy<span class="w"> </span>chat
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Or just &#39;elroy&#39; which defaults to chat mode</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>elroy
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Process a single message and exit</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>elroy<span class="w"> </span>message<span class="w"> </span><span class="s2">&quot;Say hello world&quot;</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Create a memory</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>elroy<span class="w"> </span>remember<span class="w"> </span><span class="s2">&quot;This is important information I want to save&quot;</span>
+<p>Elroy provides a terminal UI (TUI) for interacting with the AI assistant directly from your terminal.</p>
+<h2 id="starting-elroy">Starting Elroy<a class="headerlink" href="#starting-elroy" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Open the interactive chat interface</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>elroy
 </code></pre></div>
+<p>This opens a full-screen terminal application where you can chat with the assistant, create memories, and manage reminders.</p>
 <h2 id="slash-commands">Slash Commands<a class="headerlink" href="#slash-commands" title="Permanent link">&para;</a></h2>
-<p>Elroy supports powerful slash commands for quick actions:</p>
+<p>Inside the chat interface, Elroy supports slash commands for quick actions:</p>
 <div align="center">
   <img src="../images/slash_commands.gif" alt="Slash Commands demonstration" style="max-width: 100%; margin: 20px 0;">
 </div>
@@ -1161,115 +1119,58 @@
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Create a reminder</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>/create_reminder<span class="w"> </span>Learn<span class="w"> </span>how<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span>Elroy<span class="w"> </span>effectively
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># List memories</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>/print_memories
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Search memories</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>/search_memories<span class="w"> </span>project<span class="w"> </span>notes
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Show configuration</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>/print_config
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># See all available commands</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>/help
 </code></pre></div>
 <p>For a full list of available tools and slash commands, see the <a href="tools_guide.html">Tools Guide</a>.</p>
-<h2 id="command-reference">Command Reference<a class="headerlink" href="#command-reference" title="Permanent link">&para;</a></h2>
+<h2 id="keyboard-shortcuts">Keyboard Shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Command</th>
-<th>Description</th>
+<th>Key</th>
+<th>Action</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>elroy chat</code></td>
-<td>Opens an interactive chat session (default command)</td>
+<td><code>Ctrl+D</code></td>
+<td>Exit</td>
 </tr>
 <tr>
-<td><code>elroy message TEXT</code></td>
-<td>Process a single message and exit. Use <code>--plain</code> for plaintext output instead of rich text</td>
+<td><code>Ctrl+C</code></td>
+<td>Cancel current response</td>
 </tr>
 <tr>
-<td><code>elroy remember [TEXT]</code></td>
-<td>Create a new memory from text or interactively</td>
-</tr>
-<tr>
-<td><code>elroy ingest PATH</code></td>
-<td>Ingests document(s) at the given path into memory. Can process single files or directories</td>
-</tr>
-<tr>
-<td><code>elroy list-models</code></td>
-<td>Lists supported chat models and exits</td>
-</tr>
-<tr>
-<td><code>elroy list-tools</code></td>
-<td>Lists all available tools</td>
-</tr>
-<tr>
-<td><code>elroy print-config</code></td>
-<td>Shows current configuration and exits</td>
-</tr>
-<tr>
-<td><code>elroy version</code></td>
-<td>Show version and exit</td>
-</tr>
-<tr>
-<td><code>elroy print-tool-schemas</code></td>
-<td>Prints the schema for a tool and exits</td>
-</tr>
-<tr>
-<td><code>elroy set-persona TEXT</code></td>
-<td>Set a custom persona for the assistant</td>
-</tr>
-<tr>
-<td><code>elroy reset-persona</code></td>
-<td>Removes any custom persona, reverting to the default</td>
-</tr>
-<tr>
-<td><code>elroy show-persona</code></td>
-<td>Print the system persona and exit</td>
+<td><code>F2</code></td>
+<td>Toggle memory panel</td>
 </tr>
 </tbody>
 </table>
-<h2 id="document-ingestion">Document Ingestion<a class="headerlink" href="#document-ingestion" title="Permanent link">&para;</a></h2>
-<p>Elroy supports ingesting documents to make their content available for memory and retrieval:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Ingest a single file</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>elroy<span class="w"> </span>ingest<span class="w"> </span>document.md
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<p>Elroy is configured via environment variables or a config file — there are no command-line flags. See the <a href="configuration/index.html">Configuration Guide</a> for details.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Use a specific model</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nv">ELROY_CHAT_MODEL</span><span class="o">=</span>claude-sonnet-4-5-20250929<span class="w"> </span>elroy
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Ingest all files in a directory</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>elroy<span class="w"> </span>ingest<span class="w"> </span>./documents/
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Ingest recursively with pattern matching</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>elroy<span class="w"> </span>ingest<span class="w"> </span>./documents/<span class="w"> </span>--recursive<span class="w"> </span>--include<span class="w"> </span><span class="s2">&quot;*.md,*.txt&quot;</span><span class="w"> </span>--exclude<span class="w"> </span><span class="s2">&quot;*.log&quot;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Use a custom config file</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nv">ELROY_CONFIG_PATH</span><span class="o">=</span>~/my-elroy-config.yaml<span class="w"> </span>elroy
 </code></pre></div>
-<h3 id="ingest-command-options">Ingest Command Options<a class="headerlink" href="#ingest-command-options" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--force-refresh, -f</code></td>
-<td>If true, any existing ingested documents will be discarded and re-ingested</td>
-</tr>
-<tr>
-<td><code>--recursive, -r</code></td>
-<td>If path is a directory, recursively ingest all documents within it</td>
-</tr>
-<tr>
-<td><code>--include, -i</code></td>
-<td>Glob pattern for files to include (e.g., '<em>.txt,</em>.md'). Multiple patterns can be comma-separated</td>
-</tr>
-<tr>
-<td><code>--exclude, -e</code></td>
-<td>Glob pattern for files to exclude (e.g., '*.log'). Can also be used to exclude directories</td>
-</tr>
-</tbody>
-</table>
-<h2 id="shell-integration">Shell Integration<a class="headerlink" href="#shell-integration" title="Permanent link">&para;</a></h2>
-<p>Elroy can be used in scripts and automated workflows:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Process a single question</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;What is 2+2?&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>elroy<span class="w"> </span>chat
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Create a memory from file content</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>cat<span class="w"> </span>meeting_notes.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>elroy<span class="w"> </span>remember
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Use a specific tool with piped input</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Buy groceries&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>elroy<span class="w"> </span>message<span class="w"> </span>--tool<span class="w"> </span>create_reminder
+<h2 id="document-ingestion">Document Ingestion<a class="headerlink" href="#document-ingestion" title="Permanent link">&para;</a></h2>
+<p>To ingest documents into Elroy's memory, use the <code>/ingest_doc</code> slash command inside the chat interface, or configure background ingestion via the config file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># ~/.elroy/elroy.conf.yaml</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">background_ingest_enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">background_ingest_paths</span><span class="p">:</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">~/documents/</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nt">background_ingest_interval_minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
 </code></pre></div>
 
 
@@ -1291,7 +1192,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">December 5, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 22, 2026 18:39:04 UTC">March 22, 2026</span>
   </span>
 
     
@@ -1380,10 +1281,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
       
         <script src="javascripts/blog-footer.js"></script>
       

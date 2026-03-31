@@ -28,7 +28,7 @@
         <link rel="alternate" type="application/rss+xml" title="RSS feed of updated content" href="../feed_rss_updated.xml">
       
       <link rel="icon" href="../images/logo_circle.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -36,7 +36,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -559,21 +559,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#shell-integration" class="md-nav__link">
+  <a href="#example-config-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shell Integration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CLI Commands
+        Example Config File
       
     </span>
   </a>
@@ -1018,21 +1007,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#shell-integration" class="md-nav__link">
+  <a href="#example-config-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shell Integration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CLI Commands
+        Example Config File
       
     </span>
   </a>
@@ -1060,42 +1038,82 @@
 
 
 <h1 id="basic-configuration">Basic Configuration<a class="headerlink" href="#basic-configuration" title="Permanent link">&para;</a></h1>
-<p>These settings control the core behavior of Elroy.</p>
+<p>These settings control the core behavior of Elroy. All options can be set via environment variables (e.g. <code>ELROY_DEBUG=true</code>) or in the config file at <code>~/.elroy/elroy.conf.yaml</code>.</p>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>--config TEXT</code>: YAML config file path. Values override defaults but are overridden by CLI flags and environment variables. [default: ~/.config/elroy/config.yaml]</li>
-<li><code>--default-assistant-name TEXT</code>: Default name for the assistant. [default: Elroy]</li>
-<li><code>--debug / --no-debug</code>: Enable fail-fast error handling and verbose logging output. [default: false]</li>
-<li><code>--user-token TEXT</code>: User token to use for Elroy. [default: DEFAULT]</li>
-<li><code>--custom-tools-path TEXT</code>: Path to custom functions to load (can be specified multiple times)</li>
-<li><code>--max-ingested-doc-lines INTEGER</code>: Maximum number of lines to ingest from a document. If a document has more lines, it will be ignored.</li>
-<li><code>--database-url TEXT</code>: Valid SQLite or Postgres URL for the database. If Postgres, the pgvector extension must be installed.</li>
-<li><code>--inline-tool-calls / --no-inline-tool-calls</code>: Whether to enable inline tool calls in the assistant (better for some open source models). [default: false]</li>
-<li><code>--reflect / --no-reflect</code>: If true, the assistant will reflect on memories it recalls. This will lead to slower but richer responses. If false, memories will be less processed when recalled into memory. [default: false]</li>
-</ul>
-<h2 id="shell-integration">Shell Integration<a class="headerlink" href="#shell-integration" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>--install-completion</code>: Install completion for the current shell</li>
-<li><code>--show-completion</code>: Show completion for current shell</li>
-<li><code>--help</code>: Show help message and exit</li>
-</ul>
-<h2 id="cli-commands">CLI Commands<a class="headerlink" href="#cli-commands" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>elroy chat</code> - Opens an interactive chat session (default command)</li>
-<li><code>elroy message TEXT</code> - Process a single message and exit</li>
-<li><code>elroy remember [TEXT]</code> - Create a new memory from text or interactively</li>
-<li><code>elroy ingest PATH</code> - Ingests document(s) at the given path into memory</li>
-<li><code>elroy list-models</code> - Lists supported chat models and exits</li>
-<li><code>elroy list-tools</code> - Lists all available tools</li>
-<li><code>elroy print-config</code> - Shows current configuration and exits</li>
-<li><code>elroy version</code> - Show version and exit</li>
-<li><code>elroy print-tool-schemas</code> - Prints the schema for a tool and exits</li>
-<li><code>elroy set-persona TEXT</code> - Set a custom persona for the assistant</li>
-<li><code>elroy reset-persona</code> - Removes any custom persona, reverting to the default</li>
-<li><code>elroy show-persona</code> - Print the system persona and exit</li>
-<li><code>elroy mcp</code> - MCP server commands</li>
-</ul>
-<p>Note: Running just <code>elroy</code> without any command will default to <code>elroy chat</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Config Key</th>
+<th>Env Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config_path</code></td>
+<td><code>ELROY_CONFIG_PATH</code></td>
+<td><code>~/.elroy/elroy.conf.yaml</code></td>
+<td>YAML config file path</td>
+</tr>
+<tr>
+<td><code>default_assistant_name</code></td>
+<td><code>ELROY_DEFAULT_ASSISTANT_NAME</code></td>
+<td><code>Elroy</code></td>
+<td>Default name for the assistant</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td><code>ELROY_DEBUG</code></td>
+<td><code>false</code></td>
+<td>Enable fail-fast error handling and verbose logging output</td>
+</tr>
+<tr>
+<td><code>user_token</code></td>
+<td><code>ELROY_USER_TOKEN</code></td>
+<td><code>DEFAULT</code></td>
+<td>User token to use for Elroy</td>
+</tr>
+<tr>
+<td><code>custom_tools_path</code></td>
+<td><code>ELROY_CUSTOM_TOOLS_PATH</code></td>
+<td>-</td>
+<td>Path to custom functions to load</td>
+</tr>
+<tr>
+<td><code>database_url</code></td>
+<td><code>ELROY_DATABASE_URL</code></td>
+<td>SQLite at <code>~/.elroy/elroy.db</code></td>
+<td>Valid SQLite URL for the database</td>
+</tr>
+<tr>
+<td><code>inline_tool_calls</code></td>
+<td><code>ELROY_INLINE_TOOL_CALLS</code></td>
+<td><code>false</code></td>
+<td>Whether to enable inline tool calls (better for some open source models)</td>
+</tr>
+<tr>
+<td><code>reflect</code></td>
+<td><code>ELROY_REFLECT</code></td>
+<td><code>false</code></td>
+<td>If true, the assistant will reflect on memories it recalls. Slower but richer responses.</td>
+</tr>
+<tr>
+<td><code>max_ingested_doc_lines</code></td>
+<td><code>ELROY_MAX_INGESTED_DOC_LINES</code></td>
+<td><code>1000</code></td>
+<td>Maximum number of lines to ingest from a document</td>
+</tr>
+</tbody>
+</table>
+<h2 id="example-config-file">Example Config File<a class="headerlink" href="#example-config-file" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># ~/.elroy/elroy.conf.yaml</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">default_assistant_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Elroy&quot;</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">debug</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">user_token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DEFAULT</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">chat_model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">claude-sonnet-4-5-20250929</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">reflect</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</code></pre></div>
 
 
 
@@ -1116,7 +1134,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">March 17, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 22, 2026 18:39:04 UTC">March 22, 2026</span>
   </span>
 
     
@@ -1205,10 +1223,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
         <script src="../javascripts/blog-footer.js"></script>
       

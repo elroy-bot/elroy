@@ -28,7 +28,7 @@
         <link rel="alternate" type="application/rss+xml" title="RSS feed of updated content" href="feed_rss_updated.xml">
       
       <link rel="icon" href="images/logo_circle.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -36,7 +36,7 @@
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1206,14 +1206,11 @@
 <h1 id="installation-guide">Installation Guide<a class="headerlink" href="#installation-guide" title="Permanent link">&para;</a></h1>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
+<li>Python 3.12</li>
 <li>Relevant API keys (for simplest setup, set <code>OPENAI_API_KEY</code> or <code>ANTHROPIC_API_KEY</code>)</li>
-<li>Database, either:<ul>
-<li>SQLite (sqlite-vec will be installed)</li>
-<li>PostgreSQL with pgvector extension</li>
+<li>SQLite (included with Python; sqlite-vec will be installed automatically)</li>
 </ul>
-</li>
-</ul>
-<p>By default, Elroy will use SQLite. To add a custom DB, you can provide your database url either via the <code>ELROY_DATABASE_URL</code>, the <code>database_url</code> config value, or via the <code>--database-url</code> startup flag.</p>
+<p>By default, Elroy uses SQLite. To use a custom database path, set <code>ELROY_DATABASE_URL</code> or the <code>database_url</code> config value.</p>
 <h2 id="option-1-using-install-script-recommended">Option 1: Using Install Script (Recommended)<a class="headerlink" href="#option-1-using-install-script-recommended" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-LsSf<span class="w"> </span>https://raw.githubusercontent.com/elroy-bot/elroy/main/scripts/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
 </code></pre></div>
@@ -1226,8 +1223,7 @@
 <h2 id="option-2-using-uv-manually">Option 2: Using UV Manually<a class="headerlink" href="#option-2-using-uv-manually" title="Permanent link">&para;</a></h2>
 <h3 id="prerequisites_1">Prerequisites<a class="headerlink" href="#prerequisites_1" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Python 3.10 or higher</li>
-<li>Database (SQLite or PostgreSQL with pgvector extension)</li>
+<li>Python 3.12</li>
 <li>
 <p>Relevant API keys (for simplest setup, set <code>OPENAI_API_KEY</code> or <code>ANTHROPIC_API_KEY</code>)</p>
 </li>
@@ -1261,10 +1257,9 @@
 <h2 id="option-3-using-docker">Option 3: Using Docker<a class="headerlink" href="#option-3-using-docker" title="Permanent link">&para;</a></h2>
 <h3 id="prerequisites_2">Prerequisites<a class="headerlink" href="#prerequisites_2" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Docker and Docker Compose</li>
-</ul>
-<p>This option automatically sets up everything you need, including the required PostgreSQL database with pgvector extension.</p>
-<ol>
+<li>
+<p>Docker and Docker Compose</p>
+</li>
 <li>
 <p>Download the docker-compose.yml:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl<span class="w"> </span>-O<span class="w"> </span>https://raw.githubusercontent.com/elroy-bot/elroy/main/docker-compose.yml
@@ -1276,25 +1271,21 @@
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>build<span class="w"> </span>--no-cache
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>elroy
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Add parameters as needed, e.g. here to use Anthropic&#39;s Sonnet model</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>elroy<span class="w"> </span>--sonnet
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Pass through all environment variables from host</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-e<span class="w"> </span>OPENAI_API_KEY<span class="w"> </span>-e<span class="w"> </span>ANTHROPIC_API_KEY<span class="w"> </span>elroy
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Pass through all environment variables from host</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-e<span class="w"> </span>elroy
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># Or pass specific environment variable patterns</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;ELROY_*&quot;</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;OPENAI_*&quot;</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;ANTHROPIC_*&quot;</span><span class="w"> </span>elroy
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Or pass specific environment variable patterns</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;ELROY_*&quot;</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;OPENAI_*&quot;</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;ANTHROPIC_*&quot;</span><span class="w"> </span>elroy
 </code></pre></div></p>
 </li>
-</ol>
+</ul>
 <p>The Docker image is publicly available at <code>ghcr.io/elroy-bot/elroy</code>.</p>
 <h2 id="option-4-installing-from-source">Option 4: Installing from Source<a class="headerlink" href="#option-4-installing-from-source" title="Permanent link">&para;</a></h2>
 <h3 id="prerequisites_3">Prerequisites<a class="headerlink" href="#prerequisites_3" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Python 3.10 or higher</li>
+<li>Python 3.12</li>
 <li>uv package manager (install with <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code>)</li>
 <li>Relevant API keys (for simplest setup, set <code>OPENAI_API_KEY</code> or <code>ANTHROPIC_API_KEY</code>)</li>
-<li>PostgreSQL database with pgvector extension</li>
 </ul>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Clone the repository</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>git<span class="w"> </span>clone<span class="w"> </span>--single-branch<span class="w"> </span>--branch<span class="w"> </span>stable<span class="w"> </span>https://github.com/elroy-bot/elroy.git
@@ -1302,7 +1293,7 @@
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Create virtual environment and install dependencies</span>
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>uv<span class="w"> </span>venv
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate<span class="w">  </span><span class="c1"># On Unix/MacOS</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate<span class="w">  </span><span class="c1"># On Unix/macOS</span>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># or</span>
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>.venv<span class="se">\S</span>cripts<span class="se">\a</span>ctivate<span class="w">  </span><span class="c1"># On Windows</span>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
@@ -1332,7 +1323,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">April 21, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 22, 2026 18:39:04 UTC">March 22, 2026</span>
   </span>
 
     
@@ -1421,10 +1412,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.indexes", "navigation.top", "search.highlight", "search.share", "content.code.copy"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
       
         <script src="javascripts/blog-footer.js"></script>
       
