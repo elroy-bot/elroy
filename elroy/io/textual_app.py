@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import AsyncIterator, Callable, Iterator
+from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import ClassVar, cast
@@ -25,6 +26,16 @@ from ..io.formatters.rich_formatter import RichFormatter
 from ..io.textual_io import TextualIO
 
 logger = get_logger()
+
+
+@dataclass
+class RightPanelEntry:
+    """A browseable sidebar row and the content behind it."""
+
+    title: str
+    lookup_key: str
+    content: str
+    deletable: bool = False
 
 
 class MemoryDetailModal(ModalScreen):
@@ -103,6 +114,13 @@ class ElroyApp(App):
     """Main Textual TUI application for Elroy."""
 
     DARK = True  # Force dark theme regardless of terminal preference
+    BROWSE_BUFFERS: ClassVar[tuple[str, ...]] = ("memories", "reminders", "agenda")
+    BUFFER_TITLES: ClassVar[dict[str, str]] = {
+        "memories": "Memories",
+        "reminders": "Reminders",
+        "agenda": "Agenda",
+    }
+    MEMORY_BUFFER_SOURCE_TYPES: ClassVar[set[str]] = {"Memory", "DocumentExcerpt", "ContextMessageSet"}
 
     CSS = """
     Screen {
@@ -198,6 +216,10 @@ class ElroyApp(App):
         self._streaming_style = ""
         self._thought_buffer = ""
         self._memory_panel_visible = show_memory_panel
+        self._browse_mode = False
+        self._browse_buffer = "memories"
+        self._panel_entries: dict[str, list[RightPanelEntry]] = {buffer_name: [] for buffer_name in self.BROWSE_BUFFERS}
+        self._panel_indices: dict[str, int | None] = dict.fromkeys(self.BROWSE_BUFFERS)
         self._input_history: list[str] = []
         self._history_index = -1
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -234,7 +256,7 @@ class ElroyApp(App):
                 yield RichLog(id="history-log", wrap=True, highlight=False, markup=False)
                 yield Static("", id="streaming-output")
             with Vertical(id="memory-panel"):
-                yield Label("In-Context Memories", id="memory-title")
+                yield Label("Memories", id="memory-title")
                 yield ListView(id="memory-list")
         yield Input(placeholder="> ", id="chat-input")
         yield Label("", id="status-bar")
@@ -257,25 +279,15 @@ class ElroyApp(App):
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if event.list_view.id != "memory-list":
             return
-        from ..repository.memories.queries import db_get_memory_source_by_name
-
-        type_key = event.item.name
-        if not type_key or ": " not in type_key:
+        if event.index is None:
             return
-        from ..db.db_models import EmbeddableSqlModel
-        from ..repository.memories.operations import mark_inactive
+        self._panel_indices[self._browse_buffer] = event.index
+        self._open_panel_entry(event.index)
 
-        source_type, name = type_key.split(": ", 1)
-        source = db_get_memory_source_by_name(self.ctx, source_type, name)
-        if source:
-            on_delete = None
-            if isinstance(source, EmbeddableSqlModel):
-
-                def on_delete(s=source) -> None:
-                    mark_inactive(self.ctx, s)
-                    self._refresh_memory_panel()
-
-            self.push_screen(MemoryDetailModal(name, source.to_fact(), on_delete=on_delete))
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        if event.list_view.id != "memory-list":
+            return
+        self._panel_indices[self._browse_buffer] = event.list_view.index
 
     # ── session init ─────────────────────────────────────────────────────────
 
@@ -356,7 +368,7 @@ class ElroyApp(App):
         input_widget = self.query_one("#chat-input", Input)
         input_widget.disabled = disabled
         if not disabled:
-            input_widget.focus()
+            self._focus_chat_input()
 
     # ── input handling ────────────────────────────────────────────────────────
 
@@ -379,23 +391,27 @@ class ElroyApp(App):
 
     def on_key(self, event) -> None:
         input_widget = self.query_one("#chat-input", Input)
-        if not input_widget.has_focus:
+        list_widget = self.query_one("#memory-list", ListView)
+        if self.screen is not self.screen_stack[0]:
             return
 
-        if event.key == "up":
-            if self._input_history and self._history_index < len(self._input_history) - 1:
-                self._history_index += 1
-                input_widget.value = self._input_history[self._history_index]
-                input_widget.cursor_position = len(input_widget.value)
+        if event.key == "escape":
+            self._toggle_mode()
             event.prevent_default()
-        elif event.key == "down":
-            if self._history_index > 0:
-                self._history_index -= 1
-                input_widget.value = self._input_history[self._history_index]
-                input_widget.cursor_position = len(input_widget.value)
-            elif self._history_index == 0:
-                self._history_index = -1
-                input_widget.value = ""
+            event.stop()
+            return
+
+        if self._browse_mode:
+            handled = self._handle_browse_key(event, list_widget)
+            if handled:
+                return
+        elif input_widget.has_focus:
+            handled = self._handle_chat_key(event, input_widget)
+            if handled:
+                return
+
+        if not input_widget.has_focus and not list_widget.has_focus:
+            self._focus_chat_input()
             event.prevent_default()
 
     @work(thread=True, exclusive=True)
@@ -443,19 +459,58 @@ class ElroyApp(App):
         self._memory_panel_visible = not self._memory_panel_visible
         if self._memory_panel_visible:
             panel.remove_class("hidden")
+            if self._browse_mode:
+                self._focus_browse_list()
         else:
             panel.add_class("hidden")
+            if self._browse_mode:
+                self._focus_chat_input()
 
     # ── periodic updates ──────────────────────────────────────────────────────
 
     @work(thread=True)
     def _refresh_memory_panel(self) -> None:
         try:
-            entries = get_memory_panel_entries(self.ctx)
-            list_view = self.query_one("#memory-list", ListView)
-            self.call_from_thread(list_view.clear)
-            for display_name, type_key in entries[:15]:
-                self.call_from_thread(list_view.append, ListItem(Label(display_name), name=type_key))
+            from ..config.paths import get_agenda_dir
+            from ..repository.agenda.file_storage import list_agenda_items
+            from ..repository.reminders.queries import get_active_reminders
+            from ..utils.clock import db_time_to_local
+
+            memory_entries = []
+            for display_name, type_key in get_memory_panel_entries(self.ctx):
+                source_type, _, _ = type_key.partition(": ")
+                if source_type not in self.MEMORY_BUFFER_SOURCE_TYPES:
+                    continue
+                memory_entries.append(RightPanelEntry(title=display_name, lookup_key=type_key, content=""))
+                if len(memory_entries) >= 15:
+                    break
+            reminder_entries = []
+            for reminder in get_active_reminders(self.ctx)[:15]:
+                if reminder.trigger_datetime:
+                    when = db_time_to_local(reminder.trigger_datetime).strftime("%Y-%m-%d %H:%M")
+                    title = f"{reminder.name} [{when}]"
+                elif reminder.reminder_context:
+                    title = f"{reminder.name} [context]"
+                else:
+                    title = reminder.name
+                reminder_entries.append(
+                    RightPanelEntry(
+                        title=title,
+                        lookup_key=reminder.name,
+                        content=reminder.to_fact(),
+                        deletable=True,
+                    )
+                )
+            agenda_entries = [
+                RightPanelEntry(title=path.stem, lookup_key=str(path), content=text)
+                for path, _, text in list_agenda_items(get_agenda_dir())[:15]
+            ]
+            self._panel_entries = {
+                "memories": memory_entries,
+                "reminders": reminder_entries,
+                "agenda": agenda_entries,
+            }
+            self.call_from_thread(self._render_current_panel)
         except Exception:
             logger.debug("Failed to refresh memory panel", exc_info=True)
 
@@ -476,19 +531,12 @@ class ElroyApp(App):
         self._spinner_handle = self.set_interval(0.08, self._tick_spinner)
 
     def _tick_spinner(self) -> None:
-        import contextlib
-
         self._spinner_index = (self._spinner_index + 1) % len(self._spinner_chars)
-        with contextlib.suppress(Exception):
-            self.query_one("#status-bar", Label).update(f"{self._spinner_chars[self._spinner_index]} {self._status_message}")
+        self._render_status_bar()
 
     def _update_spinner_text(self) -> None:
         """Immediately refresh the status bar text without advancing the spinner frame."""
-        import contextlib
-
-        with contextlib.suppress(Exception):
-            spinner_char = self._spinner_chars[self._spinner_index]
-            self.query_one("#status-bar", Label).update(f"{spinner_char} {self._status_message}")
+        self._render_status_bar()
 
     def _stop_spinner(self) -> None:
         if self._spinner_handle:
@@ -499,6 +547,166 @@ class ElroyApp(App):
 
     def _update_idle_status(self) -> None:
         """Refresh the status bar when not streaming, incorporating background task status."""
+        self._render_status_bar()
+
+    def _tick_background_status(self) -> None:
+        """Periodically update the idle status bar with background task activity."""
+        if not self._streaming:
+            self._update_idle_status()
+
+    # ── focus / browse helpers ───────────────────────────────────────────────
+
+    def _handle_chat_key(self, event, input_widget: Input) -> bool:
+        if event.key == "up":
+            if self._input_history and self._history_index < len(self._input_history) - 1:
+                self._history_index += 1
+                input_widget.value = self._input_history[self._history_index]
+                input_widget.cursor_position = len(input_widget.value)
+            event.prevent_default()
+            event.stop()
+            return True
+
+        if event.key == "down":
+            if self._history_index > 0:
+                self._history_index -= 1
+                input_widget.value = self._input_history[self._history_index]
+                input_widget.cursor_position = len(input_widget.value)
+            elif self._history_index == 0:
+                self._history_index = -1
+                input_widget.value = ""
+            event.prevent_default()
+            event.stop()
+            return True
+
+        if event.key == "tab":
+            self._accept_input_completion()
+            event.prevent_default()
+            event.stop()
+            return True
+
+        return False
+
+    def _handle_browse_key(self, event, list_widget: ListView) -> bool:
+        if event.key in {"j", "down"}:
+            list_widget.action_cursor_down()
+        elif event.key in {"k", "up"}:
+            list_widget.action_cursor_up()
+        elif event.key == "tab":
+            self._cycle_browse_buffer(1)
+        elif event.key == "shift+tab":
+            self._cycle_browse_buffer(-1)
+        elif event.key == "enter":
+            index = list_widget.index
+            if index is not None:
+                self._open_panel_entry(index)
+        elif event.key in {"i", "a"}:
+            self._focus_chat_input()
+        else:
+            return False
+
+        event.prevent_default()
+        event.stop()
+        return True
+
+    def _toggle_mode(self) -> None:
+        if self._browse_mode:
+            self._focus_chat_input()
+        else:
+            self._focus_browse_list()
+
+    def _focus_chat_input(self) -> None:
+        self._browse_mode = False
+        self.query_one("#chat-input", Input).focus()
+        self._render_status_bar()
+
+    def _focus_browse_list(self) -> None:
+        if not self._memory_panel_visible:
+            self.query_one("#memory-panel").remove_class("hidden")
+            self._memory_panel_visible = True
+        self._browse_mode = True
+        list_widget = self.query_one("#memory-list", ListView)
+        list_widget.focus()
+        self._ensure_panel_index()
+        self._render_status_bar()
+
+    def _cycle_browse_buffer(self, direction: int) -> None:
+        current_index = self.BROWSE_BUFFERS.index(self._browse_buffer)
+        self._browse_buffer = self.BROWSE_BUFFERS[(current_index + direction) % len(self.BROWSE_BUFFERS)]
+        self._render_current_panel()
+        self._focus_browse_list()
+
+    def _render_current_panel(self) -> None:
+        list_view = self.query_one("#memory-list", ListView)
+        title = self.BUFFER_TITLES[self._browse_buffer]
+        entries = self._panel_entries[self._browse_buffer]
+        self.query_one("#memory-title", Label).update(title)
+        list_view.clear()
+        list_view.extend([ListItem(Label(entry.title), name=entry.lookup_key) for entry in entries])
+        self.call_after_refresh(self._ensure_panel_index)
+        self._render_status_bar()
+
+    def _ensure_panel_index(self) -> None:
+        list_view = self.query_one("#memory-list", ListView)
+        entries = self._panel_entries[self._browse_buffer]
+        if not entries:
+            self._panel_indices[self._browse_buffer] = None
+            list_view.index = None
+            return
+        saved_index = self._panel_indices[self._browse_buffer]
+        if saved_index is None:
+            saved_index = 0
+        saved_index = max(0, min(saved_index, len(entries) - 1))
+        self._panel_indices[self._browse_buffer] = saved_index
+        list_view.index = saved_index
+
+    def _open_panel_entry(self, index: int) -> None:
+        entries = self._panel_entries[self._browse_buffer]
+        if not (0 <= index < len(entries)):
+            return
+        entry = entries[index]
+        on_delete = None
+        if self._browse_buffer == "memories":
+            from ..db.db_models import EmbeddableSqlModel
+            from ..repository.memories.operations import mark_inactive
+            from ..repository.memories.queries import db_get_memory_source_by_name
+
+            type_key = entry.lookup_key
+            if ": " not in type_key:
+                return
+            source_type, name = type_key.split(": ", 1)
+            source = db_get_memory_source_by_name(self.ctx, source_type, name)
+            if not source:
+                return
+            content = source.to_fact()
+            if isinstance(source, EmbeddableSqlModel):
+
+                def on_delete(s=source) -> None:
+                    mark_inactive(self.ctx, s)
+                    self._refresh_memory_panel()
+
+            title = name
+        elif self._browse_buffer == "reminders":
+            from ..repository.reminders.operations import do_delete_reminder
+
+            title = entry.lookup_key
+            content = entry.content
+
+            def on_delete(name=entry.lookup_key) -> None:
+                do_delete_reminder(self.ctx, name)
+                self._refresh_memory_panel()
+        else:
+            title = entry.title
+            content = entry.content
+
+        self.push_screen(MemoryDetailModal(title, content, on_delete=on_delete))
+
+    def _accept_input_completion(self) -> None:
+        input_widget = self.query_one("#chat-input", Input)
+        suggestion = getattr(input_widget, "_suggestion", "")
+        if suggestion and input_widget.cursor_position >= len(input_widget.value):
+            input_widget.action_cursor_right()
+
+    def _render_status_bar(self) -> None:
         import contextlib
 
         from ..core.status import get_background_status
@@ -507,15 +715,19 @@ class ElroyApp(App):
             model_name = self.ctx.chat_model.name
         except Exception:
             return
-        bg = get_background_status()
-        text = f"● {model_name}  ⟳ {bg}" if bg else f"● {model_name}"
-        with contextlib.suppress(Exception):
-            self.query_one("#status-bar", Label).update(text)
 
-    def _tick_background_status(self) -> None:
-        """Periodically update the idle status bar with background task activity."""
-        if not self._streaming:
-            self._update_idle_status()
+        mode_text = (
+            "Browse: j/k or arrows move | Tab next | Shift+Tab prev | Enter open | i/a/Esc chat"
+            if self._browse_mode
+            else "Chat: Esc browse | Tab complete | F2 panel | Ctrl+D exit"
+        )
+        if self._streaming:
+            prefix = f"{self._spinner_chars[self._spinner_index]} {self._status_message}"
+        else:
+            bg = get_background_status()
+            prefix = f"● {model_name}  ⟳ {bg}" if bg else f"● {model_name}"
+        with contextlib.suppress(Exception):
+            self.query_one("#status-bar", Label).update(f"{prefix}  |  {mode_text}")
 
 
 def make_app(**overrides) -> ElroyApp:
