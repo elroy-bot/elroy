@@ -187,7 +187,7 @@ class DocumentExcerpt(EmbeddableSqlModel, MemorySource, table=True):
         return f"#{self.name}\n{self.content}"
 
 
-class AgendaItem(EmbeddableSqlModel, SQLModel, table=True):
+class AgendaItem(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
