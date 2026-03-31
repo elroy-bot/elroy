@@ -7,7 +7,7 @@
 
 ## What is Elroy?
 
-Elroy is a **memory-augmented AI personal assistant** for the command line. It wraps a large language model with persistent memory, reminders, agenda tracking, and document understanding — so every conversation benefits from what the assistant already knows about you.
+Elroy is a **memory-augmented AI personal assistant** for the command line. It wraps a large language model with persistent memory, due-item tracking, agenda tracking, and document understanding — so every conversation benefits from what the assistant already knows about you.
 
 It is designed for individuals who prefer working in a terminal and don't want to re-explain context every session.
 
@@ -40,11 +40,8 @@ Automatically extracts facts from conversations, stores them as vector-embedded 
 
 See: [prd-memory.md](prd-memory.md)
 
-### Reminders
-Time-based and context-triggered reminders, including recurring schedules and snooze/defer. The assistant surfaces due reminders during relevant conversations. Full lifecycle management (create, update, delete, complete, snooze).
-
 ### Agenda / Task Tracking
-Daily agenda items organized by date. Items support checklist sub-tasks with independent completion state and optional due dates, plus append-only timestamped progress notes.
+Daily agenda items organized by date. Items support checklist sub-tasks with independent completion state, optional due dates, and optional trigger metadata for due-item behavior. The assistant surfaces due items during relevant conversations.
 
 See: [prd-agenda-item-tracking.md](prd-agenda-item-tracking.md)
 
@@ -82,12 +79,12 @@ The agenda system is the user's primary way to manage structured work.
 
 ---
 
-### Priority 3: Reminders — Recurrence & Snooze
+### Priority 3: Due Items — Recurrence & Snooze
 
 **Goals**:
-- Add `recurrence` field to reminders: `daily`, `weekly`, `monthly`, or cron expression
-- Add `snooze_reminder(item_name, duration)` tool: pushes `trigger_datetime` forward
-- Update `list_reminders_cmd` to support date-range filtering
+- Add `recurrence` field to triggered agenda items: `daily`, `weekly`, `monthly`, or cron expression
+- Add `snooze_due_item(item_name, duration)` tool: pushes `trigger_datetime` forward
+- Add date-range filtering for due-item listings
 
 ---
 
@@ -110,7 +107,7 @@ The TUI status bar and CLI output should update in real time as the pipeline pro
 |----------------|----------------|
 | Memory recall classification | `⠋ checking memory relevance…` |
 | Memory vector search | `⠋ recalling memories…` |
-| Due reminders check | `⠋ checking reminders…` |
+| Due items check | `⠋ checking due items…` |
 | LLM completion (first loop) | `⠋ thinking…` |
 | Tool execution | `⠋ running: <tool_name>…` |
 | Memory consolidation (background) | *(non-blocking; shown in sidebar or as a transient notice)* |

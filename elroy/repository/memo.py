@@ -1,4 +1,4 @@
-# Triage input, creating either a memory or a reminder
+# Triage input, creating either a memory or a due item
 
 
 from pydantic import BaseModel
@@ -8,13 +8,13 @@ from toolz.curried import filter
 from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
-from ..db.db_models import EmbeddableSqlModel, Memory, Reminder
+from ..db.db_models import AgendaItem, EmbeddableSqlModel, Memory
 from ..utils.clock import local_now, utc_now
-from .data_models import CreateMemoryRequest, CreateReminderRequest
+from .data_models import CreateDueItemRequest, CreateMemoryRequest
 from .memories.operations import do_create_memory
 from .memories.queries import filter_for_relevance
-from .recall.queries import get_most_relevant_memories, get_most_relevant_reminders
-from .reminders.operations import do_create_reminder
+from .recall.queries import get_most_relevant_due_items, get_most_relevant_memories
+from .reminders.operations import do_create_due_item
 
 logger = get_logger()
 
@@ -23,7 +23,7 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
     memories: list[EmbeddableSqlModel] = pipe(
         text,
         ctx.llm.get_embedding,
-        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders)(ctx, x),
+        lambda x: juxt(get_most_relevant_memories, get_most_relevant_due_items)(ctx, x),
         concat,
         list,
         filter(lambda x: x is not None),
@@ -66,29 +66,29 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
         return text
 
 
-def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Reminder | Memory]:  # noqa F841
-    def _inner(ctx: ElroyContext, text: str, attempt: int = 1, prev_attempt_error_info: str | None = None) -> list[Reminder | Memory]:
+def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:  # noqa F841
+    def _inner(ctx: ElroyContext, text: str, attempt: int = 1, prev_attempt_error_info: str | None = None) -> list[Memory | AgendaItem]:
         try:
 
             class MemoResponse(BaseModel):
-                create_reminder_request: CreateReminderRequest | None = None
+                create_due_item_request: CreateDueItemRequest | None = None
                 create_memory_request: CreateMemoryRequest | None = None
 
             augmented = augment_text(ctx, text)
 
             req = ctx.llm.query_llm_with_response_format(
                 system=(
-                    f"""Your task is to convert text into either a reminder or a memory.
+                    f"""Your task is to convert text into either a due item or a memory.
 
                 A memory is a generic note, without a specific time or context that it should be recalled.
 
-                A reminder is similar to a memory, but it should be something the user wants or needs to remember in a specific context or time.
+                A due item is similar to a memory, but it should be something the user wants or needs to surface in a specific context or time.
 
                 Where possible, convert any relative dates or times to ISO 8601 format. Note the local time is {local_now()}, or {utc_now()} UTC.
 
-                If creating a reminder with a trigger_time, note that reminders cannot be created for time in the past.
+                If creating a due item with a trigger_time, note that due items cannot be created for time in the past.
 
-                You should provide EITHER a create_reminder_request OR a create_memory_request, not both.
+                You should provide EITHER a create_due_item_request OR a create_memory_request, not both.
                 Set the field you don't need to null.
                 """
                     + f"\n\n{prev_attempt_error_info}"
@@ -112,15 +112,15 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Reminder | Memory]:  # 
                         True,
                     )
                 )
-            if req.create_reminder_request:
-                logger.info("Creating reminder")
+            if req.create_due_item_request:
+                logger.info("Creating due item")
                 resp.append(
-                    do_create_reminder(
+                    do_create_due_item(
                         ctx,
-                        req.create_reminder_request.name,
-                        req.create_reminder_request.text,
-                        req.create_reminder_request.trigger_datetime,
-                        req.create_reminder_request.reminder_context,
+                        req.create_due_item_request.name,
+                        req.create_due_item_request.text,
+                        req.create_due_item_request.trigger_datetime,
+                        req.create_due_item_request.trigger_context,
                     )
                 )
             return resp

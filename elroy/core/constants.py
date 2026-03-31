@@ -137,7 +137,7 @@ Include in your response internal thoughts. Indicate internal thought content wi
 
 An example response might look like:
 
-<internal thought> This is a good opportunity to ask about a due reminder</internal thought> What are your thoughts on the upcoming project deadline?"
+<internal thought> This is a good opportunity to ask about an upcoming due item</internal thought> What are your thoughts on the upcoming project deadline?"
 </formatting>
 """
 

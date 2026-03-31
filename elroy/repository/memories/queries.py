@@ -13,10 +13,10 @@ from ...core.ctx import ElroyContext
 from ...core.logging import get_logger, log_execution_time
 from ...core.tracing import tracer
 from ...db.db_models import (
+    AgendaItem,
     EmbeddableSqlModel,
     Memory,
     MemorySource,
-    Reminder,
     get_memory_source_class,
 )
 from ...llm.client import LlmClient
@@ -29,8 +29,8 @@ from ..context_messages.transforms import (
 from ..data_models import RecallMetadata, RecallResponse
 from ..recall.queries import (
     get_most_relevant_agenda_items,
+    get_most_relevant_due_items,
     get_most_relevant_memories,
-    get_most_relevant_reminders,
     get_recall_metadata,
     is_in_context,
 )
@@ -86,7 +86,7 @@ def get_active_memories(ctx: ElroyContext) -> list[Memory]:
 
 
 @tracer.chain
-def get_relevant_memories_and_reminders(ctx: ElroyContext, query: str) -> list[Reminder | Memory]:
+def get_relevant_memories_and_due_items(ctx: ElroyContext, query: str) -> list[Memory | AgendaItem]:
     query_embedding = ctx.llm.get_embedding(query)
 
     relevant_memories = [
@@ -95,13 +95,9 @@ def get_relevant_memories_and_reminders(ctx: ElroyContext, query: str) -> list[R
         if isinstance(memory, Memory)
     ]
 
-    relevant_reminders = [
-        reminder
-        for reminder in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Reminder, ctx.user_id, query_embedding)
-        if isinstance(reminder, Reminder)
-    ]
+    relevant_due_items = list(get_most_relevant_due_items(ctx, query_embedding))
 
-    return relevant_memories + relevant_reminders
+    return relevant_memories + relevant_due_items
 
 
 def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Memory | None:
@@ -176,7 +172,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[C
     return pipe(
         message_content,
         lambda x: ctx.llm.get_embedding(x, ctx=ctx),
-        lambda x: juxt(get_most_relevant_memories, get_most_relevant_reminders, get_most_relevant_agenda_items)(ctx, x),
+        lambda x: juxt(get_most_relevant_memories, get_most_relevant_due_items, get_most_relevant_agenda_items)(ctx, x),
         concat,
         filter(lambda x: x is not None),
         remove(partial(is_in_context, context_messages)),

@@ -34,15 +34,38 @@ def _normalize_checklist(checklist: Any) -> list[dict[str, Any]]:
     return normalized
 
 
+def _coerce_datetime(raw_value: Any) -> datetime | None:
+    if raw_value is None:
+        return None
+    if isinstance(raw_value, datetime):
+        return raw_value
+    try:
+        return datetime.fromisoformat(str(raw_value))
+    except ValueError:
+        return None
+
+
 def _build_file_content(
     text: str,
     item_date: date,
     completed: bool = False,
     checklist: list[dict[str, Any]] | None = None,
+    trigger_datetime: datetime | None = None,
+    trigger_context: str | None = None,
+    status: str | None = None,
+    closing_comment: str | None = None,
 ) -> str:
-    fm = {"date": item_date.isoformat(), "completed": completed}
+    fm: dict[str, Any] = {"date": item_date.isoformat(), "completed": completed}
     if checklist:
         fm["checklist"] = checklist
+    if trigger_datetime is not None:
+        fm["trigger_datetime"] = trigger_datetime
+    if trigger_context:
+        fm["trigger_context"] = trigger_context
+    if status:
+        fm["status"] = status
+    if closing_comment:
+        fm["closing_comment"] = closing_comment
     frontmatter_str = yaml.dump(fm, default_flow_style=False).strip()
     return f"---\n{frontmatter_str}\n---\n\n{text}"
 
@@ -63,14 +86,76 @@ def get_agenda_file_path(agenda_dir: Path, name: str) -> Path:
 
 def write_agenda_item(agenda_dir: Path, name: str, text: str, item_date: date) -> Path:
     """Write a new agenda item file. Returns the path."""
+    return write_agenda_item_with_metadata(agenda_dir, name, text, item_date)
+
+
+def write_agenda_item_with_metadata(
+    agenda_dir: Path,
+    name: str,
+    text: str,
+    item_date: date,
+    *,
+    completed: bool = False,
+    checklist: list[dict[str, Any]] | None = None,
+    trigger_datetime: datetime | None = None,
+    trigger_context: str | None = None,
+    status: str | None = None,
+    closing_comment: str | None = None,
+) -> Path:
+    """Write a new agenda item file with optional due-item metadata. Returns the path."""
     path = get_agenda_file_path(agenda_dir, name)
-    path.write_text(_build_file_content(text, item_date))
+    path.write_text(
+        _build_file_content(
+            text,
+            item_date,
+            completed=completed,
+            checklist=checklist,
+            trigger_datetime=trigger_datetime,
+            trigger_context=trigger_context,
+            status=status,
+            closing_comment=closing_comment,
+        )
+    )
     return path
 
 
-def mark_completed(path: Path) -> None:
+def read_agenda_metadata(path: Path) -> dict[str, Any]:
+    """Return agenda frontmatter metadata."""
+    return read_frontmatter(path)
+
+
+def update_agenda_metadata(path: Path, updates: dict[str, Any]) -> None:
+    """Update agenda item frontmatter fields."""
+    update_frontmatter_fields(path, updates)
+
+
+def update_agenda_body(path: Path, text: str) -> None:
+    """Replace the body text of an agenda item while preserving frontmatter."""
+    frontmatter = read_frontmatter(path)
+    item_date_raw = frontmatter.get("date")
+    parsed_date = item_date_raw if isinstance(item_date_raw, date) else date.fromisoformat(str(item_date_raw))
+    path.write_text(
+        _build_file_content(
+            text,
+            parsed_date,
+            completed=bool(frontmatter.get("completed")),
+            checklist=_normalize_checklist(frontmatter.get("checklist")),
+            trigger_datetime=_coerce_datetime(frontmatter.get("trigger_datetime")),
+            trigger_context=str(frontmatter["trigger_context"])
+            if frontmatter.get("trigger_context")
+            else (str(frontmatter["reminder_context"]) if frontmatter.get("reminder_context") else None),
+            status=str(frontmatter["status"]) if frontmatter.get("status") else None,
+            closing_comment=str(frontmatter["closing_comment"]) if frontmatter.get("closing_comment") else None,
+        )
+    )
+
+
+def mark_completed(path: Path, closing_comment: str | None = None) -> None:
     """Set completed: true in the frontmatter of an agenda item file."""
-    update_frontmatter_fields(path, {"completed": True})
+    updates: dict[str, Any] = {"completed": True, "status": "completed"}
+    if closing_comment:
+        updates["closing_comment"] = closing_comment
+    update_frontmatter_fields(path, updates)
 
 
 def find_matching_agenda_item(agenda_dir: Path, item_name: str) -> Path:
@@ -145,8 +230,14 @@ def append_agenda_update(path: Path, note: str, timestamp: datetime | None = Non
         _build_file_content(
             "\n\n".join(new_body_parts).strip(),
             parsed_date,
-            bool(frontmatter.get("completed")),
-            get_checklist(path),
+            completed=bool(frontmatter.get("completed")),
+            checklist=get_checklist(path),
+            trigger_datetime=_coerce_datetime(frontmatter.get("trigger_datetime")),
+            trigger_context=str(frontmatter["trigger_context"])
+            if frontmatter.get("trigger_context")
+            else (str(frontmatter["reminder_context"]) if frontmatter.get("reminder_context") else None),
+            status=str(frontmatter["status"]) if frontmatter.get("status") else None,
+            closing_comment=str(frontmatter["closing_comment"]) if frontmatter.get("closing_comment") else None,
         )
     )
     return used_timestamp

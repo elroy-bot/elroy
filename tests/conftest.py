@@ -13,11 +13,11 @@ from elroy.core.constants import ASSISTANT, USER, allow_unused
 from elroy.core.ctx import ElroyContext
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
+    AgendaItem,
     ContextMessageSet,
     DocumentExcerpt,
     Memory,
     Message,
-    Reminder,
     User,
     UserPreference,
 )
@@ -25,7 +25,7 @@ from elroy.db.db_session import DbSession
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
-from elroy.repository.reminders.operations import do_create_reminder
+from elroy.repository.reminders.operations import do_create_due_item
 from elroy.repository.user.operations import create_user_id
 from tests.utils import MockCliIO, MockLlmClient, _match_score
 
@@ -38,7 +38,7 @@ def _mock_query_vector(self: DbSession, l2_distance_threshold: float, table, use
     def _row_text(row) -> str:
         if isinstance(row, Memory):
             return row.to_fact()
-        if isinstance(row, Reminder):
+        if isinstance(row, AgendaItem):
             return row.to_fact()
         if isinstance(row, DocumentExcerpt):
             return row.to_fact()
@@ -81,7 +81,7 @@ def db_manager(tmp_path_factory):
     db_manager.migrate()
 
     with db_manager.open_session() as db:
-        for table in [Message, Reminder, User, UserPreference, Memory, ContextMessageSet]:
+        for table in [Message, AgendaItem, User, UserPreference, Memory, ContextMessageSet]:
             db.exec(delete(table))
         db.commit()
 
@@ -161,7 +161,7 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
 
     add_context_messages(ctx, messages)
 
-    do_create_reminder(
+    do_create_due_item(
         ctx,
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
@@ -169,7 +169,7 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
         "Whenever George mentions basketball",
     )
 
-    do_create_reminder(
+    do_create_due_item(
         ctx,
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",

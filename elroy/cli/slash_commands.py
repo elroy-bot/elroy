@@ -78,7 +78,7 @@ def print_context_messages(ctx: ElroyContext, n: int | None = None) -> Table:
 
 @user_only_tool
 def memo(ctx: ElroyContext, text: str) -> str:
-    """Ingests a memo from the user. This could result in a memory or reminder being created.
+    """Ingests a memo from the user. This could result in a memory or due item being created.
 
     Args:
         text (str): Content of memo

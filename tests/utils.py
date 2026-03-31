@@ -14,7 +14,7 @@ from toolz.curried import map
 from elroy.core.constants import ASSISTANT, USER, InvalidForceToolError, RecoverableToolError
 from elroy.core.ctx import ElroyContext
 from elroy.core.tracing import tracer
-from elroy.db.db_models import EmbeddableSqlModel, Reminder
+from elroy.db.db_models import AgendaItem, EmbeddableSqlModel
 from elroy.io.base import ElroyIO
 from elroy.io.formatters.base import ElroyPrintable
 from elroy.io.formatters.rich_formatter import RichFormatter
@@ -25,14 +25,15 @@ from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.documents.queries import get_source_doc_excerpts, get_source_docs
 from elroy.repository.memories.transforms import to_fast_recall_tool_call
 from elroy.repository.recall.queries import is_in_context_message
-from elroy.repository.reminders.operations import do_delete_reminder
-from elroy.repository.reminders.queries import get_active_reminders
+from elroy.repository.reminders.operations import do_delete_due_item
+from elroy.repository.reminders.queries import get_active_due_items
 from elroy.repository.reminders.tools import (
-    create_reminder,
-    delete_reminder,
-    rename_reminder,
-    update_reminder_text,
+    create_due_item,
+    delete_due_item,
+    rename_due_item,
+    update_due_item_text,
 )
+from elroy.repository.tasks.operations import create_task
 from elroy.repository.user.queries import get_assistant_name, get_persona
 from elroy.repository.user.tools import set_user_preferred_name
 from elroy.utils.clock import utc_now
@@ -246,7 +247,7 @@ def _handle_custom_tool_message(ctx: ElroyContext, msg: str) -> str | None:
     return None
 
 
-def _handle_reminder_message(ctx: ElroyContext, msg: str) -> str | None:
+def _handle_due_item_message(ctx: ElroyContext, msg: str) -> str | None:
     lower_msg = msg.lower()
 
     if "create a reminder" in lower_msg or "create a reminder for me" in lower_msg or "create a reminder called" in lower_msg:
@@ -255,11 +256,11 @@ def _handle_reminder_message(ctx: ElroyContext, msg: str) -> str | None:
         time_match = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2})", msg)
         when_match = re.search(r"when (?:i|user) mention ([^.]+)", lower_msg)
         context_text = f"when user mentions {when_match.group(1).strip()}" if when_match else None
-        if "duplicate" in lower_msg and any(r.name == name for r in get_active_reminders(ctx)):
-            return f"Reminder '{name}' already exists."
+        if "duplicate" in lower_msg and any(r.name == name for r in get_active_due_items(ctx)):
+            return f"Due item '{name}' already exists."
         try:
-            return create_reminder(
-                ctx, name=name, text=name, trigger_time=time_match.group(1) if time_match else None, reminder_context=context_text
+            return create_due_item(
+                ctx, name=name, text=name, trigger_time=time_match.group(1) if time_match else None, trigger_context=context_text
             )
         except Exception as exc:  # duplicate reminder path
             return str(exc)
@@ -267,38 +268,38 @@ def _handle_reminder_message(ctx: ElroyContext, msg: str) -> str | None:
     if "delete my reminder" in lower_msg or re.search(r"delete my '([^']+)' reminder", lower_msg):
         name_match = re.search(r"'([^']+)'", msg)
         if not name_match:
-            return "No reminder specified."
+            return "No due item specified."
         try:
-            return delete_reminder(ctx, name_match.group(1))
+            return delete_due_item(ctx, name_match.group(1))
         except Exception as exc:
             return str(exc)
 
     if "rename my reminder" in lower_msg or "rename my '" in lower_msg:
         names = re.findall(r"'([^']+)'", msg)
         if len(names) >= 2:
-            return rename_reminder(ctx, names[0], names[1])
+            return rename_due_item(ctx, names[0], names[1])
 
     if "update the text of my reminder" in lower_msg or "update my '" in lower_msg:
         names = re.findall(r"'([^']+)'", msg)
         if len(names) >= 2:
-            return update_reminder_text(ctx, names[0], names[1])
+            return update_due_item_text(ctx, names[0], names[1])
 
     return None
 
 
-def _handle_due_reminders(ctx: ElroyContext, msg: str) -> tuple[str | None, list[ContextMessage]]:
-    from elroy.repository.reminders.queries import get_due_reminder_context_msgs, get_due_timed_reminders
+def _handle_due_items(ctx: ElroyContext, msg: str) -> tuple[str | None, list[ContextMessage]]:
+    from elroy.repository.reminders.queries import get_due_item_context_msgs, get_due_timed_items
 
-    due_context = get_due_reminder_context_msgs(ctx)
-    due_reminders = get_due_timed_reminders(ctx)
-    if not due_reminders:
+    due_context = get_due_item_context_msgs(ctx)
+    due_items = get_due_timed_items(ctx)
+    if not due_items:
         return None, []
 
-    response = " ".join(f"Reminder due: {reminder.name} - {reminder.text}." for reminder in due_reminders)
+    response = " ".join(f"Due item: {item.name} - {item.text}." for item in due_items)
     if any(keyword in msg.lower() for keyword in ["clean", "handle", "delete"]):
-        for reminder in due_reminders:
-            do_delete_reminder(ctx, reminder.name)
-        response += " Cleaned up due reminders."
+        for item in due_items:
+            do_delete_due_item(ctx, item.name)
+        response += " Cleaned up due items."
     return response, due_context
 
 
@@ -331,10 +332,10 @@ def _answer_from_state(ctx: ElroyContext, msg: str) -> str:
     if response := _handle_memory_message(ctx, msg):
         return response
 
-    if response := _handle_reminder_message(ctx, msg):
+    if response := _handle_due_item_message(ctx, msg):
         return response
 
-    due_response, due_context = _handle_due_reminders(ctx, msg)
+    due_response, due_context = _handle_due_items(ctx, msg)
     if due_response is not None:
         ctx.__dict__["_pending_test_context"] = due_context
         return due_response
@@ -362,10 +363,10 @@ def _mock_relevant_context(ctx: ElroyContext, msg: str) -> list[ContextMessage]:
     from elroy.repository.memories.queries import get_active_memories
 
     relevant_items: list[EmbeddableSqlModel] = []
-    for reminder in get_active_reminders(ctx):
-        searchable = f"{reminder.name} {reminder.text} {reminder.reminder_context or ''}"
+    for due_item in get_active_due_items(ctx):
+        searchable = f"{due_item.name} {due_item.text} {due_item.trigger_context or ''}"
         if _match_score(msg, searchable) > 0:
-            relevant_items.append(reminder)
+            relevant_items.append(due_item)
 
     for memory in get_active_memories(ctx):
         searchable = memory.to_fact()
@@ -396,8 +397,8 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: str | None = N
 
 
 def vector_search_by_text(ctx: ElroyContext, query: str, table: type[EmbeddableSqlModel]) -> EmbeddableSqlModel | None:
-    if table is Reminder:
-        candidates = get_active_reminders(ctx)
+    if table is AgendaItem:
+        candidates = get_active_due_items(ctx)
     else:
         candidates = list(ctx.db.exec(select(table).where(table.user_id == ctx.user_id)).all())
     ranked = sorted(
@@ -410,54 +411,50 @@ def vector_search_by_text(ctx: ElroyContext, query: str, table: type[EmbeddableS
 
 def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str) -> None:
     lower_question = question.lower()
-    reminders_summary = get_active_reminders_summary(ctx).lower()
+    due_items_summary = get_active_due_items_summary(ctx).lower()
     last_response = str(getattr(ctx, "_last_test_response", "")).lower()
 
     if "did you just inform me about a reminder that was due" in lower_question:
-        bool_answer = "reminder due" in last_response or "due reminders" in last_response
+        bool_answer = "due item" in last_response or "due items" in last_response
     elif "did the reminder i asked you to create already exist" in lower_question:
         bool_answer = "already exists" in last_response or "already exist" in last_response
     elif "did the reminder i asked you to delete exist" in lower_question:
-        bool_answer = "not found" not in last_response and "no reminder specified" not in last_response
+        bool_answer = "not found" not in last_response and "no due item specified" not in last_response
     elif "do i still have an active reminder called" in lower_question or "do i have a reminder called" in lower_question:
         match = re.search(r"'([^']+)'", question)
         reminder_name = match.group(1) if match else ""
-        bool_answer = any(reminder.name.lower() == reminder_name.lower() for reminder in get_active_reminders(ctx))
+        bool_answer = any(item.name.lower() == reminder_name.lower() for item in get_active_due_items(ctx))
     elif "do i have any reminders about" in lower_question:
         keywords = [token for token in _tokenize(lower_question) if token not in {"do", "have", "any", "reminders", "about", "or"}]
-        bool_answer = any(keyword in reminders_summary for keyword in keywords)
+        bool_answer = any(keyword in due_items_summary for keyword in keywords)
     else:
         raise AssertionError(f"Mock quiz handler does not understand question: {question}")
 
     assert bool_answer == expected_answer, f"Expected {expected_answer}, got {bool_answer}. Question: {question}"
 
 
-def get_active_reminders_summary(ctx: ElroyContext) -> str:
+def get_active_due_items_summary(ctx: ElroyContext) -> str:
     """
-    Retrieve a summary of active reminders for a given user.
+    Retrieve a summary of active due items for a given user.
     Args:
         ctx (ElroyContext): The Elroy context.
     Returns:
-        str: A formatted string summarizing the active reminders.
+        str: A formatted string summarizing the active due items.
     """
     return pipe(
-        get_active_reminders(ctx),
+        get_active_due_items(ctx),
         map(lambda x: x.to_fact()),
         list,
         "\n\n".join,
     )
 
 
-def create_reminder_in_past(ctx: ElroyContext, name: str, text: str, reminder_context: str | None = None):
-
-    ctx.db.persist(
-        Reminder(
-            user_id=ctx.user_id,
-            name=name,
-            text="text",
-            trigger_datetime=utc_now() - timedelta(minutes=5),
-            is_active=True,
-            status="created",
-            reminder_context=reminder_context,
-        )
+def create_due_item_in_past(ctx: ElroyContext, name: str, text: str, trigger_context: str | None = None):
+    create_task(
+        ctx,
+        name,
+        text,
+        trigger_datetime=utc_now() - timedelta(minutes=5),
+        trigger_context=trigger_context,
+        allow_past_trigger=True,
     )

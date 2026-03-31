@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, field_validator
 from sqlalchemy import Column as SAColumn
-from sqlalchemy import Text, UniqueConstraint
+from sqlalchemy import String, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from ..core.constants import RecoverableToolError
@@ -117,43 +117,6 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return f"#{self.name}\n{text}"
 
 
-class Reminder(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
-    __table_args__ = (
-        UniqueConstraint("user_id", "name", "is_active", "trigger_datetime", "status", "reminder_context"),
-        {"extend_existing": True},
-    )
-    id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
-    user_id: int = Field(..., description="Elroy user for context")
-    name: str = Field(..., description="The name of the reminder")
-    text: str = Field(..., description="The text of the reminder")
-    trigger_datetime: datetime | None = Field(default=None, description="When the reminder should trigger (for timed reminders)")
-    reminder_context: str | None = Field(default=None, description="When the reminder should be triggered (for contextual reminders)")
-    is_active: bool | None = Field(default=True, description="Whether the reminder is active")
-    status: str = Field(..., description="Status of reminder")
-    closing_comment: str | None = Field(default=None, description="Comment on why the reminder was deleted or marked complete.")
-
-    @field_validator("status")
-    @classmethod
-    def validate_status(cls, v: str) -> str:
-        allowed_statuses = {"created", "deleted", "completed"}
-        if v not in allowed_statuses:
-            raise ValueError(f"Status must be one of {allowed_statuses}, got {v}")
-        return v
-
-    def get_name(self) -> str:
-        return self.name
-
-    def to_fact(self) -> str:
-        if self.trigger_datetime:
-            return f"#{self.name} (Timed: {self.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')})\n{self.text}"
-        elif self.reminder_context:
-            return f"#{self.name} (Context: {self.reminder_context})\n{self.text}"
-        else:
-            return f"#{self.name}\n{self.text}"
-
-
 class SourceDocument(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "address"), {"extend_existing": True})
     id: int | None = Field(default=None, primary_key=True)
@@ -195,21 +158,54 @@ class AgendaItem(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the agenda item")
     file_path: str = Field(..., description="Path to the agenda item markdown file")
+    trigger_datetime: datetime | None = Field(default=None, description="When the item should trigger")
+    trigger_context: str | None = Field(
+        default=None,
+        sa_column=SAColumn("reminder_context", String, nullable=True),
+        description="Context that should trigger this item",
+    )
     is_active: bool | None = Field(default=True, description="Whether the agenda item is active")
+    status: str = Field(default="created", description="Status of agenda item")
+    closing_comment: str | None = Field(default=None, description="Comment on why the item was deleted or marked complete.")
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        allowed_statuses = {"created", "deleted", "completed"}
+        if v not in allowed_statuses:
+            raise ValueError(f"Status must be one of {allowed_statuses}, got {v}")
+        return v
 
     def get_name(self) -> str:
         return self.name
 
-    def to_fact(self) -> str:
+    @property
+    def reminder_context(self) -> str | None:
+        return self.trigger_context
+
+    @reminder_context.setter
+    def reminder_context(self, value: str | None) -> None:
+        self.trigger_context = value
+
+    @property
+    def text(self) -> str:
         import re
 
         try:
             content = Path(self.file_path).read_text()
         except OSError:
-            return f"#Agenda: {self.name}\n"
+            return ""
         m = re.match(r"^---\n.*?\n---\n?", content, re.DOTALL)
-        text = content[m.end() :] if m else content
-        return f"#Agenda: {self.name}\n{text}"
+        return (content[m.end() :] if m else content).strip()
+
+    def to_fact(self) -> str:
+        text = self.text
+        if self.trigger_datetime:
+            return f"#{self.name} (Timed: {self.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')})\n{text}"
+        elif self.trigger_context:
+            return f"#{self.name} (Context: {self.trigger_context})\n{text}"
+        else:
+            return f"#Agenda: {self.name}\n{text}"
 
 
 class MemoryOperationTracker(SQLModel, table=True):

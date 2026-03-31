@@ -125,7 +125,7 @@ def _classify_with_llm(
     # Use existing get_message_content utility to format messages
     conversation_context = get_message_content(context_window, window_size)
 
-    prompt = f"""Analyze if this message requires recalling information from long-term memory (including reminders).
+    prompt = f"""Analyze if this message requires recalling information from long-term memory (including due items).
 
 Recent conversation:
 {conversation_context}
@@ -136,7 +136,7 @@ Memory recall is NEEDED if (almost always):
 - Message mentions ANY specific topic, activity, person, place, or thing
 - Message references ANY past topics, events, or context
 - Message contains substantive content beyond pure acknowledgment
-- Message mentions activities, hobbies, tasks, or appointments that commonly have reminders
+- Message mentions activities, hobbies, tasks, or appointments that commonly have due items
 - Message is a follow-up question or statement
 - Message asks about preferences, goals, or history
 - When in doubt - ALWAYS prefer recall
@@ -146,11 +146,11 @@ Memory recall is NOT needed ONLY if:
 - Message is ONLY a simple acknowledgment with no other content (ok, thanks, yes, no)
 - Message is ONLY a clarification question with no topic content (what?, huh?)
 
-CRITICAL: If the message mentions ANY topic, activity, or substantive content, memory recall is NEEDED because there may be relevant reminders or memories. Be VERY conservative - prefer false positives over false negatives.
+CRITICAL: If the message mentions ANY topic, activity, or substantive content, memory recall is NEEDED because there may be relevant due items or memories. Be VERY conservative - prefer false positives over false negatives.
 
 Analyze and decide if long-term memory recall is necessary."""
 
-    system_message = "You are a classifier that determines if memory recall is necessary. Be VERY conservative - almost always enable recall unless the message is a pure acknowledgment/greeting with zero topic content. Missing a relevant reminder is worse than doing unnecessary recall."
+    system_message = "You are a classifier that determines if memory recall is necessary. Be VERY conservative - almost always enable recall unless the message is a pure acknowledgment/greeting with zero topic content. Missing a relevant due item is worse than doing unnecessary recall."
 
     decision = ctx.fast_llm.query_llm_with_response_format(
         prompt=prompt,

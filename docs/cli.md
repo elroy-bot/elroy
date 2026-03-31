@@ -9,7 +9,7 @@ Elroy provides a terminal UI (TUI) for interacting with the AI assistant directl
 elroy
 ```
 
-This opens a full-screen terminal application where you can chat with the assistant, create memories, and manage reminders.
+This opens a full-screen terminal application where you can chat with the assistant, create memories, and manage agenda or due items.
 
 ## Slash Commands
 
@@ -23,8 +23,8 @@ Inside the chat interface, Elroy supports slash commands for quick actions:
 # Create a memory
 /create_memory This is important information I want to save
 
-# Create a reminder
-/create_reminder Learn how to use Elroy effectively
+# Create a due item
+/create_due_item Learn how to use Elroy effectively
 
 # List memories
 /print_memories
