@@ -16,9 +16,11 @@ If Elroy finds that the text of a memory is no longer accurate, it appends an up
 
 In the background, Elroy's memory consolidation system combines and reorganizes memories, to make sure they are concise and unique as possible.
 
-### Reminders
+### Agenda and Due Items
 
-Elroy is designed to help you *DO THINGS*! To help this along, Elroy creates and manages *reminders* from your conversation.
+Elroy is designed to help you *DO THINGS*! To help this along, Elroy creates and manages file-backed agenda items from your conversation.
+
+Some agenda items also carry trigger metadata, so they can surface as due items at the right time or in the right context.
 
 
 ### Document Awareness

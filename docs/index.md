@@ -4,17 +4,17 @@
 
 # Overview
 
-Elroy is an AI assistant that runs in your terminal, with memory and reminder tracking. It remembers everything you tell it, can learn from your documents, and helps you stay organized.
+Elroy is an AI assistant that runs in your terminal, with memory and agenda tracking. It remembers what you tell it, can learn from your documents, and helps you stay organized.
 
 [![Discord](https://img.shields.io/discord/1200684659277832293?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/5PJUY4eMce)
 [![GitHub](https://img.shields.io/github/stars/elroy-bot/elroy?style=social)](https://github.com/elroy-bot/elroy)
 [![PyPI](https://img.shields.io/pypi/v/elroy)](https://pypi.org/project/elroy/)
 
-![Reminder demo](images/reminders_demo.gif)
+![Due-item demo](images/reminders_demo.gif)
 
 ## Features
 
-- **Reminders**: Create, update, and track reminders, based on timing or context
+- **Agenda and Due Items**: Create file-backed agenda items, including items that trigger by time or context
 - **Memory**: Elroy automatically recalls relevant information from past conversations
 - **Document Understanding**: Ingest your docs to give Elroy context about your projects
 - **Simple Scripting**: Automate tasks with minimal configuration overhead
@@ -42,11 +42,11 @@ For detailed installation instructions including Docker and source installation 
 
 ![Remember Command](images/remember_command.gif)
 
-Elroy runs in your terminal helps you with reminders while maintaining memory of your interactions. As you chat with Elroy, it automatically:
+Elroy runs in your terminal and helps you manage agenda items and due work while maintaining memory of your interactions. As you chat with Elroy, it automatically:
 
 1. **Creates memories** of important information
 2. **Recalls relevant context** when needed
-3. **Tracks reminders** you set together
+3. **Tracks agenda items and due items** you set together
 4. **Consolidates redundant information** to keep context clean
 
 ## Quickstart
@@ -76,8 +76,8 @@ Elroy's TUI supports slash commands for quick actions. Some examples (run `/help
 # Create a memory
 /create_memory This is important information I want to save
 
-# Create a reminder
-/create_reminder Learn how to use Elroy effectively
+# Create a due item
+/create_due_item Learn how to use Elroy effectively
 
 # Search memories
 /search_memories project notes

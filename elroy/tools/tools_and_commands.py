@@ -54,16 +54,16 @@ from ..repository.memories.tools import (
 )
 from ..repository.recall.queries import search_documents
 from ..repository.reminders.queries import (
-    print_active_reminders,
-    print_inactive_reminders,
+    print_active_due_items,
+    print_inactive_due_items,
 )
 from ..repository.reminders.tools import (
-    complete_reminder,
-    create_reminder,
-    delete_reminder,
-    print_reminder,
-    rename_reminder,
-    update_reminder_text,
+    complete_due_item,
+    create_due_item,
+    delete_due_item,
+    print_due_item,
+    rename_due_item,
+    update_due_item_text,
 )
 from ..repository.user.operations import set_assistant_name
 from ..repository.user.tools import (
@@ -85,12 +85,12 @@ ALL_ACTIVE_MEMORY_COMMANDS: set[Callable] = {
     print_memory,
     update_outdated_or_incorrect_memory,
 }
-ALL_ACTIVE_REMINDER_COMMANDS: set[Callable] = {
-    delete_reminder,
-    complete_reminder,
-    print_reminder,
-    rename_reminder,
-    update_reminder_text,
+ALL_ACTIVE_DUE_ITEM_COMMANDS: set[Callable] = {
+    delete_due_item,
+    complete_due_item,
+    print_due_item,
+    rename_due_item,
+    update_due_item_text,
 }
 ALL_ACTIVE_AGENDA_COMMANDS: set[Callable] = {
     complete_agenda_item,
@@ -107,7 +107,7 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     add_agenda_checklist_item,
     add_agenda_item_update,
     get_source_content_for_memory,
-    create_reminder,
+    create_due_item,
     create_memory,
     examine_memories,
     get_user_full_name,
@@ -137,8 +137,8 @@ USER_ONLY_COMMANDS = {
     refresh_system_instructions,
     print_memories,
     search_memories,
-    print_active_reminders,
-    print_inactive_reminders,
+    print_active_due_items,
+    print_inactive_due_items,
     list_agenda_items_cmd,
     set_assistant_name,
 }
@@ -149,7 +149,7 @@ ASSISTANT_VISIBLE_COMMANDS: set[Callable] = {
         | IN_CONTEXT_MEMORY_COMMANDS
         | NON_CONTEXT_MEMORY_COMMANDS
         | ALL_ACTIVE_MEMORY_COMMANDS
-        | ALL_ACTIVE_REMINDER_COMMANDS
+        | ALL_ACTIVE_DUE_ITEM_COMMANDS
         | ALL_ACTIVE_AGENDA_COMMANDS
     )
     if getattr(f, IS_ENABLED, True)

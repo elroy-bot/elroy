@@ -27,18 +27,18 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
-      "name": "complete_reminder",
-      "description": "Marks a reminder as completed.",
+      "name": "complete_due_item",
+      "description": "Marks a due item as completed.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "The name of the reminder to mark complete"
+            "description": "The name of the due item to mark complete"
           },
           "closing_comment": {
             "type": "string",
-            "description": "Optional comment on why the reminder was completed"
+            "description": "Optional comment on why the due item was completed"
           }
         },
         "required": [
@@ -96,26 +96,26 @@ BETTER:
   {
     "type": "function",
     "function": {
-      "name": "create_reminder",
-      "description": "Creates a reminder that can be triggered by time and/or context.",
+      "name": "create_due_item",
+      "description": "Creates a due item that can be triggered by time and/or context.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "Name of the reminder (must be unique)"
+            "description": "Name of the due item (must be unique)"
           },
           "text": {
             "type": "string",
-            "description": "The reminder message to display when triggered"
+            "description": "The due item text to display when triggered"
           },
           "trigger_time": {
             "type": "string",
-            "description": "When the reminder should trigger in format \"YYYY-MM-DD HH:MM\" (e.g., \"2024-12-25 09:00\"). If provided, creates a timed reminder."
+            "description": "When the due item should trigger in format \"YYYY-MM-DD HH:MM\" (e.g., \"2024-12-25 09:00\"). If provided, creates a timed due item."
           },
-          "reminder_context": {
+          "trigger_context": {
             "type": "string",
-            "description": "Description of the context/situation when this reminder should be triggered (e.g., \"when user mentions work stress\", \"when user asks about exercise\"). If provided, creates a contextual reminder."
+            "description": "Description of the context/situation when this due item should be triggered (e.g., \"when user mentions work stress\", \"when user asks about exercise\"). If provided, creates a contextual due item."
           }
         },
         "required": [
@@ -128,18 +128,18 @@ BETTER:
   {
     "type": "function",
     "function": {
-      "name": "delete_reminder",
-      "description": "Permanently deletes a reminder (timed, contextual, or hybrid).",
+      "name": "delete_due_item",
+      "description": "Permanently deletes a due item (timed, contextual, or hybrid).",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "The name of the reminder to delete"
+            "description": "The name of the due item to delete"
           },
           "closing_comment": {
             "type": "string",
-            "description": "Optional comment on why the reminder was deleted"
+            "description": "Optional comment on why the due item was deleted"
           }
         },
         "required": [
@@ -315,14 +315,14 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
-      "name": "print_reminder",
-      "description": "Prints the reminder with the given name.",
+      "name": "print_due_item",
+      "description": "Prints the due item with the given name.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "Name of the reminder to retrieve"
+            "description": "Name of the due item to retrieve"
           }
         },
         "required": [
@@ -334,18 +334,18 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
-      "name": "rename_reminder",
-      "description": "Renames an existing reminder.",
+      "name": "rename_due_item",
+      "description": "Renames an existing due item.",
       "parameters": {
         "type": "object",
         "properties": {
           "old_name": {
             "type": "string",
-            "description": "The current name of the reminder"
+            "description": "The current name of the due item"
           },
           "new_name": {
             "type": "string",
-            "description": "The new name for the reminder"
+            "description": "The new name for the due item"
           }
         },
         "required": [
@@ -453,18 +453,18 @@ Reserve use of this tool for cases in which the information in a memory changes 
   {
     "type": "function",
     "function": {
-      "name": "update_reminder_text",
-      "description": "Updates the text of an existing reminder.",
+      "name": "update_due_item_text",
+      "description": "Updates the text of an existing due item.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "Name of the reminder to update"
+            "description": "Name of the due item to update"
           },
           "new_text": {
             "type": "string",
-            "description": "The new reminder text"
+            "description": "The new due item text"
           }
         },
         "required": [

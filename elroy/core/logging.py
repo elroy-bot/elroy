@@ -11,6 +11,7 @@ from ..config.paths import get_log_file_path
 
 logger = logging.getLogger("elroy")
 logger.setLevel(get_log_level())
+logger.propagate = False
 
 
 def log_execution_time(func: Callable) -> Callable:
@@ -39,6 +40,7 @@ def log_execution_time(func: Callable) -> Callable:
 def setup_core_logging():
     """Setup basic logging configuration for the Elroy library"""
     # Configure the main Elroy logger
+    logger.propagate = False
 
     # Add a basic StreamHandler if no handlers exist
     if not logger.handlers:
@@ -86,6 +88,7 @@ def setup_file_logging():
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 
     # Add handler to main Elroy logger
+    logger.propagate = False
     for handler in logger.handlers:
         logger.removeHandler(handler)
     logger.addHandler(file_handler)

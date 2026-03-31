@@ -8,14 +8,14 @@ from toolz.curried import map
 
 from ...core.constants import RecoverableToolError, tool, user_only_tool
 from ...core.ctx import ElroyContext
-from ...db.db_models import Memory, Reminder
+from ...db.db_models import AgendaItem, Memory
 from ...utils.clock import db_time_to_local
 from .operations import do_create_memory, do_create_memory_from_ctx_msgs
 from .queries import (
     db_get_memory_source_by_name,
     db_get_source_list_for_memory,
     get_memory_by_name,
-    get_relevant_memories_and_reminders,
+    get_relevant_memories_and_due_items,
 )
 
 
@@ -101,9 +101,9 @@ def examine_memories(ctx: ElroyContext, question: str) -> list[str]:
         str: A list of relevant memories and goals, formatted for the LLM.
     """
 
-    recalled_items = get_relevant_memories_and_reminders(ctx, question)
+    recalled_items = get_relevant_memories_and_due_items(ctx, question)
     relevant_memories = [item for item in recalled_items if isinstance(item, Memory)]
-    relevant_reminders = [item for item in recalled_items if isinstance(item, Reminder)]
+    relevant_due_items = [item for item in recalled_items if isinstance(item, AgendaItem)]
 
     # Format context for LLM
     output = []
@@ -118,9 +118,9 @@ def examine_memories(ctx: ElroyContext, question: str) -> list[str]:
 {_memory_text_content(memory)}"""
             )
 
-    if relevant_reminders:
-        for reminder in relevant_reminders:
-            output.append(reminder.to_fact())
+    if relevant_due_items:
+        for due_item in relevant_due_items:
+            output.append(due_item.to_fact())
 
     return output
 
@@ -185,7 +185,7 @@ def search_memories(ctx: ElroyContext, query: str) -> str | Table:
         str: A natural language response synthesizing relevant memories
     """
 
-    items = get_relevant_memories_and_reminders(ctx, query)
+    items = get_relevant_memories_and_due_items(ctx, query)
 
     if not items:
         return "No relevant memories found"

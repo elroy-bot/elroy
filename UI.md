@@ -7,11 +7,14 @@ This document describes the intended keyboard behavior of Elroy's terminal UI as
 Elroy has two main keyboard modes:
 
 - Chat mode: the input box is focused and typing goes to the prompt.
-- Browse mode: the right-hand panel list is focused and keys navigate memories, reminders, or agenda items.
+- Command mode: one of three panes is focused for navigation:
+  - conversation history
+  - sidebar showing memories
+  - sidebar showing agenda
 
-Press `Escape` to toggle between chat mode and browse mode.
+Press `Escape` to toggle between chat mode and command mode.
 
-If the right panel is hidden when you enter browse mode, Elroy should show it automatically and focus the current list.
+The right panel shows a single list at a time. Its header always shows both `Memories` and `Agenda`, and the active section is highlighted.
 
 ## Global Keys
 
@@ -20,7 +23,7 @@ If the right panel is hidden when you enter browse mode, Elroy should show it au
 | `Ctrl+D` | Exit the app. |
 | `Ctrl+C` | Cancel the current streaming response, if one is in progress. |
 | `F2` | Toggle the right-hand panel open or closed. |
-| `Escape` | Toggle between chat mode and browse mode. |
+| `Escape` | Toggle between chat mode and command mode. |
 
 ## Chat Mode
 
@@ -38,35 +41,37 @@ Notes:
 - Normal typing should stay in the input.
 - After a response finishes or is cancelled, focus should return to the input.
 
-## Browse Mode
+## Command Mode
 
-Browse mode means the right-panel list is focused.
+Command mode means one of these panes is focused:
 
-The right panel has three buffers:
+- conversation history
+- sidebar in `Memories` mode
+- sidebar in `Agenda` mode
 
-- Memories
-- Reminders
-- Agenda
+Agenda items that are currently due should appear in the agenda list with ` (Due)` appended to the title.
 
-When the browse list is focused:
+When a command-mode pane is focused:
 
 | Key | Expected behavior |
 | --- | --- |
-| `j` | Move selection down. |
-| `k` | Move selection up. |
-| `Up` | Move selection up. |
-| `Down` | Move selection down. |
-| `Tab` | Cycle to the next buffer: Memories -> Reminders -> Agenda -> Memories. |
-| `Shift+Tab` | Cycle to the previous buffer. |
-| `Enter` | Open the selected item. |
+| `j` | Move down in the active pane. For conversation history, scroll down. |
+| `k` | Move up in the active pane. For conversation history, scroll up. |
+| `Up` | Move up in the active pane. For conversation history, scroll up. |
+| `Down` | Move down in the active pane. For conversation history, scroll down. |
+| `Tab` | Toggle between conversation history and the sidebar. |
+| `Shift+Tab` | Toggle between conversation history and the sidebar in reverse. |
+| `m` | Show the sidebar in `Memories` mode and make it the active command-mode pane. |
+| `g` | Show the sidebar in `Agenda` mode and make it the active command-mode pane. |
+| `Enter` | Open the selected item when a sidebar pane is active. |
 | `i` | Return focus to chat input. |
 | `a` | Return focus to chat input. |
 | `Escape` | Return focus to chat input. |
 
 Notes:
 
-- `i` and `a` are vim-style shortcuts for leaving browse mode and going back to input.
-- Switching buffers should preserve browse mode and keep focus on the list.
+- `i` and `a` are vim-style shortcuts for leaving command mode and going back to input.
+- `m` and `g` are the primary way to switch the sidebar between memories and agenda.
 
 ## Detail Modal
 
@@ -84,19 +89,19 @@ In the detail modal:
 Current deletable items:
 
 - Memories
-- Reminders
+- Agenda items with due-item triggers
 
-Agenda items are view-only in the current UI.
+Plain agenda items without due-item triggers are view-only in the current UI.
 
 ## Hints Bar
 
 The footer hints should reflect the current mode:
 
-- In chat mode: show the keys for browsing, toggling the panel, and exiting.
-- In browse mode: show movement keys, buffer cycling, open, and return-to-chat keys.
+- In chat mode: show the keys for entering command mode, toggling the panel, and exiting.
+- In command mode: show pane cycling, movement, open, and return-to-chat keys.
 
 ## Focus Rules
 
-Focus should not silently land on internal widgets like tabs or the conversation log.
+Focus should not silently land on internal widgets.
 
 If focus escapes unexpectedly, the next keypress should recover by returning focus to the chat input.

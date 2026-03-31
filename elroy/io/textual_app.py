@@ -114,12 +114,7 @@ class ElroyApp(App):
     """Main Textual TUI application for Elroy."""
 
     DARK = True  # Force dark theme regardless of terminal preference
-    BROWSE_BUFFERS: ClassVar[tuple[str, ...]] = ("memories", "reminders", "agenda")
-    BUFFER_TITLES: ClassVar[dict[str, str]] = {
-        "memories": "Memories",
-        "reminders": "Reminders",
-        "agenda": "Agenda",
-    }
+    BROWSE_TARGETS: ClassVar[tuple[str, ...]] = ("history", "sidebar")
     MEMORY_BUFFER_SOURCE_TYPES: ClassVar[set[str]] = {"Memory", "DocumentExcerpt", "ContextMessageSet"}
 
     CSS = """
@@ -137,6 +132,11 @@ class ElroyApp(App):
         height: 1fr;
         layout: vertical;
         width: 1fr;
+        border-right: solid $surface;
+    }
+
+    #left-panel.active {
+        border-right: solid $primary;
     }
 
     #history-log {
@@ -167,16 +167,33 @@ class ElroyApp(App):
         display: none;
     }
 
-    #memory-title {
+    #sidebar-header {
         height: 1;
-        background: $primary;
-        color: $text;
-        padding: 0 1;
-        text-align: center;
+        layout: horizontal;
+        background: $surface;
     }
 
-    #memory-list {
+    .panel-section-title {
+        height: 1;
+        background: $surface;
+        color: $text-muted;
+        padding: 0 1;
+        text-align: left;
+        width: 1fr;
+    }
+
+    .panel-section-title.active {
+        background: $primary;
+        color: $text;
+    }
+
+    .panel-list {
         height: 1fr;
+        border-top: tall $surface;
+    }
+
+    .panel-list.active {
+        border-top: tall $primary;
     }
 
     #chat-input {
@@ -217,9 +234,10 @@ class ElroyApp(App):
         self._thought_buffer = ""
         self._memory_panel_visible = show_memory_panel
         self._browse_mode = False
-        self._browse_buffer = "memories"
-        self._panel_entries: dict[str, list[RightPanelEntry]] = {buffer_name: [] for buffer_name in self.BROWSE_BUFFERS}
-        self._panel_indices: dict[str, int | None] = dict.fromkeys(self.BROWSE_BUFFERS)
+        self._browse_target = "sidebar"
+        self._sidebar_section = "memories"
+        self._panel_entries: dict[str, list[RightPanelEntry]] = {buffer_name: [] for buffer_name in ("memories", "agenda")}
+        self._panel_indices: dict[str, int | None] = dict.fromkeys(("memories", "agenda"))
         self._input_history: list[str] = []
         self._history_index = -1
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -256,8 +274,10 @@ class ElroyApp(App):
                 yield RichLog(id="history-log", wrap=True, highlight=False, markup=False)
                 yield Static("", id="streaming-output")
             with Vertical(id="memory-panel"):
-                yield Label("Memories", id="memory-title")
-                yield ListView(id="memory-list")
+                with Horizontal(id="sidebar-header"):
+                    yield Label("Memories", id="memories-title", classes="panel-section-title")
+                    yield Label("Agenda", id="agenda-title", classes="panel-section-title")
+                yield ListView(id="sidebar-list", classes="panel-list")
         yield Input(placeholder="> ", id="chat-input")
         yield Label("", id="status-bar")
 
@@ -277,17 +297,21 @@ class ElroyApp(App):
     # ── memory panel ─────────────────────────────────────────────────────────
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
-        if event.list_view.id != "memory-list":
+        if event.list_view.id != "sidebar-list":
             return
         if event.index is None:
             return
-        self._panel_indices[self._browse_buffer] = event.index
-        self._open_panel_entry(event.index)
+        self._panel_indices[self._sidebar_section] = event.index
+        self._browse_target = "sidebar"
+        self._open_panel_entry(self._sidebar_section, event.index)
+        self._render_browse_state()
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
-        if event.list_view.id != "memory-list":
+        if event.list_view.id != "sidebar-list":
             return
-        self._panel_indices[self._browse_buffer] = event.list_view.index
+        self._panel_indices[self._sidebar_section] = event.list_view.index
+        self._browse_target = "sidebar"
+        self._render_browse_state()
 
     # ── session init ─────────────────────────────────────────────────────────
 
@@ -391,7 +415,7 @@ class ElroyApp(App):
 
     def on_key(self, event) -> None:
         input_widget = self.query_one("#chat-input", Input)
-        list_widget = self.query_one("#memory-list", ListView)
+        history_log = self.query_one("#history-log", RichLog)
         if self.screen is not self.screen_stack[0]:
             return
 
@@ -402,7 +426,7 @@ class ElroyApp(App):
             return
 
         if self._browse_mode:
-            handled = self._handle_browse_key(event, list_widget)
+            handled = self._handle_browse_key(event, history_log)
             if handled:
                 return
         elif input_widget.has_focus:
@@ -410,7 +434,7 @@ class ElroyApp(App):
             if handled:
                 return
 
-        if not input_widget.has_focus and not list_widget.has_focus:
+        if not input_widget.has_focus and not history_log.has_focus and not self.query_one("#sidebar-list", ListView).has_focus:
             self._focus_chat_input()
             event.prevent_default()
 
@@ -459,21 +483,20 @@ class ElroyApp(App):
         self._memory_panel_visible = not self._memory_panel_visible
         if self._memory_panel_visible:
             panel.remove_class("hidden")
-            if self._browse_mode:
-                self._focus_browse_list()
+            if self._browse_mode and self._browse_target == "sidebar":
+                self._focus_browse_target()
         else:
             panel.add_class("hidden")
-            if self._browse_mode:
-                self._focus_chat_input()
+            if self._browse_mode and self._browse_target == "sidebar":
+                self._browse_target = "history"
+                self._focus_browse_target()
 
     # ── periodic updates ──────────────────────────────────────────────────────
 
     @work(thread=True)
     def _refresh_memory_panel(self) -> None:
         try:
-            from ..config.paths import get_agenda_dir
-            from ..repository.agenda.file_storage import list_agenda_items
-            from ..repository.reminders.queries import get_active_reminders
+            from ..repository.tasks.queries import get_active_tasks
             from ..utils.clock import db_time_to_local
 
             memory_entries = []
@@ -484,33 +507,29 @@ class ElroyApp(App):
                 memory_entries.append(RightPanelEntry(title=display_name, lookup_key=type_key, content=""))
                 if len(memory_entries) >= 15:
                     break
-            reminder_entries = []
-            for reminder in get_active_reminders(self.ctx)[:15]:
-                if reminder.trigger_datetime:
-                    when = db_time_to_local(reminder.trigger_datetime).strftime("%Y-%m-%d %H:%M")
-                    title = f"{reminder.name} [{when}]"
-                elif reminder.reminder_context:
-                    title = f"{reminder.name} [context]"
-                else:
-                    title = reminder.name
-                reminder_entries.append(
+            agenda_entries = []
+            for item in get_active_tasks(self.ctx)[:15]:
+                title = item.name
+                if item.trigger_datetime:
+                    when = db_time_to_local(item.trigger_datetime).strftime("%Y-%m-%d %H:%M")
+                    title = f"{title} [{when}]"
+                    from ..utils.clock import ensure_utc, utc_now
+
+                    if ensure_utc(item.trigger_datetime) <= utc_now():
+                        title = f"{title} (Due)"
+                agenda_entries.append(
                     RightPanelEntry(
                         title=title,
-                        lookup_key=reminder.name,
-                        content=reminder.to_fact(),
-                        deletable=True,
+                        lookup_key=item.name,
+                        content=item.to_fact(),
+                        deletable=bool(item.trigger_datetime or item.trigger_context),
                     )
                 )
-            agenda_entries = [
-                RightPanelEntry(title=path.stem, lookup_key=str(path), content=text)
-                for path, _, text in list_agenda_items(get_agenda_dir())[:15]
-            ]
             self._panel_entries = {
                 "memories": memory_entries,
-                "reminders": reminder_entries,
                 "agenda": agenda_entries,
             }
-            self.call_from_thread(self._render_current_panel)
+            self.call_from_thread(self._render_sidebar_list)
         except Exception:
             logger.debug("Failed to refresh memory panel", exc_info=True)
 
@@ -586,20 +605,32 @@ class ElroyApp(App):
 
         return False
 
-    def _handle_browse_key(self, event, list_widget: ListView) -> bool:
+    def _handle_browse_key(self, event, history_log: RichLog) -> bool:
         if event.key in {"j", "down"}:
-            list_widget.action_cursor_down()
+            if self._browse_target == "history":
+                history_log.scroll_down(animate=False, immediate=True)
+            else:
+                self.query_one("#sidebar-list", ListView).action_cursor_down()
         elif event.key in {"k", "up"}:
-            list_widget.action_cursor_up()
+            if self._browse_target == "history":
+                history_log.scroll_up(animate=False, immediate=True)
+            else:
+                self.query_one("#sidebar-list", ListView).action_cursor_up()
         elif event.key == "tab":
-            self._cycle_browse_buffer(1)
+            self._cycle_browse_target(1)
         elif event.key == "shift+tab":
-            self._cycle_browse_buffer(-1)
+            self._cycle_browse_target(-1)
+        elif event.key == "m":
+            self._set_sidebar_section("memories")
+        elif event.key == "g":
+            self._set_sidebar_section("agenda")
         elif event.key == "enter":
-            index = list_widget.index
-            if index is not None:
-                self._open_panel_entry(index)
-        elif event.key in {"i", "a"}:
+            if self._browse_target == "sidebar":
+                list_widget = self.query_one("#sidebar-list", ListView)
+                index = list_widget.index
+                if index is not None:
+                    self._open_panel_entry(self._sidebar_section, index)
+        elif event.key in {"escape", "i", "a"}:
             self._focus_chat_input()
         else:
             return False
@@ -612,60 +643,82 @@ class ElroyApp(App):
         if self._browse_mode:
             self._focus_chat_input()
         else:
-            self._focus_browse_list()
+            if not self._memory_panel_visible:
+                self._browse_target = "history"
+            self._focus_browse_target()
 
     def _focus_chat_input(self) -> None:
         self._browse_mode = False
         self.query_one("#chat-input", Input).focus()
+        self._render_browse_state()
         self._render_status_bar()
 
-    def _focus_browse_list(self) -> None:
-        if not self._memory_panel_visible:
+    def _focus_browse_target(self) -> None:
+        if not self._memory_panel_visible and self._browse_target == "sidebar":
             self.query_one("#memory-panel").remove_class("hidden")
             self._memory_panel_visible = True
+        if not self._memory_panel_visible and self._browse_target == "sidebar":
+            self._browse_target = "history"
         self._browse_mode = True
-        list_widget = self.query_one("#memory-list", ListView)
-        list_widget.focus()
-        self._ensure_panel_index()
+        if self._browse_target == "history":
+            self.query_one("#history-log", RichLog).focus()
+        else:
+            list_widget = self.query_one("#sidebar-list", ListView)
+            list_widget.focus()
+            self._ensure_panel_index(self._sidebar_section)
+        self._render_browse_state()
         self._render_status_bar()
 
-    def _cycle_browse_buffer(self, direction: int) -> None:
-        current_index = self.BROWSE_BUFFERS.index(self._browse_buffer)
-        self._browse_buffer = self.BROWSE_BUFFERS[(current_index + direction) % len(self.BROWSE_BUFFERS)]
-        self._render_current_panel()
-        self._focus_browse_list()
+    def _cycle_browse_target(self, direction: int) -> None:
+        targets = [target for target in self.BROWSE_TARGETS if self._memory_panel_visible or target == "history"]
+        current_index = targets.index(self._browse_target)
+        self._browse_target = targets[(current_index + direction) % len(targets)]
+        self._focus_browse_target()
 
-    def _render_current_panel(self) -> None:
-        list_view = self.query_one("#memory-list", ListView)
-        title = self.BUFFER_TITLES[self._browse_buffer]
-        entries = self._panel_entries[self._browse_buffer]
-        self.query_one("#memory-title", Label).update(title)
+    def _render_sidebar_list(self) -> None:
+        list_view = self.query_one("#sidebar-list", ListView)
+        entries = self._panel_entries[self._sidebar_section]
         list_view.clear()
         list_view.extend([ListItem(Label(entry.title), name=entry.lookup_key) for entry in entries])
-        self.call_after_refresh(self._ensure_panel_index)
+        self.call_after_refresh(self._ensure_panel_index, self._sidebar_section)
+        self._render_browse_state()
         self._render_status_bar()
 
-    def _ensure_panel_index(self) -> None:
-        list_view = self.query_one("#memory-list", ListView)
-        entries = self._panel_entries[self._browse_buffer]
+    def _ensure_panel_index(self, buffer_name: str) -> None:
+        list_view = self.query_one("#sidebar-list", ListView)
+        entries = self._panel_entries[buffer_name]
         if not entries:
-            self._panel_indices[self._browse_buffer] = None
-            list_view.index = None
+            self._panel_indices[buffer_name] = None
+            if self._sidebar_section == buffer_name:
+                list_view.index = None
             return
-        saved_index = self._panel_indices[self._browse_buffer]
+        saved_index = self._panel_indices[buffer_name]
         if saved_index is None:
             saved_index = 0
         saved_index = max(0, min(saved_index, len(entries) - 1))
-        self._panel_indices[self._browse_buffer] = saved_index
-        list_view.index = saved_index
+        self._panel_indices[buffer_name] = saved_index
+        if self._sidebar_section == buffer_name:
+            list_view.index = saved_index
 
-    def _open_panel_entry(self, index: int) -> None:
-        entries = self._panel_entries[self._browse_buffer]
+    def _set_sidebar_section(self, section: str) -> None:
+        if section not in self._panel_entries:
+            return
+        self._sidebar_section = section
+        if not self._memory_panel_visible:
+            self.query_one("#memory-panel").remove_class("hidden")
+            self._memory_panel_visible = True
+        self._browse_target = "sidebar"
+        self._render_sidebar_list()
+        if self._browse_mode:
+            self._focus_browse_target()
+
+    def _open_panel_entry(self, buffer_name: str, index: int) -> None:
+        entries = self._panel_entries[buffer_name]
         if not (0 <= index < len(entries)):
             return
         entry = entries[index]
         on_delete = None
-        if self._browse_buffer == "memories":
+        if buffer_name == "memories":
             from ..db.db_models import EmbeddableSqlModel
             from ..repository.memories.operations import mark_inactive
             from ..repository.memories.queries import db_get_memory_source_by_name
@@ -685,18 +738,17 @@ class ElroyApp(App):
                     self._refresh_memory_panel()
 
             title = name
-        elif self._browse_buffer == "reminders":
-            from ..repository.reminders.operations import do_delete_reminder
-
-            title = entry.lookup_key
-            content = entry.content
-
-            def on_delete(name=entry.lookup_key) -> None:
-                do_delete_reminder(self.ctx, name)
-                self._refresh_memory_panel()
         else:
+            from ..repository.reminders.operations import do_delete_due_item
+
             title = entry.title
             content = entry.content
+
+            if entry.deletable:
+
+                def on_delete(name=entry.lookup_key) -> None:
+                    do_delete_due_item(self.ctx, name)
+                    self._refresh_memory_panel()
 
         self.push_screen(MemoryDetailModal(title, content, on_delete=on_delete))
 
@@ -705,6 +757,16 @@ class ElroyApp(App):
         suggestion = getattr(input_widget, "_suggestion", "")
         if suggestion and input_widget.cursor_position >= len(input_widget.value):
             input_widget.action_cursor_right()
+
+    def _render_browse_state(self) -> None:
+        left_panel = self.query_one("#left-panel", Vertical)
+        history_active = self._browse_mode and self._browse_target == "history"
+        left_panel.set_class(history_active, "active")
+        sidebar_active = self._browse_mode and self._browse_target == "sidebar"
+        self.query_one("#sidebar-list", ListView).set_class(sidebar_active, "active")
+        for buffer_name in ("memories", "agenda"):
+            active = self._sidebar_section == buffer_name and self._memory_panel_visible
+            self.query_one(f"#{buffer_name}-title", Label).set_class(active, "active")
 
     def _render_status_bar(self) -> None:
         import contextlib
@@ -717,9 +779,9 @@ class ElroyApp(App):
             return
 
         mode_text = (
-            "Browse: j/k or arrows move | Tab next | Shift+Tab prev | Enter open | i/a/Esc chat"
+            "Command: Tab convo/sidebar | m memories | g agenda | j/k move or scroll | Enter open | i/a/Esc chat"
             if self._browse_mode
-            else "Chat: Esc browse | Tab complete | F2 panel | Ctrl+D exit"
+            else "Chat: Esc command | Tab complete | F2 panel | Ctrl+D exit"
         )
         if self._streaming:
             prefix = f"{self._spinner_chars[self._spinner_index]} {self._status_message}"

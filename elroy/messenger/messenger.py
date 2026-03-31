@@ -18,7 +18,7 @@ from ..repository.context_messages.queries import get_context_messages
 from ..repository.context_messages.validations import Validator
 from ..repository.memories.queries import get_relevant_memory_context_msgs
 from ..repository.memories.recall_classifier import should_recall_memory
-from ..repository.reminders.queries import get_due_reminder_context_msgs
+from ..repository.reminders.queries import get_due_item_context_msgs
 from .tools import exec_function_call
 
 logger = get_logger()
@@ -84,12 +84,12 @@ def process_message(
         with ctx.latency_tracker.measure("memory_recall", classifier_disabled=True):
             new_msgs += get_relevant_memory_context_msgs(ctx, context_messages + new_msgs)
 
-    # Check for due timed reminders and surface them
-    with ctx.latency_tracker.measure("due_reminders_check"):
-        due_reminder_msgs = get_due_reminder_context_msgs(ctx)
+    # Check for due timed items and surface them
+    with ctx.latency_tracker.measure("due_items_check"):
+        due_item_msgs = get_due_item_context_msgs(ctx)
 
-    if due_reminder_msgs:
-        new_msgs += due_reminder_msgs
+    if due_item_msgs:
+        new_msgs += due_item_msgs
 
     if ctx.show_internal_thought:
         from ..repository.data_models import RecallResponse

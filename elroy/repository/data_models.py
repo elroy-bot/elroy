@@ -15,13 +15,13 @@ class MemoryResponse(BaseModel):
     text: str = Field(description="The text content of the memory")
 
 
-class CreateReminderRequest(BaseModel):
-    name: str = Field(description="Name/title for the reminder")
-    text: str = Field(description="The text content of the reminder")
+class CreateDueItemRequest(BaseModel):
+    name: str = Field(description="Name/title for the due item")
+    text: str = Field(description="The text content of the due item")
     trigger_time: str | None = Field(
-        None, description="When the reminder should trigger (ISO format string). Must be a date in the future, or null"
+        None, description="When the due item should trigger (ISO format string). Must be a date in the future, or null"
     )
-    reminder_context: str | None = Field(None, description="Additional context for when this reminder should be shown")
+    trigger_context: str | None = Field(None, description="Additional context for when this due item should be shown")
 
     @property
     def trigger_datetime(self) -> datetime | None:
