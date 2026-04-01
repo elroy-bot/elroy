@@ -31,10 +31,8 @@ def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker
 
     if tracker:
         return tracker
-    else:
-        # Create a new tracker for the user if it doesn't exist
-        tracker = MemoryOperationTracker(user_id=ctx.user_id, memories_since_consolidation=0)
-        return tracker
+    # Create a new tracker for the user if it doesn't exist
+    return MemoryOperationTracker(user_id=ctx.user_id, memories_since_consolidation=0)
 
 
 @log_execution_time

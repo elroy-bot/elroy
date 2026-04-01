@@ -94,4 +94,4 @@ class RichFormatter(Formatter):
         elif isinstance(message, dict):
             yield Text(json.dumps(message, indent=2), style=self.system_message_color)
         else:
-            raise Exception(f"Unrecognized type: {type(message)}")
+            raise TypeError(f"Unrecognized type: {type(message)}")

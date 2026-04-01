@@ -1,9 +1,9 @@
 import functools
 import logging
-import os
 import time
 import warnings
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 from ..config.env_vars import get_log_level
@@ -29,9 +29,9 @@ def log_execution_time(func: Callable) -> Callable:
             elapsed = time.perf_counter() - start_time
             logger.info(f"{task_name} (took {elapsed:.2f}s)")
             return result
-        except Exception as e:
+        except Exception:
             elapsed = time.perf_counter() - start_time
-            logger.error(f"{task_name} (took {elapsed:.2f}s) - {str(e)}")
+            logger.exception(f"{task_name} (took {elapsed:.2f}s)")
             raise
 
     return wrapper
@@ -57,8 +57,8 @@ def setup_core_logging():
     import litellm
 
     litellm_any = cast(Any, litellm)
-    litellm_any.set_verbose = False  # noqa F841
-    litellm_any.suppress_debug_info = True  # noqa F841
+    litellm_any.set_verbose = False
+    litellm_any.suppress_debug_info = True
     litellm_any.verbose_logger.setLevel(logging.WARNING)
 
 
@@ -81,8 +81,8 @@ def setup_file_logging():
 
     from logging.handlers import RotatingFileHandler
 
-    log_file_path = get_log_file_path()
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    log_file_path = Path(get_log_file_path())
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     file_handler = RotatingFileHandler(log_file_path, maxBytes=10 * 1024 * 1024, backupCount=5)  # 10MB
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))

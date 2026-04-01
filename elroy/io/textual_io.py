@@ -23,6 +23,7 @@ class TextualIO(ElroyIO):
         self.console = Console()  # kept for ElroyIO compatibility
 
     def print(self, message, end: str = "\n") -> None:
+        _ = end
         from ..core.logging import get_logger
         from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, AssistantToolResult, StatusUpdate
 

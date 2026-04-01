@@ -14,20 +14,17 @@ from .operations import do_get_or_create_user_preference, get_or_create_user_pre
 def get_assistant_name(ctx: ElroyContext) -> str:
     if not ctx.user_id:
         return ctx.default_assistant_name
-    else:
-        user_preference = get_or_create_user_preference(ctx)
-        if user_preference.assistant_name:
-            return user_preference.assistant_name
-        else:
-            return ctx.default_assistant_name
+    user_preference = get_or_create_user_preference(ctx)
+    if user_preference.assistant_name:
+        return user_preference.assistant_name
+    return ctx.default_assistant_name
 
 
 def do_get_assistant_name(session: Session, user_id: int) -> str:
     user_preference = do_get_or_create_user_preference(session, user_id)
     if user_preference.assistant_name:
         return user_preference.assistant_name
-    else:
-        return "ASSISTANT"  # This is inconsistent if there's a config value for default_assistant_name, consider updating
+    return "ASSISTANT"  # This is inconsistent if there's a config value for default_assistant_name, consider updating
 
 
 def get_persona(ctx: ElroyContext):
@@ -50,6 +47,7 @@ def get_user_id_if_exists(db: DbSession, user_token: str) -> int | None:
         id = user.id
         assert id
         return id
+    return None
 
 
 def is_user_exists(session: Session, user_token: str) -> bool:

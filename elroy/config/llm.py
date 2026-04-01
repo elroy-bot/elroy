@@ -34,18 +34,18 @@ class ChatModel:
 
 def get_provider(model_name: str, api_base: str | None) -> Provider:
     # check a hard coded dict to short circuit API calls to list models, if possible:
+    _ = api_base
 
     for provider, models in KNOWN_MODELS.items():
         if model_name in models:
             return provider
     if model_name.startswith(GEMINI_PREFIX):
         return Provider.GEMINI
-    elif model_name.startswith("openai"):
+    if model_name.startswith("openai"):
         return Provider.OPENAI
-    elif model_name.startswith(AZURE_PREFIX):
+    if model_name.startswith(AZURE_PREFIX):
         return Provider.AZURE
-    else:
-        return Provider.OTHER
+    return Provider.OTHER
 
 
 @dataclass
@@ -60,14 +60,13 @@ class EmbeddingModel:
 def infer_chat_model_name() -> str:
     if os.environ.get("ANTHROPIC_API_KEY"):
         return CLAUDE_3_5_SONNET
-    elif os.environ.get("OPENAI_API_KEY"):
+    if os.environ.get("OPENAI_API_KEY"):
         return GPT_5
-    elif os.environ.get("GEMINI_API_KEY"):
+    if os.environ.get("GEMINI_API_KEY"):
         return GEMINI_2_0_FLASH
-    else:
-        raise ValueError(
-            "Could not infer chat model. Please set chat model, or provide API keys. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
-        )
+    raise ValueError(
+        "Could not infer chat model. Please set chat model, or provide API keys. See: https://github.com/elroy-bot/elroy/blob/main/docs/configuration.md"
+    )
 
 
 def get_chat_model(

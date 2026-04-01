@@ -65,8 +65,7 @@ def add_to_current_context_by_name(ctx: ElroyContext, name: str, memory_type: ty
     if item:
         add_to_context(ctx, item)
         return f"{memory_type.__name__} '{name}' added to context."
-    else:
-        return f"{memory_type.__name__} '{name}' not found."
+    return f"{memory_type.__name__} '{name}' not found."
 
 
 def drop_from_context_by_name(ctx: ElroyContext, name: str, memory_type: type[EmbeddableSqlModel]) -> str:
@@ -75,5 +74,4 @@ def drop_from_context_by_name(ctx: ElroyContext, name: str, memory_type: type[Em
     if item:
         remove_from_context(ctx, item)
         return f"{memory_type.__name__} '{name}' dropped from context."
-    else:
-        return f"{memory_type.__name__} '{name}' not found."
+    return f"{memory_type.__name__} '{name}' not found."

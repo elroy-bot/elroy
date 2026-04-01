@@ -197,8 +197,7 @@ def validate_schema(func_schema: dict[str, Any], has_args: bool) -> list[str]:
         if has_args:
             errors.append("Function is missing 'parameters' key, required if source function has arguments")
             return errors
-        else:
-            return errors
+        return errors
 
     parameters = function["parameters"]
     if not isinstance(parameters, dict) or parameters.get("type") != "object":

@@ -36,7 +36,7 @@ class ContextMessage:
             self.tool_calls = None
         if self.role != ASSISTANT and self.tool_calls is not None:
             raise ValueError(f"Only assistant messages can have tool calls, found {self.role} message with tool calls. ID = {self.id}")
-        elif self.role != TOOL and self.tool_call_id is not None:
+        if self.role != TOOL and self.tool_call_id is not None:
             raise ValueError(f"Only tool messages can have tool call ids, found {self.role} message with tool call id. ID = {self.id}")
-        elif self.role == TOOL and self.tool_call_id is None:
+        if self.role == TOOL and self.tool_call_id is None:
             raise ValueError(f"Tool messages must have tool call ids, found tool message without tool call id. ID = {self.id}")

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -158,7 +157,7 @@ def test_dir_ingest_ignores_dot_files(ctx: ElroyContext, tmpdir: str):
 @pytest.fixture
 def test_docs_dir(tmpdir: str) -> Path:
     """Create a temporary directory with test documents"""
-    docs_dir = Path(os.path.join(tmpdir, "test_docs"))
+    docs_dir = Path(tmpdir) / "test_docs"
     docs_dir.mkdir(exist_ok=True)
 
     # Create some markdown files
@@ -180,7 +179,7 @@ def test_docs_dir(tmpdir: str) -> Path:
 @pytest.fixture(scope="session")
 def very_large_document_path(tmpdir: str) -> Path:
     # Create a temporary directory for our large document
-    file_path = os.path.join(tmpdir, "large_document.txt")
+    file_path = Path(tmpdir) / "large_document.txt"
 
     # Create content that will exceed 8k tokens
     paragraphs = []
@@ -210,7 +209,7 @@ def very_large_document_path(tmpdir: str) -> Path:
             paragraphs.append(paragraph)
 
     # Write content to file
-    with open(file_path, "w") as f:
+    with file_path.open("w") as f:
         f.write("\n".join(paragraphs))
 
     return Path(file_path)
@@ -218,12 +217,12 @@ def very_large_document_path(tmpdir: str) -> Path:
 
 @pytest.fixture(scope="session")
 def midnight_garden_md_path(fixtures_dir: str) -> Path:
-    return Path(os.path.join(fixtures_dir, "the_midnight_garden.md"))
+    return Path(fixtures_dir) / "the_midnight_garden.md"
 
 
 @pytest.fixture(scope="session")
 def fixtures_dir() -> str:
-    return os.path.dirname(fixtures.__file__)
+    return str(Path(fixtures.__file__).parent)
 
 
 @pytest.fixture(scope="session")

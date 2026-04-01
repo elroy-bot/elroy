@@ -83,12 +83,38 @@ select = [
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "SIM", # flake8-simplify
+    "ARG", # flake8-unused-arguments
+    "RET", # flake8-return
+    "PTH", # use pathlib
+    "RUF", # Ruff-specific rules
+    "TRY", # exception handling hygiene
+    "PERF",# perflint
+    "FURB",# refurb suggestions
+    "C90", # mccabe complexity
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # do not perform function calls in argument defaults
     "N805",  # first argument of a method should be named 'self'
+    "TRY002",  # custom exception boilerplate is too noisy for this codebase
+    "TRY003",  # inline exception messages are acceptable here
+    "TRY300",  # prefer direct returns in try blocks where clearer
+    "TRY301",  # helper extraction for single raises is not worth the indirection
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ARG001", "ARG002", "C901", "TRY003"]
+"elroy/db/sqlite/alembic/env.py" = ["ARG001"]
+"elroy/io/textual_app.py" = ["C901"]
+"elroy/llm/client.py" = ["C901"]
+"elroy/messenger/messenger.py" = ["C901"]
+"elroy/repository/documents/background.py" = ["C901"]
+"elroy/repository/documents/operations.py" = ["C901"]
+"elroy/repository/memories/background.py" = ["C901"]
+"elroy/tools/schema.py" = ["C901"]
 
 [tool.ruff.format]
 quote-style = "double"

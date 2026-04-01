@@ -88,28 +88,26 @@ class LlmClient:
             if force_tool:
                 if len(tool_schemas) == 0:
                     raise InvalidForceToolError(f"Requested tool {force_tool}, but not tools available")
-                elif not any(t["function"]["name"] == force_tool for t in tool_schemas):
+                if not any(t["function"]["name"] == force_tool for t in tool_schemas):
                     avaliable_tools = ", ".join([t["function"]["name"] for t in tool_schemas])
                     raise InvalidForceToolError(f"Requested tool {force_tool} not available. Available tools: {avaliable_tools}")
-                else:
-                    tool_choice = {"type": "function", "function": {"name": force_tool}}
+                tool_choice = {"type": "function", "function": {"name": force_tool}}
             else:
                 tool_choice = "auto"
         else:
             if force_tool:
                 raise ValueError(f"Requested tool {force_tool} but model {self.chat_model.name} does not support tools")
-            else:
-                if self.chat_model.provider == Provider.ANTHROPIC and any(m.role == TOOL for m in context_messages):
-                    # If tool use is in the context window, anthropic requires tools to be enabled and provided
-                    from ..tools.registry import do_not_use
-                    from ..tools.schema import get_function_schema
+            if self.chat_model.provider == Provider.ANTHROPIC and any(m.role == TOOL for m in context_messages):
+                # If tool use is in the context window, anthropic requires tools to be enabled and provided
+                from ..tools.registry import do_not_use
+                from ..tools.schema import get_function_schema
 
-                    tool_choice = "auto"
-                    tool_schemas = [get_function_schema(do_not_use)]
-                else:
-                    tool_choice = None
-                    # Models are inconsistent on whether they want None or an empty list when tools are disabled, but most often None seems correct.
-                    tool_schemas = None  # type: ignore
+                tool_choice = "auto"
+                tool_schemas = [get_function_schema(do_not_use)]
+            else:
+                tool_choice = None
+                # Models are inconsistent on whether they want None or an empty list when tools are disabled, but most often None seems correct.
+                tool_schemas = None  # type: ignore
 
         try:
             completion_kwargs = self._build_completion_kwargs(
@@ -124,8 +122,7 @@ class LlmClient:
         except Exception as e:
             if isinstance(e, BadRequestError) and "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
                 raise MissingToolCallMessageError from e
-            else:
-                raise
+            raise
 
     def query_llm(self, prompt: str, system: str) -> str:
         if not prompt:

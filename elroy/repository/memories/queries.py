@@ -45,23 +45,21 @@ def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str)
 
     if source_class == ContextMessageSetWithMessages:
         return ContextMessageSetWithMessages(ctx.db.session, int(name), ctx.user_id)
-    elif hasattr(source_class, "name"):
+    if hasattr(source_class, "name"):
         return ctx.db.exec(select(source_class).where(source_class.name == name, source_class.user_id == ctx.user_id)).first()
-    else:
-        raise NotImplementedError(f"Cannot get source of type {source_type}")
+    raise NotImplementedError(f"Cannot get source of type {source_type}")
 
 
 def db_get_source_list_for_memory(ctx: ElroyContext, memory: Memory) -> Sequence[MemorySource]:
     if not memory.source_metadata:
         return []
-    else:
-        return pipe(
-            memory.source_metadata,
-            json.loads,
-            map(lambda x: db_get_memory_source(ctx, x["source_type"], x["id"])),
-            remove(lambda x: x is None),
-            list,
-        )
+    return pipe(
+        memory.source_metadata,
+        json.loads,
+        map(lambda x: db_get_memory_source(ctx, x["source_type"], x["id"])),
+        remove(lambda x: x is None),
+        list,
+    )
 
 
 def db_get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> MemorySource | None:
@@ -69,8 +67,7 @@ def db_get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> Memory
 
     if source_class == ContextMessageSetWithMessages:
         return ContextMessageSetWithMessages(ctx.db.session, id, ctx.user_id)
-    else:
-        return ctx.db.exec(select(source_class).where(source_class.id == id, source_class.user_id == ctx.user_id)).first()
+    return ctx.db.exec(select(source_class).where(source_class.id == id, source_class.user_id == ctx.user_id)).first()
 
 
 def get_active_memories(ctx: ElroyContext) -> list[Memory]:
@@ -127,7 +124,7 @@ def filter_for_relevance(
 
     class RelevanceResponse(BaseModel):
         answers: list[bool]
-        reasoning: str  # noqa: F841
+        reasoning: str
 
     resp = fast_llm.query_llm_with_response_format(
         prompt=f"""
@@ -152,7 +149,7 @@ def get_message_content(context_messages: list[ContextMessage], n: int) -> str:
         context_messages,
         remove(lambda x: x.role == SYSTEM),
         remove(lambda x: x.role == TOOL),
-        tail(4),
+        tail(n),
         map(lambda x: f"{x.role}: {x.content}" if x.content else None),
         remove(lambda x: x is None),
         list,
@@ -251,15 +248,14 @@ def get_reflective_recall(
     assert isinstance(output, ReflectionResponse)
     if not output.is_relevant:
         return []
-    elif output.is_relevant and not output.content:
+    if output.is_relevant and not output.content:
         logger.warning("Memories deemed relevant, but not content returned.")
         return []
-    else:
-        assert output.content
-        return to_synthetic_tool_call(
-            "get_reflective_recall",
-            RecallResponse(content=output.content, recall_metadata=_build_recall_metadata(cast(list[MemorySource], list(memories)))),
-        )
+    assert output.content
+    return to_synthetic_tool_call(
+        "get_reflective_recall",
+        RecallResponse(content=output.content, recall_metadata=_build_recall_metadata(cast(list[MemorySource], list(memories)))),
+    )
 
 
 def _build_recall_metadata(memories: list[MemorySource]) -> list[RecallMetadata]:

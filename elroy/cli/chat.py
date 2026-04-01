@@ -41,8 +41,7 @@ def get_session_context(ctx: ElroyContext) -> str:
         # Convert UTC time to local timezone for display
         local_time = earliest_today_msg.created_at.replace(tzinfo=UTC).astimezone(local_tz())
         return f"Current date/time: {current_datetime}. {preferred_name} has logged in. I first started chatting with {preferred_name} today at {local_time.strftime('%I:%M %p')}."
-    else:
-        return f"Current date/time: {current_datetime}. {preferred_name} has logged in. I haven't chatted with {preferred_name} yet today. I should offer a brief greeting (less than 50 words)."
+    return f"Current date/time: {current_datetime}. {preferred_name} has logged in. I haven't chatted with {preferred_name} yet today. I should offer a brief greeting (less than 50 words)."
 
 
 def onboard_non_interactive(ctx: ElroyContext) -> None:

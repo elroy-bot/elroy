@@ -86,14 +86,14 @@ class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     token: str = Field(..., description="The unique token for the user")
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
 
 
 class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the context")
     file_path: str | None = Field(default=None, description="Path to markdown file storing memory content")
@@ -121,12 +121,12 @@ class SourceDocument(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "address"), {"extend_existing": True})
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
     address: str = Field(..., description="The address of the document")
     name: str = Field(..., description="The name of the document")
     content: str | None = Field(..., description="The extracted content of the document")
-    extracted_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    extracted_at: datetime = Field(default_factory=utc_now, nullable=False)
     content_md5: str | None = Field(..., description="The MD5 hash of the extracted content")
 
 
@@ -134,7 +134,7 @@ class DocumentExcerpt(EmbeddableSqlModel, MemorySource, table=True):
     __table_args__ = (UniqueConstraint("user_id", "source_document_id", "chunk_index", "is_active"), {"extend_existing": True})
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the document")
     content: str = Field(..., description="The text of the document")
@@ -154,7 +154,7 @@ class AgendaItem(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
     name: str = Field(..., description="The name of the agenda item")
     file_path: str = Field(..., description="Path to the agenda item markdown file")
@@ -202,10 +202,9 @@ class AgendaItem(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         text = self.text
         if self.trigger_datetime:
             return f"#{self.name} (Timed: {self.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')})\n{text}"
-        elif self.trigger_context:
+        if self.trigger_context:
             return f"#{self.name} (Context: {self.trigger_context})\n{text}"
-        else:
-            return f"#Agenda: {self.name}\n{text}"
+        return f"#Agenda: {self.name}\n{text}"
 
 
 class MemoryOperationTracker(SQLModel, table=True):
@@ -217,13 +216,13 @@ class MemoryOperationTracker(SQLModel, table=True):
     )
     messages_since_memory: int = Field(default=0, description="Number of messages processed since the last memory creation")
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
 
 
 class Message(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
     role: str = Field(..., description="The role of the message")
     content: str | None = Field(..., description="The text of the message")
@@ -236,7 +235,7 @@ class UserPreference(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
     user_id: int = Field(..., description="User for context")
     preferred_name: str | None = Field(default=None, description="The preferred name for the user")
     system_persona: str | None = Field(
@@ -252,7 +251,7 @@ class ContextMessageSet(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "is_active"), {"extend_existing": True})
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)  # noqa F841
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
     user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=SAColumn(Text), description="The messages in the context window as JSON string")
     is_active: bool | None = Field(True, description="Whether the context is active")
@@ -262,7 +261,7 @@ def get_mem_source_options() -> dict[str, type[MemorySource]]:
     # Note, this is brittle! Should be replaced in the future with a registration process.
     from ..repository.context_messages.transforms import ContextMessageSetWithMessages
 
-    return {source_class.source_type(): source_class for source_class in MemorySource.__subclasses__() + [ContextMessageSetWithMessages]}
+    return {source_class.source_type(): source_class for source_class in [*MemorySource.__subclasses__(), ContextMessageSetWithMessages]}
 
 
 class InvalidMemorySourceTypeError(RecoverableToolError):
@@ -276,5 +275,4 @@ def get_memory_source_class(source_type: str) -> type[MemorySource]:
 
     if source_type in options:
         return options[source_type]
-    else:
-        raise InvalidMemorySourceTypeError(source_type)
+    raise InvalidMemorySourceTypeError(source_type)

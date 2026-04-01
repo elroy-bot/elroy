@@ -100,10 +100,9 @@ def retry_on_integrity_error[T](fn: Callable[..., T]) -> Callable[..., T]:
                 if attempt == max_retries - 1:  # Last attempt
                     ctx.db.rollback()
                     raise
-                else:
-                    ctx.db.rollback()
-                    time.sleep(0.1 * 2**attempt)
-                    logger.info(f"Retrying on integrity error (attempt {attempt + 1}/{max_retries})")
+                ctx.db.rollback()
+                time.sleep(0.1 * 2**attempt)
+                logger.info(f"Retrying on integrity error (attempt {attempt + 1}/{max_retries})")
         return fn(ctx, *args, **kwargs)
 
     return wrapper
@@ -262,7 +261,7 @@ def save(ctx: ElroyContext, n: int = 1000) -> str:
     )
     full_path = get_save_dir() / filename
 
-    with open(full_path, "w") as f:
+    with full_path.open("w") as f:
         f.write(json.dumps([msg.as_dict() for msg in msgs]))
     return "Saved messages to " + str(full_path)
 
@@ -289,9 +288,8 @@ def pop(ctx: ElroyContext, n: int) -> str:
     if context_messages[-1].role == ASSISTANT and context_messages[-1].tool_calls:
         return f"Popping {n} message would separate an assistant message with a tool call from the tool result. Please pop fewer or more messages."
 
-    else:
-        replace_context_messages(ctx, context_messages)
-        return f"Popped {n} messages from context, new context has {len(list(get_context_messages(ctx)))} messages"
+    replace_context_messages(ctx, context_messages)
+    return f"Popped {n} messages from context, new context has {len(list(get_context_messages(ctx)))} messages"
 
 
 @user_only_tool

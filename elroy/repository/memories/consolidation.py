@@ -148,6 +148,7 @@ def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: ElroyIO 
 
 
 def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None = None) -> list[MemoryCluster]:
+    _ = io
 
     import time
 
@@ -194,7 +195,7 @@ def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None
         clusters[label].append(idx)
 
     # Create MemoryCluster objects
-    clusters = pipe(
+    return pipe(
         [
             MemoryCluster(
                 embeddings=embeddings_array[indices],
@@ -206,8 +207,6 @@ def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None
         list,
         partial(sorted),
     )
-
-    return clusters
 
 
 @tracer.chain

@@ -103,6 +103,7 @@ def add_internal_thought(ctx: ElroyContext, thought: str) -> str:
         str: The result of the internal thought addition
     """
 
+    _ = ctx
     add_context_messages(
         to_synthetic_tool_call(
             "user_added_internal_thought",

@@ -27,8 +27,7 @@ class CreateDueItemRequest(BaseModel):
     def trigger_datetime(self) -> datetime | None:
         if self.trigger_time:
             return string_to_datetime(self.trigger_time)
-        else:
-            return None
+        return None
 
 
 class RecallMetadata(BaseModel):
@@ -39,4 +38,4 @@ class RecallMetadata(BaseModel):
 
 class RecallResponse(BaseModel):
     content: str
-    recall_metadata: list[RecallMetadata]  # noqa F841
+    recall_metadata: list[RecallMetadata]

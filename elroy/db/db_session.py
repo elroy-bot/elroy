@@ -42,7 +42,7 @@ class DbSession:
         return compose(
             do(self.session.expunge),
             do(self.session.refresh),
-            do(lambda x: self.session.commit()),
+            do(self._commit_and_return),
             do(self.session.add),
         )
 
@@ -59,6 +59,10 @@ class DbSession:
 
     def _doc_id(self, row: EmbeddableSqlModel) -> str:
         return f"{row.__class__.__name__}_{row.id}"
+
+    def _commit_and_return(self, value: Any) -> Any:
+        self.session.commit()
+        return value
 
     def insert_embedding(self, row: EmbeddableSqlModel, embedding_data: list[float], embedding_text_md5: str):
         if row.id is None:
@@ -177,8 +181,8 @@ class DbSession:
                     include=["metadatas", "distances"],
                 ),
             )
-        except Exception as e:
-            logger.error(f"ChromaDB query failed for {table.__name__}: {e}")
+        except Exception:
+            logger.exception(f"ChromaDB query failed for {table.__name__}")
             raise
 
         chroma_duration_ms = (time.perf_counter() - start_time) * 1000

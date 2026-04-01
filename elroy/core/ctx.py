@@ -246,8 +246,7 @@ class ElroyContext:
                 else:
                     kwargs["chat_model"] = resolved
 
-            if m in kwargs:
-                del kwargs[m]
+            kwargs.pop(m, None)
 
         params = pipe(
             kwargs,
@@ -283,8 +282,7 @@ class ElroyContext:
     def config_path(self) -> Path:
         if self.runtime_config.config_path:
             return Path(self.runtime_config.config_path)
-        else:
-            return get_default_config_path()
+        return get_default_config_path()
 
     @cached_property
     def memory_dir_path(self) -> Path:
@@ -374,8 +372,7 @@ class ElroyContext:
     def db(self) -> DbSession:
         if not self._db:
             raise ValueError("No db session open")
-        else:
-            return self._db
+        return self._db
 
     @cached_property
     def db_manager(self) -> DbManager:

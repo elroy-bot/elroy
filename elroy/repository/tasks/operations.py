@@ -81,7 +81,7 @@ def complete_task(ctx: ElroyContext, task_name: str, closing_comment: str | None
     task.status = "completed"
     task.is_active = False
     task.closing_comment = closing_comment
-    task.updated_at = utc_now()  # noqa: F841
+    task.updated_at = utc_now()
     task = ctx.db.persist(task)
     update_agenda_metadata(task_path(task), {"completed": True, "status": "completed", "closing_comment": closing_comment})
     upsert_embedding_if_needed(ctx, task)
@@ -96,7 +96,7 @@ def delete_task(ctx: ElroyContext, task_name: str, closing_comment: str | None =
     task.status = "deleted"
     task.is_active = None
     task.closing_comment = closing_comment
-    task.updated_at = utc_now()  # noqa: F841
+    task.updated_at = utc_now()
     remove_from_context(ctx, task)
     task = ctx.db.persist(task)
     update_agenda_metadata(task_path(task), {"status": "deleted", "closing_comment": closing_comment})
@@ -118,7 +118,7 @@ def rename_task(ctx: ElroyContext, old_name: str, new_name: str) -> AgendaItem:
     current_path.rename(target_path)
     task.name = new_name
     task.file_path = str(target_path)
-    task.updated_at = utc_now()  # noqa: F841
+    task.updated_at = utc_now()
     task = ctx.db.persist(task)
     upsert_embedding_if_needed(ctx, task)
     return task
@@ -129,7 +129,7 @@ def update_task_text(ctx: ElroyContext, task_name: str, new_text: str) -> Agenda
     if not task:
         raise RecoverableToolError(f"Active task '{task_name}' not found.")
     update_agenda_body(task_path(task), new_text)
-    task.updated_at = utc_now()  # noqa: F841
+    task.updated_at = utc_now()
     task = ctx.db.persist(task)
     upsert_embedding_if_needed(ctx, task)
     return task
