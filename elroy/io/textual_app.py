@@ -75,19 +75,25 @@ class MemoryDetailModal(ModalScreen):
 
     BINDINGS = [Binding("escape,enter,q", "dismiss", "Close", show=False)]
 
-    def __init__(self, title: str, content: str, on_delete: "Callable[[], None] | None" = None):
+    def __init__(
+        self,
+        title: str,
+        content: str,
+        on_delete: "Callable[[], None] | None" = None,
+        on_complete: "Callable[[], None] | None" = None,
+    ):
         super().__init__()
         self._memory_title = title
         self._memory_content = content
         self._on_delete = on_delete
+        self._on_complete = on_complete
         self._confirming_delete = False
 
     def compose(self) -> ComposeResult:
         with Vertical(id="memory-detail-container"):
             yield Label(self._memory_title, id="memory-detail-title")
             yield RichLog(id="memory-detail-log", wrap=True, highlight=False, markup=False)
-            footer_text = "D: delete  |  Escape/Enter/Q: close" if self._on_delete else "Escape/Enter/Q: close"
-            yield Label(footer_text, id="memory-detail-footer")
+            yield Label(self._build_footer_text(), id="memory-detail-footer")
 
     def on_mount(self) -> None:
         self.query_one("#memory-detail-log", RichLog).write(self._memory_content)
@@ -103,11 +109,24 @@ class MemoryDetailModal(ModalScreen):
                 footer.update("Press D again to confirm deletion, any other key to cancel")
                 footer.add_class("confirm")
             event.stop()
+        elif event.key == "c" and self._on_complete:
+            self._on_complete()
+            self.dismiss()
+            event.stop()
         elif self._confirming_delete:
             self._confirming_delete = False
             footer = self.query_one("#memory-detail-footer", Label)
-            footer.update("D: delete  |  Escape/Enter/Q: close")
+            footer.update(self._build_footer_text())
             footer.remove_class("confirm")
+
+    def _build_footer_text(self) -> str:
+        actions: list[str] = []
+        if self._on_complete:
+            actions.append("C: complete")
+        if self._on_delete:
+            actions.append("D: delete")
+        actions.append("Escape/Enter/Q: close")
+        return "  |  ".join(actions)
 
 
 class ElroyApp(App):
@@ -718,6 +737,7 @@ class ElroyApp(App):
             return
         entry = entries[index]
         on_delete = None
+        on_complete = None
         if buffer_name == "memories":
             from ..db.db_models import EmbeddableSqlModel
             from ..repository.memories.operations import mark_inactive
@@ -739,10 +759,52 @@ class ElroyApp(App):
 
             title = name
         else:
+            from pathlib import Path
+
+            from ..repository.agenda.file_storage import get_checklist, read_agenda_metadata
             from ..repository.reminders.operations import do_delete_due_item
+            from ..repository.tasks.operations import complete_task
+            from ..repository.tasks.queries import get_task_by_name
 
             title = entry.title
             content = entry.content
+            task = get_task_by_name(self.ctx, entry.lookup_key)
+            if task:
+                title = task.name
+                metadata = read_agenda_metadata(Path(task.file_path))
+                checklist = get_checklist(Path(task.file_path))
+                lines: list[str] = []
+
+                item_date = metadata.get("date")
+                if item_date:
+                    lines.append(f"Date: {item_date}")
+                if task.trigger_datetime:
+                    lines.append(f"Trigger Time: {task.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+                if task.trigger_context:
+                    lines.append(f"Trigger Context: {task.trigger_context}")
+                if task.status != "created":
+                    lines.append(f"Status: {task.status}")
+                if task.closing_comment:
+                    lines.append(f"Closing Comment: {task.closing_comment}")
+                if checklist:
+                    completed_count = sum(1 for item in checklist if item["completed"])
+                    lines.append(f"Checklist: {completed_count}/{len(checklist)} complete")
+
+                body_lines = task.text.splitlines()
+                if body_lines and body_lines[0].strip() == task.name.strip():
+                    body_lines = body_lines[1:]
+                    while body_lines and not body_lines[0].strip():
+                        body_lines = body_lines[1:]
+                body = "\n".join(body_lines).strip()
+                if body:
+                    lines.append(body)
+                content = "\n\n".join(lines) if lines else task.text
+
+                if task.status == "created":
+
+                    def on_complete(name=entry.lookup_key) -> None:
+                        complete_task(self.ctx, name)
+                        self._refresh_memory_panel()
 
             if entry.deletable:
 
@@ -750,7 +812,7 @@ class ElroyApp(App):
                     do_delete_due_item(self.ctx, name)
                     self._refresh_memory_panel()
 
-        self.push_screen(MemoryDetailModal(title, content, on_delete=on_delete))
+        self.push_screen(MemoryDetailModal(title, content, on_delete=on_delete, on_complete=on_complete))
 
     def _accept_input_completion(self) -> None:
         input_widget = self.query_one("#chat-input", Input)
