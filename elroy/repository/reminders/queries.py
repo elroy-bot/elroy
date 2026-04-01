@@ -81,7 +81,7 @@ def _print_all_due_items(ctx: ElroyContext, active: bool, n: int | None = None) 
     for due_item in list(due_items)[:n]:
         item_type = "Timed" if due_item.trigger_datetime else "Contextual"
         trigger_time = db_time_to_local(due_item.trigger_datetime).strftime("%Y-%m-%d %H:%M:%S") if due_item.trigger_datetime else "N/A"
-        context = due_item.trigger_context if due_item.trigger_context else "N/A"
+        context = due_item.trigger_context or "N/A"
         table.add_row(
             due_item.name,
             item_type,

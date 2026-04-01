@@ -28,8 +28,7 @@ def invoke_slash_command(
     Takes user input and executes a system command. For commands with a single non-context argument,
     executes directly with provided argument. For multi-argument commands, prompts for each argument.
     """
-    if msg.startswith("/"):
-        msg = msg[1:]
+    msg = msg.removeprefix("/")
 
     command = msg.split(" ")[0]
     input_arg = " ".join(msg.split(" ")[1:])

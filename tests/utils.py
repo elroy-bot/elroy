@@ -58,10 +58,9 @@ class MockIO(ElroyIO):
     def get_sys_messages(self) -> str:
         if not self._sys_messages:
             return ""
-        else:
-            response = "".join(self._sys_messages)
-            self._sys_messages.clear()
-            return response
+        response = "".join(self._sys_messages)
+        self._sys_messages.clear()
+        return response
 
     def warning(self, message: str | RenderableType):
         self._warnings.append(message)

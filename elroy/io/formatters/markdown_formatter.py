@@ -34,4 +34,4 @@ class MarkdownFormatter(StringFormatter):
         elif isinstance(message, AssistantToolResult):
             yield f"```TOOL CALL RESULT: {message.content}```"
         else:
-            raise Exception(f"Unrecognized type: {type(message)}")
+            raise TypeError(f"Unrecognized type: {type(message)}")

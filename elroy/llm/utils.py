@@ -12,10 +12,9 @@ def count_tokens(chat_model_name: str, context_messages: list[ContextMessage] | 
 
     if not context_messages:
         return 0
-    else:
-        return pipe(
-            context_messages,
-            map(lambda x: {"role": x.role, "content": x.content}),
-            list,
-            lambda x: token_counter(chat_model_name, messages=x),
-        )
+    return pipe(
+        context_messages,
+        map(lambda x: {"role": x.role, "content": x.content}),
+        list,
+        lambda x: token_counter(chat_model_name, messages=x),
+    )

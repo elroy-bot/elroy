@@ -36,10 +36,9 @@ def is_blank(input: str | None) -> bool:
 def first_or_none(x: Union[Iterator[T], Iterable[T]]) -> Optional[T]:  # noqa
     if isinstance(x, Iterator):
         return next(x, None)
-    elif not isinstance(x, Iterator) and isinstance(x, Iterable):
+    if not isinstance(x, Iterator) and isinstance(x, Iterable):
         return next(iter(x), None)
-    else:
-        raise ValueError(f"Expected an iterable or iterator, got {x}")
+    raise ValueError(f"Expected an iterable or iterator, got {x}")
 
 
 def last_or_none[T](iterable: Iterator[T]) -> T | None:
@@ -49,6 +48,7 @@ def last_or_none[T](iterable: Iterator[T]) -> T | None:
 def datetime_to_string(dt: datetime | None) -> str | None:
     if dt:
         return dt.strftime("%A, %B %d, %Y %I:%M %p %Z")
+    return None
 
 
 REDACT_KEYWORDS = ("api_key", "password", "secret", "token", "url")
@@ -85,7 +85,7 @@ def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> threading.Threa
     if not ctx.use_background_threads:
         logger.debug("Background threads are disabled. Running function in the main thread.")
         fn(ctx, *args)
-        return
+        return None
 
     # hack to get a new session for the thread
     def wrapped_fn():

@@ -55,4 +55,4 @@ While I generally follow $USER_ALIAS's conversational lead, I may gently guide d
 """
 
 
-DISCORD_GROUP_CHAT_PERSONA = PERSONA.replace("$USER_ALIAS", "my users") + "\nI am interacting with my users via Discord"  # noqa F841
+DISCORD_GROUP_CHAT_PERSONA = PERSONA.replace("$USER_ALIAS", "my users") + "\nI am interacting with my users via Discord"

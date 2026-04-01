@@ -102,7 +102,7 @@ def recursive_file_walk(directory: Path, include: list[str], exclude: list[str])
             if not d.startswith(".") and not any(fnmatch.fnmatch(str(root_path / d / "**"), pattern) for pattern in exclude)
         ]
         for file in files:
-            file_path = Path(os.path.join(root, file))
+            file_path = Path(root) / file
             if should_process_file(file_path, include, exclude):
                 yield file_path
 
@@ -128,13 +128,13 @@ def do_ingest_dir(
     Returns:
         int: Number of files successfully processed
     """
-    if not os.path.isdir(directory):
+    if not directory.is_dir():
         raise RecoverableToolError(f"{directory} is not a directory.")
 
     if recursive:
         file_paths = list(recursive_file_walk(directory, include, exclude))
     else:
-        file_paths = [Path(os.path.join(directory, f)) for f in os.listdir(directory) if should_process_file(Path(f), include, exclude)]
+        file_paths = [path for path in directory.iterdir() if should_process_file(path, include, exclude)]
 
     statuses = dict.fromkeys(DocIngestStatus, 0)
 
@@ -147,7 +147,7 @@ def do_ingest_dir(
             statuses[result] = statuses.get(result, 0) + 1
 
         except Exception as e:
-            logger.error(f"Failed to ingest {file_path}: {str(e)}", exc_info=True)
+            logger.error(f"Failed to ingest {file_path}: {e!s}", exc_info=True)
             raise
         statuses[DocIngestStatus.PENDING] = len(file_paths) - (idx + 1)
         yield IngestDirStatusUpdate(total=len(file_paths), statuses=statuses)
@@ -165,23 +165,23 @@ def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocInges
     Returns:
         str: The content of the document.
     """
-    if os.path.isdir(address):
+    if address.is_dir():
         raise RecoverableToolError(f"{address} is a directory, please specify a file.")
-    elif not os.path.isfile(address):
+    if not address.is_file():
         raise RecoverableToolError(f"Invalid path: {address}")
 
     if not is_markdown(address):
         logger.info("non-markdown files may not have optimal results")
 
-    if not os.path.isfile(address):
+    if not address.is_file():
         raise NotImplementedError("Only local files are supported at the moment.")
 
-    if os.path.isfile(address) and not Path(address).is_absolute():
+    if address.is_file() and not address.is_absolute():
         logger.info(f"Converting relative path {address} to absolute path.")
         address = address.resolve()
 
     try:
-        with open(address, encoding="utf-8") as f:
+        with address.open(encoding="utf-8") as f:
             lines = f.readlines()
     except UnicodeDecodeError:
         logger.warning(f"Cannot decode file {address} as utf-8, skipping")

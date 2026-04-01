@@ -46,12 +46,11 @@ def load_config_file_params(config_path: str | None = None) -> dict:
 
     if not user_config_path:
         return {}
-    else:
-        if user_config_path and not Path(user_config_path).is_absolute():
-            logger.info("Resolving relative user config path")
-            # convert to absolute path if not already, relative to working dir
-            user_config_path = Path(user_config_path).resolve()
-        return load_config_if_exists(user_config_path)
+    if user_config_path and not Path(user_config_path).is_absolute():
+        logger.info("Resolving relative user config path")
+        # convert to absolute path if not already, relative to working dir
+        user_config_path = Path(user_config_path).resolve()
+    return load_config_if_exists(user_config_path)
 
 
 def get_env_var_name(parameter_name: str):
@@ -100,13 +99,12 @@ def load_config_if_exists(user_config_path: str | None) -> dict:
     if not Path(user_config_path).exists():
         logger.info(f"User config file {user_config_path} not found")
         return {}
-    elif not Path(user_config_path).is_file():
+    if not Path(user_config_path).is_file():
         logging.error(f"User config path {user_config_path} is not a file")
         return {}
-    else:
-        try:
-            with open(user_config_path) as user_config_file:
-                return yaml.safe_load(user_config_file)
-        except Exception as e:
-            logging.error(f"Failed to load user config file {user_config_path}: {e}")
-            return {}
+    try:
+        with Path(user_config_path).open() as user_config_file:
+            return yaml.safe_load(user_config_file)
+    except Exception:
+        logging.exception(f"Failed to load user config file {user_config_path}")
+        return {}

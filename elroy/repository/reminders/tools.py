@@ -61,10 +61,9 @@ def create_due_item(
 
     if trigger_time and trigger_context:
         return f"Hybrid due item '{name}' has been created for {trigger_time} and context: {trigger_context}."
-    elif trigger_time:
+    if trigger_time:
         return f"Timed due item '{name}' has been created for {trigger_time}."
-    else:
-        return f"Contextual due item '{name}' has been created."
+    return f"Contextual due item '{name}' has been created."
 
 
 @tool
@@ -149,9 +148,8 @@ def print_due_item(ctx: ElroyContext, name: str) -> str:
         details.append(f"Text: {due_item.text}")
 
         return "\n".join(details)
-    else:
-        valid_due_items = ",".join(sorted(get_active_due_item_names(ctx)))
-        raise RecoverableToolError(f"Due item '{name}' not found. Valid items: {valid_due_items}")
+    valid_due_items = ",".join(sorted(get_active_due_item_names(ctx)))
+    raise RecoverableToolError(f"Due item '{name}' not found. Valid items: {valid_due_items}")
 
 
 @tool

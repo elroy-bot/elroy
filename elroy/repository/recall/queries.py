@@ -17,17 +17,16 @@ from ..context_messages.data_models import ContextMessage
 def get_recall_metadata(context_message: ContextMessage, recall_type: type[EmbeddableSqlModel] | None = None) -> list[RecallMetadata]:
     if context_message.role != TOOL or not context_message.content:
         return []
-    else:
-        try:
-            return pipe(
-                context_message.content,
-                RecallResponse.model_validate_json,
-                lambda x: x.recall_metadata,
-                filter(lambda m: m.memory_type == recall_type.__name__) if recall_type else identity,
-                list,
-            )
-        except ValidationError:
-            return []
+    try:
+        return pipe(
+            context_message.content,
+            RecallResponse.model_validate_json,
+            lambda x: x.recall_metadata,
+            filter(lambda m: m.memory_type == recall_type.__name__) if recall_type else identity,
+            list,
+        )
+    except ValidationError:
+        return []
 
 
 def is_in_context_message(memory: EmbeddableSqlModel, context_message: ContextMessage) -> bool:

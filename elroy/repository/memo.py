@@ -62,11 +62,10 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
             """,
         )
 
-    else:
-        return text
+    return text
 
 
-def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:  # noqa F841
+def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:
     def _inner(ctx: ElroyContext, text: str, attempt: int = 1, prev_attempt_error_info: str | None = None) -> list[Memory | AgendaItem]:
         try:
 
@@ -128,8 +127,7 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:  
             if attempt >= 3:
                 logger.warning(f"Abandoinging ingest_memo after {attempt} attempts", exc_info=True)
                 raise
-            else:
-                attempt += 1
-                return _inner(ctx, text, attempt, f"A previous attempt at this task failed with error: {str(e)}")
+            attempt += 1
+            return _inner(ctx, text, attempt, f"A previous attempt at this task failed with error: {e!s}")
 
     return _inner(ctx, text, 1, None)

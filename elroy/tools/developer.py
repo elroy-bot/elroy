@@ -1,5 +1,6 @@
 import platform
 import sys
+from pathlib import Path
 
 from rich.table import Table
 from rich.text import Text
@@ -25,7 +26,7 @@ def tail_elroy_logs(lines: int = 10) -> str:
     Returns:
         str: The concatenated last N lines of the Elroy log file as a single string
     """
-    with open(get_log_file_path()) as f:
+    with Path(get_log_file_path()).open() as f:
         return "".join(f.readlines()[-lines:])
 
 
@@ -115,7 +116,7 @@ def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
     for section, settings in sections.items():
         for setting, value in settings.items():
             table.add_row(
-                section if setting == list(settings.keys())[0] else "",  # Only show section name once
+                section if setting == next(iter(settings.keys())) else "",  # Only show section name once
                 setting,
                 value if isinstance(value, Text) else str(value),
             )

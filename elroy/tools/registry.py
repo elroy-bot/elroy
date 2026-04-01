@@ -81,8 +81,7 @@ class ToolRegistry:
             if path.suffix != ".py":
                 logger.warning(f"Custom tool path {path} is not a Python file")
                 return
-            else:
-                file_paths = [path]
+            file_paths = [path]
         else:
             file_paths = path.glob("*.py")
 
@@ -123,8 +122,7 @@ class ToolRegistry:
         if errors:
             if raise_on_error:
                 raise ValueError(f"Invalid schema for function {func_name}:\n{json.dumps(schema)}\n" + "\n".join(errors))
-            else:
-                logger.warning(f"Invalid schema for function {func_name}:\n" + "\n".join(errors))
+            logger.warning(f"Invalid schema for function {func_name}:\n" + "\n".join(errors))
         self._schemas.append(schema)
         self.tools[func_name] = func
 
@@ -152,7 +150,7 @@ def get_module(file_path: Path) -> ModuleType:
         spec.loader.exec_module(module)
         return module
     except Exception as e:
-        raise ValueError(f"Failed to import {file_path}: {str(e)}") from e
+        raise ValueError(f"Failed to import {file_path}: {e!s}") from e
 
 
 def get_module_functions(module: ModuleType) -> Iterator[FunctionType]:

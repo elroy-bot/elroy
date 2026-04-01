@@ -73,7 +73,7 @@ class MemoryDetailModal(ModalScreen):
     }
     """
 
-    BINDINGS = [Binding("escape,enter,q", "dismiss", "Close", show=False)]
+    BINDINGS: ClassVar[list[Binding]] = [Binding("escape,enter,q", "dismiss", "Close", show=False)]
 
     def __init__(
         self,
@@ -279,7 +279,7 @@ class ElroyApp(App):
 
     def _save_to_history(self, text: str) -> None:
         try:
-            with open(get_prompt_history_path(), "a") as f:
+            with Path(get_prompt_history_path()).open("a") as f:
                 f.write(f"+{text}\n")
             self._input_history.insert(0, text)
         except Exception:

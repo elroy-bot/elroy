@@ -44,17 +44,15 @@ def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> list[tupl
 
     if not memory:
         raise RecoverableToolError(f"Memory '{memory_name}' not found for the current user.")
-    else:
-        sources = db_get_source_list_for_memory(ctx, memory)
+    sources = db_get_source_list_for_memory(ctx, memory)
 
-        if not sources:
-            return []
-        else:
-            return pipe(
-                sources,
-                map(lambda x: (x.source_type(), x.get_name())),
-                list,
-            )
+    if not sources:
+        return []
+    return pipe(
+        sources,
+        map(lambda x: (x.source_type(), x.get_name())),
+        list,
+    )
 
 
 @tool
@@ -76,14 +74,12 @@ def get_source_content_for_memory(ctx: ElroyContext, memory_name: str, index: in
     if index >= len(metadata):
         raise RecoverableToolError(f"Index {index} out of range. Available indices: {list(range(len(metadata)))}")
 
-    else:
-        source_type, source_name = metadata[index]
-        src = db_get_memory_source_by_name(ctx, source_type, source_name)
+    source_type, source_name = metadata[index]
+    src = db_get_memory_source_by_name(ctx, source_type, source_name)
 
-        if not src:
-            return f"Source not found with type: {source_type}, name: {source_name}"
-        else:
-            return f"# Source content for memory: {memory_name} ({index} / {len(metadata) - 1})\n\n" + src.to_fact()
+    if not src:
+        return f"Source not found with type: {source_type}, name: {source_name}"
+    return f"# Source content for memory: {memory_name} ({index} / {len(metadata) - 1})\n\n" + src.to_fact()
 
 
 @tool
@@ -108,19 +104,18 @@ def examine_memories(ctx: ElroyContext, question: str) -> list[str]:
     # Format context for LLM
     output = []
     if relevant_memories:
-        for memory in relevant_memories:
-            output.append(
-                f"""
+        output.extend(
+            f"""
 # Memory: {memory.name}
 
 *to view the source content this memory is based on, call tool `{get_source_content_for_memory.__name__}({memory.name}, idx)`
 
 {_memory_text_content(memory)}"""
-            )
+            for memory in relevant_memories
+        )
 
     if relevant_due_items:
-        for due_item in relevant_due_items:
-            output.append(due_item.to_fact())
+        output.extend(due_item.to_fact() for due_item in relevant_due_items)
 
     return output
 
@@ -138,8 +133,7 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
     memory = get_memory_by_name(ctx, memory_name)
     if memory:
         return memory.to_fact()
-    else:
-        return f"Memory '{memory_name}' not found for the current user."
+    return f"Memory '{memory_name}' not found for the current user."
 
 
 @user_only_tool
@@ -150,10 +144,7 @@ def print_memories(ctx: ElroyContext, n: int | None = None) -> Table | str:
         str: A formatted string containing all memories.
     """
     memories = ctx.db.exec(
-        select(Memory)
-        .where(Memory.user_id == ctx.user_id, cast(Any, Memory.is_active))
-        .order_by(desc(Memory.created_at))
-        .limit(n if n else 1000)
+        select(Memory).where(Memory.user_id == ctx.user_id, cast(Any, Memory.is_active)).order_by(desc(Memory.created_at)).limit(n or 1000)
     ).all()
 
     if not memories:
@@ -279,4 +270,5 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
 @tool
 def get_fast_recall(ctx: ElroyContext) -> str:
     """No-op tool used to acknowledge synthetic recall context."""
+    _ = ctx
     return "OK"

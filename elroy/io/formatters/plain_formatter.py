@@ -31,4 +31,4 @@ class PlainFormatter(StringFormatter):
         elif isinstance(message, dict):
             yield "\n".join(["```json", json.dumps(message, indent=2), "```"])
         else:
-            raise Exception(f"Unrecognized type: {type(message)}")
+            raise TypeError(f"Unrecognized type: {type(message)}")

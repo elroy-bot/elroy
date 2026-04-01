@@ -25,11 +25,10 @@ def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: boo
     old_full_name = user_preference.full_name or DEFAULT_USER_NAME
     if old_full_name != DEFAULT_USER_NAME and not override_existing:
         return f"Full name already set to {user_preference.full_name}. If this should be changed, set override_existing=True."
-    else:
-        user_preference.full_name = full_name
-        ctx.db.commit()
+    user_preference.full_name = full_name
+    ctx.db.commit()
 
-        return f"Full name set to {full_name}. Previous value was {old_full_name}."
+    return f"Full name set to {full_name}. Previous value was {old_full_name}."
 
 
 @tool
@@ -48,11 +47,10 @@ def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_exi
 
     if old_preferred_name != DEFAULT_USER_NAME and not override_existing:
         return f"Preferred name already set to {user_preference.preferred_name}. If this should be changed, use override_existing=True."
-    else:
-        user_preference.preferred_name = preferred_name
+    user_preference.preferred_name = preferred_name
 
-        ctx.db.commit()
-        return f"Set user preferred name to {preferred_name}. Was {old_preferred_name}."
+    ctx.db.commit()
+    return f"Set user preferred name to {preferred_name}. Was {old_preferred_name}."
 
 
 @tool

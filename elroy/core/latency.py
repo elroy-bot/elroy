@@ -124,9 +124,9 @@ def track_latency(operation: str, **metadata):
                         logger.debug(f"{operation}: {duration_ms:.0f}ms {metadata}")
 
                 return result
-            except Exception as e:
+            except Exception:
                 duration_ms = (time.perf_counter() - start) * 1000
-                logger.error(f"{operation}: {duration_ms:.0f}ms - Error: {str(e)}")
+                logger.exception(f"{operation}: {duration_ms:.0f}ms - Error")
                 raise
 
         return wrapper
@@ -151,9 +151,9 @@ def log_timing(operation: str):
                 duration_ms = (time.perf_counter() - start) * 1000
                 logger.info(f"{operation}: {duration_ms:.0f}ms")
                 return result
-            except Exception as e:
+            except Exception:
                 duration_ms = (time.perf_counter() - start) * 1000
-                logger.error(f"{operation}: {duration_ms:.0f}ms - Error: {str(e)}")
+                logger.exception(f"{operation}: {duration_ms:.0f}ms - Error")
                 raise
 
         return wrapper

@@ -214,6 +214,7 @@ def list_agenda_items(ctx: ElroyContext, item_date: str | None = None) -> str:
     Returns:
         str: A text description of agenda items.
     """
+    _ = ctx
     target_date = _parse_iso_date(item_date)
     agenda_dir = get_agenda_dir()
     items = list_agenda_items_from_dir(agenda_dir, for_date=target_date)
@@ -243,6 +244,7 @@ def list_agenda_items_cmd(ctx: ElroyContext, item_date: str | None = None) -> Ta
     Returns:
         Table: A formatted table of agenda items.
     """
+    _ = ctx
     target_date = _parse_iso_date(item_date)
 
     agenda_dir = get_agenda_dir()

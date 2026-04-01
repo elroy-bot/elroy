@@ -11,6 +11,7 @@ logger = get_logger()
 
 @contextmanager
 def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool, should_onboard_interactive: bool):
+    _ = (io, should_onboard_interactive)
     from ..cli.chat import onboard_non_interactive
     from ..repository.context_messages.operations import drop_old_context_messages
     from ..repository.user.queries import get_user_id_if_exists

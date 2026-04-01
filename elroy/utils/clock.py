@@ -36,8 +36,7 @@ def ensure_utc(dt: datetime) -> datetime:
     """Convert a datetime object to UTC if it contains time; leave date-only as naive."""
     if dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)
-    else:
-        return dt.astimezone(UTC)
+    return dt.astimezone(UTC)
 
 
 def string_to_datetime(date_string: str) -> datetime:
@@ -71,15 +70,14 @@ def string_to_datetime(date_string: str) -> datetime:
                 # UTC timezone
                 dt = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
                 return dt.replace(tzinfo=UTC)
-            elif iso_match.group(7):
+            if iso_match.group(7):
                 # Has timezone offset
                 dt = datetime.fromisoformat(date_string)
                 return dt.astimezone(UTC)
-            else:
-                # No timezone, assume local
-                dt = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S")
-                local_dt = dt.replace(tzinfo=local_tz())
-                return local_dt.astimezone(UTC)
+            # No timezone, assume local
+            dt = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S")
+            local_dt = dt.replace(tzinfo=local_tz())
+            return local_dt.astimezone(UTC)
         except ValueError:
             pass
 

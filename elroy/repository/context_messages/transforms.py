@@ -87,9 +87,8 @@ def is_context_refresh_needed(context_messages: Iterable[ContextMessage], chat_m
     if token_count > max_tokens:
         logger.info(f"Token count {token_count} exceeds threshold {max_tokens}")
         return True
-    else:
-        logger.info(f"Token count {token_count} does not exceed threshold {max_tokens}")
-        return False
+    logger.info(f"Token count {token_count} does not exceed threshold {max_tokens}")
+    return False
 
 
 def format_message(
@@ -100,11 +99,11 @@ def format_message(
     datetime_str = datetime_to_string(message.created_at)
     if message.role == SYSTEM:
         return [f"SYSTEM ({datetime_str}): {message.content}"]
-    elif message.role == USER:
+    if message.role == USER:
         user_name = user_preferred_name.upper() if user_preferred_name else "USER"
 
         return [f"{user_name} ({datetime_str}): {message.content}"]
-    elif message.role == ASSISTANT:
+    if message.role == ASSISTANT:
         msgs = []
 
         if message.content:
@@ -124,11 +123,10 @@ def format_message(
         if not message.content and not message.tool_calls:
             raise ValueError(f"Expected either message text or tool call: {message}")
         return msgs
-    elif message.role == TOOL:
+    if message.role == TOOL:
         return [f"TOOL CALL RESULT ({datetime_str}): {message.content}"]
-    else:
-        logger.warning(f"Cannot format message: {message}")
-        return []
+    logger.warning(f"Cannot format message: {message}")
+    return []
 
 
 def format_context_messages(
@@ -155,7 +153,7 @@ def format_context_messages(
         map(lambda msg: format_message(msg, user_preferred_name, assistant_name)),
         concat,
         list,
-        lambda x: ["Conversation Summary"] + x + [convo_range],
+        lambda x: ["Conversation Summary", *x, convo_range],
         "\n\n".join,
     )
 
@@ -210,10 +208,9 @@ def compress_context_messages(
                 # Can fit both, they're already counted/will be counted
                 current_token_count += msg_tokens
                 continue
-            else:
-                # Can't fit the pair, set cutoff after them
-                cutoff_idx = idx + 2
-                break
+            # Can't fit the pair, set cutoff after them
+            cutoff_idx = idx + 2
+            break
 
         # Check token budget
         if current_token_count + msg_tokens > remaining_budget:
@@ -233,7 +230,7 @@ def compress_context_messages(
 
     logger.info(f"Compression: kept {len(kept_messages)}/{len(prev_messages)} messages, {current_token_count}/{remaining_budget} tokens")
 
-    return [system_message] + kept_messages
+    return [system_message, *kept_messages]
 
 
 class ContextMessageSetWithMessages(MemorySource):
@@ -264,17 +261,15 @@ class ContextMessageSetWithMessages(MemorySource):
     def context_message_set(self) -> ContextMessageSet:
         if self._context_message_set is not None:
             return self._context_message_set
-        else:
-            self._context_message_set = self.session.exec(
-                select(ContextMessageSet).where(
-                    ContextMessageSet.id == self.id,
-                    ContextMessageSet.user_id == self.user_id,
-                )
-            ).first()
-            if not self._context_message_set:
-                raise ValueError(f"Context message set not found for ID {self.id}")
-            else:
-                return self._context_message_set
+        self._context_message_set = self.session.exec(
+            select(ContextMessageSet).where(
+                ContextMessageSet.id == self.id,
+                ContextMessageSet.user_id == self.user_id,
+            )
+        ).first()
+        if not self._context_message_set:
+            raise ValueError(f"Context message set not found for ID {self.id}")
+        return self._context_message_set
 
     def to_fact(self) -> str:
         return format_context_messages(
@@ -310,5 +305,4 @@ class ContextMessageSetWithMessages(MemorySource):
     def messages_list(self) -> list[ContextMessage]:
         if self._messages:
             return self._messages
-        else:
-            return list(self.messages)
+        return list(self.messages)

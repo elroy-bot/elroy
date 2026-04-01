@@ -3,7 +3,7 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import ClassVar, TypeVar
 
 from litellm.types.utils import Delta, ModelResponse
 from pydantic import BaseModel
@@ -139,7 +139,7 @@ class TextProcessor[T: BaseModel](ABC):
 
 
 class InternalThoughtProcessor(TextProcessor[AssistantInternalThought]):
-    tags: list[TagSet] = [TagSet("<internal_thought>", "</internal_thought>"), TagSet("<think>", "</think>")]
+    tags: ClassVar[list[TagSet]] = [TagSet("<internal_thought>", "</internal_thought>"), TagSet("<think>", "</think>")]
     first_non_whitespace_emitted: bool = False
 
     def activate(self, begin_tag: str):
@@ -169,7 +169,7 @@ class InternalThoughtProcessor(TextProcessor[AssistantInternalThought]):
 class CodeBlockProcessor(TextProcessor[CodeBlock]):
     """Processes Markdown-style code blocks with backticks"""
 
-    tags = [TagSet("```", "```")]  # Using backticks as tag
+    tags: ClassVar[list[TagSet]] = [TagSet("```", "```")]  # Using backticks as tag
 
     def __init__(self):
         super().__init__()
@@ -219,7 +219,7 @@ class CodeBlockProcessor(TextProcessor[CodeBlock]):
 
 
 class InlineToolCallProcessor(TextProcessor[FunctionCall]):
-    tags = [TagSet("<tool_call>", "</tool_call>")]
+    tags: ClassVar[list[TagSet]] = [TagSet("<tool_call>", "</tool_call>")]
 
     def maybe_consume_buffer(self) -> Generator[FunctionCall, None, None]:
         tool_call = to_openai_tool_call(self.buffer)
@@ -243,7 +243,7 @@ class InlineToolCallProcessor(TextProcessor[FunctionCall]):
 class AssistantResponseProcessor:
     """Processes regular text output with proper whitespace handling"""
 
-    tags: list[TagSet] = []  # No tags since this handles regular text
+    tags: ClassVar[list[TagSet]] = []  # No tags since this handles regular text
     first_non_whitespace_emitted: bool = False
 
     def __init__(self):
