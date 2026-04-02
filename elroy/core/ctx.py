@@ -12,6 +12,7 @@ from toolz.curried import dissoc
 from ..cli.options import DEPRECATED_KEYS, get_resolved_params, resolve_model_alias
 from ..config.llm import (
     ChatModel,
+    EmbeddingApiConfig,
     EmbeddingModel,
     get_chat_model,
     get_embedding_model,
@@ -353,11 +354,13 @@ class ElroyContext:
         return get_embedding_model(
             model_name=self.model_config.embedding_model,
             embedding_size=self.model_config.embedding_model_size,
-            api_key=self.model_config.embedding_model_api_key,
-            api_base=self.model_config.embedding_model_api_base,
-            openai_embedding_api_base=self.model_config.openai_embedding_api_base,
-            openai_api_key=self.model_config.openai_api_key,
-            openai_api_base=self.model_config.openai_api_base,
+            api_config=EmbeddingApiConfig(
+                api_key=self.model_config.embedding_model_api_key,
+                api_base=self.model_config.embedding_model_api_base,
+                openai_embedding_api_base=self.model_config.openai_embedding_api_base,
+                openai_api_key=self.model_config.openai_api_key,
+                openai_api_base=self.model_config.openai_api_base,
+            ),
             enable_caching=self.model_config.enable_caching,
         )
 

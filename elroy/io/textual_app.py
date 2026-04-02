@@ -731,87 +731,101 @@ class ElroyApp(App):
         if self._browse_mode:
             self._focus_browse_target()
 
+    def _build_memory_modal(self, entry: RightPanelEntry) -> tuple[str, str, Callable[[], None] | None, Callable[[], None] | None] | None:
+        from ..db.db_models import EmbeddableSqlModel
+        from ..repository.memories.operations import mark_inactive
+        from ..repository.memories.queries import db_get_memory_source_by_name
+
+        if ": " not in entry.lookup_key:
+            return None
+        source_type, name = entry.lookup_key.split(": ", 1)
+        source = db_get_memory_source_by_name(self.ctx, source_type, name)
+        if not source:
+            return None
+
+        on_delete = None
+        if isinstance(source, EmbeddableSqlModel):
+
+            def on_delete(s=source) -> None:
+                mark_inactive(self.ctx, s)
+                self._refresh_memory_panel()
+
+        return name, source.to_fact(), on_delete, None
+
+    def _build_agenda_modal_content(self, task) -> str:
+        from pathlib import Path
+
+        from ..repository.agenda.file_storage import get_checklist, read_agenda_metadata
+
+        metadata = read_agenda_metadata(Path(task.file_path))
+        checklist = get_checklist(Path(task.file_path))
+        lines: list[str] = []
+
+        item_date = metadata.get("date")
+        if item_date:
+            lines.append(f"Date: {item_date}")
+        if task.trigger_datetime:
+            lines.append(f"Trigger Time: {task.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+        if task.trigger_context:
+            lines.append(f"Trigger Context: {task.trigger_context}")
+        if task.status != "created":
+            lines.append(f"Status: {task.status}")
+        if task.closing_comment:
+            lines.append(f"Closing Comment: {task.closing_comment}")
+        if checklist:
+            completed_count = sum(1 for item in checklist if item["completed"])
+            lines.append(f"Checklist: {completed_count}/{len(checklist)} complete")
+
+        body_lines = task.text.splitlines()
+        if body_lines and body_lines[0].strip() == task.name.strip():
+            body_lines = body_lines[1:]
+            while body_lines and not body_lines[0].strip():
+                body_lines = body_lines[1:]
+        body = "\n".join(body_lines).strip()
+        if body:
+            lines.append(body)
+        return "\n\n".join(lines) if lines else task.text
+
+    def _build_agenda_modal(self, entry: RightPanelEntry) -> tuple[str, str, Callable[[], None] | None, Callable[[], None] | None]:
+        from ..repository.reminders.operations import do_delete_due_item
+        from ..repository.tasks.operations import complete_task
+        from ..repository.tasks.queries import get_task_by_name
+
+        title = entry.title
+        content = entry.content
+        on_delete = None
+        on_complete = None
+        task = get_task_by_name(self.ctx, entry.lookup_key)
+        if task:
+            title = task.name
+            content = self._build_agenda_modal_content(task)
+            if task.status == "created":
+
+                def on_complete(name=entry.lookup_key) -> None:
+                    complete_task(self.ctx, name)
+                    self._refresh_memory_panel()
+
+        if entry.deletable:
+
+            def on_delete(name=entry.lookup_key) -> None:
+                do_delete_due_item(self.ctx, name)
+                self._refresh_memory_panel()
+
+        return title, content, on_delete, on_complete
+
     def _open_panel_entry(self, buffer_name: str, index: int) -> None:
         entries = self._panel_entries[buffer_name]
         if not (0 <= index < len(entries)):
             return
         entry = entries[index]
-        on_delete = None
-        on_complete = None
         if buffer_name == "memories":
-            from ..db.db_models import EmbeddableSqlModel
-            from ..repository.memories.operations import mark_inactive
-            from ..repository.memories.queries import db_get_memory_source_by_name
-
-            type_key = entry.lookup_key
-            if ": " not in type_key:
+            modal = self._build_memory_modal(entry)
+            if modal is None:
                 return
-            source_type, name = type_key.split(": ", 1)
-            source = db_get_memory_source_by_name(self.ctx, source_type, name)
-            if not source:
-                return
-            content = source.to_fact()
-            if isinstance(source, EmbeddableSqlModel):
-
-                def on_delete(s=source) -> None:
-                    mark_inactive(self.ctx, s)
-                    self._refresh_memory_panel()
-
-            title = name
         else:
-            from pathlib import Path
+            modal = self._build_agenda_modal(entry)
 
-            from ..repository.agenda.file_storage import get_checklist, read_agenda_metadata
-            from ..repository.reminders.operations import do_delete_due_item
-            from ..repository.tasks.operations import complete_task
-            from ..repository.tasks.queries import get_task_by_name
-
-            title = entry.title
-            content = entry.content
-            task = get_task_by_name(self.ctx, entry.lookup_key)
-            if task:
-                title = task.name
-                metadata = read_agenda_metadata(Path(task.file_path))
-                checklist = get_checklist(Path(task.file_path))
-                lines: list[str] = []
-
-                item_date = metadata.get("date")
-                if item_date:
-                    lines.append(f"Date: {item_date}")
-                if task.trigger_datetime:
-                    lines.append(f"Trigger Time: {task.trigger_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
-                if task.trigger_context:
-                    lines.append(f"Trigger Context: {task.trigger_context}")
-                if task.status != "created":
-                    lines.append(f"Status: {task.status}")
-                if task.closing_comment:
-                    lines.append(f"Closing Comment: {task.closing_comment}")
-                if checklist:
-                    completed_count = sum(1 for item in checklist if item["completed"])
-                    lines.append(f"Checklist: {completed_count}/{len(checklist)} complete")
-
-                body_lines = task.text.splitlines()
-                if body_lines and body_lines[0].strip() == task.name.strip():
-                    body_lines = body_lines[1:]
-                    while body_lines and not body_lines[0].strip():
-                        body_lines = body_lines[1:]
-                body = "\n".join(body_lines).strip()
-                if body:
-                    lines.append(body)
-                content = "\n\n".join(lines) if lines else task.text
-
-                if task.status == "created":
-
-                    def on_complete(name=entry.lookup_key) -> None:
-                        complete_task(self.ctx, name)
-                        self._refresh_memory_panel()
-
-            if entry.deletable:
-
-                def on_delete(name=entry.lookup_key) -> None:
-                    do_delete_due_item(self.ctx, name)
-                    self._refresh_memory_panel()
-
+        title, content, on_delete, on_complete = modal
         self.push_screen(MemoryDetailModal(title, content, on_delete=on_delete, on_complete=on_complete))
 
     def _accept_input_completion(self) -> None:

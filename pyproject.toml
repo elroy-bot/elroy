@@ -109,9 +109,9 @@ ignore = [
 max-complexity = 10
 
 [tool.ruff.lint.pylint]
-max-branches = 18
-max-args = 8
-max-statements = 70
+max-branches = 16
+max-args = 7
+max-statements = 60
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ARG001", "ARG002", "C901", "TRY003"]
