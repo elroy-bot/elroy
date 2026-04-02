@@ -24,6 +24,72 @@ from .stream_parser import StreamParser
 logger = get_logger()
 
 
+def _normalize_context_messages(context_messages: list[ContextMessage]) -> list[dict[str, Any]]:
+    return pipe(
+        context_messages,
+        map(asdict),
+        map(keyfilter(lambda k: k not in ("id", "created_at", "memory_metadata", "chat_model"))),
+        map(lambda d: dissoc(d, "tool_calls") if not d.get("tool_calls") else d),
+        list,
+    )
+
+
+def _ensure_last_message_is_not_assistant(
+    context_messages: list[ContextMessage],
+    force_tool: str | None,
+    chat_model_name: str,
+) -> None:
+    if context_messages[-1].role != ASSISTANT:
+        return
+    if not force_tool:
+        raise ValueError("Assistant message already the most recent message")
+    context_messages.append(
+        ContextMessage(
+            role=USER,
+            content=f"User is requesting tool call: {force_tool}",
+            chat_model=chat_model_name,
+        )
+    )
+
+
+def _rewrite_system_messages_for_alternating_roles(context_message_dicts: list[dict[str, Any]]) -> None:
+    user_hidden_prefix = "[This is a system message, representing internal thought process of the assistant]"
+    for idx, message in enumerate(context_message_dicts):
+        assert isinstance(message, dict)
+        if idx == 0:
+            assert message["role"] == SYSTEM, "First message must be a system message, but found: " + message["role"]
+        if idx != 0 and message["role"] == SYSTEM:
+            message["role"] = USER
+            message["content"] = f"{user_hidden_prefix} {message['content']}"
+
+
+def _get_tool_settings(
+    *,
+    enable_tools: bool,
+    tool_schemas: list[dict[str, Any]],
+    force_tool: str | None,
+    provider: Provider,
+    chat_model_name: str,
+    context_messages: list[ContextMessage],
+) -> tuple[str | dict | None, list[dict[str, Any]] | None]:
+    if enable_tools and tool_schemas:
+        if not force_tool:
+            return "auto", tool_schemas
+        if not any(t["function"]["name"] == force_tool for t in tool_schemas):
+            avaliable_tools = ", ".join(t["function"]["name"] for t in tool_schemas)
+            raise InvalidForceToolError(f"Requested tool {force_tool} not available. Available tools: {avaliable_tools}")
+        return {"type": "function", "function": {"name": force_tool}}, tool_schemas
+
+    if force_tool:
+        raise ValueError(f"Requested tool {force_tool} but model {chat_model_name} does not support tools")
+    if provider == Provider.ANTHROPIC and any(m.role == TOOL for m in context_messages):
+        from ..tools.registry import do_not_use
+        from ..tools.schema import get_function_schema
+
+        return "auto", [get_function_schema(do_not_use)]
+    return None, None
+
+
 class LlmClient:
     def __init__(self, chat_model: ChatModel, embedding_model: EmbeddingModel):
         self.chat_model = chat_model
@@ -52,69 +118,27 @@ class LlmClient:
         from litellm import completion
         from litellm.exceptions import BadRequestError
 
-        if context_messages[-1].role == ASSISTANT:
-            if force_tool:
-                context_messages.append(
-                    ContextMessage(
-                        role=USER,
-                        content=f"User is requesting tool call: {force_tool}",
-                        chat_model=self.chat_model.name,
-                    )
-                )
-            else:
-                raise ValueError("Assistant message already the most recent message")
-
-        context_message_dicts = pipe(
-            context_messages,
-            map(asdict),
-            map(keyfilter(lambda k: k not in ("id", "created_at", "memory_metadata", "chat_model"))),
-            map(lambda d: dissoc(d, "tool_calls") if not d.get("tool_calls") else d),
-            list,
-        )
+        _ensure_last_message_is_not_assistant(context_messages, force_tool, self.chat_model.name)
+        context_message_dicts = _normalize_context_messages(context_messages)
 
         if self.chat_model.ensure_alternating_roles:
-            user_hidden_prefix = "[This is a system message, representing internal thought process of the assistant]"
-            for idx, message in enumerate(context_message_dicts):
-                assert isinstance(message, dict)
+            _rewrite_system_messages_for_alternating_roles(context_message_dicts)
 
-                if idx == 0:
-                    assert message["role"] == SYSTEM, "First message must be a system message, but found: " + message["role"]
-
-                if idx != 0 and message["role"] == SYSTEM:
-                    message["role"] = USER
-                    message["content"] = f"{user_hidden_prefix} {message['content']}"
-
-        if enable_tools and tool_schemas and len(tool_schemas) > 0:
-            if force_tool:
-                if len(tool_schemas) == 0:
-                    raise InvalidForceToolError(f"Requested tool {force_tool}, but not tools available")
-                if not any(t["function"]["name"] == force_tool for t in tool_schemas):
-                    avaliable_tools = ", ".join([t["function"]["name"] for t in tool_schemas])
-                    raise InvalidForceToolError(f"Requested tool {force_tool} not available. Available tools: {avaliable_tools}")
-                tool_choice = {"type": "function", "function": {"name": force_tool}}
-            else:
-                tool_choice = "auto"
-        else:
-            if force_tool:
-                raise ValueError(f"Requested tool {force_tool} but model {self.chat_model.name} does not support tools")
-            if self.chat_model.provider == Provider.ANTHROPIC and any(m.role == TOOL for m in context_messages):
-                # If tool use is in the context window, anthropic requires tools to be enabled and provided
-                from ..tools.registry import do_not_use
-                from ..tools.schema import get_function_schema
-
-                tool_choice = "auto"
-                tool_schemas = [get_function_schema(do_not_use)]
-            else:
-                tool_choice = None
-                # Models are inconsistent on whether they want None or an empty list when tools are disabled, but most often None seems correct.
-                tool_schemas = None  # type: ignore
+        tool_choice, resolved_tool_schemas = _get_tool_settings(
+            enable_tools=enable_tools,
+            tool_schemas=tool_schemas,
+            force_tool=force_tool,
+            provider=self.chat_model.provider,
+            chat_model_name=self.chat_model.name,
+            context_messages=context_messages,
+        )
 
         try:
             completion_kwargs = self._build_completion_kwargs(
                 messages=context_message_dicts,
                 stream=True,
                 tool_choice=tool_choice,
-                tools=tool_schemas,
+                tools=resolved_tool_schemas,
             )
 
             return StreamParser(self.chat_model, completion(**completion_kwargs))

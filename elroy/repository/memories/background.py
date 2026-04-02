@@ -21,6 +21,101 @@ from .file_storage import (
 logger = get_logger()
 
 
+def _index_disk_memory_files(disk_files: list[Path]) -> tuple[dict[int, Path], dict[Path, dict[str, Any]]]:
+    disk_id_to_path: dict[int, Path] = {}
+    disk_path_to_fm: dict[Path, dict[str, Any]] = {}
+    for path in disk_files:
+        fm = read_memory_frontmatter(path)
+        disk_path_to_fm[path] = fm
+        if "id" not in fm:
+            continue
+        try:
+            disk_id_to_path[int(fm["id"])] = path
+        except (ValueError, TypeError):
+            continue
+    return disk_id_to_path, disk_path_to_fm
+
+
+def _load_db_file_memories(ctx: ElroyContext) -> list[Memory]:
+    return list(
+        ctx.db.exec(
+            select(Memory).where(
+                Memory.user_id == ctx.user_id,
+                cast(Any, Memory.is_active),
+                Memory.file_path.is_not(None),  # type: ignore[union-attr]
+            )
+        ).all()
+    )
+
+
+def _sync_new_disk_files(ctx: ElroyContext, disk_files: list[Path], disk_path_to_fm: dict[Path, dict[str, Any]]) -> None:
+    from .operations import do_create_memory
+
+    for path in disk_files:
+        fm = disk_path_to_fm[path]
+        if "id" in fm:
+            continue
+        text = read_memory_text(path)
+        name = path.stem.replace("_", " ")
+        try:
+            memory = do_create_memory(ctx, name, text, [], False)
+            assert memory.id is not None
+            if memory.file_path and memory.file_path != str(path):
+                new_path = Path(memory.file_path)
+                if new_path.exists() and new_path != path:
+                    new_path.unlink()
+                memory.file_path = str(path)
+                ctx.db.add(memory)
+                ctx.db.commit()
+            write_id_to_frontmatter(path, memory.id)
+            logger.info(f"Created new memory from file {path.name}: id={memory.id}")
+        except Exception as e:
+            logger.error(f"Failed to create memory from file {path}: {e}", exc_info=True)
+
+
+def _sync_existing_disk_files(ctx: ElroyContext, disk_id_to_path: dict[int, Path], db_id_to_memory: dict[int, Memory]) -> None:
+    from ..recall.operations import upsert_embedding_if_needed
+
+    for mid, disk_path in disk_id_to_path.items():
+        db_memory = db_id_to_memory.get(mid)
+        if db_memory is None:
+            logger.warning(f"File {disk_path.name} has id={mid} but no active memory found in DB; ignoring")
+            continue
+
+        renamed = db_memory.file_path != str(disk_path)
+        if renamed:
+            old_name = db_memory.name
+            db_memory.file_path = str(disk_path)
+            db_memory.name = disk_path.stem.replace("_", " ")
+            ctx.db.add(db_memory)
+            ctx.db.commit()
+            logger.info(f"Memory {mid} renamed: {old_name!r} -> {db_memory.name!r}, path updated")
+
+        try:
+            upsert_embedding_if_needed(ctx, db_memory)
+        except Exception as e:
+            logger.error(f"Failed to re-embed memory {mid} from file {disk_path}: {e}", exc_info=True)
+
+
+def _mark_missing_disk_files(ctx: ElroyContext, db_file_memories: list[Memory]) -> None:
+    from .operations import mark_inactive
+
+    for db_memory in db_file_memories:
+        if not db_memory.file_path:
+            continue
+        db_path = Path(db_memory.file_path)
+        if db_path.exists():
+            continue
+        logger.info(f"Memory file disappeared: {db_path.name}; marking memory {db_memory.id} inactive")
+        db_memory.file_path = None
+        ctx.db.add(db_memory)
+        ctx.db.commit()
+        try:
+            mark_inactive(ctx, db_memory)
+        except Exception as e:
+            logger.error(f"Failed to mark memory {db_memory.id} inactive: {e}", exc_info=True)
+
+
 def sync_memory_files(ctx: ElroyContext) -> None:
     """Sync memory files in memory_dir with the DB.
 
@@ -30,9 +125,6 @@ def sync_memory_files(ctx: ElroyContext) -> None:
     - Content changes (same path, different md5): re-embed
     - Disappeared files (DB has file_path, file gone): mark inactive
     """
-    from ..recall.operations import upsert_embedding_if_needed
-    from .operations import do_create_memory, mark_inactive
-
     memory_dir = ctx.memory_dir_path
     if not memory_dir:
         return
@@ -40,110 +132,13 @@ def sync_memory_files(ctx: ElroyContext) -> None:
     status_key = f"memory_sync_{ctx.user_id}"
     set_background_status(status_key, "syncing memories...")
 
-    # Scan all .md files in memory_dir root (non-recursive, skip archive/)
     disk_files: list[Path] = [p for p in memory_dir.glob("*.md") if p.is_file()]
-
-    # Build index: id -> path from frontmatter
-    disk_id_to_path: dict[int, Path] = {}
-    disk_path_to_fm: dict[Path, dict[str, Any]] = {}
-    for path in disk_files:
-        fm = read_memory_frontmatter(path)
-        disk_path_to_fm[path] = fm
-        if "id" in fm:
-            try:
-                mid = int(fm["id"])
-                disk_id_to_path[mid] = path
-            except (ValueError, TypeError):
-                pass
-
-    # Load all file-backed memories from DB for this user
-    db_file_memories: list[Memory] = list(
-        ctx.db.exec(
-            select(Memory).where(
-                Memory.user_id == ctx.user_id,
-                cast(Any, Memory.is_active),
-                Memory.file_path.is_not(None),  # type: ignore[union-attr]
-            )
-        ).all()
-    )
-    # Index by id
+    disk_id_to_path, disk_path_to_fm = _index_disk_memory_files(disk_files)
+    db_file_memories = _load_db_file_memories(ctx)
     db_id_to_memory: dict[int, Memory] = {m.id: m for m in db_file_memories if m.id}
-
-    # --- Handle new files (no frontmatter id) ---
-    for path in disk_files:
-        fm = disk_path_to_fm[path]
-        if "id" not in fm:
-            # New file created outside Elroy
-            text = read_memory_text(path)
-            name = path.stem.replace("_", " ")
-            try:
-                memory = do_create_memory(ctx, name, text, [], False)
-                assert memory.id is not None
-                # Write id back to frontmatter. If memory_dir is set,
-                # do_create_memory will have written the file already at a
-                # possibly different path. For externally-created files we
-                # need to update the file_path in DB and write the id to the
-                # original file.
-                if memory.file_path and memory.file_path != str(path):
-                    # do_create_memory wrote a new file; remove it and use the
-                    # original file instead.
-                    new_path = Path(memory.file_path)
-                    if new_path.exists() and new_path != path:
-                        new_path.unlink()
-                    memory.file_path = str(path)
-                    ctx.db.add(memory)
-                    ctx.db.commit()
-                    write_id_to_frontmatter(path, memory.id)
-                else:
-                    write_id_to_frontmatter(path, memory.id)
-                logger.info(f"Created new memory from file {path.name}: id={memory.id}")
-            except Exception as e:
-                logger.error(f"Failed to create memory from file {path}: {e}", exc_info=True)
-            continue
-
-    # --- Handle renames and content changes for files with ids ---
-    for mid, disk_path in disk_id_to_path.items():
-        db_memory = db_id_to_memory.get(mid)
-        if db_memory is None:
-            # Memory id not found in DB (may have been deleted externally or id is wrong)
-            logger.warning(f"File {disk_path.name} has id={mid} but no active memory found in DB; ignoring")
-            continue
-
-        db_file_path = db_memory.file_path
-        renamed = db_file_path != str(disk_path)
-
-        if renamed:
-            # Rename: update file_path and name in DB
-            old_name = db_memory.name
-            new_name = disk_path.stem.replace("_", " ")
-            db_memory.file_path = str(disk_path)
-            db_memory.name = new_name
-            ctx.db.add(db_memory)
-            ctx.db.commit()
-            logger.info(f"Memory {mid} renamed: {old_name!r} -> {new_name!r}, path updated")
-
-        # Check content change via re-embedding (upsert_embedding_if_needed compares md5)
-        try:
-            upsert_embedding_if_needed(ctx, db_memory)
-        except Exception as e:
-            logger.error(f"Failed to re-embed memory {mid} from file {disk_path}: {e}", exc_info=True)
-
-    # --- Handle disappeared files ---
-    for db_memory in db_file_memories:
-        if not db_memory.file_path:
-            continue
-        db_path = Path(db_memory.file_path)
-        if not db_path.exists():
-            # File gone — mark inactive, no archive (file is already gone)
-            logger.info(f"Memory file disappeared: {db_path.name}; marking memory {db_memory.id} inactive")
-            # Temporarily clear file_path so mark_inactive doesn't try to archive
-            db_memory.file_path = None
-            ctx.db.add(db_memory)
-            ctx.db.commit()
-            try:
-                mark_inactive(ctx, db_memory)
-            except Exception as e:
-                logger.error(f"Failed to mark memory {db_memory.id} inactive: {e}", exc_info=True)
+    _sync_new_disk_files(ctx, disk_files, disk_path_to_fm)
+    _sync_existing_disk_files(ctx, disk_id_to_path, db_id_to_memory)
+    _mark_missing_disk_files(ctx, db_file_memories)
 
     clear_background_status(status_key)
 

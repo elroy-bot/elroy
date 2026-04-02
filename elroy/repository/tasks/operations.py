@@ -9,6 +9,7 @@ from ...db.db_models import AgendaItem
 from ...utils.clock import utc_now
 from ...utils.utils import is_blank
 from ..agenda.file_storage import (
+    AgendaFileMetadata,
     get_agenda_file_path,
     read_agenda_metadata,
     update_agenda_body,
@@ -52,9 +53,11 @@ def create_task(
         name,
         text,
         target_date,
-        trigger_datetime=trigger_datetime,
-        trigger_context=trigger_context,
-        status="created",
+        AgendaFileMetadata(
+            trigger_datetime=trigger_datetime,
+            trigger_context=trigger_context,
+            status="created",
+        ),
     )
     row = ctx.db.persist(
         AgendaItem(

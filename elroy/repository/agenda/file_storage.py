@@ -1,5 +1,6 @@
 """File storage helpers for agenda items."""
 
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -45,27 +46,33 @@ def _coerce_datetime(raw_value: Any) -> datetime | None:
         return None
 
 
+@dataclass(frozen=True)
+class AgendaFileMetadata:
+    completed: bool = False
+    checklist: list[dict[str, Any]] | None = None
+    trigger_datetime: datetime | None = None
+    trigger_context: str | None = None
+    status: str | None = None
+    closing_comment: str | None = None
+
+
 def _build_file_content(
     text: str,
     item_date: date,
-    completed: bool = False,
-    checklist: list[dict[str, Any]] | None = None,
-    trigger_datetime: datetime | None = None,
-    trigger_context: str | None = None,
-    status: str | None = None,
-    closing_comment: str | None = None,
+    metadata: AgendaFileMetadata | None = None,
 ) -> str:
-    fm: dict[str, Any] = {"date": item_date.isoformat(), "completed": completed}
-    if checklist:
-        fm["checklist"] = checklist
-    if trigger_datetime is not None:
-        fm["trigger_datetime"] = trigger_datetime
-    if trigger_context:
-        fm["trigger_context"] = trigger_context
-    if status:
-        fm["status"] = status
-    if closing_comment:
-        fm["closing_comment"] = closing_comment
+    metadata = metadata or AgendaFileMetadata()
+    fm: dict[str, Any] = {"date": item_date.isoformat(), "completed": metadata.completed}
+    if metadata.checklist:
+        fm["checklist"] = metadata.checklist
+    if metadata.trigger_datetime is not None:
+        fm["trigger_datetime"] = metadata.trigger_datetime
+    if metadata.trigger_context:
+        fm["trigger_context"] = metadata.trigger_context
+    if metadata.status:
+        fm["status"] = metadata.status
+    if metadata.closing_comment:
+        fm["closing_comment"] = metadata.closing_comment
     frontmatter_str = yaml.dump(fm, default_flow_style=False).strip()
     return f"---\n{frontmatter_str}\n---\n\n{text}"
 
@@ -94,28 +101,11 @@ def write_agenda_item_with_metadata(
     name: str,
     text: str,
     item_date: date,
-    *,
-    completed: bool = False,
-    checklist: list[dict[str, Any]] | None = None,
-    trigger_datetime: datetime | None = None,
-    trigger_context: str | None = None,
-    status: str | None = None,
-    closing_comment: str | None = None,
+    metadata: AgendaFileMetadata | None = None,
 ) -> Path:
     """Write a new agenda item file with optional due-item metadata. Returns the path."""
     path = get_agenda_file_path(agenda_dir, name)
-    path.write_text(
-        _build_file_content(
-            text,
-            item_date,
-            completed=completed,
-            checklist=checklist,
-            trigger_datetime=trigger_datetime,
-            trigger_context=trigger_context,
-            status=status,
-            closing_comment=closing_comment,
-        )
-    )
+    path.write_text(_build_file_content(text, item_date, metadata))
     return path
 
 
@@ -138,14 +128,18 @@ def update_agenda_body(path: Path, text: str) -> None:
         _build_file_content(
             text,
             parsed_date,
-            completed=bool(frontmatter.get("completed")),
-            checklist=_normalize_checklist(frontmatter.get("checklist")),
-            trigger_datetime=_coerce_datetime(frontmatter.get("trigger_datetime")),
-            trigger_context=str(frontmatter["trigger_context"])
-            if frontmatter.get("trigger_context")
-            else (str(frontmatter["reminder_context"]) if frontmatter.get("reminder_context") else None),
-            status=str(frontmatter["status"]) if frontmatter.get("status") else None,
-            closing_comment=str(frontmatter["closing_comment"]) if frontmatter.get("closing_comment") else None,
+            AgendaFileMetadata(
+                completed=bool(frontmatter.get("completed")),
+                checklist=_normalize_checklist(frontmatter.get("checklist")),
+                trigger_datetime=_coerce_datetime(frontmatter.get("trigger_datetime")),
+                trigger_context=(
+                    str(frontmatter["trigger_context"])
+                    if frontmatter.get("trigger_context")
+                    else (str(frontmatter["reminder_context"]) if frontmatter.get("reminder_context") else None)
+                ),
+                status=str(frontmatter["status"]) if frontmatter.get("status") else None,
+                closing_comment=str(frontmatter["closing_comment"]) if frontmatter.get("closing_comment") else None,
+            ),
         )
     )
 
@@ -230,14 +224,18 @@ def append_agenda_update(path: Path, note: str, timestamp: datetime | None = Non
         _build_file_content(
             "\n\n".join(new_body_parts).strip(),
             parsed_date,
-            completed=bool(frontmatter.get("completed")),
-            checklist=get_checklist(path),
-            trigger_datetime=_coerce_datetime(frontmatter.get("trigger_datetime")),
-            trigger_context=str(frontmatter["trigger_context"])
-            if frontmatter.get("trigger_context")
-            else (str(frontmatter["reminder_context"]) if frontmatter.get("reminder_context") else None),
-            status=str(frontmatter["status"]) if frontmatter.get("status") else None,
-            closing_comment=str(frontmatter["closing_comment"]) if frontmatter.get("closing_comment") else None,
+            AgendaFileMetadata(
+                completed=bool(frontmatter.get("completed")),
+                checklist=get_checklist(path),
+                trigger_datetime=_coerce_datetime(frontmatter.get("trigger_datetime")),
+                trigger_context=(
+                    str(frontmatter["trigger_context"])
+                    if frontmatter.get("trigger_context")
+                    else (str(frontmatter["reminder_context"]) if frontmatter.get("reminder_context") else None)
+                ),
+                status=str(frontmatter["status"]) if frontmatter.get("status") else None,
+                closing_comment=str(frontmatter["closing_comment"]) if frontmatter.get("closing_comment") else None,
+            ),
         )
     )
     return used_timestamp

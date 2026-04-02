@@ -91,6 +91,9 @@ select = [
     "PERF",# perflint
     "FURB",# refurb suggestions
     "C90", # mccabe complexity
+    "PLR0912", # too many branches
+    "PLR0913", # too many arguments
+    "PLR0915", # too many statements
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
@@ -105,9 +108,15 @@ ignore = [
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
+[tool.ruff.lint.pylint]
+max-branches = 18
+max-args = 8
+max-statements = 70
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ARG001", "ARG002", "C901", "TRY003"]
 "elroy/db/sqlite/alembic/env.py" = ["ARG001"]
+"elroy/core/ctx.py" = ["PLR0913"]
 "elroy/io/textual_app.py" = ["C901"]
 "elroy/llm/client.py" = ["C901"]
 "elroy/messenger/messenger.py" = ["C901"]
