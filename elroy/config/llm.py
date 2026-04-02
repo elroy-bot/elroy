@@ -57,6 +57,15 @@ class EmbeddingModel:
     api_base: str | None = None
 
 
+@dataclass
+class EmbeddingApiConfig:
+    api_key: str | None
+    api_base: str | None
+    openai_api_key: str | None
+    openai_api_base: str | None
+    openai_embedding_api_base: str | None
+
+
 def infer_chat_model_name() -> str:
     if os.environ.get("ANTHROPIC_API_KEY"):
         return CLAUDE_3_5_SONNET
@@ -104,17 +113,15 @@ def get_chat_model(
 def get_embedding_model(
     model_name: str,
     embedding_size: int,
-    api_key: str | None,  # recommended key to pass in
-    api_base: str | None,  # recommended base to pass in
-    openai_api_key: str | None,  # supported for backwards compatibility
-    openai_api_base: str | None,  # supported for backwards compatibility
-    openai_embedding_api_base: str | None,  # supported for backwards compatibility
+    api_config: EmbeddingApiConfig,
     enable_caching: bool,
 ) -> EmbeddingModel:
+    api_key = api_config.api_key
+    api_base = api_config.api_base
 
     if get_provider(model_name, api_base) == Provider.OPENAI:
-        api_key = api_key or openai_api_key
-        api_base = api_base or openai_embedding_api_base or openai_api_base
+        api_key = api_key or api_config.openai_api_key
+        api_base = api_base or api_config.openai_embedding_api_base or api_config.openai_api_base
 
     return EmbeddingModel(
         name=model_name,
