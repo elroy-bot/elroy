@@ -1,6 +1,7 @@
 """Textual TUI for Elroy chat interface."""
 
 import re
+import sys
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import timedelta
 from pathlib import Path
@@ -15,6 +16,7 @@ from textual.screen import ModalScreen
 from textual.suggester import SuggestFromList
 from textual.widgets import Input, Label, ListItem, ListView, RichLog, Static
 
+from .. import __version__
 from ..config.paths import get_prompt_history_path
 from ..core.constants import EXIT, USER
 from ..core.ctx import ElroyContext
@@ -237,7 +239,7 @@ class ElroyApp(App):
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
-        Binding("ctrl+d", "quit", "Exit"),
+        Binding("ctrl+d", "quit", "Exit", priority=True),
         Binding("ctrl+c", "cancel_stream", "Cancel", show=False),
         Binding("f2", "toggle_memory", "Memory Panel"),
     ]
@@ -817,9 +819,23 @@ def make_app(**overrides) -> ElroyApp:
     )
 
 
-def main() -> None:
+def _handle_cli_command(argv: list[str]) -> bool:
+    if not argv:
+        return False
+
+    if argv[0] in {"version", "--version", "-V"}:
+        print(__version__)
+        return True
+
+    return False
+
+
+def main(argv: list[str] | None = None) -> None:
     from ..core.logging import setup_file_logging
     from ..core.session import init_elroy_session
+
+    if _handle_cli_command(list(sys.argv[1:] if argv is None else argv)):
+        return
 
     setup_file_logging()
     app = make_app()
