@@ -8,6 +8,81 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
+      "name": "add_agenda_checklist_item",
+      "description": "Add a checklist sub-task to an agenda item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "item_name": {
+            "type": "string",
+            "description": "Agenda item stem or a unique substring match."
+          },
+          "text": {
+            "type": "string",
+            "description": "Checklist item text."
+          },
+          "due_date": {
+            "type": "string",
+            "description": "Optional ISO date string (YYYY-MM-DD)."
+          }
+        },
+        "required": [
+          "item_name",
+          "text"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "add_agenda_item",
+      "description": "Add a new agenda item for a given date (defaults to today).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The agenda item text."
+          },
+          "item_date": {
+            "type": "string",
+            "description": "ISO 8601 date string (YYYY-MM-DD). Defaults to today."
+          }
+        },
+        "required": [
+          "text"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "add_agenda_item_update",
+      "description": "Append a timestamped progress note to an agenda item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "item_name": {
+            "type": "string",
+            "description": "Agenda item stem or a unique substring match."
+          },
+          "note": {
+            "type": "string",
+            "description": "Update text to append."
+          }
+        },
+        "required": [
+          "item_name",
+          "note"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "add_memory_to_current_context",
       "description": "Adds memory with the given name to the current conversation context.",
       "parameters": {
@@ -27,6 +102,49 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
+      "name": "complete_agenda_checklist_item",
+      "description": "Mark a single checklist sub-task as completed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "item_name": {
+            "type": "string",
+            "description": "Agenda item stem or a unique substring match."
+          },
+          "checklist_item_id": {
+            "type": "integer",
+            "description": "Checklist entry id to complete."
+          }
+        },
+        "required": [
+          "item_name",
+          "checklist_item_id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "complete_agenda_item",
+      "description": "Mark an agenda item as completed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "item_name": {
+            "type": "string",
+            "description": "The file stem (name without .md) of the agenda item, or a substring of it."
+          }
+        },
+        "required": [
+          "item_name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "complete_due_item",
       "description": "Marks a due item as completed.",
       "parameters": {
@@ -38,11 +156,43 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
           },
           "closing_comment": {
             "type": "string",
-            "description": "Optional comment on why the due item was completed"
+            "description": "Optional comment on why the item was completed"
           }
         },
         "required": [
           "name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "create_due_item",
+      "description": "Creates a due item that can be triggered by time and/or context.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the due item (must be unique)"
+          },
+          "text": {
+            "type": "string",
+            "description": "The item text to display when triggered"
+          },
+          "trigger_time": {
+            "type": "string",
+            "description": "When the item should trigger in format \"YYYY-MM-DD HH:MM\" (e.g., \"2024-12-25 09:00\"). If provided, creates a timed due item."
+          },
+          "trigger_context": {
+            "type": "string",
+            "description": "Description of the context/situation when this item should be triggered."
+          }
+        },
+        "required": [
+          "name",
+          "text"
         ]
       }
     }
@@ -96,31 +246,18 @@ BETTER:
   {
     "type": "function",
     "function": {
-      "name": "create_due_item",
-      "description": "Creates a due item that can be triggered by time and/or context.",
+      "name": "delete_agenda_item",
+      "description": "Delete an agenda item permanently.",
       "parameters": {
         "type": "object",
         "properties": {
-          "name": {
+          "item_name": {
             "type": "string",
-            "description": "Name of the due item (must be unique)"
-          },
-          "text": {
-            "type": "string",
-            "description": "The due item text to display when triggered"
-          },
-          "trigger_time": {
-            "type": "string",
-            "description": "When the due item should trigger in format \"YYYY-MM-DD HH:MM\" (e.g., \"2024-12-25 09:00\"). If provided, creates a timed due item."
-          },
-          "trigger_context": {
-            "type": "string",
-            "description": "Description of the context/situation when this due item should be triggered (e.g., \"when user mentions work stress\", \"when user asks about exercise\"). If provided, creates a contextual due item."
+            "description": "The file stem (name without .md) of the agenda item, or a substring of it."
           }
         },
         "required": [
-          "name",
-          "text"
+          "item_name"
         ]
       }
     }
@@ -129,7 +266,7 @@ BETTER:
     "type": "function",
     "function": {
       "name": "delete_due_item",
-      "description": "Permanently deletes a due item (timed, contextual, or hybrid).",
+      "description": "Permanently deletes a due item.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -139,7 +276,7 @@ BETTER:
           },
           "closing_comment": {
             "type": "string",
-            "description": "Optional comment on why the due item was deleted"
+            "description": "Optional comment on why the item was deleted"
           }
         },
         "required": [
@@ -163,6 +300,35 @@ BETTER:
         },
         "required": [
           "memory_name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "edit_agenda_checklist_item",
+      "description": "Update the text of an agenda checklist item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "item_name": {
+            "type": "string",
+            "description": "Agenda item stem or a unique substring match."
+          },
+          "checklist_item_id": {
+            "type": "integer",
+            "description": "Checklist entry id to edit."
+          },
+          "new_text": {
+            "type": "string",
+            "description": "Replacement text."
+          }
+        },
+        "required": [
+          "item_name",
+          "checklist_item_id",
+          "new_text"
         ]
       }
     }
@@ -296,19 +462,17 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
-      "name": "print_memory",
-      "description": "Retrieve and return a memory by its exact name.",
+      "name": "list_agenda_items",
+      "description": "List agenda items for a given date (defaults to today).",
       "parameters": {
         "type": "object",
         "properties": {
-          "memory_name": {
+          "item_date": {
             "type": "string",
-            "description": "Name of the memory to retrieve"
+            "description": "ISO 8601 date string (YYYY-MM-DD). Defaults to today."
           }
         },
-        "required": [
-          "memory_name"
-        ]
+        "required": []
       }
     }
   },
@@ -334,6 +498,25 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
+      "name": "print_memory",
+      "description": "Retrieve and return a memory by its exact name.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "memory_name": {
+            "type": "string",
+            "description": "Name of the memory to retrieve"
+          }
+        },
+        "required": [
+          "memory_name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "rename_due_item",
       "description": "Renames an existing due item.",
       "parameters": {
@@ -341,11 +524,11 @@ For a given memory, there can be multiple sources.",
         "properties": {
           "old_name": {
             "type": "string",
-            "description": "The current name of the due item"
+            "description": "The current name of the item"
           },
           "new_name": {
             "type": "string",
-            "description": "The new name for the due item"
+            "description": "The new name for the item"
           }
         },
         "required": [
@@ -427,6 +610,30 @@ Guidance for usage:
   {
     "type": "function",
     "function": {
+      "name": "update_due_item_text",
+      "description": "Updates the text of an existing due item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the item to update"
+          },
+          "new_text": {
+            "type": "string",
+            "description": "The new item text"
+          }
+        },
+        "required": [
+          "name",
+          "new_text"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "update_outdated_or_incorrect_memory",
       "description": "Updates an existing memory with new information.
 In general, when new information arises, new memories should be created rather than updating.
@@ -446,30 +653,6 @@ Reserve use of this tool for cases in which the information in a memory changes 
         "required": [
           "memory_name",
           "update_text"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "update_due_item_text",
-      "description": "Updates the text of an existing due item.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Name of the due item to update"
-          },
-          "new_text": {
-            "type": "string",
-            "description": "The new due item text"
-          }
-        },
-        "required": [
-          "name",
-          "new_text"
         ]
       }
     }
