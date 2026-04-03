@@ -130,6 +130,21 @@ async def test_tui_initial_memory_highlight_matches_first_selected_item(ctx: Elr
 
 
 @pytest.mark.asyncio
+async def test_tui_ctrl_d_exits_even_when_chat_input_has_focus(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert app.query_one("#chat-input", Input).has_focus
+        assert app.is_running is True
+
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+
+        assert app.is_running is False
+
+
+@pytest.mark.asyncio
 async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
     create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
     create_task(ctx, "Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
