@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-03
+
+### Added
+- A full-screen Textual terminal UI is now the primary Elroy experience, with live streaming responses, slash-command completion, and a status bar that shows what Elroy is doing in real time
+- A browsable sidebar for memories and agenda items, including keyboard navigation, detail views, and inline actions like completing or deleting due items
+- File-backed agenda items with checklist tracking, update history, and optional time- or context-based triggers
+- Background document ingestion and file sync for local knowledge and memory files
+
+### Improved
+- Memories and agenda items are now much more transparent in the UI: you can inspect what Elroy has surfaced, open individual items, and act on them directly
+- Due items now appear inline in the agenda view instead of living in a separate panel, reducing duplication between reminders and task tracking
+- Status feedback during chat is more granular, with clearer visibility into loading context, recalling memories, running tools, and other long-running steps
+- Memory storage is now file-backed, which makes local data easier to inspect, manage, and sync with other tools
+- Startup and chat behavior are more deterministic and responsive, with better autocomplete, more consistent browsing controls, and improved local test coverage for the TUI
+- Dependencies are now pinned more tightly, which should make installs and upgrades more reproducible across environments
+
+### Changed
+- Reminders have been folded into the agenda model as due items, so timed and contextual follow-ups now live alongside regular agenda work instead of in a separate system
+- Elroy is now focused on a local terminal workflow rather than supporting multiple product surfaces
+- Configuration is centered on config files and environment variables, with the TUI as the main entry point
+
+### Removed
+- The web API / HTTP interface has been removed
+- Postgres and ChromaDB backends have been removed; Elroy now uses the local SQLite-based stack only
+- Older CLI-only flows and related update/install paths that no longer fit the TUI-first product direction have been removed
+
 ## [0.3.0] - 2026-01-25
 
 ### Added
