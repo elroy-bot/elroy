@@ -137,6 +137,7 @@ include = ["elroy/**/*.py", "tests/**/*.py"]
 exclude = [".venv/**", "build/**", "dist/**"]
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore:.*Pydantic serializer warnings.*:UserWarning",

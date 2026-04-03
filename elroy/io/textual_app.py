@@ -118,6 +118,12 @@ class MemoryDetailModal(ModalScreen):
         return "  |  ".join(actions)
 
 
+class SidebarListView(ListView):
+    """List view with keyboard navigation delegated to the app."""
+
+    BINDINGS: ClassVar[list[Binding]] = []
+
+
 class ElroyApp(App):
     """Main Textual TUI application for Elroy."""
 
@@ -202,6 +208,21 @@ class ElroyApp(App):
         border-top: tall $primary;
     }
 
+    #sidebar-list > ListItem.-hovered {
+        background: $surface-lighten-1;
+        color: $text;
+    }
+
+    #sidebar-list > ListItem.-highlight {
+        background: $primary-darken-1;
+        color: $text;
+    }
+
+    #sidebar-list:focus > ListItem.-highlight {
+        background: $primary;
+        color: $text;
+    }
+
     #chat-input {
         height: 3;
         border: round $primary;
@@ -283,7 +304,7 @@ class ElroyApp(App):
                 with Horizontal(id="sidebar-header"):
                     yield Label("Memories", id="memories-title", classes="panel-section-title")
                     yield Label("Agenda", id="agenda-title", classes="panel-section-title")
-                yield ListView(id="sidebar-list", classes="panel-list")
+                yield SidebarListView(id="sidebar-list", classes="panel-list")
         yield Input(placeholder="> ", id="chat-input")
         yield Label("", id="status-bar")
 
@@ -589,12 +610,12 @@ class ElroyApp(App):
             if self._browse_target == "history":
                 history_log.scroll_down(animate=False, immediate=True)
             else:
-                self.query_one("#sidebar-list", ListView).action_cursor_down()
+                self._move_sidebar_selection(1)
         elif event.key in {"k", "up"}:
             if self._browse_target == "history":
                 history_log.scroll_up(animate=False, immediate=True)
             else:
-                self.query_one("#sidebar-list", ListView).action_cursor_up()
+                self._move_sidebar_selection(-1)
         elif event.key == "tab":
             self._cycle_browse_target(1)
         elif event.key == "shift+tab":
@@ -678,10 +699,36 @@ class ElroyApp(App):
         self._panel_indices[buffer_name] = saved_index
         if self._sidebar_section == buffer_name:
             list_view.index = saved_index
+            self._sync_sidebar_highlight(saved_index)
+
+    def _move_sidebar_selection(self, delta: int) -> None:
+        list_view = self.query_one("#sidebar-list", ListView)
+        entries = self._panel_entries[self._sidebar_section]
+        if not entries:
+            self._panel_indices[self._sidebar_section] = None
+            list_view.index = None
+            return
+
+        current_index = self._panel_indices[self._sidebar_section]
+        if current_index is None:
+            current_index = list_view.index if list_view.index is not None else 0
+
+        next_index = max(0, min(current_index + delta, len(entries) - 1))
+        self._panel_indices[self._sidebar_section] = next_index
+        list_view.index = next_index
+        self._sync_sidebar_highlight(next_index)
+
+    def _sync_sidebar_highlight(self, active_index: int | None) -> None:
+        list_view = self.query_one("#sidebar-list", ListView)
+        items = [child for child in list_view.children if isinstance(child, ListItem)]
+        for index, item in enumerate(items):
+            item.highlighted = active_index is not None and index == active_index
 
     def _set_sidebar_section(self, section: str) -> None:
         if section not in self._panel_entries:
             return
+        if self._sidebar_section != section:
+            self._panel_indices[section] = 0 if self._panel_entries[section] else None
         self._sidebar_section = section
         if not self._memory_panel_visible:
             self.query_one("#memory-panel").remove_class("hidden")
