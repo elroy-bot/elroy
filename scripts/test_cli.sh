@@ -36,19 +36,19 @@ run_test() {
         echo "$output"
         exit 1
     }
-    if echo "$output" | grep -q "$expected_pattern"; then
+    if echo "$output" | grep -Eq "$expected_pattern"; then
         echo "✅ $test_name passed"
     else
         echo "❌ $test_name failed"
         echo "Expected pattern: $expected_pattern"
         echo "Actual output:"
-        echo "$output"
+        printf '%q\n' "$output"
         exit 1
     fi
 }
 
 # Version check
-run_test "Version command" "elroy version" "Elroy version"
+run_test "Version command" "elroy version" '^[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9]+)*$'
 
 # Basic chat test
 run_test "Basic chat" \
@@ -103,4 +103,3 @@ run_test "Executing help" \
     "Elroy"
 
 echo "✅ All tests passed successfully!"
-
