@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 from rich.text import Text
-from sqlmodel import select
+from sqlmodel import desc, select
 from textual.suggester import SuggestFromList
 from textual.widgets import Input, Label, ListItem, ListView, RichLog
 
@@ -57,6 +57,12 @@ def _sidebar_titles(app: ElroyApp) -> list[str]:
     return [_label_text(item.query_one(Label)) for item in items]
 
 
+def _highlighted_indices(app: ElroyApp) -> list[int]:
+    list_view = app.query_one("#sidebar-list", ListView)
+    items = [child for child in list_view.children if isinstance(child, ListItem)]
+    return [index for index, item in enumerate(items) if item.highlighted]
+
+
 @pytest.mark.asyncio
 async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
     create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
@@ -108,6 +114,59 @@ async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyCo
 
 
 @pytest.mark.asyncio
+async def test_tui_initial_memory_highlight_matches_first_selected_item(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
+    add_memory_to_current_context(ctx, "Travel preference")
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("escape")
+        await pilot.pause()
+
+        list_view = app.query_one("#sidebar-list", ListView)
+        assert list_view.index == 0
+        assert _highlighted_indices(app) == [0]
+
+
+@pytest.mark.asyncio
+async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
+    create_task(ctx, "Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+    create_task(ctx, "Buy groceries", "Buy groceries\nMilk, eggs, bread.")
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("escape", "g")
+        await pilot.pause()
+
+        list_view = app.query_one("#sidebar-list", ListView)
+        assert list_view.index == 0
+        assert _highlighted_indices(app) == [0]
+
+        await pilot.press("j")
+        await pilot.pause()
+        assert list_view.index == 1
+        assert _highlighted_indices(app) == [1]
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert list_view.index == 2
+        assert _highlighted_indices(app) == [2]
+
+        await pilot.press("k")
+        await pilot.pause()
+        assert list_view.index == 1
+        assert _highlighted_indices(app) == [1]
+
+        await pilot.press("up")
+        await pilot.pause()
+        assert list_view.index == 0
+        assert _highlighted_indices(app) == [0]
+
+
+@pytest.mark.asyncio
 async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
     create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
 
@@ -124,7 +183,8 @@ async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_form
         await pilot.press("c")
         await pilot.pause()
 
-        task = ctx.db.exec(select(AgendaItem).where(AgendaItem.name == "Job search")).one()
+        task = ctx.db.exec(select(AgendaItem).where(AgendaItem.name == "Job search").order_by(desc(AgendaItem.created_at))).first()
+        assert task is not None
         assert task.status == "completed"
         assert "Job search" not in _sidebar_titles(app)
 
@@ -156,6 +216,7 @@ async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_format
         await pilot.press("d")
         await pilot.pause()
 
-        task = ctx.db.exec(select(AgendaItem).where(AgendaItem.name == "Pay rent")).one()
+        task = ctx.db.exec(select(AgendaItem).where(AgendaItem.name == "Pay rent").order_by(desc(AgendaItem.created_at))).first()
+        assert task is not None
         assert task.status == "deleted"
         assert all("Pay rent" not in title for title in _sidebar_titles(app))
