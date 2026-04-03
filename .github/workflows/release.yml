@@ -69,7 +69,6 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         pip install --user uv
-        uv venv
         source .venv/bin/activate
         uv pip install twine
         twine upload dist/*
@@ -164,30 +163,3 @@ jobs:
         git checkout deploy || git checkout -b deploy
         git reset --hard ${GITHUB_REF}
         git push -f origin deploy
-
-  announce-discord:
-    environment:
-      name: release
-    needs: [publish-docker, update-stable-and-deploy-branch, wait-five-minutes]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - uses: ./.github/actions/setup-elroy-env
-
-    - name: Install discord.py
-      run: |
-        pip install --user uv
-        uv venv
-        source .venv/bin/activate
-        uv pip install discord.py
-
-    - name: Announce on Discord
-      env:
-        ELROY_DISCORD_TOKEN: ${{ secrets.ELROY_DISCORD_TOKEN }}
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        source .venv/bin/activate
-        python scripts/discord/announce_release.py $VERSION
-
