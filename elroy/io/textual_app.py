@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import ClassVar, cast
 
 from rich.text import Text
-from textual import work
+from textual import events, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -124,6 +124,32 @@ class SidebarListView(ListView):
     """List view with keyboard navigation delegated to the app."""
 
     BINDINGS: ClassVar[list[Binding]] = []
+
+
+class ChatInput(Input):
+    """Single-line chat input that preserves multi-line paste content."""
+
+    @staticmethod
+    def _normalize_paste_text(text: str) -> str:
+        lines = text.splitlines()
+        if not lines:
+            return text
+        return " ".join(line.strip() for line in lines if line.strip())
+
+    def _on_paste(self, event: events.Paste) -> None:
+        text = self._normalize_paste_text(event.text)
+        if text:
+            selection = self.selection
+            if selection.is_empty:
+                self.insert_text_at_cursor(text)
+            else:
+                self.replace(text, *selection)
+        event.stop()
+
+    def action_paste(self) -> None:
+        clipboard = self._normalize_paste_text(self.app.clipboard)
+        start, end = self.selection
+        self.replace(clipboard, start, end)
 
 
 class ElroyApp(App):
@@ -307,7 +333,7 @@ class ElroyApp(App):
                     yield Label("Memories", id="memories-title", classes="panel-section-title")
                     yield Label("Agenda", id="agenda-title", classes="panel-section-title")
                 yield SidebarListView(id="sidebar-list", classes="panel-list")
-        yield Input(placeholder="> ", id="chat-input")
+        yield ChatInput(placeholder="> ", id="chat-input")
         yield Label("", id="status-bar")
 
     def on_mount(self) -> None:
