@@ -1,0 +1,6 @@
+mkdocs==1.6.1
+mkdocs-blog-plugin==0.25
+mkdocs-git-revision-date-localized-plugin==1.5.1
+mkdocs-macros-plugin==1.5.0
+mkdocs-material==9.7.6
+mkdocs-rss-plugin==1.17.9

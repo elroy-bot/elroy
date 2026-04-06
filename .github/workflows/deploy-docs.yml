@@ -4,16 +4,52 @@ on:
   push:
     branches:
       - stable
+    paths:
+      - ".github/workflows/deploy-docs.yml"
+      - "requirements-docs.txt"
+      - "mkdocs.yml"
+      - "docs/**"
+      - "overrides/**"
+  workflow_dispatch:
 
 jobs:
   deploy-docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - uses: ./.github/actions/setup-elroy-env
-    - name: Deploy docs
-      run: |
-        source .venv/bin/activate
-        mkdocs gh-deploy --force
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install docs dependencies
+        run: pip install -r requirements-docs.txt
+
+      - name: Build docs
+        run: mkdocs build --strict
+
+      - name: Configure SSH
+        env:
+          DOCS_DEPLOY_HOST: ${{ secrets.DOCS_DEPLOY_HOST }}
+          DOCS_DEPLOY_PORT: ${{ secrets.DOCS_DEPLOY_PORT }}
+          DOCS_DEPLOY_SSH_KEY: ${{ secrets.DOCS_DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DOCS_DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${DOCS_DEPLOY_PORT:-22}" "$DOCS_DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload docs
+        env:
+          DOCS_DEPLOY_HOST: ${{ secrets.DOCS_DEPLOY_HOST }}
+          DOCS_DEPLOY_PATH: ${{ secrets.DOCS_DEPLOY_PATH }}
+          DOCS_DEPLOY_PORT: ${{ secrets.DOCS_DEPLOY_PORT }}
+          DOCS_DEPLOY_USER: ${{ secrets.DOCS_DEPLOY_USER }}
+        run: |
+          PORT="${DOCS_DEPLOY_PORT:-22}"
+          DEST_PATH="${DOCS_DEPLOY_PATH:-/opt/analytics/elroy-docs}"
+          ssh -p "$PORT" "$DOCS_DEPLOY_USER@$DOCS_DEPLOY_HOST" "mkdir -p '$DEST_PATH'"
+          rsync -az --delete -e "ssh -p $PORT" site/ "$DOCS_DEPLOY_USER@$DOCS_DEPLOY_HOST:$DEST_PATH/"
