@@ -64,6 +64,11 @@ def _highlighted_indices(app: ElroyApp) -> list[int]:
     return [index for index, item in enumerate(items) if item.highlighted]
 
 
+def _history_text(app: ElroyApp) -> str:
+    log = app.query_one("#history-log", RichLog)
+    return "\n".join(strip.text for strip in log.lines)
+
+
 @pytest.mark.asyncio
 async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
     create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
@@ -155,6 +160,18 @@ async def test_tui_multiline_paste_is_flattened_in_chat_input(ctx: ElroyContext,
         input_widget._on_paste(events.Paste("---\ntitle: note\n---\nhello world"))
 
         assert input_widget.value == "--- title: note --- hello world"
+
+
+@pytest.mark.asyncio
+async def test_tui_renders_existing_context_messages_on_startup(george_ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(george_ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        history = _history_text(app)
+        assert "You: Hello! My name is George." in history
+        assert "Hello George! It's nice to meet you." in history
+        assert "The user has begun the conversation" not in history
 
 
 @pytest.mark.asyncio
