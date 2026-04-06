@@ -3,6 +3,7 @@ from datetime import timedelta
 import pytest
 from rich.text import Text
 from sqlmodel import desc, select
+from textual import events
 from textual.suggester import SuggestFromList
 from textual.widgets import Input, Label, ListItem, ListView, RichLog
 
@@ -142,6 +143,18 @@ async def test_tui_ctrl_d_exits_even_when_chat_input_has_focus(ctx: ElroyContext
         await pilot.pause()
 
         assert app.is_running is False
+
+
+@pytest.mark.asyncio
+async def test_tui_multiline_paste_is_flattened_in_chat_input(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", Input)
+        input_widget._on_paste(events.Paste("---\ntitle: note\n---\nhello world"))
+
+        assert input_widget.value == "--- title: note --- hello world"
 
 
 @pytest.mark.asyncio
