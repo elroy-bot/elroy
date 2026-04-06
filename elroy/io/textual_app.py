@@ -13,8 +13,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.suggester import SuggestFromList
-from textual.widgets import Input, Label, ListItem, ListView, RichLog, Static
+from textual.widgets import Label, ListItem, ListView, RichLog, Static, TextArea
 
 from .. import __version__
 from ..config.paths import get_prompt_history_path
@@ -126,8 +125,8 @@ class SidebarListView(ListView):
     BINDINGS: ClassVar[list[Binding]] = []
 
 
-class ChatInput(Input):
-    """Single-line chat input that preserves multi-line paste content."""
+class ChatInput(TextArea):
+    """Wrapped chat composer that keeps messages single-paragraph on submit."""
 
     @staticmethod
     def _normalize_paste_text(text: str) -> str:
@@ -136,20 +135,28 @@ class ChatInput(Input):
             return text
         return " ".join(line.strip() for line in lines if line.strip())
 
-    def _on_paste(self, event: events.Paste) -> None:
+    @property
+    def value(self) -> str:
+        return self.text
+
+    @value.setter
+    def value(self, text: str) -> None:
+        self.load_text(text)
+        self.move_cursor((0, len(self.text)))
+
+    async def _on_paste(self, event: events.Paste) -> None:
         text = self._normalize_paste_text(event.text)
         if text:
-            selection = self.selection
-            if selection.is_empty:
-                self.insert_text_at_cursor(text)
-            else:
-                self.replace(text, *selection)
+            start, end = self.selection
+            result = self.replace(text, start, end)
+            self.move_cursor(result.end_location)
         event.stop()
 
     def action_paste(self) -> None:
         clipboard = self._normalize_paste_text(self.app.clipboard)
         start, end = self.selection
-        self.replace(clipboard, start, end)
+        result = self.replace(clipboard, start, end)
+        self.move_cursor(result.end_location)
 
 
 class ElroyApp(App):
@@ -252,7 +259,8 @@ class ElroyApp(App):
     }
 
     #chat-input {
-        height: 3;
+        min-height: 3;
+        max-height: 8;
         border: round $primary;
     }
 
@@ -300,6 +308,7 @@ class ElroyApp(App):
         self._spinner_handle = None
         self._status_message = "thinking..."
         self._bg_status_handle = None
+        self._chat_suggestions: list[str] = []
         self._load_input_history()
 
     # ── history ──────────────────────────────────────────────────────────────
@@ -341,6 +350,7 @@ class ElroyApp(App):
             self.query_one("#memory-panel").add_class("hidden")
 
         self.query_one("#chat-input").focus()
+        self.call_after_refresh(self._resize_chat_input)
 
         from ..repository.user.queries import get_assistant_name
 
@@ -480,19 +490,24 @@ class ElroyApp(App):
             self._write_to_history(renderable)
 
     def _set_input_disabled(self, disabled: bool) -> None:
-        input_widget = self.query_one("#chat-input", Input)
+        input_widget = self.query_one("#chat-input", ChatInput)
         input_widget.disabled = disabled
         if not disabled:
             self._focus_chat_input()
 
     # ── input handling ────────────────────────────────────────────────────────
 
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        text = event.value.strip()
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        if event.text_area.id == "chat-input":
+            self.call_after_refresh(self._resize_chat_input)
+
+    def _submit_chat_input(self) -> None:
+        text = self.query_one("#chat-input", ChatInput).value.strip()
         if not text:
             return
 
-        self.query_one("#chat-input", Input).value = ""
+        self.query_one("#chat-input", ChatInput).value = ""
+        self._resize_chat_input()
 
         self._save_to_history(text)
         self._history_index = -1
@@ -505,7 +520,7 @@ class ElroyApp(App):
         self._process_input(text)
 
     def on_key(self, event) -> None:
-        input_widget = self.query_one("#chat-input", Input)
+        input_widget = self.query_one("#chat-input", ChatInput)
         history_log = self.query_one("#history-log", RichLog)
         if self.screen is not self.screen_stack[0]:
             return
@@ -597,8 +612,7 @@ class ElroyApp(App):
     def _update_completions(self) -> None:
         try:
             suggestions = AgendaPresenter(self.ctx).build_sidebar_state().completions
-            input_widget = self.query_one("#chat-input", Input)
-            self.call_from_thread(setattr, input_widget, "suggester", SuggestFromList(suggestions, case_sensitive=False))
+            self.call_from_thread(setattr, self, "_chat_suggestions", suggestions)
         except Exception:
             logger.debug("Failed to update completions", exc_info=True)
 
@@ -639,12 +653,17 @@ class ElroyApp(App):
 
     # ── focus / browse helpers ───────────────────────────────────────────────
 
-    def _handle_chat_key(self, event, input_widget: Input) -> bool:
+    def _handle_chat_key(self, event, input_widget: ChatInput) -> bool:
+        if event.key == "enter":
+            self._submit_chat_input()
+            event.prevent_default()
+            event.stop()
+            return True
+
         if event.key == "up":
             if self._input_history and self._history_index < len(self._input_history) - 1:
                 self._history_index += 1
                 input_widget.value = self._input_history[self._history_index]
-                input_widget.cursor_position = len(input_widget.value)
             event.prevent_default()
             event.stop()
             return True
@@ -653,7 +672,6 @@ class ElroyApp(App):
             if self._history_index > 0:
                 self._history_index -= 1
                 input_widget.value = self._input_history[self._history_index]
-                input_widget.cursor_position = len(input_widget.value)
             elif self._history_index == 0:
                 self._history_index = -1
                 input_widget.value = ""
@@ -713,9 +731,14 @@ class ElroyApp(App):
 
     def _focus_chat_input(self) -> None:
         self._browse_mode = False
-        self.query_one("#chat-input", Input).focus()
+        self.query_one("#chat-input", ChatInput).focus()
         self._render_browse_state()
         self._render_status_bar()
+
+    def _resize_chat_input(self) -> None:
+        input_widget = self.query_one("#chat-input", ChatInput)
+        content_height = max(1, input_widget.virtual_size.height)
+        input_widget.styles.height = max(3, min(8, content_height + 2))
 
     def _focus_browse_target(self) -> None:
         if not self._memory_panel_visible and self._browse_target == "sidebar":
@@ -819,10 +842,20 @@ class ElroyApp(App):
         self.push_screen(MemoryDetailModal(modal.title, modal.content, on_delete=modal.on_delete, on_complete=modal.on_complete))
 
     def _accept_input_completion(self) -> None:
-        input_widget = self.query_one("#chat-input", Input)
-        suggestion = getattr(input_widget, "_suggestion", "")
-        if suggestion and input_widget.cursor_position >= len(input_widget.value):
-            input_widget.action_cursor_right()
+        input_widget = self.query_one("#chat-input", ChatInput)
+        if input_widget.cursor_location[1] != len(input_widget.value):
+            return
+
+        prefix = input_widget.value
+        if not prefix:
+            return
+
+        match = next(
+            (suggestion for suggestion in self._chat_suggestions if suggestion.lower().startswith(prefix.lower()) and suggestion != prefix),
+            None,
+        )
+        if match:
+            input_widget.value = match
 
     def _render_browse_state(self) -> None:
         left_panel = self.query_one("#left-panel", Vertical)

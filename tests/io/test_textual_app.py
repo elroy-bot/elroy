@@ -4,14 +4,13 @@ import pytest
 from rich.text import Text
 from sqlmodel import desc, select
 from textual import events
-from textual.suggester import SuggestFromList
-from textual.widgets import Input, Label, ListItem, ListView, RichLog
+from textual.widgets import Label, ListItem, ListView, RichLog
 
 from elroy.core.ctx import ElroyContext
 from elroy.core.services.sidebar_service import AgendaPresenter
 from elroy.db.db_models import AgendaItem
 from elroy.io.formatters.rich_formatter import RichFormatter
-from elroy.io.textual_app import ElroyApp, MemoryDetailModal
+from elroy.io.textual_app import ChatInput, ElroyApp, MemoryDetailModal
 from elroy.repository.context_messages.tools import add_memory_to_current_context
 from elroy.repository.memories.tools import create_memory
 from elroy.repository.tasks.operations import create_task
@@ -20,7 +19,7 @@ from elroy.utils.clock import utc_now
 
 class HarnessElroyApp(ElroyApp):
     def on_mount(self) -> None:
-        self.query_one("#chat-input", Input).focus()
+        self.query_one("#chat-input", ChatInput).focus()
         self._stop_spinner()
         self._load_sidebar_state()
 
@@ -30,9 +29,8 @@ class HarnessElroyApp(ElroyApp):
     def _load_sidebar_state(self) -> None:
         state = AgendaPresenter(self.ctx).build_sidebar_state()
         self._panel_entries = {"memories": state.memories, "agenda": state.agenda}
+        self._chat_suggestions = state.completions
         self._render_sidebar_list()
-        input_widget = self.query_one("#chat-input", Input)
-        input_widget.suggester = SuggestFromList(state.completions, case_sensitive=False)
 
 
 def _make_app(ctx: ElroyContext, rich_formatter: RichFormatter) -> HarnessElroyApp:
@@ -86,7 +84,7 @@ async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyCo
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        assert app.query_one("#chat-input", Input).has_focus
+        assert app.query_one("#chat-input", ChatInput).has_focus
         assert _sidebar_titles(app) == ["Travel preference"]
         assert app.query_one("#memories-title", Label).has_class("active")
 
@@ -141,7 +139,7 @@ async def test_tui_ctrl_d_exits_even_when_chat_input_has_focus(ctx: ElroyContext
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        assert app.query_one("#chat-input", Input).has_focus
+        assert app.query_one("#chat-input", ChatInput).has_focus
         assert app.is_running is True
 
         await pilot.press("ctrl+d")
@@ -156,10 +154,24 @@ async def test_tui_multiline_paste_is_flattened_in_chat_input(ctx: ElroyContext,
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        input_widget = app.query_one("#chat-input", Input)
-        input_widget._on_paste(events.Paste("---\ntitle: note\n---\nhello world"))
+        input_widget = app.query_one("#chat-input", ChatInput)
+        await input_widget._on_paste(events.Paste("---\ntitle: note\n---\nhello world"))
 
         assert input_widget.value == "--- title: note --- hello world"
+
+
+@pytest.mark.asyncio
+async def test_tui_chat_input_grows_for_wrapped_text(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test(size=(50, 20)) as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        initial_height = input_widget.size.height
+        input_widget.value = "This is a long message that should wrap in the composer instead of scrolling horizontally off screen."
+        await pilot.pause()
+
+        assert input_widget.size.height > initial_height
 
 
 @pytest.mark.asyncio
