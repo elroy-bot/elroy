@@ -18,7 +18,7 @@ from textual.widgets import Input, Label, ListItem, ListView, RichLog, Static
 
 from .. import __version__
 from ..config.paths import get_prompt_history_path
-from ..core.constants import EXIT, USER
+from ..core.constants import ASSISTANT, EXIT, SYSTEM, TOOL, USER
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
 from ..core.services.sidebar_service import AgendaPresenter, ModalSpec, SidebarEntry
@@ -381,7 +381,8 @@ class ElroyApp(App):
         from ..repository.context_messages.validations import Validator
 
         add_context_messages(self.ctx, to_synthetic_tool_call("get_session_context", get_session_context(self.ctx)))
-        context_messages = Validator(self.ctx, get_context_messages(self.ctx)).validated_msgs()
+        context_messages = list(Validator(self.ctx, get_context_messages(self.ctx)).validated_msgs())
+        self.call_from_thread(self._render_existing_context_messages, context_messages)
 
         if self.enable_greeting and (
             (get_time_since_most_recent_user_message(context_messages) or timedelta()) >= self.ctx.min_convo_age_for_greeting
@@ -442,6 +443,41 @@ class ElroyApp(App):
     def _write_to_history(self, renderable) -> None:
         """Write a Rich renderable to the history log (main thread)."""
         self.query_one("#history-log", RichLog).write(renderable)
+
+    def _render_existing_context_messages(self, context_messages: list) -> None:
+        """Render validated context messages into the history log on startup."""
+        bootstrap_tool_call_ids = {
+            tool_call.id
+            for message in context_messages
+            if message.role == ASSISTANT and message.tool_calls
+            for tool_call in message.tool_calls
+            if tool_call.function.get("name") == "get_session_context"
+        }
+
+        for message in context_messages:
+            if message.role == SYSTEM:
+                continue
+            if (
+                message.role == ASSISTANT
+                and message.tool_calls
+                and any(tool_call.id in bootstrap_tool_call_ids for tool_call in message.tool_calls)
+            ):
+                continue
+            if message.role == TOOL and message.tool_call_id in bootstrap_tool_call_ids:
+                continue
+            if not message.content:
+                continue
+
+            if message.role == USER:
+                renderable = Text(f"\nYou: {message.content}", style=self.formatter.user_input_color)
+            elif message.role == ASSISTANT:
+                renderable = Text(message.content, style=self.formatter.assistant_message_color)
+            elif message.role == TOOL:
+                renderable = Text(message.content, style=self.formatter.system_message_color)
+            else:
+                renderable = Text(message.content, style=self.formatter.system_message_color)
+
+            self._write_to_history(renderable)
 
     def _set_input_disabled(self, disabled: bool) -> None:
         input_widget = self.query_one("#chat-input", Input)
