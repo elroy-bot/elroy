@@ -1,13 +1,9 @@
-from textual import events, work
+from textual import work
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header, Input, Markdown, RichLog, TextArea
+from textual.widgets import Footer, Input, Markdown, RichLog, TextArea
 
 from ..cli.options import get_resolved_params
-
-from ..core.session import init_elroy_session
-
 from ..core.ctx import ElroyContext
-
 from ..repository.context_messages.queries import get_context_messages
 
 

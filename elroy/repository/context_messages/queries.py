@@ -5,10 +5,9 @@ from typing import Any, cast
 from sqlmodel import select
 from toolz import first
 
-from ...db.db_session import DbSession
-
 from ...core.ctx import ElroyContext
 from ...db.db_models import ContextMessageSet
+from ...db.db_session import DbSession
 from .data_models import ContextMessage
 from .transforms import ContextMessageSetWithMessages
 

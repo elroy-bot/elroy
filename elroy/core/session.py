@@ -1,10 +1,7 @@
-import uuid
 from contextlib import contextmanager
 
-from ..io.base import ElroyIO
 from .ctx import ElroyContext
 from .logging import get_logger
-from .tracing import using_user
 
 logger = get_logger()
 
