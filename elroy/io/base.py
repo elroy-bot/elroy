@@ -5,16 +5,11 @@ from typing import Any
 from rich.console import Console, RenderableType
 
 from ..core.logging import get_logger
-from ..db.db_models import FunctionCall
 from ..llm.stream_parser import (
-    AssistantInternalThought,
-    AssistantResponse,
-    AssistantToolResult,
     SystemInfo,
     SystemWarning,
 )
 from .formatters.base import ElroyPrintable
-from .formatters.plain_formatter import PlainFormatter
 
 logger = get_logger()
 
@@ -51,30 +46,3 @@ class ElroyIO:
 
     def prompt_user(self, thread_pool: ThreadPoolExecutor, retries: int, prompt: str = ">", prefill: str = "") -> str:
         raise NotImplementedError
-
-
-class PlainIO(ElroyIO):
-    """
-    IO which emits plain text to stdin and stdout.
-    """
-
-    def __init__(self) -> None:
-        self.console = Console(force_terminal=False, no_color=True)
-        self.formatter = PlainFormatter()
-
-    def print(self, message: ElroyPrintable, end: str = "\n") -> None:
-        if is_rich_printable(message):
-            self.console.print(message, end)
-        elif isinstance(message, AssistantResponse):
-            for output in self.formatter.format(message):
-                self.console.print(output, end=end)
-        elif isinstance(message, AssistantInternalThought):
-            pass
-        elif isinstance(message, SystemWarning):
-            logger.warning(message)
-        elif isinstance(message, FunctionCall):
-            logger.info(f"FUNCTION CALL: {message.function_name}({message.arguments})")
-        elif isinstance(message, (SystemInfo, AssistantToolResult)):
-            logger.info(message)
-        else:
-            raise NotImplementedError(f"Invalid message type: {type(message)}")
