@@ -252,7 +252,6 @@ class ContextMessageSet(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)
-    user_id: int = Field(..., description="Elroy user for context")
     message_ids: str = Field(sa_column=SAColumn(Text), description="The messages in the context window as JSON string")
     is_active: bool | None = Field(True, description="Whether the context is active")
 

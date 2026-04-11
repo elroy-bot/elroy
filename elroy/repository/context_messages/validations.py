@@ -12,6 +12,11 @@ from .queries import get_context_messages
 from .transforms import is_system_instruction
 
 logger = get_logger()
+SYNTHETIC_CONVERSATION_START_MESSAGE = "The user has begun the conversation"
+
+
+def is_synthetic_conversation_start_message(message: ContextMessage) -> bool:
+    return message.role == USER and message.content == SYNTHETIC_CONVERSATION_START_MESSAGE
 
 
 class Validator:
@@ -97,7 +102,7 @@ class Validator:
                 yield msg
             elif msg.role == ASSISTANT:
                 self.errors.append("First non-system message is not user message, repairing by inserting user message")
-                yield ContextMessage(role=USER, content="The user has begun the conversation", chat_model=None)
+                yield ContextMessage(role=USER, content=SYNTHETIC_CONVERSATION_START_MESSAGE, chat_model=None)
                 first_user_msg_seen = True
                 yield msg
             else:

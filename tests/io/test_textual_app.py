@@ -10,7 +10,9 @@ from elroy.core.ctx import ElroyContext
 from elroy.core.services.sidebar_service import AgendaPresenter
 from elroy.db.db_models import AgendaItem
 from elroy.io.formatters.rich_formatter import RichFormatter
-from elroy.io.textual_app import ChatInput, ElroyApp, MemoryDetailModal
+from elroy.io.textual_app2 import ChatInput, ElroyApp, MemoryDetailModal
+from elroy.repository.context_messages.data_models import ContextMessage
+from elroy.repository.context_messages.operations import replace_context_messages
 from elroy.repository.context_messages.tools import add_memory_to_current_context
 from elroy.repository.memories.tools import create_memory
 from elroy.repository.tasks.operations import create_task
@@ -18,6 +20,10 @@ from elroy.utils.clock import utc_now
 
 
 class HarnessElroyApp(ElroyApp):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.submitted_messages: list[str] = []
+
     def on_mount(self) -> None:
         self.query_one("#chat-input", ChatInput).focus()
         self._stop_spinner()
@@ -31,6 +37,9 @@ class HarnessElroyApp(ElroyApp):
         self._panel_entries = {"memories": state.memories, "agenda": state.agenda}
         self._chat_suggestions = state.completions
         self._render_sidebar_list()
+
+    def _process_input(self, text: str) -> None:
+        self.submitted_messages.append(text)
 
 
 def _make_app(ctx: ElroyContext, rich_formatter: RichFormatter) -> HarnessElroyApp:
@@ -158,6 +167,40 @@ async def test_tui_multiline_paste_is_flattened_in_chat_input(ctx: ElroyContext,
         await input_widget._on_paste(events.Paste("---\ntitle: note\n---\nhello world"))
 
         assert input_widget.value == "--- title: note --- hello world"
+
+
+@pytest.mark.asyncio
+async def test_tui_enter_submits_chat_input(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        input_widget.value = "hello world"
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.submitted_messages == ["hello world"]
+        assert input_widget.value == ""
+
+
+@pytest.mark.asyncio
+async def test_tui_hides_synthetic_conversation_start_message(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    replace_context_messages(
+        ctx,
+        [
+            ContextMessage(role="assistant", content="Hello from startup.", chat_model=None),
+        ],
+    )
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        history = _history_text(app)
+        assert "The user has begun the conversation" not in history
+        assert "Hello from startup." in history
 
 
 @pytest.mark.asyncio

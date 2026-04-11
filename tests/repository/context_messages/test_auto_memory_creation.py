@@ -18,7 +18,6 @@ from elroy.repository.memories.queries import get_active_memories
 
 @pytest.fixture(scope="function")
 def mem_op_ctx(ctx: ElroyContext):
-    ctx.use_background_threads = False
     ctx.messages_between_memory = 3
     return ctx
 
@@ -90,7 +89,6 @@ def test_memory_creation_batch_messages(mem_op_ctx: ElroyContext, dummy_msgs: li
 
 def test_other_memory_create_resets(mem_op_ctx: ElroyContext, dummy_msgs: list[ContextMessage]):
     mem_op_ctx.messages_between_memory = 3
-    mem_op_ctx.use_background_threads = False
 
     memory_ct = len(get_active_memories(mem_op_ctx))
     add_context_messages(mem_op_ctx, dummy_msgs[:2])

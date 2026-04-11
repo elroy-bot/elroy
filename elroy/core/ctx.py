@@ -96,7 +96,6 @@ class ElroyContext:
         debug: bool | None = None,
         default_persona: str | None = None,
         default_assistant_name: str | None = None,
-        use_background_threads: bool | None = None,
         max_ingested_doc_lines: int | None = None,
         exclude_tools: list[str] | None = None,
         include_base_tools: bool | None = None,
@@ -184,7 +183,6 @@ class ElroyContext:
                 debug=debug if debug is not None else False,
                 default_persona=default_persona or PERSONA,
                 default_assistant_name=default_assistant_name or "",
-                use_background_threads=use_background_threads if use_background_threads is not None else True,
                 max_ingested_doc_lines=max_ingested_doc_lines or 0,
                 max_assistant_loops=max_assistant_loops or 0,
                 reflect=reflect if reflect is not None else False,
@@ -213,7 +211,6 @@ class ElroyContext:
         self.memories_between_consolidation = self.memory_config.memories_between_consolidation
         self.messages_between_memory = self.memory_config.messages_between_memory
         self.inline_tool_calls = self.model_config.inline_tool_calls
-        self.use_background_threads = self.runtime_config.use_background_threads
         self.max_ingested_doc_lines = self.runtime_config.max_ingested_doc_lines
         self.background_ingest_enabled = self.runtime_config.background_ingest_enabled
         self.background_ingest_paths = self.runtime_config.background_ingest_paths

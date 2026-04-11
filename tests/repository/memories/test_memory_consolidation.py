@@ -32,7 +32,6 @@ def test_identical_memories(ctx):
 
 
 def test_trigger(ctx):
-    ctx.use_background_threads = False
     assert ctx.memories_between_consolidation == 4
 
     pipe(

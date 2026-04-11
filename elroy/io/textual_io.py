@@ -10,7 +10,7 @@ from ..io.base import ElroyIO
 from ..io.formatters.rich_formatter import RichFormatter
 
 if TYPE_CHECKING:
-    from ..io.textual_app import ElroyApp
+    from .textual_app2 import ElroyApp
 
 
 class TextualIO(ElroyIO):

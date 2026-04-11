@@ -67,10 +67,6 @@ def schedule_task(
     Returns:
         The scheduled job or None if background threads are disabled
     """
-    if not ctx.use_background_threads:
-        logger.debug("Background threads are disabled. Running function in the main thread.")
-        fn(ctx, *args, **kwargs)
-        return None
 
     # Create a wrapper function that sets up a new database session
     @wraps(fn)

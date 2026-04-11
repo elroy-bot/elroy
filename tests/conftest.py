@@ -194,7 +194,6 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
         user_token=user_token,
         database_url=db_manager.url,
         chat_model=chat_model_name,
-        use_background_threads=True,
         memory_dir=str(tmp_path / "memories"),
     )
     ctx.set_db_session(db_session)
