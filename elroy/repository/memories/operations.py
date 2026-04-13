@@ -20,7 +20,7 @@ from ..context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
 )
-from ..user.queries import do_get_user_preferred_name, get_assistant_name
+from ..user.queries import assistant_name_for_user, do_get_user_preferred_name
 from .consolidation import consolidate_memories
 
 logger = get_logger()
@@ -81,7 +81,7 @@ def formulate_memory(ctx: ElroyContext, context_messages: list[ContextMessage]) 
         format_context_messages(
             context_messages,
             user_preferred_name,
-            get_assistant_name(ctx),
+            assistant_name_for_user(ctx.db.session, ctx.user_id, ctx.default_assistant_name),
         ),
         user_preferred_name,
     )

@@ -10,7 +10,7 @@ from ...core.logging import get_logger
 from ...core.services.document_service import DocumentIngestService
 from ...db.db_models import Memory
 from ...repository.memories.file_storage import read_memory_frontmatter, read_memory_text, write_id_to_frontmatter
-from ...repository.user.operations import get_or_create_user_preference
+from ...repository.user.operations import do_get_or_create_user_preference
 from ...utils.clock import utc_now
 
 logger = get_logger()
@@ -81,14 +81,14 @@ class DocumentIngestionService:
         logger.info(f"Background ingested directory {target.path}: {total_processed} files processed")
 
     def record_last_run(self, start_time) -> None:
-        user_pref = get_or_create_user_preference(self.ctx)
+        user_pref = do_get_or_create_user_preference(self.ctx.db.session, self.ctx.user_id)
         user_pref.background_ingest_last_run = start_time
         self.ctx.db.session.add(user_pref)
         self.ctx.db.session.commit()
         logger.debug(f"Recorded background ingestion last run time: {start_time}")
 
     def initial_delay_seconds(self) -> int:
-        user_pref = get_or_create_user_preference(self.ctx)
+        user_pref = do_get_or_create_user_preference(self.ctx.db.session, self.ctx.user_id)
         last_run = user_pref.background_ingest_last_run
         interval_minutes = self.ctx.background_ingest_interval_minutes
         now = utc_now()

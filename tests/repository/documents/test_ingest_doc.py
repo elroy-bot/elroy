@@ -3,16 +3,27 @@ from pathlib import Path
 import pytest
 
 from elroy.core.ctx import ElroyContext
+from elroy.core.services.document_service import DocIngestStatus, DocumentIngestService, DocumentQueryService
 from elroy.repository.context_messages.operations import reset_messages
-from elroy.repository.documents.operations import (
-    DocIngestStatus,
-    do_ingest,
-    do_ingest_dir,
-)
-from elroy.repository.documents.queries import get_source_docs
 from elroy.repository.documents.tools import ingest_doc
+from elroy.repository.memories.operations import do_create_memory
+from elroy.repository.recall.operations import upsert_embedding_if_needed
 from tests import fixtures
 from tests.utils import process_test_message
+
+
+def _document_queries(ctx: ElroyContext) -> DocumentQueryService:
+    return DocumentQueryService(ctx.db, ctx.user_id)
+
+
+def _document_ingest(ctx: ElroyContext) -> DocumentIngestService:
+    return DocumentIngestService(
+        ctx.db,
+        ctx.user_id,
+        max_ingested_doc_lines=ctx.max_ingested_doc_lines,
+        sync_embedding=lambda excerpt: upsert_embedding_if_needed(ctx, excerpt),
+        create_memory_from_excerpt=lambda title, content, excerpts: do_create_memory(ctx, title, content, excerpts, False),
+    )
 
 
 def test_ingest_doc(ctx: ElroyContext, midnight_garden_md_path: str):
@@ -35,9 +46,10 @@ def test_ingest_doc(ctx: ElroyContext, midnight_garden_md_path: str):
 
 
 def test_ingest_doc_duplicate(ctx: ElroyContext, midnight_garden_md_path: Path):
-    assert do_ingest(ctx, midnight_garden_md_path, False) == DocIngestStatus.SUCCESS
-    assert do_ingest(ctx, midnight_garden_md_path, False) == DocIngestStatus.UNCHANGED
-    assert do_ingest(ctx, midnight_garden_md_path, True) == DocIngestStatus.UPDATED
+    ingest = _document_ingest(ctx)
+    assert ingest.ingest(midnight_garden_md_path, False) == DocIngestStatus.SUCCESS
+    assert ingest.ingest(midnight_garden_md_path, False) == DocIngestStatus.UNCHANGED
+    assert ingest.ingest(midnight_garden_md_path, True) == DocIngestStatus.UPDATED
 
 
 def test_ingest_doc_moved(ctx: ElroyContext, tmpdir: str):
@@ -48,73 +60,69 @@ def test_ingest_doc_moved(ctx: ElroyContext, tmpdir: str):
     original_path.write_text(content)
 
     # Ingest the document at original location
-    assert do_ingest(ctx, original_path, False) == DocIngestStatus.SUCCESS
+    ingest = _document_ingest(ctx)
+    assert ingest.ingest(original_path, False) == DocIngestStatus.SUCCESS
 
     # Create the same content at a new location
     new_path = Path(tmpdir) / "moved_doc.md"
     new_path.write_text(content)
 
     # Ingest at new location should detect it as moved
-    result = do_ingest(ctx, new_path, False)
+    result = ingest.ingest(new_path, False)
     assert result == DocIngestStatus.MOVED
 
     # Verify the document address was updated to new location
-    from elroy.repository.documents.queries import get_source_doc_by_address
-
-    updated_doc = get_source_doc_by_address(ctx, new_path)
+    updated_doc = _document_queries(ctx).get_source_doc_by_address(new_path)
     assert updated_doc is not None
     assert updated_doc.address == str(new_path)
 
     # Verify original location no longer exists in database
-    original_doc = get_source_doc_by_address(ctx, original_path)
+    original_doc = _document_queries(ctx).get_source_doc_by_address(original_path)
     assert original_doc is None
 
 
 def test_large_doc(ctx: ElroyContext, very_large_document_path: Path):
-    assert do_ingest(ctx, very_large_document_path, False) == DocIngestStatus.TOO_LONG
+    assert _document_ingest(ctx).ingest(very_large_document_path, False) == DocIngestStatus.TOO_LONG
 
 
 def test_recursive_dir_ingest(ctx: ElroyContext, test_docs_dir: Path):
     # Test recursive ingestion
-    results = list(do_ingest_dir(ctx, test_docs_dir, force_refresh=False, recursive=True, include=["*.md"], exclude=["*.log"]))[-1]
+    results = list(
+        _document_ingest(ctx).ingest_dir(test_docs_dir, force_refresh=False, recursive=True, include=["*.md"], exclude=["*.log"])
+    )[-1]
 
     # Should find all 3 markdown files (2 in root, 1 in subdir)
     assert results.statuses[DocIngestStatus.SUCCESS] == 3
 
     # Verify txt file was not included due to include pattern
-    assert not any(doc.address.endswith(".txt") for doc in get_source_docs(ctx))
+    assert not any(doc.address.endswith(".txt") for doc in _document_queries(ctx).get_source_docs())
 
     # Verify log file was excluded
-    assert not any(doc.address.endswith(".log") for doc in get_source_docs(ctx))
+    assert not any(doc.address.endswith(".log") for doc in _document_queries(ctx).get_source_docs())
 
 
 def test_non_recursive_dir_ingest(ctx: ElroyContext, test_docs_dir: Path):
     # Test non-recursive ingestion
-    results = do_ingest_dir(ctx, test_docs_dir, force_refresh=False, recursive=False, include=["*.md"], exclude=[])
+    results = _document_ingest(ctx).ingest_dir(test_docs_dir, force_refresh=False, recursive=False, include=["*.md"], exclude=[])
 
     # Should only find 2 markdown files in root dir
     assert list(results)[-1].statuses[DocIngestStatus.SUCCESS] == 2
 
     # Verify no files from subdirectory were ingested
-    assert not any("subdir" in doc.address for doc in get_source_docs(ctx))
+    assert not any("subdir" in doc.address for doc in _document_queries(ctx).get_source_docs())
 
 
 def test_dir_ingest_exclude_patterns(ctx: ElroyContext, test_docs_dir: Path):
     # Test exclude patterns
-    results = do_ingest_dir(
-        ctx,
-        test_docs_dir,
-        force_refresh=False,
-        recursive=True,
-        include=[],  # No include filter
-        exclude=["**/subdir/*", "*.txt"],  # Exclude subdir and txt files
+    results = _document_ingest(ctx).ingest_dir(
+        test_docs_dir, force_refresh=False, recursive=True, include=[], exclude=["**/subdir/*", "*.txt"]
     )
 
     # Should only find 2 markdown files from root
     assert list(results)[-1].statuses[DocIngestStatus.SUCCESS] == 2
 
     # Verify excluded patterns worked
-    docs = list(get_source_docs(ctx))
+    docs = list(_document_queries(ctx).get_source_docs())
     assert not any("subdir" in doc.address for doc in docs)
     assert not any(doc.address.endswith(".txt") for doc in docs)
 
@@ -138,13 +146,13 @@ def test_dir_ingest_ignores_dot_files(ctx: ElroyContext, tmpdir: str):
     (dot_dir / "hidden_doc.md").write_text("# Hidden Dir Document\nThis should be ignored.")
 
     # Test recursive ingestion
-    results = list(do_ingest_dir(ctx, docs_dir, force_refresh=False, recursive=True, include=[], exclude=[]))[-1]
+    results = list(_document_ingest(ctx).ingest_dir(docs_dir, force_refresh=False, recursive=True, include=[], exclude=[]))[-1]
 
     # Should only find the 2 regular files (normal.md and regular.txt)
     assert results.statuses[DocIngestStatus.SUCCESS] == 2
 
     # Verify dot files and dot directories were ignored
-    docs = list(get_source_docs(ctx))
+    docs = list(_document_queries(ctx).get_source_docs())
     doc_addresses = [doc.address for doc in docs]
 
     assert any("normal.md" in addr for addr in doc_addresses)

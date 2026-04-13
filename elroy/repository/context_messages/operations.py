@@ -33,7 +33,7 @@ from ..memories.operations import (
     get_or_create_memory_op_tracker,
 )
 from ..memories.tools import create_memory
-from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
+from ..user.queries import assistant_name_for_user, do_get_user_preferred_name, persona_for_user
 from .data_models import ContextMessage
 from .queries import get_context_messages
 from .tools import to_synthetic_tool_call
@@ -157,7 +157,7 @@ def get_refreshed_system_message(ctx: ElroyContext) -> ContextMessage:
     return pipe(
         [
             SYSTEM_INSTRUCTION_LABEL,
-            f"<persona>{get_persona(ctx)}</persona>",
+            f"<persona>{persona_for_user(ctx.db.session, ctx.user_id, ctx.default_persona, ctx.default_assistant_name)}</persona>",
             FORMATTING_INSTRUCT,
             inline_tool_instruct(ctx.tool_registry.get_schemas()) if ctx.chat_model.inline_tool_calls else None,
             "From now on, converse as your persona.",
@@ -201,7 +201,7 @@ def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage
     # Generate conversational summary from context (excluding system message)
     # This provides context continuity without breaking the cache
     if len([msg for msg in context_message_list if msg.role == USER]) > 0:
-        assistant_name = get_assistant_name(ctx)
+        assistant_name = assistant_name_for_user(ctx.db.session, ctx.user_id, ctx.default_assistant_name)
 
         conversation_summary = pipe(
             context_message_list[1:],  # Skip system message

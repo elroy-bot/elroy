@@ -8,15 +8,30 @@ from toolz.curried import filter
 from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
+from ..core.services.reminder_service import ReminderOperationService
+from ..core.services.task_service import TaskOperationService
 from ..db.db_models import AgendaItem, EmbeddableSqlModel, Memory
 from ..utils.clock import local_now, utc_now
 from .data_models import CreateDueItemRequest, CreateMemoryRequest
 from .memories.operations import do_create_memory
 from .memories.queries import filter_for_relevance
+from .recall.operations import remove_from_context, upsert_embedding_if_needed
 from .recall.queries import get_most_relevant_due_items, get_most_relevant_memories
-from .reminders.operations import do_create_due_item
 
 logger = get_logger()
+
+
+def _task_operations(ctx: ElroyContext) -> TaskOperationService:
+    return TaskOperationService(
+        ctx.db,
+        ctx.user_id,
+        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
+        remove_from_context=lambda row: remove_from_context(ctx, row),
+    )
+
+
+def _reminder_operations(ctx: ElroyContext) -> ReminderOperationService:
+    return ReminderOperationService(ctx.db, ctx.user_id, task_operations=_task_operations(ctx))
 
 
 def augment_text(ctx: ElroyContext, text: str) -> str:
@@ -114,8 +129,7 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:
             if req.create_due_item_request:
                 logger.info("Creating due item")
                 resp.append(
-                    do_create_due_item(
-                        ctx,
+                    _reminder_operations(ctx).create_due_item(
                         req.create_due_item_request.name,
                         req.create_due_item_request.text,
                         req.create_due_item_request.trigger_datetime,

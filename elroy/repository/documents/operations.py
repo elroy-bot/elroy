@@ -1,38 +1,43 @@
 from pathlib import Path
 
-from ...core.ctx import ElroyContext
 from ...core.services.document_service import (
     DocIngestStatus,
     DocumentIngestService,
 )
-from ..memories.operations import do_create_memory
-from ..recall.operations import upsert_embedding_if_needed
+from ...db.db_session import DbSession
 
 
-def _document_ingest_service(ctx: ElroyContext) -> DocumentIngestService:
+def document_ingest_service(
+    db: DbSession,
+    user_id: int,
+    *,
+    max_ingested_doc_lines: int,
+    sync_embedding,
+    create_memory_from_excerpt,
+) -> DocumentIngestService:
     return DocumentIngestService(
-        ctx.db,
-        ctx.user_id,
-        max_ingested_doc_lines=ctx.max_ingested_doc_lines,
-        sync_embedding=lambda excerpt: upsert_embedding_if_needed(ctx, excerpt),
-        create_memory_from_excerpt=lambda title, content, excerpts: do_create_memory(ctx, title, content, excerpts, False),
+        db,
+        user_id,
+        max_ingested_doc_lines=max_ingested_doc_lines,
+        sync_embedding=sync_embedding,
+        create_memory_from_excerpt=create_memory_from_excerpt,
     )
 
 
 def do_ingest_dir(
-    ctx: ElroyContext,
+    ingest_service: DocumentIngestService,
     directory: Path,
     force_refresh: bool,
     recursive: bool,
     include: list[str],
     exclude: list[str],
 ):
-    return _document_ingest_service(ctx).ingest_dir(directory, force_refresh, recursive, include, exclude)
+    return ingest_service.ingest_dir(directory, force_refresh, recursive, include, exclude)
 
 
-def do_ingest(ctx: ElroyContext, address: Path, force_refresh: bool) -> DocIngestStatus:
-    return _document_ingest_service(ctx).ingest(address, force_refresh)
+def do_ingest(ingest_service: DocumentIngestService, address: Path, force_refresh: bool) -> DocIngestStatus:
+    return ingest_service.ingest(address, force_refresh)
 
 
-def mark_source_document_excerpts_inactive(ctx: ElroyContext, source_document) -> None:
-    _document_ingest_service(ctx).mark_source_document_excerpts_inactive(source_document)
+def mark_source_document_excerpts_inactive(ingest_service: DocumentIngestService, source_document) -> None:
+    ingest_service.mark_source_document_excerpts_inactive(source_document)

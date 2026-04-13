@@ -8,23 +8,32 @@ from ...core.constants import (
 from ...core.ctx import ElroyContext
 from ...db.db_models import User
 from ...db.db_session import DbSession
-from .operations import do_get_or_create_user_preference, get_or_create_user_preference
+from .operations import do_get_or_create_user_preference
+
+
+def assistant_name_for_user(session: Session, user_id: int, default_assistant_name: str) -> str:
+    user_preference = do_get_or_create_user_preference(session, user_id)
+    if user_preference.assistant_name:
+        return user_preference.assistant_name
+    return default_assistant_name
 
 
 def get_assistant_name(ctx: ElroyContext) -> str:
     if not ctx.user_id:
         return ctx.default_assistant_name
-    user_preference = get_or_create_user_preference(ctx)
-    if user_preference.assistant_name:
-        return user_preference.assistant_name
-    return ctx.default_assistant_name
+    return assistant_name_for_user(ctx.db.session, ctx.user_id, ctx.default_assistant_name)
 
 
 def do_get_assistant_name(session: Session, user_id: int) -> str:
+    return assistant_name_for_user(session, user_id, "ASSISTANT")
+
+
+def persona_for_user(session: Session, user_id: int, default_persona: str | None, default_assistant_name: str) -> str:
     user_preference = do_get_or_create_user_preference(session, user_id)
-    if user_preference.assistant_name:
-        return user_preference.assistant_name
-    return "ASSISTANT"  # This is inconsistent if there's a config value for default_assistant_name, consider updating
+    raw_persona = user_preference.system_persona or default_persona or ""
+    user_noun = user_preference.preferred_name or "my user"
+    assistant_name = assistant_name_for_user(session, user_id, default_assistant_name)
+    return raw_persona.replace(USER_ALIAS_STRING, user_noun).replace(ASSISTANT_ALIAS_STRING, assistant_name)
 
 
 def get_persona(ctx: ElroyContext):
@@ -34,11 +43,7 @@ def get_persona(ctx: ElroyContext):
         str: The text of the persona.
 
     """
-    user_preference = get_or_create_user_preference(ctx)
-    raw_persona = user_preference.system_persona or ctx.default_persona or ""
-
-    user_noun = user_preference.preferred_name or "my user"
-    return raw_persona.replace(USER_ALIAS_STRING, user_noun).replace(ASSISTANT_ALIAS_STRING, get_assistant_name(ctx))
+    return persona_for_user(ctx.db.session, ctx.user_id, ctx.default_persona, ctx.default_assistant_name)
 
 
 def get_user_id_if_exists(db: DbSession, user_token: str) -> int | None:

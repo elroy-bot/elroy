@@ -11,6 +11,8 @@ from elroy.cli.chat import onboard_non_interactive
 from elroy.cli.options import resolve_model_alias
 from elroy.core.constants import ASSISTANT, USER, allow_unused
 from elroy.core.ctx import ElroyContext
+from elroy.core.services.reminder_service import ReminderOperationService
+from elroy.core.services.task_service import TaskOperationService
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     AgendaItem,
@@ -25,9 +27,22 @@ from elroy.db.db_session import DbSession
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
-from elroy.repository.reminders.operations import do_create_due_item
+from elroy.repository.recall.operations import remove_from_context, upsert_embedding_if_needed
 from elroy.repository.user.operations import create_user_id
 from tests.utils import MockCliIO, MockLlmClient, _match_score
+
+
+def _task_operations(ctx: ElroyContext) -> TaskOperationService:
+    return TaskOperationService(
+        ctx.db,
+        ctx.user_id,
+        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
+        remove_from_context=lambda row: remove_from_context(ctx, row),
+    )
+
+
+def _reminder_operations(ctx: ElroyContext) -> ReminderOperationService:
+    return ReminderOperationService(ctx.db, ctx.user_id, task_operations=_task_operations(ctx))
 
 
 def _mock_query_vector(self: DbSession, l2_distance_threshold: float, table, user_id: int, query: list[float]):
@@ -161,20 +176,18 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
 
     add_context_messages(ctx, messages)
 
-    do_create_due_item(
-        ctx,
+    _reminder_operations(ctx).create_due_item(
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
-        None,
-        "Whenever George mentions basketball",
+        trigger_time=None,
+        trigger_context="Whenever George mentions basketball",
     )
 
-    do_create_due_item(
-        ctx,
+    _reminder_operations(ctx).create_due_item(
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",
-        None,
-        "when george mentions bills",
+        trigger_time=None,
+        trigger_context="when george mentions bills",
     )
 
     yield ctx

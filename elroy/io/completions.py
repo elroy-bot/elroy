@@ -1,6 +1,7 @@
 """Helpers for building slash-command autocomplete suggestions and memory panel titles."""
 
 from ..core.ctx import ElroyContext
+from ..core.services.reminder_service import ReminderQueryService
 
 
 def get_memory_panel_entries(ctx: ElroyContext) -> list[tuple[str, str]]:
@@ -32,7 +33,6 @@ def build_completions(ctx: ElroyContext) -> list[str]:
     from ..repository.context_messages.queries import get_context_messages
     from ..repository.memories.queries import get_active_memories
     from ..repository.recall.queries import is_in_context
-    from ..repository.reminders.queries import get_active_due_items
     from ..tools.tools_and_commands import (
         ALL_ACTIVE_AGENDA_COMMANDS,
         ALL_ACTIVE_DUE_ITEM_COMMANDS,
@@ -45,7 +45,7 @@ def build_completions(ctx: ElroyContext) -> list[str]:
 
     context_messages = list(get_context_messages(ctx))
     memories = get_active_memories(ctx)
-    due_items = get_active_due_items(ctx)
+    due_items = ReminderQueryService(ctx.db, ctx.user_id).get_active_due_items()
     agenda_titles = get_active_agenda_titles(ctx)
 
     in_context_memories = sorted([m.get_name() for m in memories if is_in_context(context_messages, m)])

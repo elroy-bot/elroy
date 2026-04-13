@@ -352,9 +352,9 @@ class ElroyApp(App):
         self.query_one("#chat-input").focus()
         self.call_after_refresh(self._resize_chat_input)
 
-        from ..repository.user.queries import get_assistant_name
+        from ..repository.user.queries import assistant_name_for_user
 
-        self.title = get_assistant_name(self.ctx)
+        self.title = assistant_name_for_user(self.ctx.db.session, self.ctx.user_id, self.ctx.default_assistant_name)
         self._stop_spinner()  # initialise status bar with model name
         self._bg_status_handle = self.set_interval(1.0, self._tick_background_status)
         self._start_session()

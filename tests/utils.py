@@ -13,6 +13,9 @@ from toolz.curried import map
 
 from elroy.core.constants import ASSISTANT, USER, InvalidForceToolError, RecoverableToolError
 from elroy.core.ctx import ElroyContext
+from elroy.core.services.document_service import DocumentQueryService
+from elroy.core.services.reminder_service import ReminderOperationService, ReminderQueryService
+from elroy.core.services.task_service import TaskOperationService
 from elroy.core.tracing import tracer
 from elroy.db.db_models import AgendaItem, EmbeddableSqlModel
 from elroy.io.base import ElroyIO
@@ -22,19 +25,16 @@ from elroy.llm.stream_parser import SystemInfo
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.documents.queries import get_source_doc_excerpts, get_source_docs
 from elroy.repository.memories.transforms import to_fast_recall_tool_call
+from elroy.repository.recall.operations import remove_from_context, upsert_embedding_if_needed
 from elroy.repository.recall.queries import is_in_context_message
-from elroy.repository.reminders.operations import do_delete_due_item
-from elroy.repository.reminders.queries import get_active_due_items
 from elroy.repository.reminders.tools import (
     create_due_item,
     delete_due_item,
     rename_due_item,
     update_due_item_text,
 )
-from elroy.repository.tasks.operations import create_task
-from elroy.repository.user.queries import get_assistant_name, get_persona
+from elroy.repository.user.queries import assistant_name_for_user, persona_for_user
 from elroy.repository.user.tools import set_user_preferred_name
 from elroy.utils.clock import utc_now
 from elroy.utils.utils import first_or_none
@@ -198,15 +198,43 @@ def _invoke_tool_from_text(ctx: ElroyContext, tool_name: str, msg: str) -> str:
 
 
 def _assistant_name(ctx: ElroyContext) -> str:
-    persona = get_persona(ctx)
+    persona = persona_for_user(ctx.db.session, ctx.user_id, ctx.default_persona, ctx.default_assistant_name)
     match = re.search(r"name is\s+([A-Za-z0-9_-]+)", persona, flags=re.IGNORECASE)
     if match:
         return match.group(1)
-    return get_assistant_name(ctx) or "Elroy"
+    return assistant_name_for_user(ctx.db.session, ctx.user_id, ctx.default_assistant_name) or "Elroy"
+
+
+def _document_queries(ctx: ElroyContext) -> DocumentQueryService:
+    return DocumentQueryService(ctx.db, ctx.user_id)
+
+
+def _task_operations(ctx: ElroyContext) -> TaskOperationService:
+    return TaskOperationService(
+        ctx.db,
+        ctx.user_id,
+        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
+        remove_from_context=lambda row: remove_from_context(ctx, row),
+    )
+
+
+def _reminder_queries(ctx: ElroyContext) -> ReminderQueryService:
+    task_operations = _task_operations(ctx)
+    return ReminderQueryService(ctx.db, ctx.user_id, task_queries=task_operations.query_service)
+
+
+def _reminder_operations(ctx: ElroyContext) -> ReminderOperationService:
+    task_operations = _task_operations(ctx)
+    return ReminderOperationService(
+        ctx.db,
+        ctx.user_id,
+        task_operations=task_operations,
+        reminder_queries=ReminderQueryService(ctx.db, ctx.user_id, task_queries=task_operations.query_service),
+    )
 
 
 def _handle_document_question(ctx: ElroyContext, msg: str) -> str | None:
-    source_docs = list(get_source_docs(ctx))
+    source_docs = list(_document_queries(ctx).get_source_docs())
     if not source_docs:
         return None
 
@@ -223,7 +251,7 @@ def _handle_document_question(ctx: ElroyContext, msg: str) -> str | None:
             if sentences:
                 return sentences[-1]
         if "midnight garden" in lower_msg:
-            excerpts = get_source_doc_excerpts(ctx, doc)
+            excerpts = _document_queries(ctx).get_source_doc_excerpts(doc)
             if excerpts:
                 return excerpts[0].content
     return None
@@ -255,7 +283,7 @@ def _handle_due_item_message(ctx: ElroyContext, msg: str) -> str | None:
         time_match = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2})", msg)
         when_match = re.search(r"when (?:i|user) mention ([^.]+)", lower_msg)
         context_text = f"when user mentions {when_match.group(1).strip()}" if when_match else None
-        if "duplicate" in lower_msg and any(r.name == name for r in get_active_due_items(ctx)):
+        if "duplicate" in lower_msg and any(r.name == name for r in _reminder_queries(ctx).get_active_due_items()):
             return f"Due item '{name}' already exists."
         try:
             return create_due_item(
@@ -287,17 +315,16 @@ def _handle_due_item_message(ctx: ElroyContext, msg: str) -> str | None:
 
 
 def _handle_due_items(ctx: ElroyContext, msg: str) -> tuple[str | None, list[ContextMessage]]:
-    from elroy.repository.reminders.queries import get_due_item_context_msgs, get_due_timed_items
-
-    due_context = get_due_item_context_msgs(ctx)
-    due_items = get_due_timed_items(ctx)
+    reminder_queries = _reminder_queries(ctx)
+    due_context = reminder_queries.get_due_item_context_msgs()
+    due_items = reminder_queries.get_due_timed_items()
     if not due_items:
         return None, []
 
     response = " ".join(f"Due item: {item.name} - {item.text}." for item in due_items)
     if any(keyword in msg.lower() for keyword in ["clean", "handle", "delete"]):
         for item in due_items:
-            do_delete_due_item(ctx, item.name)
+            _reminder_operations(ctx).delete_due_item(item.name)
         response += " Cleaned up due items."
     return response, due_context
 
@@ -362,7 +389,7 @@ def _mock_relevant_context(ctx: ElroyContext, msg: str) -> list[ContextMessage]:
     from elroy.repository.memories.queries import get_active_memories
 
     relevant_items: list[EmbeddableSqlModel] = []
-    for due_item in get_active_due_items(ctx):
+    for due_item in _reminder_queries(ctx).get_active_due_items():
         searchable = f"{due_item.name} {due_item.text} {due_item.trigger_context or ''}"
         if _match_score(msg, searchable) > 0:
             relevant_items.append(due_item)
@@ -397,7 +424,7 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: str | None = N
 
 def vector_search_by_text(ctx: ElroyContext, query: str, table: type[EmbeddableSqlModel]) -> EmbeddableSqlModel | None:
     if table is AgendaItem:
-        candidates = get_active_due_items(ctx)
+        candidates = _reminder_queries(ctx).get_active_due_items()
     else:
         candidates = list(ctx.db.exec(select(table).where(table.user_id == ctx.user_id)).all())
     ranked = sorted(
@@ -422,7 +449,7 @@ def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str)
     elif "do i still have an active reminder called" in lower_question or "do i have a reminder called" in lower_question:
         match = re.search(r"'([^']+)'", question)
         reminder_name = match.group(1) if match else ""
-        bool_answer = any(item.name.lower() == reminder_name.lower() for item in get_active_due_items(ctx))
+        bool_answer = any(item.name.lower() == reminder_name.lower() for item in _reminder_queries(ctx).get_active_due_items())
     elif "do i have any reminders about" in lower_question:
         keywords = [token for token in _tokenize(lower_question) if token not in {"do", "have", "any", "reminders", "about", "or"}]
         bool_answer = any(keyword in due_items_summary for keyword in keywords)
@@ -441,7 +468,7 @@ def get_active_due_items_summary(ctx: ElroyContext) -> str:
         str: A formatted string summarizing the active due items.
     """
     return pipe(
-        get_active_due_items(ctx),
+        _reminder_queries(ctx).get_active_due_items(),
         map(lambda x: x.to_fact()),
         list,
         "\n\n".join,
@@ -449,8 +476,7 @@ def get_active_due_items_summary(ctx: ElroyContext) -> str:
 
 
 def create_due_item_in_past(ctx: ElroyContext, name: str, text: str, trigger_context: str | None = None):
-    create_task(
-        ctx,
+    _task_operations(ctx).create_task(
         name,
         text,
         trigger_datetime=utc_now() - timedelta(minutes=5),

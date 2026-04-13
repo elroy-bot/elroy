@@ -1,38 +1,29 @@
-from ...core.ctx import ElroyContext
 from ...core.services.reminder_service import ReminderOperationService
 from ...core.services.task_service import TaskOperationService
-from ..recall.operations import remove_from_context, upsert_embedding_if_needed
+from ...db.db_session import DbSession
 
 
-def _task_operations(ctx: ElroyContext) -> TaskOperationService:
-    return TaskOperationService(
-        ctx.db,
-        ctx.user_id,
-        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
-        remove_from_context=lambda row: remove_from_context(ctx, row),
-    )
+def reminder_operation_service(
+    db: DbSession,
+    user_id: int,
+    *,
+    task_operations: TaskOperationService | None = None,
+) -> ReminderOperationService:
+    return ReminderOperationService(db, user_id, task_operations=task_operations)
 
 
-def _reminder_operations(ctx: ElroyContext) -> ReminderOperationService:
-    return ReminderOperationService(
-        ctx.db,
-        ctx.user_id,
-        task_operations=_task_operations(ctx),
-    )
-
-
-def create_onboarding_due_item(ctx: ElroyContext, preferred_name: str) -> None:
-    _reminder_operations(ctx).create_onboarding_due_item(preferred_name)
+def create_onboarding_due_item(operation_service: ReminderOperationService, preferred_name: str) -> None:
+    operation_service.create_onboarding_due_item(preferred_name)
 
 
 def do_create_due_item(
-    ctx: ElroyContext,
+    operation_service: ReminderOperationService,
     name: str,
     text: str,
     trigger_time=None,
     trigger_context=None,
 ):
-    return _reminder_operations(ctx).create_due_item(
+    return operation_service.create_due_item(
         name=name,
         text=text,
         trigger_time=trigger_time,
@@ -40,9 +31,9 @@ def do_create_due_item(
     )
 
 
-def do_complete_due_item(ctx: ElroyContext, item_name: str, closing_comment: str | None = None) -> str:
-    return _reminder_operations(ctx).complete_due_item(item_name, closing_comment)
+def do_complete_due_item(operation_service: ReminderOperationService, item_name: str, closing_comment: str | None = None) -> str:
+    return operation_service.complete_due_item(item_name, closing_comment)
 
 
-def do_delete_due_item(ctx: ElroyContext, item_name: str, closing_comment: str | None = None) -> str:
-    return _reminder_operations(ctx).delete_due_item(item_name, closing_comment)
+def do_delete_due_item(operation_service: ReminderOperationService, item_name: str, closing_comment: str | None = None) -> str:
+    return operation_service.delete_due_item(item_name, closing_comment)

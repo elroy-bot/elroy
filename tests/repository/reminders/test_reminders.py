@@ -3,12 +3,9 @@ from datetime import timedelta
 import pytest
 
 from elroy.core.ctx import ElroyContext
-from elroy.repository.reminders.operations import do_create_due_item
-from elroy.repository.reminders.queries import (
-    get_due_item_by_name,
-    get_due_item_context_msgs,
-    get_due_timed_items,
-)
+from elroy.core.services.reminder_service import ReminderOperationService, ReminderQueryService
+from elroy.core.services.task_service import TaskOperationService
+from elroy.repository.recall.operations import remove_from_context, upsert_embedding_if_needed
 from elroy.repository.reminders.tools import delete_due_item
 from elroy.utils.clock import utc_now
 from tests.utils import (
@@ -18,6 +15,25 @@ from tests.utils import (
     process_test_message,
     quiz_assistant_bool,
 )
+
+
+def _task_operations(ctx: ElroyContext) -> TaskOperationService:
+    return TaskOperationService(
+        ctx.db,
+        ctx.user_id,
+        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
+        remove_from_context=lambda row: remove_from_context(ctx, row),
+    )
+
+
+def _reminder_operations(ctx: ElroyContext) -> ReminderOperationService:
+    task_operations = _task_operations(ctx)
+    return ReminderOperationService(ctx.db, ctx.user_id, task_operations=task_operations)
+
+
+def _reminder_queries(ctx: ElroyContext) -> ReminderQueryService:
+    task_operations = _task_operations(ctx)
+    return ReminderQueryService(ctx.db, ctx.user_id, task_queries=task_operations.query_service)
 
 
 @pytest.mark.flaky(reruns=3)
@@ -51,7 +67,7 @@ def test_create_contextual_due_item(ctx: ElroyContext):
 
 def test_delete_due_item(ctx: ElroyContext):
     """Test deleting a due item."""
-    do_create_due_item(ctx, "test_reminder", "Test reminder text", trigger_context="whenever")
+    _reminder_operations(ctx).create_due_item("test_reminder", "Test reminder text", trigger_context="whenever")
 
     assert "test_reminder" in get_active_due_items_summary(ctx), "Test due item not created."
 
@@ -62,7 +78,7 @@ def test_delete_due_item(ctx: ElroyContext):
 
 def test_rename_due_item(ctx: ElroyContext):
     """Test renaming a due item."""
-    do_create_due_item(ctx, "old_name", "Reminder to test renaming", None, "Any time")
+    _reminder_operations(ctx).create_due_item("old_name", "Reminder to test renaming", None, "Any time")
 
     process_test_message(ctx, "Please rename my reminder 'old_name' to 'new_name' without any clarifying questions.")
 
@@ -72,7 +88,7 @@ def test_rename_due_item(ctx: ElroyContext):
 
 def test_update_due_item_text(ctx: ElroyContext):
     """Test updating due-item text."""
-    do_create_due_item(ctx, "update_test", "Original text", trigger_context="whenever")
+    _reminder_operations(ctx).create_due_item("update_test", "Original text", trigger_context="whenever")
 
     process_test_message(ctx, "Please update the text of my reminder 'update_test' to 'Updated text' without any clarifying questions.")
 
@@ -89,7 +105,7 @@ def test_due_item_detection(ctx: ElroyContext):
         text="This reminder is due",
     )
 
-    due_items = get_due_timed_items(ctx)
+    due_items = _reminder_queries(ctx).get_due_timed_items()
     assert len(due_items) > 0, "Due item not detected."
     assert any(item.name == "due_test" for item in due_items), "Specific due item not found."
 
@@ -103,7 +119,7 @@ def test_due_item_context_messages(ctx: ElroyContext):
         text="This generates context message",
     )
 
-    context_msgs = get_due_item_context_msgs(ctx)
+    context_msgs = _reminder_queries(ctx).get_due_item_context_msgs()
 
     assert len(context_msgs) > 0, "No context messages generated for due item."
 
@@ -117,36 +133,30 @@ def test_due_item_context_messages(ctx: ElroyContext):
 def test_future_due_item_not_due(ctx: ElroyContext):
     """Test that future due items are not considered due."""
     future_time = utc_now() + timedelta(days=1)
-    do_create_due_item(
-        ctx=ctx,
-        name="future_test",
-        text="This reminder is for tomorrow",
-        trigger_time=future_time,
-    )
+    _reminder_operations(ctx).create_due_item(name="future_test", text="This reminder is for tomorrow", trigger_time=future_time)
 
-    due_items = get_due_timed_items(ctx)
+    due_items = _reminder_queries(ctx).get_due_timed_items()
     assert not any(item.name == "future_test" for item in due_items), "Future due item incorrectly marked as due."
 
-    context_msgs = get_due_item_context_msgs(ctx)
+    context_msgs = _reminder_queries(ctx).get_due_item_context_msgs()
     assert not any("future_test" in msg.content for msg in context_msgs), "Context message generated for future due item."  # type: ignore
 
 
 def test_contextual_due_item_not_due(ctx: ElroyContext):
     """Test that contextual-only due items are not considered due by time."""
-    do_create_due_item(
-        ctx=ctx,
+    _reminder_operations(ctx).create_due_item(
         name="contextual_test",
         text="Context-only reminder",
         trigger_context="when user mentions work",
     )
 
-    due_items = get_due_timed_items(ctx)
+    due_items = _reminder_queries(ctx).get_due_timed_items()
     assert not any(item.name == "contextual_test" for item in due_items), "Contextual due item incorrectly in due-timed items."
 
 
 def test_duplicate_due_item_name(io: MockCliIO, ctx: ElroyContext):
     """Test that creating a due item with duplicate name is handled properly."""
-    do_create_due_item(ctx, "duplicate_test", "First reminder", trigger_context="whenever")
+    _reminder_operations(ctx).create_due_item("duplicate_test", "First reminder", trigger_context="whenever")
 
     process_test_message(
         ctx, "Create a reminder called 'duplicate_test' with text 'Second reminder'. Please create without clarifying questions."
@@ -193,8 +203,7 @@ def test_due_item_integration_workflow(ctx: ElroyContext):
 @pytest.mark.skip("TODO")
 def test_due_item_deactivation_sets_is_active_to_none(ctx: ElroyContext):
     """Test that due-item deactivation sets is_active to None (not False) for unique constraint."""
-    due_item = do_create_due_item(
-        ctx=ctx,
+    due_item = _reminder_operations(ctx).create_due_item(
         name="deactivation_test",
         text="Test deactivation",
     )
@@ -202,10 +211,11 @@ def test_due_item_deactivation_sets_is_active_to_none(ctx: ElroyContext):
 
     delete_due_item(ctx, "deactivation_test")
 
-    assert get_due_item_by_name(ctx, "deactivation_test") is None, "Due item should not be returned since it should be inactive"
+    assert _reminder_queries(ctx).get_due_item_by_name("deactivation_test") is None, (
+        "Due item should not be returned since it should be inactive"
+    )
 
-    new_due_item = do_create_due_item(
-        ctx=ctx,
+    new_due_item = _reminder_operations(ctx).create_due_item(
         name="deactivation_test",
         text="New due item with same name",
     )

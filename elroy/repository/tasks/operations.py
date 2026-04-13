@@ -1,23 +1,28 @@
 from pathlib import Path
 from typing import Any
 
-from ...core.ctx import ElroyContext
 from ...core.services.task_service import TaskOperationService
 from ...db.db_models import AgendaItem
-from ..recall.operations import remove_from_context, upsert_embedding_if_needed
+from ...db.db_session import DbSession
 
 
-def _task_operations(ctx: ElroyContext) -> TaskOperationService:
+def task_operation_service(
+    db: DbSession,
+    user_id: int,
+    *,
+    sync_embedding=None,
+    remove_from_context_fn=None,
+) -> TaskOperationService:
     return TaskOperationService(
-        ctx.db,
-        ctx.user_id,
-        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
-        remove_from_context=lambda row: remove_from_context(ctx, row),
+        db,
+        user_id,
+        sync_embedding=sync_embedding,
+        remove_from_context=remove_from_context_fn,
     )
 
 
 def create_task(
-    ctx: ElroyContext,
+    operation_service: TaskOperationService,
     name: str,
     text: str,
     *,
@@ -26,7 +31,7 @@ def create_task(
     trigger_context=None,
     allow_past_trigger: bool = False,
 ) -> AgendaItem:
-    return _task_operations(ctx).create_task(
+    return operation_service.create_task(
         name,
         text,
         item_date=item_date,
@@ -36,20 +41,22 @@ def create_task(
     )
 
 
-def complete_task(ctx: ElroyContext, task_name: str, closing_comment: str | None = None) -> AgendaItem:
-    return _task_operations(ctx).complete_task(task_name, closing_comment)
+def complete_task(operation_service: TaskOperationService, task_name: str, closing_comment: str | None = None) -> AgendaItem:
+    return operation_service.complete_task(task_name, closing_comment)
 
 
-def delete_task(ctx: ElroyContext, task_name: str, closing_comment: str | None = None, *, delete_file: bool = False) -> AgendaItem:
-    return _task_operations(ctx).delete_task(task_name, closing_comment, delete_file=delete_file)
+def delete_task(
+    operation_service: TaskOperationService, task_name: str, closing_comment: str | None = None, *, delete_file: bool = False
+) -> AgendaItem:
+    return operation_service.delete_task(task_name, closing_comment, delete_file=delete_file)
 
 
-def rename_task(ctx: ElroyContext, old_name: str, new_name: str) -> AgendaItem:
-    return _task_operations(ctx).rename_task(old_name, new_name)
+def rename_task(operation_service: TaskOperationService, old_name: str, new_name: str) -> AgendaItem:
+    return operation_service.rename_task(old_name, new_name)
 
 
-def update_task_text(ctx: ElroyContext, task_name: str, new_text: str) -> AgendaItem:
-    return _task_operations(ctx).update_task_text(task_name, new_text)
+def update_task_text(operation_service: TaskOperationService, task_name: str, new_text: str) -> AgendaItem:
+    return operation_service.update_task_text(task_name, new_text)
 
 
 def task_path(task: AgendaItem) -> Path:

@@ -3,8 +3,9 @@
 from datetime import timedelta
 
 from elroy.core.ctx import ElroyContext
-from elroy.repository.reminders.operations import do_create_due_item
-from elroy.repository.reminders.queries import get_due_item_context_msgs
+from elroy.core.services.reminder_service import ReminderOperationService, ReminderQueryService
+from elroy.core.services.task_service import TaskOperationService
+from elroy.repository.recall.operations import remove_from_context, upsert_embedding_if_needed
 from elroy.utils.clock import utc_now
 from tests.utils import (
     MockCliIO,
@@ -12,6 +13,25 @@ from tests.utils import (
     process_test_message,
     quiz_assistant_bool,
 )
+
+
+def _task_operations(ctx: ElroyContext) -> TaskOperationService:
+    return TaskOperationService(
+        ctx.db,
+        ctx.user_id,
+        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
+        remove_from_context=lambda row: remove_from_context(ctx, row),
+    )
+
+
+def _reminder_operations(ctx: ElroyContext) -> ReminderOperationService:
+    task_operations = _task_operations(ctx)
+    return ReminderOperationService(ctx.db, ctx.user_id, task_operations=task_operations)
+
+
+def _reminder_queries(ctx: ElroyContext) -> ReminderQueryService:
+    task_operations = _task_operations(ctx)
+    return ReminderQueryService(ctx.db, ctx.user_id, task_queries=task_operations.query_service)
 
 
 def test_due_item_surfaces_in_conversation(io: MockCliIO, ctx: ElroyContext):
@@ -30,7 +50,7 @@ def test_multiple_due_items_all_surface(io: MockCliIO, ctx: ElroyContext):
     create_due_item_in_past(ctx=ctx, name="reminder1", text="First due reminder")
     create_due_item_in_past(ctx=ctx, name="reminder2", text="Second due reminder")
 
-    context_msgs = get_due_item_context_msgs(ctx)
+    context_msgs = _reminder_queries(ctx).get_due_item_context_msgs()
     assert len(context_msgs) >= 2, "Not all due items generated context messages"
 
     response = process_test_message(ctx, "What's on my schedule today?")
@@ -52,12 +72,14 @@ def test_assistant_uses_delete_due_item_for_due_items(io: MockCliIO, ctx: ElroyC
 def test_no_due_items_no_extra_context(io: MockCliIO, ctx: ElroyContext):
     """Test that when no due items are due, no extra context is added."""
     future_time = utc_now() + timedelta(days=1)
-    future_due_item = do_create_due_item(ctx=ctx, name="future_reminder", text="This is for tomorrow", trigger_time=future_time)
+    future_due_item = _reminder_operations(ctx).create_due_item(
+        name="future_reminder", text="This is for tomorrow", trigger_time=future_time
+    )
     future_due_item.status = "completed"
     future_due_item.is_active = False
     ctx.db.persist(future_due_item)
 
-    context_msgs = get_due_item_context_msgs(ctx)
+    context_msgs = _reminder_queries(ctx).get_due_item_context_msgs()
     assert len(context_msgs) == 0, "Context messages generated for future due item"
 
     response = process_test_message(ctx, "How's the weather today?")
@@ -75,7 +97,7 @@ def test_hybrid_due_item_surfaces_when_time_due(io: MockCliIO, ctx: ElroyContext
         trigger_context="when user mentions work",
     )
 
-    context_msgs = get_due_item_context_msgs(ctx)
+    context_msgs = _reminder_queries(ctx).get_due_item_context_msgs()
     assert len(context_msgs) > 0, "Hybrid due item not detected as due"
 
     response = process_test_message(ctx, "What's happening?")

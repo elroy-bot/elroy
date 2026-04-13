@@ -34,7 +34,7 @@ from ..recall.queries import (
     get_recall_metadata,
     is_in_context,
 )
-from ..user.queries import do_get_user_preferred_name, get_assistant_name
+from ..user.queries import assistant_name_for_user, do_get_user_preferred_name
 from .transforms import to_fast_recall_tool_call
 
 logger = get_logger()
@@ -213,7 +213,7 @@ def get_reflective_recall(
             + format_context_messages(
                 tail(3, list(context_messages)[1:]),
                 do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-                get_assistant_name(ctx),
+                assistant_name_for_user(ctx.db.session, ctx.user_id, ctx.default_assistant_name),
             )
         ),
         lambda x: ctx.llm.query_llm_with_response_format(

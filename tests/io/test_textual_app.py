@@ -8,12 +8,13 @@ from textual.widgets import Label, ListItem, ListView, RichLog
 
 from elroy.core.ctx import ElroyContext
 from elroy.core.services.sidebar_service import AgendaPresenter
+from elroy.core.services.task_service import TaskOperationService
 from elroy.db.db_models import AgendaItem
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.io.textual_app import ChatInput, ElroyApp, MemoryDetailModal
 from elroy.repository.context_messages.tools import add_memory_to_current_context
 from elroy.repository.memories.tools import create_memory
-from elroy.repository.tasks.operations import create_task
+from elroy.repository.recall.operations import remove_from_context, upsert_embedding_if_needed
 from elroy.utils.clock import utc_now
 
 
@@ -40,6 +41,15 @@ def _make_app(ctx: ElroyContext, rich_formatter: RichFormatter) -> HarnessElroyA
         enable_greeting=False,
         show_internal_thought=False,
         show_memory_panel=True,
+    )
+
+
+def _task_operations(ctx: ElroyContext) -> TaskOperationService:
+    return TaskOperationService(
+        ctx.db,
+        ctx.user_id,
+        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
+        remove_from_context=lambda row: remove_from_context(ctx, row),
     )
 
 
@@ -71,9 +81,8 @@ def _history_text(app: ElroyApp) -> str:
 async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
     create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
     add_memory_to_current_context(ctx, "Travel preference")
-    create_task(ctx, "Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
-    create_task(
-        ctx,
+    _task_operations(ctx).create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+    _task_operations(ctx).create_task(
         "Pay electricity bill",
         "Pay electricity bill before the cutoff date.",
         trigger_datetime=utc_now() - timedelta(minutes=5),
@@ -188,9 +197,10 @@ async def test_tui_renders_existing_context_messages_on_startup(george_ctx: Elro
 
 @pytest.mark.asyncio
 async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
-    create_task(ctx, "Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
-    create_task(ctx, "Buy groceries", "Buy groceries\nMilk, eggs, bread.")
+    task_operations = _task_operations(ctx)
+    task_operations.create_task("Job search", "Job search\nReach out to three contacts.")
+    task_operations.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+    task_operations.create_task("Buy groceries", "Buy groceries\nMilk, eggs, bread.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -225,7 +235,7 @@ async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: El
 
 @pytest.mark.asyncio
 async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
+    _task_operations(ctx).create_task("Job search", "Job search\nReach out to three contacts.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -248,8 +258,7 @@ async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_form
 
 @pytest.mark.asyncio
 async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(
-        ctx,
+    _task_operations(ctx).create_task(
         "Pay rent",
         "Pay rent before the first of the month.",
         trigger_datetime=utc_now() - timedelta(minutes=5),
