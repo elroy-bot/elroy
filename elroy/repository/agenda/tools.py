@@ -8,9 +8,9 @@ from sqlmodel import col, select
 from ...config.paths import get_agenda_dir
 from ...core.constants import RecoverableToolError, tool, user_only_tool
 from ...core.ctx import ElroyContext
+from ...core.services.task_service import TaskOperationService
 from ...db.db_models import AgendaItem
 from ...repository.recall.operations import upsert_embedding_if_needed
-from ..tasks.operations import complete_task, create_task, delete_task
 from .file_storage import (
     add_checklist_item,
     append_agenda_update,
@@ -23,6 +23,14 @@ from .file_storage import (
 from .file_storage import (
     list_agenda_items as list_agenda_items_from_dir,
 )
+
+
+def _task_operations(ctx: ElroyContext) -> TaskOperationService:
+    return TaskOperationService(
+        ctx.db,
+        ctx.user_id,
+        sync_embedding=lambda row: upsert_embedding_if_needed(ctx, row),
+    )
 
 
 def _parse_iso_date(item_date: str | None) -> date:
@@ -70,7 +78,7 @@ def add_agenda_item(ctx: ElroyContext, text: str, item_date: str | None = None) 
         path = write_agenda_item(get_agenda_dir(), name, text, target_date)
         return f"Agenda item added for {target_date.isoformat()}: {path.stem}"
 
-    row = create_task(ctx, name, text, item_date=target_date)
+    row = _task_operations(ctx).create_task(name, text, item_date=target_date)
     return f"Agenda item added for {target_date.isoformat()}: {row.name}"
 
 
@@ -89,7 +97,7 @@ def complete_agenda_item(ctx: ElroyContext, item_name: str) -> str:
     if ctx is not None:
         row = ctx.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == ctx.user_id)).first()
         if row:
-            complete_task(ctx, row.name)
+            _task_operations(ctx).complete_task(row.name)
     return f"Agenda item '{path.stem}' marked as completed."
 
 
@@ -107,7 +115,7 @@ def delete_agenda_item(ctx: ElroyContext, item_name: str) -> str:
     if ctx is not None:
         row = ctx.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == ctx.user_id)).first()
         if row:
-            delete_task(ctx, row.name, delete_file=True)
+            _task_operations(ctx).delete_task(row.name, delete_file=True)
         else:
             path.unlink()
     else:

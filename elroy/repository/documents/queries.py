@@ -1,39 +1,25 @@
-from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, cast
-
-from sqlmodel import select
 
 from ...core.ctx import ElroyContext
+from ...core.services.document_service import DocumentQueryService
 from ...db.db_models import DocumentExcerpt, SourceDocument
 
 
-def get_source_docs(ctx: ElroyContext) -> Iterator[SourceDocument]:
-    return ctx.db.exec(select(SourceDocument).where(SourceDocument.user_id == ctx.user_id))
+def _document_queries(ctx: ElroyContext) -> DocumentQueryService:
+    return DocumentQueryService(ctx.db, ctx.user_id)
+
+
+def get_source_docs(ctx: ElroyContext):
+    return _document_queries(ctx).get_source_docs()
 
 
 def get_source_doc_by_address(ctx: ElroyContext, address: Path | str) -> SourceDocument | None:
-    return ctx.db.exec(
-        select(SourceDocument).where(
-            SourceDocument.address == str(address),
-            SourceDocument.user_id == ctx.user_id,
-        )
-    ).one_or_none()
+    return _document_queries(ctx).get_source_doc_by_address(address)
 
 
 def get_source_doc_excerpts(ctx: ElroyContext, source_doc: SourceDocument) -> list[DocumentExcerpt]:
-    return list(
-        ctx.db.exec(
-            select(DocumentExcerpt).where(DocumentExcerpt.source_document_id == source_doc.id).where(cast(Any, DocumentExcerpt.is_active))
-        ).all()
-    )
+    return _document_queries(ctx).get_source_doc_excerpts(source_doc)
 
 
 def get_source_doc_by_content_md5(ctx: ElroyContext, content_md5: str) -> SourceDocument | None:
-    """Find a source document with the same content MD5 hash, excluding the current address if provided."""
-    return ctx.db.exec(
-        select(SourceDocument).where(
-            SourceDocument.content_md5 == content_md5,
-            SourceDocument.user_id == ctx.user_id,
-        )
-    ).first()
+    return _document_queries(ctx).get_source_doc_by_content_md5(content_md5)

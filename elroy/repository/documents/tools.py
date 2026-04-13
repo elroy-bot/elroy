@@ -2,8 +2,23 @@ from pathlib import Path
 
 from ...core.constants import RecoverableToolError, tool
 from ...core.ctx import ElroyContext
-from .operations import DocIngestStatus, do_ingest
-from .queries import get_source_doc_by_address, get_source_doc_excerpts, get_source_docs
+from ...core.services.document_service import DocIngestStatus, DocumentIngestService, DocumentQueryService
+from ..memories.operations import do_create_memory
+from ..recall.operations import upsert_embedding_if_needed
+
+
+def _document_queries(ctx: ElroyContext) -> DocumentQueryService:
+    return DocumentQueryService(ctx.db, ctx.user_id)
+
+
+def _document_ingest(ctx: ElroyContext) -> DocumentIngestService:
+    return DocumentIngestService(
+        ctx.db,
+        ctx.user_id,
+        max_ingested_doc_lines=ctx.max_ingested_doc_lines,
+        sync_embedding=lambda excerpt: upsert_embedding_if_needed(ctx, excerpt),
+        create_memory_from_excerpt=lambda title, content, excerpts: do_create_memory(ctx, title, content, excerpts, False),
+    )
 
 
 @tool
@@ -17,14 +32,14 @@ def reingest_doc(ctx: ElroyContext, address: str) -> str:
         str: The content of the document.
     """
 
-    do_ingest(ctx, Path(address), True)
+    _document_ingest(ctx).ingest(Path(address), True)
     return f"Document {address} has been re-ingested."
 
 
 @tool
 def get_source_documents(ctx: ElroyContext) -> str:
     """Gets the list of ingested source documents."""
-    return "\n".join([doc.address for doc in get_source_docs(ctx)])
+    return "\n".join([doc.address for doc in _document_queries(ctx).get_source_docs()])
 
 
 @tool
@@ -40,11 +55,11 @@ def get_source_doc_metadata(ctx: ElroyContext, address: str) -> str:
     Raises:
         RecoverableToolError: If the document has not been ingested yet
     """
-    source_doc = get_source_doc_by_address(ctx, address)
+    source_doc = _document_queries(ctx).get_source_doc_by_address(address)
     if not source_doc:
         raise RecoverableToolError(f"Document at {address} has not been ingested yet. Use ingest_doc first.")
 
-    excerpts = get_source_doc_excerpts(ctx, source_doc)
+    excerpts = _document_queries(ctx).get_source_doc_excerpts(source_doc)
     active_excerpts = [e for e in excerpts if e.is_active]
 
     # Get available chunk indices
@@ -74,11 +89,11 @@ def get_document_excerpt(ctx: ElroyContext, address: str, chunk_index: int) -> s
     Raises:
         RecoverableToolError: If the document hasn't been ingested or the chunk index is invalid
     """
-    source_doc = get_source_doc_by_address(ctx, address)
+    source_doc = _document_queries(ctx).get_source_doc_by_address(address)
     if not source_doc:
         raise RecoverableToolError(f"Document at {address} has not been ingested yet. Use ingest_doc first.")
 
-    excerpts = get_source_doc_excerpts(ctx, source_doc)
+    excerpts = _document_queries(ctx).get_source_doc_excerpts(source_doc)
     active_excerpts = [e for e in excerpts if e.is_active]
 
     # Find the excerpt with matching chunk_index
@@ -104,6 +119,6 @@ def ingest_doc(ctx: ElroyContext, address: str) -> str:
         str: The content of the document.
     """
 
-    result = do_ingest(ctx, Path(address), False)
+    result = _document_ingest(ctx).ingest(Path(address), False)
 
     return f"Document {address} has been ingested." if result == DocIngestStatus.SUCCESS else f"Document {address} has been updated."

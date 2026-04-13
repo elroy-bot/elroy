@@ -20,7 +20,7 @@ from ...repository.context_messages.queries import get_context_messages
 from ...repository.context_messages.validations import Validator
 from ...repository.memories.queries import get_relevant_memory_context_msgs
 from ...repository.memories.recall_classifier import should_recall_memory
-from ...repository.reminders.queries import get_due_item_context_msgs
+from .reminder_service import ReminderQueryService
 
 logger = get_logger()
 
@@ -85,7 +85,7 @@ class ConversationService:
 
     def _append_due_items(self, new_msgs: list[ContextMessage]) -> None:
         with self._tracker().measure("due_items_check"):
-            due_item_msgs = get_due_item_context_msgs(self.ctx)
+            due_item_msgs = ReminderQueryService(self.ctx.db, self.ctx.user_id).get_due_item_context_msgs()
         if due_item_msgs:
             new_msgs += due_item_msgs
 

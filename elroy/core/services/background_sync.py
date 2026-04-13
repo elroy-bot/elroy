@@ -7,8 +7,8 @@ from sqlmodel import select
 
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
+from ...core.services.document_service import DocumentIngestService
 from ...db.db_models import Memory
-from ...repository.documents.operations import do_ingest, do_ingest_dir
 from ...repository.memories.file_storage import read_memory_frontmatter, read_memory_text, write_id_to_frontmatter
 from ...repository.user.operations import get_or_create_user_preference
 from ...utils.clock import utc_now
@@ -54,14 +54,23 @@ class DocumentIngestionService:
         return targets
 
     def ingest_target(self, target: DocumentIngestionTarget, exclude: list[str]) -> None:
+        from ...repository.memories.operations import do_create_memory
+        from ...repository.recall.operations import upsert_embedding_if_needed
+
+        ingest_service = DocumentIngestService(
+            self.ctx.db,
+            self.ctx.user_id,
+            max_ingested_doc_lines=self.ctx.max_ingested_doc_lines,
+            sync_embedding=lambda excerpt: upsert_embedding_if_needed(self.ctx, excerpt),
+            create_memory_from_excerpt=lambda title, content, excerpts: do_create_memory(self.ctx, title, content, excerpts, False),
+        )
         if target.kind == "file":
-            result = do_ingest(self.ctx, target.path, force_refresh=False)
+            result = ingest_service.ingest(target.path, force_refresh=False)
             logger.info(f"Background ingested {target.path}: {result.name}")
             return
 
         total_processed = 0
-        for status_update in do_ingest_dir(
-            self.ctx,
+        for status_update in ingest_service.ingest_dir(
             target.path,
             force_refresh=False,
             recursive=True,

@@ -6,14 +6,14 @@ from pathlib import Path
 from typing import ClassVar
 
 from ...core.ctx import ElroyContext
+from ...core.services.reminder_service import ReminderOperationService
+from ...core.services.task_service import TaskOperationService, TaskQueryService
 from ...db.db_models import AgendaItem, EmbeddableSqlModel
 from ...io.completions import build_completions, get_memory_panel_entries
 from ...repository.agenda.file_storage import get_checklist, read_agenda_metadata
 from ...repository.memories.operations import mark_inactive
 from ...repository.memories.queries import db_get_memory_source_by_name
-from ...repository.reminders.operations import do_delete_due_item
-from ...repository.tasks.operations import complete_task
-from ...repository.tasks.queries import get_active_tasks, get_task_by_name
+from ...repository.recall.operations import remove_from_context, upsert_embedding_if_needed
 from ...utils.clock import db_time_to_local, ensure_utc, utc_now
 
 
@@ -45,6 +45,24 @@ class AgendaPresenter:
 
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
+
+    def _task_queries(self) -> TaskQueryService:
+        return TaskQueryService(self.ctx.db, self.ctx.user_id)
+
+    def _task_operations(self) -> TaskOperationService:
+        return TaskOperationService(
+            self.ctx.db,
+            self.ctx.user_id,
+            sync_embedding=lambda row: upsert_embedding_if_needed(self.ctx, row),
+            remove_from_context=lambda row: remove_from_context(self.ctx, row),
+        )
+
+    def _reminder_operations(self) -> ReminderOperationService:
+        return ReminderOperationService(
+            self.ctx.db,
+            self.ctx.user_id,
+            task_operations=self._task_operations(),
+        )
 
     def build_sidebar_state(self) -> SidebarState:
         memory_entries = self._build_memory_entries()
@@ -83,7 +101,7 @@ class AgendaPresenter:
                 content=item.to_fact(),
                 deletable=bool(item.trigger_datetime or item.trigger_context),
             )
-            for item in get_active_tasks(self.ctx)[:15]
+            for item in self._task_queries().get_active_tasks()[:15]
         ]
 
     def build_memory_modal(self, entry: SidebarEntry, refresh: Callable[[], None]) -> ModalSpec | None:
@@ -138,20 +156,20 @@ class AgendaPresenter:
         content = entry.content
         on_delete = None
         on_complete = None
-        task = get_task_by_name(self.ctx, entry.lookup_key)
+        task = self._task_queries().get_task_by_name(entry.lookup_key)
         if task:
             title = task.name
             content = self._build_agenda_modal_content(task)
             if task.status == "created":
 
                 def on_complete(name=entry.lookup_key) -> None:
-                    complete_task(self.ctx, name)
+                    self._task_operations().complete_task(name)
                     refresh()
 
         if entry.deletable:
 
             def on_delete(name=entry.lookup_key) -> None:
-                do_delete_due_item(self.ctx, name)
+                self._reminder_operations().delete_due_item(name)
                 refresh()
 
         return ModalSpec(title=title, content=content, on_delete=on_delete, on_complete=on_complete)
