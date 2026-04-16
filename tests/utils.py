@@ -21,7 +21,6 @@ from elroy.llm.stream_parser import SystemInfo
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import add_context_messages
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.documents.queries import get_source_doc_excerpts, get_source_docs
 from elroy.repository.memories.transforms import to_fast_recall_tool_call
 from elroy.repository.recall.queries import is_in_context_message
 from elroy.repository.reminders.operations import do_delete_due_item
@@ -204,30 +203,6 @@ def _assistant_name(ctx: ElroyContext) -> str:
     return get_assistant_name(ctx) or "Elroy"
 
 
-def _handle_document_question(ctx: ElroyContext, msg: str) -> str | None:
-    source_docs = list(get_source_docs(ctx))
-    if not source_docs:
-        return None
-
-    lower_msg = msg.lower()
-    for doc in source_docs:
-        content = doc.content or ""
-        if "main character" in lower_msg:
-            match = re.search(r"\bClara\b", content, flags=re.IGNORECASE)
-            if match:
-                return "The main character was Clara."
-        if "last sentence" in lower_msg:
-            clean = " ".join(content.split())
-            sentences = re.split(r"(?<=[.!?])\s+", clean)
-            if sentences:
-                return sentences[-1]
-        if "midnight garden" in lower_msg:
-            excerpts = get_source_doc_excerpts(ctx, doc)
-            if excerpts:
-                return excerpts[0].content
-    return None
-
-
 def _handle_custom_tool_message(ctx: ElroyContext, msg: str) -> str | None:
     lower_msg = msg.lower()
     if "netflix show" in lower_msg:
@@ -337,9 +312,6 @@ def _answer_from_state(ctx: ElroyContext, msg: str) -> str:
     if due_response is not None:
         ctx.__dict__["_pending_test_context"] = due_context
         return due_response
-
-    if response := _handle_document_question(ctx, msg):
-        return response
 
     if response := _handle_custom_tool_message(ctx, msg):
         return response

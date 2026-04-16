@@ -1,3 +1,5 @@
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, cast
 
 from sqlmodel import Session, select
@@ -12,6 +14,56 @@ from ...utils.utils import is_blank
 logger = get_logger()
 
 
+@dataclass(frozen=True)
+class UserOperationCallbacks:
+    refresh_system_instructions_fn: Callable[[], None]
+
+
+class UserOperationService:
+    def __init__(self, db: DbSession, user_id: int, callbacks: UserOperationCallbacks):
+        self.db = db
+        self.user_id = user_id
+        self.callbacks = callbacks
+
+    def get_or_create_user_preference(self) -> UserPreference:
+        return do_get_or_create_user_preference(self.db.session, self.user_id)
+
+    def set_assistant_name(self, assistant_name: str) -> str:
+        user_preference = self.get_or_create_user_preference()
+        user_preference.assistant_name = assistant_name
+        self.db.add(user_preference)
+        self.db.commit()
+        self.callbacks.refresh_system_instructions_fn()
+        return f"Assistant name updated to {assistant_name}."
+
+    def reset_system_persona(self) -> str:
+        user_preference = self.get_or_create_user_preference()
+        if not user_preference.system_persona:
+            logger.warning("System persona was already set to default")
+
+        user_preference.system_persona = None
+        self.db.add(user_preference)
+        self.db.commit()
+        self.callbacks.refresh_system_instructions_fn()
+        return "System persona cleared, will now use default persona."
+
+    def set_persona(self, system_persona: str) -> str:
+        system_persona = system_persona.strip()
+        if is_blank(system_persona):
+            raise ValueError("System persona cannot be blank.")
+
+        user_preference = self.get_or_create_user_preference()
+        if user_preference.system_persona == system_persona:
+            logger.info("New system persona and old system persona are identical")
+            return "New system persona and old system persona are identical"
+
+        user_preference.system_persona = system_persona
+        self.db.add(user_preference)
+        self.db.commit()
+        self.callbacks.refresh_system_instructions_fn()
+        return "System persona updated."
+
+
 def create_user_id(db: DbSession, user_token: str) -> int:
     user = db.persist(User(token=user_token))
     user_id = user.id
@@ -19,8 +71,20 @@ def create_user_id(db: DbSession, user_token: str) -> int:
     return user_id
 
 
+def _service(ctx: ElroyContext) -> UserOperationService:
+    from ..context_messages.operations import refresh_system_instructions
+
+    return UserOperationService(
+        db=ctx.db,
+        user_id=ctx.user_id,
+        callbacks=UserOperationCallbacks(
+            refresh_system_instructions_fn=lambda: refresh_system_instructions(ctx),
+        ),
+    )
+
+
 def get_or_create_user_preference(ctx: ElroyContext) -> UserPreference:
-    return do_get_or_create_user_preference(ctx.db.session, ctx.user_id)
+    return _service(ctx).get_or_create_user_preference()
 
 
 def do_get_or_create_user_preference(session: Session, user_id: int) -> UserPreference:
@@ -44,57 +108,18 @@ def set_assistant_name(ctx: ElroyContext, assistant_name: str) -> str:
     """
     Sets the assistant name for the user
     """
-    from ..context_messages.operations import refresh_system_instructions
-
-    user_preference = get_or_create_user_preference(ctx)
-    user_preference.assistant_name = assistant_name
-    ctx.db.add(user_preference)
-    ctx.db.commit()
-    refresh_system_instructions(ctx)
-    return f"Assistant name updated to {assistant_name}."
+    return _service(ctx).set_assistant_name(assistant_name)
 
 
 def reset_system_persona(ctx: ElroyContext) -> str:
     """
     Clears the system instruction for the user
     """
-    from ..context_messages.operations import refresh_system_instructions
-
-    user_preference = get_or_create_user_preference(ctx)
-    if not user_preference.system_persona:
-        # Re-clear the persona even if it was already blank, in case some malformed value has been set
-        logger.warning("System persona was already set to default")
-
-    user_preference.system_persona = None
-
-    ctx.db.add(user_preference)
-    ctx.db.commit()
-
-    refresh_system_instructions(ctx)
-    return "System persona cleared, will now use default persona."
+    return _service(ctx).reset_system_persona()
 
 
 def set_persona(ctx: ElroyContext, system_persona: str) -> str:
     """
     Sets the system instruction for the user
     """
-    from ..context_messages.operations import refresh_system_instructions
-
-    system_persona = system_persona.strip()
-
-    if is_blank(system_persona):
-        raise ValueError("System persona cannot be blank.")
-
-    user_preference = get_or_create_user_preference(ctx)
-
-    if user_preference.system_persona == system_persona:
-        logger.info("New system persona and old system persona are identical")
-        return "New system persona and old system persona are identical"
-
-    user_preference.system_persona = system_persona
-
-    ctx.db.add(user_preference)
-    ctx.db.commit()
-
-    refresh_system_instructions(ctx)
-    return "System persona updated."
+    return _service(ctx).set_persona(system_persona)

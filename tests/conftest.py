@@ -15,7 +15,6 @@ from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     AgendaItem,
     ContextMessageSet,
-    DocumentExcerpt,
     Memory,
     Message,
     User,
@@ -39,8 +38,6 @@ def _mock_query_vector(self: DbSession, l2_distance_threshold: float, table, use
         if isinstance(row, Memory):
             return row.to_fact()
         if isinstance(row, AgendaItem):
-            return row.to_fact()
-        if isinstance(row, DocumentExcerpt):
             return row.to_fact()
         return str(row)
 

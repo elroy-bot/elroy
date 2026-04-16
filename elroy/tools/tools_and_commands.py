@@ -26,13 +26,6 @@ from ..repository.context_messages.tools import (
     add_memory_to_current_context,
     drop_memory_from_current_context,
 )
-from ..repository.documents.tools import (
-    get_document_excerpt,
-    get_source_doc_metadata,
-    get_source_documents,
-    ingest_doc,
-    reingest_doc,
-)
 from ..repository.memories.tools import (
     create_memory,
     examine_memories,
@@ -43,7 +36,6 @@ from ..repository.memories.tools import (
     search_memories,
     update_outdated_or_incorrect_memory,
 )
-from ..repository.recall.queries import search_documents
 from ..repository.reminders.queries import (
     print_active_due_items,
     print_inactive_due_items,
@@ -103,10 +95,6 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     examine_memories,
     get_user_full_name,
     set_user_full_name,
-    search_documents,
-    get_document_excerpt,
-    get_source_doc_metadata,
-    get_source_documents,
     get_user_preferred_name,
     set_user_preferred_name,
     get_current_date,
@@ -114,8 +102,6 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,
-    ingest_doc,
-    reingest_doc,
     print_config,
     reset_messages,
     refresh_system_instructions,

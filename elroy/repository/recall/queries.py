@@ -6,10 +6,10 @@ from toolz import identity, pipe
 from toolz.curried import filter
 
 from ...core.configs import MemoryConfig
-from ...core.constants import TOOL, tool
+from ...core.constants import TOOL
 from ...core.ctx import ElroyContext
 from ...core.logging import log_execution_time
-from ...db.db_models import AgendaItem, DocumentExcerpt, EmbeddableSqlModel, Memory
+from ...db.db_models import AgendaItem, EmbeddableSqlModel, Memory
 from ...db.db_session import DbSession
 from ...repository.data_models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
@@ -83,31 +83,6 @@ def query_vector[T: EmbeddableSqlModel](table: type[T], ctx: ElroyContext, query
         List[Tuple[Fact, float]]: A list of tuples containing the matching Fact and its similarity score.
     """
     return _service(ctx).query_vector(table, query)
-
-
-@tool
-def search_documents(ctx: ElroyContext, query: str) -> str:
-    """
-    Search through document excerpts using semantic similarity.
-
-    Args:
-        query: The search query string
-
-    Returns:
-        str: A description of the found documents, or a message if none found
-    """
-
-    query_embedding = ctx.llm.get_embedding(query, ctx=ctx)
-    found_docs = list(query_vector(DocumentExcerpt, ctx, query_embedding))
-
-    if not found_docs:
-        return "No relevant documents found."
-
-    response = "Found relevant document excerpts:\n\n"
-    for doc in found_docs:
-        response += f"- {doc.to_fact()}\n"
-
-    return response
 
 
 @log_execution_time

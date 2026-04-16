@@ -41,7 +41,7 @@ class ModalSpec:
 
 
 class AgendaPresenter:
-    MEMORY_BUFFER_SOURCE_TYPES: ClassVar[set[str]] = {"Memory", "DocumentExcerpt", "ContextMessageSet"}
+    MEMORY_BUFFER_SOURCE_TYPES: ClassVar[set[str]] = {"Memory", "ContextMessageSet"}
 
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx

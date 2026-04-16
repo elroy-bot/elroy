@@ -1,6 +1,5 @@
 """File storage helpers for file-backed memories (Obsidian integration)."""
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -69,20 +68,10 @@ def write_id_to_frontmatter(path: Path, memory_id: int) -> None:
     update_frontmatter_fields(path, {"id": memory_id})
 
 
-def _is_document_sourced(memory: Memory) -> bool:
-    """Return True if any source in source_metadata is a DocumentExcerpt."""
-    try:
-        sources = json.loads(memory.source_metadata or "[]")
-        return any(s.get("source_type") == "DocumentExcerpt" for s in sources)
-    except (json.JSONDecodeError, AttributeError):
-        return False
-
-
 def migrate_memories_to_files(ctx: ElroyContext) -> int:
     """Migrate file-backed memories from another directory into memory_dir.
 
     Handles memories whose file_path is outside the current memory_dir.
-    Skips memories sourced from ingested documents (DocumentExcerpt).
     Returns the count of memories migrated.
     """
     from typing import cast
@@ -105,8 +94,6 @@ def migrate_memories_to_files(ctx: ElroyContext) -> int:
 
     count = 0
     for memory in memories:
-        if _is_document_sourced(memory):
-            continue
         assert memory.id is not None
         assert memory.file_path is not None
 
