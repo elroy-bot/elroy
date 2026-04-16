@@ -13,7 +13,6 @@ from sqlmodel import select
 
 from ...core.constants import RecoverableToolError, allow_unused
 from ...core.logging import get_logger
-from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, SourceDocument
 from ...db.db_session import DbSession
 from ...llm.client import LlmClient
@@ -30,7 +29,6 @@ class DocumentChunk:
 
 
 @allow_unused
-@tracer.chain
 def convert_to_text(llm: LlmClient, content: str) -> str:
     return llm.query_llm(
         system="Your task is to convert the following text into plain text. You should NOT summarize content, "

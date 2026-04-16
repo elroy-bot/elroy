@@ -4,10 +4,6 @@ import logging
 import os
 
 
-def is_tracing_enabled() -> bool:
-    return os.environ.get("ELROY_ENABLE_TRACING", "").lower() in ("1", "true", "yes")
-
-
 def get_log_level() -> int:
     log_level = os.environ.get("ELROY_LOG_LEVEL", "INFO").upper()
 

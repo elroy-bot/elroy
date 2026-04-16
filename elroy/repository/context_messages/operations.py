@@ -3,34 +3,32 @@ import time
 import traceback
 from collections.abc import Callable, Iterable, Iterator
 from functools import partial, wraps
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
-from sqlmodel import select
-from toolz import concatv, pipe
+from toolz import pipe
 from toolz.curried import tail
 
 from ...config.paths import get_save_dir
-from ...core.async_tasks import schedule_task
 from ...core.constants import (
     ASSISTANT,
     FORMATTING_INSTRUCT,
     SYSTEM,
     SYSTEM_INSTRUCTION_LABEL,
     SYSTEM_INSTRUCTION_LABEL_END,
-    USER,
     user_only_tool,
 )
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
+from ...core.services.context_message_service import (
+    ContextMessageOperationService,
+    context_message_operation_service_for_context,
+)
 from ...core.tracing import tracer
-from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
 from ...utils.clock import db_time_to_local, utc_now
 from ..memories.operations import (
-    create_mem_from_current_context,
     formulate_memory,
-    get_or_create_memory_op_tracker,
 )
 from ..memories.tools import create_memory
 from ..user.queries import assistant_name_for_user, do_get_user_preferred_name, persona_for_user
@@ -39,7 +37,6 @@ from .queries import get_context_messages
 from .tools import to_synthetic_tool_call
 from .transforms import (
     compress_context_messages,
-    context_message_to_db_message,
     format_context_messages,
     is_context_refresh_needed,
     remove,
@@ -48,42 +45,20 @@ from .transforms import (
 logger = get_logger()
 
 
+def context_message_operation_service(ctx: ElroyContext) -> ContextMessageOperationService:
+    return context_message_operation_service_for_context(ctx)
+
+
 def persist_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> Iterator[int]:
     for msg in messages:
         if not msg.content and not msg.tool_calls:
             logger.info(f"Skipping message with no content or tool calls: {msg}\n{traceback.format_exc()}")
-        elif msg.id:
-            yield msg.id
         else:
-            db_message = ctx.db.persist(context_message_to_db_message(ctx.user_id, msg))
-            assert db_message.id
-            yield db_message.id
+            yield from context_message_operation_service(ctx).persist_messages([msg])
 
 
 def replace_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> None:
-    # Dangerous! The message set might have been updated since we fetched it
-    msg_ids = list(persist_messages(ctx, messages))
-
-    existing_context = ctx.db.exec(
-        select(ContextMessageSet).where(
-            ContextMessageSet.user_id == ctx.user_id,
-            cast(Any, ContextMessageSet.is_active),
-        )
-    ).first()
-
-    if existing_context:
-        existing_context.is_active = None
-        ctx.db.add(existing_context)
-        # Flush the deactivation before inserting the replacement so the
-        # unique (user_id, is_active) constraint does not see two active rows.
-        ctx.db.session.flush()
-    new_context = ContextMessageSet(
-        user_id=ctx.user_id,
-        message_ids=json.dumps(msg_ids),
-        is_active=True,
-    )
-    ctx.db.add(new_context)
-    ctx.db.commit()
+    context_message_operation_service(ctx).replace_context_messages(messages)
 
 
 T = TypeVar("T")
@@ -113,10 +88,7 @@ def remove_context_messages(ctx: ElroyContext, messages: list[ContextMessage]) -
     if not messages:
         return
     logger.info(f"Removing {len(messages)} messages")
-    assert all(m.id is not None for m in messages), "All messages must have an id to be removed"
-
-    msg_ids = [m.id for m in messages]
-    replace_context_messages(ctx, [m for m in get_context_messages(ctx) if m.id not in msg_ids])
+    context_message_operation_service(ctx).remove_context_messages(messages)
 
 
 def add_context_message(ctx: ElroyContext, message: ContextMessage) -> None:
@@ -125,23 +97,7 @@ def add_context_message(ctx: ElroyContext, message: ContextMessage) -> None:
 
 @retry_on_integrity_error
 def add_context_messages(ctx: ElroyContext, messages: Iterable[ContextMessage]) -> None:
-    msgs_list = list(messages)
-    user_and_asst_msgs_ct = len(
-        [msg for msg in msgs_list if msg.role == USER and msg.content]
-    )  # critical to filter no-content assistant messages, to prevent infinite loops for memory creation triggers
-
-    pipe(
-        concatv(get_context_messages(ctx), msgs_list),
-        partial(replace_context_messages, ctx),
-    )
-
-    if user_and_asst_msgs_ct > 0:
-        tracker = get_or_create_memory_op_tracker(ctx)
-        tracker.messages_since_memory += user_and_asst_msgs_ct
-        tracker = ctx.db.persist(tracker)
-
-        if tracker.messages_since_memory >= ctx.messages_between_memory:
-            schedule_task(create_mem_from_current_context, ctx)
+    context_message_operation_service(ctx).add_context_messages(messages)
 
 
 def get_refreshed_system_message(ctx: ElroyContext) -> ContextMessage:
@@ -170,7 +126,6 @@ def get_refreshed_system_message(ctx: ElroyContext) -> ContextMessage:
     )
 
 
-@tracer.agent
 def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
     """
     Refresh context WITHOUT regenerating system message to preserve prompt cache.

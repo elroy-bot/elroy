@@ -15,19 +15,32 @@ from ...db.db_models import FunctionCall
 from ...llm.stream_parser import AssistantInternalThought, AssistantResponse, CodeBlock, StatusUpdate
 from ...messenger.tools import exec_function_call
 from ...repository.context_messages.data_models import ContextMessage
-from ...repository.context_messages.operations import add_context_messages
-from ...repository.context_messages.queries import get_context_messages
 from ...repository.context_messages.validations import Validator
 from ...repository.memories.queries import get_relevant_memory_context_msgs
 from ...repository.memories.recall_classifier import should_recall_memory
+from .context_message_service import (
+    ContextMessageOperationService,
+    ContextMessageQueryService,
+    context_message_operation_service_for_context,
+)
 from .reminder_service import ReminderQueryService
 
 logger = get_logger()
 
 
 class ConversationService:
-    def __init__(self, ctx: ElroyContext):
+    def __init__(
+        self,
+        ctx: ElroyContext,
+        *,
+        context_queries: ContextMessageQueryService | None = None,
+        context_operations: ContextMessageOperationService | None = None,
+        reminder_queries: ReminderQueryService | None = None,
+    ):
         self.ctx = ctx
+        self.context_queries = context_queries or ContextMessageQueryService(ctx.db, ctx.user_id)
+        self.context_operations = context_operations or context_message_operation_service_for_context(ctx)
+        self.reminder_queries = reminder_queries or ReminderQueryService(ctx.db, ctx.user_id)
 
     def _tracker(self) -> LatencyTracker:
         tracker = self.ctx.latency_tracker
@@ -37,7 +50,7 @@ class ConversationService:
     def _load_context_messages(self, request_id: str) -> list[ContextMessage]:
         with self._tracker().measure("load_context_messages"):
             context_messages: list[ContextMessage] = pipe(
-                get_context_messages(self.ctx),
+                self.context_queries.get_context_messages(),
                 lambda msgs: Validator(self.ctx, msgs).validated_msgs(),
                 list,
             )
@@ -85,7 +98,7 @@ class ConversationService:
 
     def _append_due_items(self, new_msgs: list[ContextMessage]) -> None:
         with self._tracker().measure("due_items_check"):
-            due_item_msgs = ReminderQueryService(self.ctx.db, self.ctx.user_id).get_due_item_context_msgs()
+            due_item_msgs = self.reminder_queries.get_due_item_context_msgs()
         if due_item_msgs:
             new_msgs += due_item_msgs
 
@@ -160,13 +173,13 @@ class ConversationService:
             if force_tool:
                 assert tool_context_messages, "force_tool set, but no tool messages generated"
                 with self._tracker().measure("persist_context_messages", count=len(new_msgs)):
-                    add_context_messages(self.ctx, new_msgs)
+                    self.context_operations.add_context_messages(new_msgs)
                 return
             if tool_context_messages:
                 loops += 1
                 continue
             with self._tracker().measure("persist_context_messages", count=len(new_msgs)):
-                add_context_messages(self.ctx, new_msgs)
+                self.context_operations.add_context_messages(new_msgs)
             return
 
     def process_message(

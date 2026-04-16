@@ -4,7 +4,6 @@ from contextlib import contextmanager
 from ..io.base import ElroyIO
 from .ctx import ElroyContext
 from .logging import get_logger
-from .tracing import using_user
 
 logger = get_logger()
 
@@ -25,7 +24,7 @@ def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool,
         session_id = str(uuid.uuid4())
         logger.debug(f"OpenTelemetry instrumentation enabled with session ID: {session_id}")
 
-        with using_user(ctx.user_token), ctx.db_manager.open_session() as dbsession:
+        with ctx.db_manager.open_session() as dbsession:
             ctx.set_db_session(dbsession)
 
             if not get_user_id_if_exists(dbsession, ctx.user_token):
