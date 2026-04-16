@@ -5,12 +5,6 @@ from rich.table import Table
 from toolz import concatv, pipe
 from toolz.curried import map
 
-from ..cli.slash_commands import (
-    add_internal_thought,
-    memo,
-    print_context_messages,
-    print_system_instruction,
-)
 from ..core.constants import IS_ENABLED, user_only_tool
 from ..core.ctx import ElroyContext
 from ..repository.agenda.tools import (
@@ -126,11 +120,7 @@ USER_ONLY_COMMANDS = {
     ingest_doc,
     reingest_doc,
     print_config,
-    add_internal_thought,
-    memo,
     reset_messages,
-    print_context_messages,
-    print_system_instruction,
     pop,
     save,
     rewrite,

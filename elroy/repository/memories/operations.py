@@ -112,7 +112,7 @@ def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> M
         ctx,
         name,
         text,
-        [get_or_create_context_message_set(ctx)],
+        [get_or_create_context_message_set(ctx.db, ctx.user_id)],
         True,
     )
 

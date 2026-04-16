@@ -99,7 +99,7 @@ def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: Elr
 
     monkeypatch.setattr(ctx.db.session, "commit", flaky_commit)
 
-    context_message_set = get_or_create_context_message_set(ctx)
+    context_message_set = get_or_create_context_message_set(ctx.db, ctx.user_id)
     assert context_message_set.id is not None
     assert list(get_context_messages(ctx)) == []
 
@@ -112,4 +112,4 @@ def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: Elr
         ).all()
     )
     assert len(active_contexts) == 1
-    assert get_or_create_context_message_set(ctx).id == context_message_set.id
+    assert get_or_create_context_message_set(ctx.db, ctx.user_id).id == context_message_set.id

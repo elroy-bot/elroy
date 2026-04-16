@@ -5,9 +5,10 @@ from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, Field
 from sqlmodel import col, select
-from toolz import concat, juxt, pipe, unique
+from toolz import concat, pipe, unique
 from toolz.curried import filter, map, remove, tail
 
+from ...core.configs import MemoryConfig
 from ...core.constants import SYSTEM, TOOL
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger, log_execution_time
@@ -18,6 +19,7 @@ from ...db.db_models import (
     MemorySource,
     get_memory_source_class,
 )
+from ...db.db_session import DbSession
 from ...llm.client import LlmClient
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.tools import to_synthetic_tool_call
@@ -27,9 +29,6 @@ from ..context_messages.transforms import (
 )
 from ..data_models import RecallMetadata, RecallResponse
 from ..recall.queries import (
-    get_most_relevant_agenda_items,
-    get_most_relevant_due_items,
-    get_most_relevant_memories,
     get_recall_metadata,
     is_in_context,
 )
@@ -38,74 +37,155 @@ from .transforms import to_fast_recall_tool_call
 
 logger = get_logger()
 
+T = TypeVar("T")
+
+
+class MemoryQueryService:
+    def __init__(self, db: DbSession, user_id: int, memory_config: MemoryConfig, llm: LlmClient, reflect: bool):
+        self.db = db
+        self.user_id = user_id
+        self.memory_config = memory_config
+        self.llm = llm
+        self.reflect = reflect
+
+    def db_get_memory_source_by_name(self, source_type: str, name: str) -> MemorySource | None:
+        source_class = get_memory_source_class(source_type)
+
+        if source_class == ContextMessageSetWithMessages:
+            return ContextMessageSetWithMessages(self.db.session, int(name), self.user_id)
+        if hasattr(source_class, "name"):
+            return self.db.exec(select(source_class).where(source_class.name == name, source_class.user_id == self.user_id)).first()
+        raise NotImplementedError(f"Cannot get source of type {source_type}")
+
+    def db_get_memory_source(self, source_type: str, id: int) -> MemorySource | None:
+        source_class = get_memory_source_class(source_type)
+
+        if source_class == ContextMessageSetWithMessages:
+            return ContextMessageSetWithMessages(self.db.session, id, self.user_id)
+        return self.db.exec(select(source_class).where(source_class.id == id, source_class.user_id == self.user_id)).first()
+
+    def db_get_source_list_for_memory(self, memory: Memory) -> Sequence[MemorySource]:
+        if not memory.source_metadata:
+            return []
+        return pipe(
+            memory.source_metadata,
+            json.loads,
+            map(lambda x: self.db_get_memory_source(x["source_type"], x["id"])),
+            remove(lambda x: x is None),
+            list,
+        )
+
+    def get_active_memories(self) -> list[Memory]:
+        return list(
+            self.db.exec(
+                select(Memory).where(
+                    Memory.user_id == self.user_id,
+                    cast(Any, Memory.is_active),
+                )
+            ).all()
+        )
+
+    def get_relevant_memories_and_due_items(self, query: str) -> list[Memory | AgendaItem]:
+        query_embedding = self.llm.get_embedding(query)
+
+        relevant_memories = [
+            memory
+            for memory in self.db.query_vector(
+                self.memory_config.l2_memory_relevance_distance_threshold,
+                Memory,
+                self.user_id,
+                query_embedding,
+            )
+            if isinstance(memory, Memory)
+        ]
+
+        relevant_due_items = list(
+            self.db.query_vector(
+                self.memory_config.l2_memory_relevance_distance_threshold,
+                AgendaItem,
+                self.user_id,
+                query_embedding,
+            )
+        )
+        relevant_due_items = [item for item in relevant_due_items if item.trigger_datetime or item.trigger_context][:2]
+
+        return relevant_memories + relevant_due_items
+
+    def get_memory_by_name(self, memory_name: str) -> Memory | None:
+        return self.db.exec(
+            select(Memory).where(
+                Memory.user_id == self.user_id,
+                Memory.name == memory_name,
+                cast(Any, Memory.is_active),
+            )
+        ).first()
+
+    def get_relevant_memory_context_msgs(
+        self,
+        context_messages: list[ContextMessage],
+        assistant_name: str,
+        user_preferred_name: str | None,
+    ) -> list[ContextMessage]:
+        message_content = get_message_content(context_messages, 6)
+
+        if not message_content:
+            return []
+
+        relevant_items = pipe(
+            message_content,
+            self.llm.get_embedding,
+            lambda x: concat(
+                [
+                    get_most_relevant_memories_from_db(self.db, self.user_id, self.memory_config, x),
+                    get_most_relevant_due_items_from_db(self.db, self.user_id, self.memory_config, x),
+                    get_most_relevant_agenda_items_from_db(self.db, self.user_id, self.memory_config, x),
+                ]
+            ),
+            filter(lambda x: x is not None),
+            remove(partial(is_in_context, context_messages)),
+            list,
+        )
+
+        if self.reflect:
+            return get_reflective_recall_from_service(
+                self.llm,
+                context_messages,
+                relevant_items,
+                assistant_name,
+                user_preferred_name,
+            )
+        return get_fast_recall(relevant_items)
+
+    def get_memories(self, memory_ids: list[int]) -> list[Memory]:
+        return list(self.db.exec(select(Memory).where(Memory.user_id == self.user_id, col(Memory.id).in_(memory_ids))).all())
+
+
+def _service(ctx: ElroyContext) -> MemoryQueryService:
+    return MemoryQueryService(ctx.db, ctx.user_id, ctx.memory_config, ctx.llm, ctx.reflect)
+
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> MemorySource | None:
-    source_class = get_memory_source_class(source_type)
-
-    if source_class == ContextMessageSetWithMessages:
-        return ContextMessageSetWithMessages(ctx.db.session, int(name), ctx.user_id)
-    if hasattr(source_class, "name"):
-        return ctx.db.exec(select(source_class).where(source_class.name == name, source_class.user_id == ctx.user_id)).first()
-    raise NotImplementedError(f"Cannot get source of type {source_type}")
+    return _service(ctx).db_get_memory_source_by_name(source_type, name)
 
 
 def db_get_source_list_for_memory(ctx: ElroyContext, memory: Memory) -> Sequence[MemorySource]:
-    if not memory.source_metadata:
-        return []
-    return pipe(
-        memory.source_metadata,
-        json.loads,
-        map(lambda x: db_get_memory_source(ctx, x["source_type"], x["id"])),
-        remove(lambda x: x is None),
-        list,
-    )
+    return _service(ctx).db_get_source_list_for_memory(memory)
 
 
 def db_get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> MemorySource | None:
-    source_class = get_memory_source_class(source_type)
-
-    if source_class == ContextMessageSetWithMessages:
-        return ContextMessageSetWithMessages(ctx.db.session, id, ctx.user_id)
-    return ctx.db.exec(select(source_class).where(source_class.id == id, source_class.user_id == ctx.user_id)).first()
+    return _service(ctx).db_get_memory_source(source_type, id)
 
 
 def get_active_memories(ctx: ElroyContext) -> list[Memory]:
-    """Fetch all active memories for the user"""
-    return list(
-        ctx.db.exec(
-            select(Memory).where(
-                Memory.user_id == ctx.user_id,
-                cast(Any, Memory.is_active),
-            )
-        ).all()
-    )
+    return _service(ctx).get_active_memories()
 
 
 def get_relevant_memories_and_due_items(ctx: ElroyContext, query: str) -> list[Memory | AgendaItem]:
-    query_embedding = ctx.llm.get_embedding(query)
-
-    relevant_memories = [
-        memory
-        for memory in ctx.db.query_vector(ctx.l2_memory_relevance_distance_threshold, Memory, ctx.user_id, query_embedding)
-        if isinstance(memory, Memory)
-    ]
-
-    relevant_due_items = list(get_most_relevant_due_items(ctx, query_embedding))
-
-    return relevant_memories + relevant_due_items
+    return _service(ctx).get_relevant_memories_and_due_items(query)
 
 
 def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Memory | None:
-    return ctx.db.exec(
-        select(Memory).where(
-            Memory.user_id == ctx.user_id,
-            Memory.name == memory_name,
-            cast(Any, Memory.is_active),
-        )
-    ).first()
-
-
-T = TypeVar("T")
+    return _service(ctx).get_memory_by_name(memory_name)
 
 
 @log_execution_time
@@ -155,22 +235,10 @@ def get_message_content(context_messages: list[ContextMessage], n: int) -> str:
 
 
 def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[ContextMessage]) -> list[ContextMessage]:
-    message_content = get_message_content(context_messages, 6)
-
-    if not message_content:
-        return []
-
-    assert isinstance(message_content, str)
-
-    return pipe(
-        message_content,
-        lambda x: ctx.llm.get_embedding(x, ctx=ctx),
-        lambda x: juxt(get_most_relevant_memories, get_most_relevant_due_items, get_most_relevant_agenda_items)(ctx, x),
-        concat,
-        filter(lambda x: x is not None),
-        remove(partial(is_in_context, context_messages)),
-        list,
-        lambda mems: get_reflective_recall(ctx, context_messages, mems) if ctx.reflect else get_fast_recall(mems),
+    return _service(ctx).get_relevant_memory_context_msgs(
+        context_messages,
+        get_assistant_name(ctx),
+        do_get_user_preferred_name(ctx.db.session, ctx.user_id),
     )
 
 
@@ -184,10 +252,29 @@ def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> list[ContextMessa
 
 @log_execution_time
 def get_reflective_recall(
-    ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]
+    ctx: ElroyContext,
+    context_messages: Iterable[ContextMessage],
+    memories: Iterable[EmbeddableSqlModel],
 ) -> list[ContextMessage]:
-    """More process memory into more reflective recall message"""
-    if not memories:
+    return get_reflective_recall_from_service(
+        ctx.llm,
+        context_messages,
+        memories,
+        get_assistant_name(ctx),
+        do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+    )
+
+
+def get_reflective_recall_from_service(
+    llm: LlmClient,
+    context_messages: Iterable[ContextMessage],
+    memories: Iterable[EmbeddableSqlModel],
+    assistant_name: str,
+    user_preferred_name: str | None,
+) -> list[ContextMessage]:
+    """Process memory into a reflective recall message."""
+    memories_list = list(memories)
+    if not memories_list:
         return []
 
     class ReflectionResponse(BaseModel):
@@ -196,8 +283,8 @@ def get_reflective_recall(
         )
         is_relevant: bool = Field(description="Whether or not any of the recalled information is relevant to the conversation.")
 
-    output: str = pipe(
-        memories,
+    output = pipe(
+        memories_list,
         map(lambda x: x.to_fact()),
         "\n\n".join,
         lambda x: (
@@ -206,11 +293,11 @@ def get_reflective_recall(
             + "#Converstaion Transcript:\n"
             + format_context_messages(
                 tail(3, list(context_messages)[1:]),
-                do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-                get_assistant_name(ctx),
+                user_preferred_name or "User",
+                assistant_name,
             )
         ),
-        lambda x: ctx.llm.query_llm_with_response_format(
+        lambda x: llm.query_llm_with_response_format(
             x,
             """#Identity and Purpose
 
@@ -248,7 +335,7 @@ def get_reflective_recall(
     assert output.content
     return to_synthetic_tool_call(
         "get_reflective_recall",
-        RecallResponse(content=output.content, recall_metadata=_build_recall_metadata(cast(list[MemorySource], list(memories)))),
+        RecallResponse(content=output.content, recall_metadata=_build_recall_metadata(cast(list[MemorySource], memories_list))),
     )
 
 
@@ -280,4 +367,43 @@ def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage])
 
 
 def get_memories(ctx: ElroyContext, memory_ids: list[int]) -> list[Memory]:
-    return list(ctx.db.exec(select(Memory).where(Memory.user_id == ctx.user_id, col(Memory.id).in_(memory_ids))).all())
+    return _service(ctx).get_memories(memory_ids)
+
+
+def get_most_relevant_memories_from_db(
+    db: DbSession,
+    user_id: int,
+    memory_config: MemoryConfig,
+    query: list[float],
+) -> list[Memory]:
+    return [
+        item
+        for item in db.query_vector(memory_config.l2_memory_relevance_distance_threshold, Memory, user_id, query)
+        if isinstance(item, Memory)
+    ][:2]
+
+
+def get_most_relevant_due_items_from_db(
+    db: DbSession,
+    user_id: int,
+    memory_config: MemoryConfig,
+    query: list[float],
+) -> list[AgendaItem]:
+    return [
+        item
+        for item in db.query_vector(memory_config.l2_memory_relevance_distance_threshold, AgendaItem, user_id, query)
+        if isinstance(item, AgendaItem) and (item.trigger_datetime or item.trigger_context)
+    ][:2]
+
+
+def get_most_relevant_agenda_items_from_db(
+    db: DbSession,
+    user_id: int,
+    memory_config: MemoryConfig,
+    query: list[float],
+) -> list[AgendaItem]:
+    return [
+        item
+        for item in db.query_vector(memory_config.l2_memory_relevance_distance_threshold, AgendaItem, user_id, query)
+        if isinstance(item, AgendaItem) and not (item.trigger_datetime or item.trigger_context)
+    ][:2]

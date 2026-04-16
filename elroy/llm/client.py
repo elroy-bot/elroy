@@ -139,7 +139,7 @@ class LlmClient:
                 tools=resolved_tool_schemas,
             )
 
-            return StreamParser(self.chat_model, completion(**completion_kwargs))  # type: ignore
+            return StreamParser(self.chat_model, completion(**completion_kwargs))
 
         except Exception as e:
             if isinstance(e, BadRequestError) and "An assistant message with 'tool_calls' must be followed by tool messages" in str(e):
