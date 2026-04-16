@@ -37,10 +37,8 @@ IS_USER_ONLY_TOOL = "_is_user_only_tool"
 
 # Empty decorator just meaning to communicate a function should be a tool
 def tool(func: Callable) -> Callable:
-    from .tracing import tracer
-
     setattr(func, IS_TOOL, True)
-    return tracer.tool(func)
+    return func
 
 
 def user_only_tool(func: Callable) -> Callable:

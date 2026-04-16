@@ -11,7 +11,6 @@ from toolz.curried import filter, map, remove, tail
 from ...core.constants import SYSTEM, TOOL
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger, log_execution_time
-from ...core.tracing import tracer
 from ...db.db_models import (
     AgendaItem,
     EmbeddableSqlModel,
@@ -82,7 +81,6 @@ def get_active_memories(ctx: ElroyContext) -> list[Memory]:
     )
 
 
-@tracer.chain
 def get_relevant_memories_and_due_items(ctx: ElroyContext, query: str) -> list[Memory | AgendaItem]:
     query_embedding = ctx.llm.get_embedding(query)
 
@@ -110,7 +108,6 @@ def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Memory | None:
 T = TypeVar("T")
 
 
-@tracer.chain
 @log_execution_time
 def filter_for_relevance(
     fast_llm: LlmClient,
@@ -157,7 +154,6 @@ def get_message_content(context_messages: list[ContextMessage], n: int) -> str:
     )
 
 
-@tracer.chain
 def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[ContextMessage]) -> list[ContextMessage]:
     message_content = get_message_content(context_messages, 6)
 
@@ -178,7 +174,6 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[C
     )
 
 
-@tracer.chain
 def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> list[ContextMessage]:
     """Add recalled content to context, unprocessed."""
     if not memories:
@@ -187,7 +182,6 @@ def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> list[ContextMessa
     return to_fast_recall_tool_call(list(memories))
 
 
-@tracer.chain
 @log_execution_time
 def get_reflective_recall(
     ctx: ElroyContext, context_messages: Iterable[ContextMessage], memories: Iterable[EmbeddableSqlModel]

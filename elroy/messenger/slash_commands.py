@@ -8,7 +8,6 @@ from ..cli.slash_commands import get_casted_value, get_prompt_for_param
 from ..core.constants import RecoverableToolError
 from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
-from ..core.tracing import tracer
 from ..io.base import ElroyIO
 from ..llm.stream_parser import (
     AssistantInternalThought,
@@ -20,7 +19,6 @@ from ..tools.tools_and_commands import USER_ONLY_COMMANDS, get_help
 logger = get_logger()
 
 
-@tracer.chain
 def invoke_slash_command(
     io: ElroyIO, ctx: ElroyContext, msg: str
 ) -> str | Iterator[AssistantResponse | AssistantInternalThought | AssistantToolResult]:

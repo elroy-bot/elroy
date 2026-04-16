@@ -10,7 +10,6 @@ from toolz.curried import map, take
 
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...core.tracing import tracer
 from ...db.db_models import Memory
 from ...io.base import ElroyIO
 from ..data_models import MemoryResponse
@@ -121,7 +120,6 @@ class MemoryCluster:
         return MemoryCluster(memories=[self.memories[i] for i in closest_indices], embeddings=self.embeddings[closest_indices])
 
 
-@tracer.chain
 def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: ElroyIO | None = None):
     """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
     from .queries import get_active_memories
@@ -209,7 +207,6 @@ def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None
     )
 
 
-@tracer.chain
 def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: list[Memory]):
     from .operations import do_create_memory, mark_inactive
 
@@ -231,7 +228,6 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
     return memory_id
 
 
-@tracer.chain
 def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
     """Consolidate memory cluster using fast model for efficiency."""
 

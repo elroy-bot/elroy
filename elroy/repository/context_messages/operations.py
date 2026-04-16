@@ -22,7 +22,6 @@ from ...core.constants import (
 )
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...core.tracing import tracer
 from ...db.db_models import ContextMessageSet
 from ...llm.prompts import summarize_conversation
 from ...tools.inline_tools import inline_tool_instruct
@@ -170,7 +169,6 @@ def get_refreshed_system_message(ctx: ElroyContext) -> ContextMessage:
     )
 
 
-@tracer.agent
 def context_refresh(ctx: ElroyContext, context_messages: Iterable[ContextMessage]) -> None:
     """
     Refresh context WITHOUT regenerating system message to preserve prompt cache.

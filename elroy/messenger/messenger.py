@@ -4,10 +4,8 @@ from pydantic import BaseModel
 
 from ..core.ctx import ElroyContext
 from ..core.services.conversation_service import ConversationService
-from ..core.tracing import tracer
 
 
-@tracer.chain
 def process_message(
     *,
     role: str,

@@ -13,7 +13,6 @@ from toolz.curried import map
 
 from elroy.core.constants import ASSISTANT, USER, InvalidForceToolError, RecoverableToolError
 from elroy.core.ctx import ElroyContext
-from elroy.core.tracing import tracer
 from elroy.db.db_models import AgendaItem, EmbeddableSqlModel
 from elroy.io.base import ElroyIO
 from elroy.io.formatters.base import ElroyPrintable
@@ -377,7 +376,6 @@ def _mock_relevant_context(ctx: ElroyContext, msg: str) -> list[ContextMessage]:
     return to_fast_recall_tool_call(unrecalled_items) if unrecalled_items else []
 
 
-@tracer.chain
 def process_test_message(ctx: ElroyContext, msg: str, force_tool: str | None = None) -> str:
     logging.info(f"USER MESSAGE: {msg}")
     if force_tool:

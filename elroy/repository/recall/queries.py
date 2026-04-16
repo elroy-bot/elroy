@@ -8,7 +8,6 @@ from toolz.curried import filter
 from ...core.constants import TOOL, tool
 from ...core.ctx import ElroyContext
 from ...core.logging import log_execution_time
-from ...core.tracing import tracer
 from ...db.db_models import AgendaItem, DocumentExcerpt, EmbeddableSqlModel, Memory
 from ...repository.data_models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
@@ -40,7 +39,6 @@ def is_in_context(context_messages: Iterable[ContextMessage], memory: Embeddable
 T = TypeVar("T", bound=EmbeddableSqlModel)
 
 
-@tracer.chain
 def query_vector[T: EmbeddableSqlModel](
     table: type[T],
     ctx: ElroyContext,
@@ -99,20 +97,17 @@ def search_documents(ctx: ElroyContext, query: str) -> str:
     return response
 
 
-@tracer.chain
 @log_execution_time
 def get_most_relevant_memories(ctx: ElroyContext, query: list[float]) -> list[Memory]:
     """Get the most relevant memory for the given query."""
     return list(query_vector(Memory, ctx, query))[:2]
 
 
-@tracer.chain
 @log_execution_time
 def get_most_relevant_due_items(ctx: ElroyContext, query: list[float]) -> list[AgendaItem]:
     return [item for item in query_vector(AgendaItem, ctx, query) if item.trigger_datetime or item.trigger_context][:2]
 
 
-@tracer.chain
 @log_execution_time
 def get_most_relevant_agenda_items(ctx: ElroyContext, query: list[float]) -> list[AgendaItem]:
     return [item for item in query_vector(AgendaItem, ctx, query) if not (item.trigger_datetime or item.trigger_context)][:2]

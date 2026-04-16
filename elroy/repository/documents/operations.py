@@ -13,7 +13,6 @@ from pydantic import BaseModel
 from ...core.constants import RecoverableToolError, allow_unused
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...core.tracing import tracer
 from ...db.db_models import DocumentExcerpt, SourceDocument
 from ...llm.client import LlmClient
 from ...utils.clock import utc_now
@@ -36,7 +35,6 @@ class DocumentChunk:
 
 
 @allow_unused
-@tracer.chain
 def convert_to_text(llm: LlmClient, content: str) -> str:
     return llm.query_llm(
         system="Your task is to convert the following text into plain text. You should NOT summarize content, "

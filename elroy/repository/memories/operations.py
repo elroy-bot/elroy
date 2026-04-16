@@ -8,7 +8,6 @@ from ...core.async_tasks import schedule_task
 from ...core.constants import MAX_MEMORY_LENGTH
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger, log_execution_time
-from ...core.tracing import tracer
 from ...db.db_models import (
     EmbeddableSqlModel,
     Memory,
@@ -118,7 +117,6 @@ def do_create_memory_from_ctx_msgs(ctx: ElroyContext, name: str, text: str) -> M
     )
 
 
-@tracer.chain
 def do_create_memory(
     ctx: ElroyContext,
     name: str,
