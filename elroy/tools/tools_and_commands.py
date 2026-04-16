@@ -19,11 +19,8 @@ from ..repository.agenda.tools import (
     list_agenda_items_cmd,
 )
 from ..repository.context_messages.operations import (
-    pop,
     refresh_system_instructions,
     reset_messages,
-    rewrite,
-    save,
 )
 from ..repository.context_messages.tools import (
     add_memory_to_current_context,
@@ -121,9 +118,6 @@ USER_ONLY_COMMANDS = {
     reingest_doc,
     print_config,
     reset_messages,
-    pop,
-    save,
-    rewrite,
     refresh_system_instructions,
     print_memories,
     search_memories,

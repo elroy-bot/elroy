@@ -12,7 +12,6 @@ from elroy.db.db_models import ContextMessageSet
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.operations import (
     add_context_messages,
-    pop,
     remove_context_messages,
 )
 from elroy.repository.context_messages.queries import (
@@ -73,14 +72,6 @@ def test_add_context_messages(george_ctx: ElroyContext):
             logging.info("Msgs not yet removed, retrying...")
             attempts += 1
             time.sleep(1)
-
-
-def test_pop(george_ctx: ElroyContext):
-    original_len = len(list(get_context_messages(george_ctx)))
-
-    pop(george_ctx, 2)
-
-    assert len(list(get_context_messages(george_ctx))) == original_len - 2
 
 
 def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: ElroyContext, monkeypatch: pytest.MonkeyPatch):
