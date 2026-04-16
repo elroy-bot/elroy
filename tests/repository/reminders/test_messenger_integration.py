@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 from elroy.core.ctx import ElroyContext
-from elroy.repository.reminders.operations import do_create_due_item
+from elroy.repository.reminders.factory import build_reminder_orchestrator
 from elroy.repository.reminders.queries import get_due_item_context_msgs
 from elroy.utils.clock import utc_now
 from tests.utils import (
@@ -52,7 +52,9 @@ def test_assistant_uses_delete_due_item_for_due_items(io: MockCliIO, ctx: ElroyC
 def test_no_due_items_no_extra_context(io: MockCliIO, ctx: ElroyContext):
     """Test that when no due items are due, no extra context is added."""
     future_time = utc_now() + timedelta(days=1)
-    future_due_item = do_create_due_item(ctx=ctx, name="future_reminder", text="This is for tomorrow", trigger_time=future_time)
+    future_due_item = build_reminder_orchestrator(ctx).do_create_due_item(
+        name="future_reminder", text="This is for tomorrow", trigger_time=future_time
+    )
     future_due_item.status = "completed"
     future_due_item.is_active = False
     ctx.db.persist(future_due_item)

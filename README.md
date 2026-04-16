@@ -42,7 +42,7 @@ Once installed, run `elroy` to open the interactive chat interface:
 elroy
 ```
 
-Elroy opens a terminal UI where you can chat, create memories, and manage reminders. Use `/help` inside the chat to see available slash commands.
+Elroy opens a terminal UI where you can chat, create memories, and manage reminders. Use the Textual command palette with `Ctrl+P` to discover available actions. Slash commands remain available in the chat box as a compatibility path.
 
 ## Memory and Reminder Tools
 ![Slash commands](images/slash_commands.gif)
@@ -51,7 +51,7 @@ Elroy's tools allow it to create and manage memories and reminders. In the backg
 
 As reminders or memories become relevant to the conversation, they are recalled into context. A `Relevant Context` panel makes all information being surfaced to the assistant available to the user.
 
-All commands available to the assistant are also available to the user via `/` slash commands in the chat interface.
+All commands available to the assistant are also available to the user through the Textual command palette, and are still accepted as `/` slash commands in the chat interface.
 
 For a guide of what tools are available and what they do, see: [tools guide](docs/tools_guide.md).
 

@@ -6,10 +6,11 @@ from apscheduler.triggers.interval import IntervalTrigger
 from ...core.async_tasks import get_scheduler
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...core.services.background_sync import MemoryFileSyncService
+from ...core.services.background_sync import MemoryFileSyncOrchestrator
 from ...core.status import clear_background_status, set_background_status
 
 logger = get_logger()
+DEFAULT_MEMORY_FILE_SYNC_INTERVAL_MINUTES = 60
 
 
 def sync_memory_files(ctx: ElroyContext) -> None:
@@ -20,7 +21,7 @@ def sync_memory_files(ctx: ElroyContext) -> None:
 
     status_key = f"memory_sync_{ctx.user_id}"
     set_background_status(status_key, "syncing memories...")
-    service = MemoryFileSyncService(ctx)
+    service = MemoryFileSyncOrchestrator(ctx)
     service.apply_plan(service.build_plan())
     clear_background_status(status_key)
 
@@ -36,7 +37,7 @@ def schedule_memory_file_sync(ctx: ElroyContext) -> Job | None:
     if scheduler.get_job(job_id):
         scheduler.remove_job(job_id)
 
-    trigger = IntervalTrigger(minutes=ctx.background_ingest_interval_minutes)
+    trigger = IntervalTrigger(minutes=DEFAULT_MEMORY_FILE_SYNC_INTERVAL_MINUTES)
 
     def wrapped_sync():
         new_ctx = ElroyContext(
@@ -61,7 +62,7 @@ def schedule_memory_file_sync(ctx: ElroyContext) -> Job | None:
     )
 
     logger.info(
-        f"Scheduled memory file sync every {ctx.background_ingest_interval_minutes} "
+        f"Scheduled memory file sync every {DEFAULT_MEMORY_FILE_SYNC_INTERVAL_MINUTES} "
         f"minutes for memory_dir={ctx.memory_dir} (job ID: {job_id})"
     )
     return job

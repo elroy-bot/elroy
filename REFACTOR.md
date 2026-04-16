@@ -1,265 +1,363 @@
-# ElroyContext Refactoring
+# Textual Refactor Implementation Plan
 
-This document outlines the ongoing refactoring of the `ElroyContext` class to address growing complexity and improve maintainability.
+This document is the implementation plan for bringing Elroy's TUI closer to Textual-native patterns. It replaces the previous analysis-oriented version of this file with an ordered task list that can be executed incrementally.
 
-## Problem Statement
+The plan is organized so each phase leaves the app in a working state, reduces custom UI infrastructure, and sets up the next phase cleanly.
 
-The original `ElroyContext` class had grown to 85+ parameters and handled multiple concerns:
+## Goal
 
-- **API Configuration**: OpenAI keys, model endpoints
-- **Database Management**: Connection strings, session handling
-- **Memory/Context Settings**: Clustering, consolidation parameters
-- **UI Configuration**: Colors, display preferences
-- **Tool Management**: Registry settings, shell commands
-- **Runtime Behavior**: Threading, debugging, performance tuning
+Move the TUI away from custom slash-command routing, CLI-shaped prompting, and mixed background execution models, and toward:
 
-**Issues Identified:**
-- 🔴 **Large Monolithic Class**: 85+ initialization parameters
-- 🔴 **Mixed Concerns**: Single class handling unrelated responsibilities
-- 🔴 **Parameter Passing Duplication**: 346+ `ctx.` references across 58 files
-- 🔴 **Poor Separation**: Configuration, behavior, and state mixed together
-- 🔴 **Testing Complexity**: Difficult to test individual concerns in isolation
+- Textual command palette and command providers
+- Textual screens and form-driven command input
+- Textual worker groups and worker lifecycle events
+- Textual-native pane switching and binding discovery
+- Clearer separation between Textual UI orchestration and core domain logic
 
-## Refactoring Approach
+## Constraints
 
-### Phase 1: Configuration Extraction ✅
+- Keep repository and messenger logic framework-agnostic.
+- Keep the app usable after each phase.
+- Preserve slash command compatibility until palette and form flows are complete.
+- Prefer deleting custom UI code over adding another compatibility layer.
+- Extend TUI tests as part of each phase, not after the full refactor.
 
-**Completed**: Split monolithic configuration into domain-specific classes while maintaining backward compatibility.
+## Current State Summary
 
-#### Created Config Classes
+The main issues this plan addresses are:
 
-```python
-@dataclass
-class DatabaseConfig:
-    """Database connection and session configuration."""
-    database_url: str
+- Slash commands are parsed manually in `elroy/io/textual_app.py` and dispatched through `elroy/messenger/slash_commands.py`.
+- Multi-argument commands still depend on `ElroyIO.prompt_user(...)`, which is a CLI-style abstraction that does not fit a widget-first TUI.
+- UI-triggered background work is split across Textual workers, APScheduler threads, raw background threads, and thread-pool utilities.
+- Worker state is represented with manual flags and timers instead of Textual worker groups and worker events.
+- The sidebar reimplements tab switching and focus logic that Textual already provides.
+- Keybinding guidance is embedded in a custom status bar instead of using Textual’s binding-discovery affordances.
 
-@dataclass  
-class ModelConfig:
-    """LLM and embedding model configuration."""
-    openai_api_key: Optional[str] = None
-    chat_model: Optional[str] = None
-    embedding_model: str = "text-embedding-3-small"
-    max_tokens: int = 4000
-    enable_caching: bool = True
-    # ... other model-related settings
+## Phase 1: Command Palette Foundation
 
-@dataclass
-class UIConfig:
-    """User interface and display configuration."""
-    show_internal_thought: bool = False
-    system_message_color: str = "bright_blue"
-    assistant_color: str = "bright_green"
-    # ... other UI settings
+Objective:
 
-@dataclass
-class MemoryConfig:
-    """Memory management and context configuration."""
-    max_context_age_minutes: float = 60.0
-    memory_cluster_similarity_threshold: float = 0.85
-    l2_memory_relevance_distance_threshold: float = 0.7
-    # ... other memory settings
+- Make the Textual command palette the primary discovery and invocation surface for TUI commands.
 
-@dataclass
-class ToolConfig:
-    """Tool and command configuration."""
-    custom_tools_path: List[str]
-    exclude_tools: List[str] 
-    include_base_tools: bool = True
-    shell_commands: bool = True
-    # ... other tool settings
+Tasks:
 
-@dataclass
-class RuntimeConfig:
-    """Runtime behavior and performance configuration."""
-    user_token: str
-    debug: bool = False
-    use_background_threads: bool = True
-    max_assistant_loops: int = 5
-    # ... other runtime settings
-```
+1. Add a command module for the TUI.
+   - Create a module such as `elroy/io/textual_commands.py`.
+   - Define app-level command registration in one place.
+   - Introduce a small command metadata structure so UI commands are not inferred ad hoc from slash parsing.
 
-#### Updated ElroyContext
+2. Implement app-level system commands.
+   - Add `ElroyApp.get_system_commands(...)`.
+   - Expose high-value zero-argument actions first:
+     - toggle memory panel
+     - refresh system instructions
+     - reset messages
+     - focus memories
+     - focus agenda
+     - open help/about command view if needed
 
-```python
-class ElroyContext:
-    def __init__(self, **kwargs):
-        # Create structured config objects
-        self.database_config = DatabaseConfig(database_url=database_url)
-        self.model_config = ModelConfig(chat_model=chat_model, ...)
-        self.ui_config = UIConfig(show_internal_thought=show_internal_thought, ...)
-        self.memory_config = MemoryConfig(max_context_age_minutes=max_context_age_minutes, ...)
-        self.tool_config = ToolConfig(custom_tools_path=custom_tools_path, ...)
-        self.runtime_config = RuntimeConfig(user_token=user_token, ...)
-        
-        # Maintain backward compatibility
-        self.user_token = user_token
-        self.max_tokens = max_tokens
-        # ... all existing attributes preserved
-```
+3. Add one or more Textual command providers.
+   - Provide searchable command entries for memory, reminder, agenda, and preference actions.
+   - Reuse existing tool docstrings and names where possible, but stop treating slash parsing as the source of truth.
 
-**Key Benefits Achieved:**
-- ✅ **Separation of Concerns**: Each config class handles specific domain
-- ✅ **Better Organization**: Related settings grouped logically
-- ✅ **Type Safety**: Dataclasses provide better type hints
-- ✅ **Zero Breaking Changes**: Full backward compatibility maintained
-- ✅ **Foundation for Next Phase**: Ready for service layer extraction
+4. Keep slash commands as compatibility only.
+   - Keep `/...` support working.
+   - Route slash-command execution through the same action layer used by the palette where practical.
+   - Stop growing `elroy/messenger/slash_commands.py` as a TUI-specific abstraction.
 
-### Phase 2: Service Layer (Planned)
+5. Update in-app affordances.
+   - Teach the user the command palette shortcut in the status/help surface.
+   - Stop presenting `/help` as the primary TUI discovery path.
 
-**Goal**: Replace direct context passing with injected services.
+Acceptance criteria:
 
-```python
-# Instead of passing entire context
-def process_message(ctx: ElroyContext, msg: str) -> Iterator[BaseModel]:
-    llm_response = ctx.llm.generate_completion(...)
-    memories = get_relevant_memories(ctx, ...)
+- Users can discover and run core TUI actions through the command palette.
+- Zero-argument UI actions no longer require slash syntax.
+- Slash commands still work, but the palette is the documented primary path.
 
-# Use focused services  
-def process_message(
-    llm_service: LlmService, 
-    memory_service: MemoryService,
-    msg: str
-) -> Iterator[BaseModel]:
-    llm_response = llm_service.generate_completion(...)
-    memories = memory_service.get_relevant_memories(...)
-```
+Files likely affected:
 
-**Planned Service Classes:**
-- `LlmService`: Model interactions, completions
-- `MemoryService`: Memory storage, retrieval, clustering
-- `DatabaseService`: Session management, transactions
-- `ToolService`: Tool registry, execution
-- `UIService`: Display formatting, colors
+- `elroy/io/textual_app.py`
+- `elroy/io/textual_commands.py` (new)
+- `elroy/messenger/slash_commands.py`
+- `README.md`
+- `tests/io/test_textual_app.py`
 
-### Phase 3: Dependency Injection (Future)
+## Phase 2: Modal Command Forms
 
-**Goal**: Use dependency injection framework for cleaner service management.
+Objective:
 
-```python
-# Service container setup
-container = Container()
-container.bind(DatabaseService, to=DatabaseService, config=db_config)
-container.bind(LlmService, to=LlmService, config=model_config)
-container.bind(MemoryService, to=MemoryService, 
-               deps=[DatabaseService, LlmService], config=memory_config)
+- Replace CLI-style prompt loops with Textual-native modal forms for argument-bearing commands.
 
-# Function signatures become cleaner
-@inject
-def process_message(
-    msg: str,
-    llm_service: LlmService = Depends(),
-    memory_service: MemoryService = Depends()
-) -> Iterator[BaseModel]:
-    # Implementation uses injected services
-```
+Tasks:
 
-## Migration Guidelines
+1. Introduce reusable command form screens.
+   - Add a generic `CommandFormScreen` for commands with structured parameters.
+   - Add a `ConfirmActionScreen` where destructive actions currently rely on lightweight ad hoc confirmation patterns.
 
-### For Developers
+2. Move argument collection into widgets.
+   - Use `Input` widgets for form fields.
+   - Add validators, field hints, and optional-field handling.
+   - Use suggesters for fixed or semi-fixed inputs where that improves speed and correctness.
 
-**Current (Phase 1)**: Both patterns work
-```python
-# New structured approach (preferred)
-database_url = ctx.database_config.database_url
-max_tokens = ctx.model_config.max_tokens
-show_thought = ctx.ui_config.show_internal_thought
+3. Route command submission through explicit UI actions.
+   - Form submission should launch a command action, not call `prompt_user(...)`.
+   - Validation errors should stay in the modal instead of being dumped into chat history.
 
-# Legacy approach (still works)  
-database_url = ctx.params.database_url
-max_tokens = ctx.max_tokens
-show_thought = ctx.show_internal_thought
-```
+4. Shrink the TUI dependency on `ElroyIO.prompt_user(...)`.
+   - Remove TUI reliance on prompt loops for multi-argument slash commands.
+   - Leave CLI behavior intact where non-Textual interfaces still need prompt-driven flows.
 
-**Future (Phase 2)**: Function signatures will change
-```python
-# Current
-def my_function(ctx: ElroyContext) -> Result:
-    return process_with_llm(ctx.llm, ctx.memory_service, ...)
+5. Decide how form outcomes are surfaced.
+   - Conversational results stay in history.
+   - Ephemeral confirmations use toasts where appropriate.
 
-# Future  
-def my_function(
-    llm_service: LlmService,
-    memory_service: MemoryService
-) -> Result:
-    return process_with_llm(llm_service, memory_service, ...)
-```
+Acceptance criteria:
 
-### Testing Benefits
+- Multi-argument actions can be launched from the palette and completed in a modal form.
+- The TUI no longer depends on sequential prompt loops for command arguments.
+- Form validation is widget-native and test-covered.
 
-**Phase 1**: Can now test config groups in isolation
-```python
-def test_model_config():
-    config = ModelConfig(
-        chat_model="gpt-4",
-        max_tokens=2000,
-        enable_caching=False
-    )
-    assert config.chat_model == "gpt-4"
-    assert config.max_tokens == 2000
-```
+Files likely affected:
 
-**Future Phases**: Can mock individual services
-```python
-def test_message_processing():
-    mock_llm = Mock(spec=LlmService)
-    mock_memory = Mock(spec=MemoryService) 
-    
-    result = process_message("Hello", mock_llm, mock_memory)
-    
-    mock_llm.generate_completion.assert_called_once()
-```
+- `elroy/io/textual_app.py`
+- `elroy/io/textual_commands.py`
+- `elroy/io/textual_forms.py` or similar (new)
+- `elroy/messenger/slash_commands.py`
+- `elroy/io/base.py`
+- `tests/io/test_textual_app.py`
 
-## Implementation Status
+## Phase 3: Worker Consolidation
 
-- ✅ **Phase 1**: Configuration extraction (Completed)
-  - Created domain-specific config classes
-  - Updated ElroyContext to use config objects
-  - Maintained full backward compatibility
-  - All tests passing
+Objective:
 
-- 🔄 **Phase 2**: Service layer extraction (Planned)
-  - Extract services from ElroyContext
-  - Update function signatures to use services
-  - Maintain ElroyContext as facade during transition
+- Move UI-owned asynchronous work onto explicit Textual worker groups and simplify worker state handling.
 
-- 📅 **Phase 3**: Dependency injection (Future)
-  - Implement DI container
-  - Clean up remaining context passing
-  - Full separation of concerns achieved
+Tasks:
 
-## Files Changed
+1. Assign worker groups to existing app background flows.
+   - Suggested groups:
+     - `session-bootstrap`
+     - `chat-stream`
+     - `sidebar-refresh`
+     - `command-action`
+     - `deferred-context-refresh`
 
-### Phase 1
-- `elroy/core/configs.py` - New config dataclasses
-- `elroy/core/ctx.py` - Updated to use config objects
-- Tests verified functionality preserved
+2. Refactor chat processing around explicit worker ownership.
+   - Make `_process_input(...)` clearly run under chat or command worker groups.
+   - Stop using `self.workers.cancel_all()` for stream cancellation.
+   - Cancel only the relevant worker group.
 
-### Future Phases
-- Service classes in `elroy/services/`
-- Function signature updates across codebase
-- DI container setup
+3. Consolidate sidebar and completion refresh work.
+   - Merge `_refresh_memory_panel(...)` and `_update_completions(...)` if they fetch overlapping state.
+   - Return structured results from workers rather than mutating many fields piecemeal from worker threads.
 
-## Functional Programming Considerations
+4. Introduce worker lifecycle handling.
+   - Handle worker completion, failure, and cancellation centrally.
+   - Use worker state transitions to drive status updates and error display.
 
-This refactoring respects the codebase's functional programming preferences:
+5. Reduce manual spinner state where worker state can replace it.
+   - Keep a global status indicator for streaming/model activity.
+   - Remove duplicated state flags that exist only because worker lifecycle is not being used directly.
 
-1. **Immutable Config Objects**: Dataclasses are immutable by default
-2. **Composition over Inheritance**: Services compose config objects
-3. **Pure Functions**: Services can be designed as pure functions
-4. **Partial Application**: Can use `functools.partial` to reduce parameter passing
+Acceptance criteria:
 
-```python
-# Functional approach with services
-from functools import partial
+- UI-triggered background actions are grouped and cancellable by intent.
+- Chat cancellation targets chat work only.
+- Status and busy-state behavior are driven primarily by worker lifecycle, not custom booleans.
 
-# Create specialized functions
-process_user_message = partial(process_message, enable_tools=True)
-get_user_memories = partial(get_memories, user_id=user_id)
-```
+Files likely affected:
 
-## Conclusion
+- `elroy/io/textual_app.py`
+- `elroy/io/textual_io.py`
+- `tests/io/test_textual_app.py`
 
-This refactoring maintains the functional programming style while providing better organization and separation of concerns. The phased approach ensures no breaking changes while progressively improving the codebase architecture.
+## Phase 4: Remove Legacy Threading From The TUI Path
 
-Each phase provides immediate benefits while preparing for the next level of improvement, ultimately resulting in a more maintainable, testable, and understandable codebase.
+Objective:
+
+- Eliminate non-Textual concurrency mechanisms from UI-owned flows.
+
+Tasks:
+
+1. Audit UI call paths for background execution helpers.
+   - Identify all TUI-triggered uses of:
+     - `run_in_background(...)`
+     - `ctx.thread_pool`
+     - `schedule_task(...)` for short-lived UI follow-up work
+
+2. Migrate UI-local deferred actions onto Textual workers.
+   - Replace TUI-owned delayed refresh/synchronization work with worker-driven follow-up where feasible.
+   - Keep APScheduler only for truly app-agnostic scheduled jobs.
+
+3. Clarify session creation rules for worker code.
+   - Ensure worker bodies create or use safe DB/session boundaries.
+   - Stop duplicating session recreation logic across multiple unrelated UI helpers.
+
+4. Reduce TUI coupling to thread-pool semantics.
+   - Remove TUI dependencies on `ElroyContext.thread_pool` where no longer needed.
+   - Narrow `ElroyIO` interfaces if Textual-specific prompt behavior is no longer required.
+
+Acceptance criteria:
+
+- UI-owned background work no longer depends on raw background thread helpers.
+- APScheduler remains only where it serves non-UI scheduling concerns.
+- The Textual app has one primary concurrency model for app-driven background work.
+
+Files likely affected:
+
+- `elroy/io/textual_app.py`
+- `elroy/utils/utils.py`
+- `elroy/core/async_tasks.py`
+- `elroy/core/ctx.py`
+- `elroy/io/base.py`
+- tests touching background behavior
+
+## Phase 5: Sidebar And Navigation Cleanup
+
+Objective:
+
+- Replace custom sidebar section and browse-mode behavior with more native Textual navigation primitives.
+
+Tasks:
+
+1. Replace the custom memories/agenda section header.
+   - Use `Tabs` plus `ContentSwitcher`, or `TabbedContent`, depending on how much control the layout needs.
+
+2. Simplify focus and selection logic.
+   - Push section-switching state into widgets.
+   - Delete manual state that only mirrors widget state.
+
+3. Reduce `on_key(...)` complexity.
+   - Move behavior into actions and widget-native focus/navigation where possible.
+   - Keep only high-value custom shortcuts that are genuinely product-specific.
+
+4. Re-evaluate browse mode.
+   - Determine whether browse mode still needs to exist as an explicit app-level concept once tabs and focus behavior are native.
+   - Remove it if it no longer provides unique value.
+
+5. Consider widget-local loading states.
+   - Use local loading indicators for sidebar refreshes if that improves clarity over global status text alone.
+
+Acceptance criteria:
+
+- Sidebar section switching is handled by Textual-native widgets.
+- The amount of app-owned focus/navigation code drops materially.
+- The app is easier to extend without editing a single large `on_key(...)` branch.
+
+Files likely affected:
+
+- `elroy/io/textual_app.py`
+- `tests/io/test_textual_app.py`
+
+## Phase 6: Binding Discovery And Status Surface Cleanup
+
+Objective:
+
+- Let Textual own binding discovery and reduce custom status-bar responsibility.
+
+Tasks:
+
+1. Add a `Footer`.
+   - Expose relevant bindings through Textual’s standard UI.
+   - Use `show=False` for actions that should remain hidden.
+
+2. Use action availability checks.
+   - Add `check_action(...)` where mode- or context-dependent actions should be disabled or hidden.
+
+3. Shrink the custom status bar.
+   - Keep model name, worker activity, and background status if useful.
+   - Remove embedded keybinding instructions once the footer is in place.
+
+4. Review whether a `Header` is warranted.
+   - Default answer: probably not now.
+   - Only add it if later phases introduce enough multi-screen/app-shell complexity to justify the vertical space.
+
+Acceptance criteria:
+
+- Binding discovery is primarily handled by the footer.
+- The custom status area focuses on runtime status, not instruction text.
+
+Files likely affected:
+
+- `elroy/io/textual_app.py`
+- `tests/io/test_textual_app.py`
+
+## Phase 7: Testing And Regression Coverage
+
+Objective:
+
+- Keep the TUI refactor safe by extending Textual-specific tests as each phase lands.
+
+Tasks:
+
+1. Add command-palette coverage.
+   - Opening the palette
+   - Invoking zero-argument commands
+   - Launching argument-bearing commands
+
+2. Add modal form coverage.
+   - Validation behavior
+   - Cancel behavior
+   - Successful submission behavior
+
+3. Add worker-behavior coverage.
+   - Stream cancellation
+   - Worker failure handling
+   - Sidebar refresh behavior
+
+4. Add navigation coverage.
+   - Sidebar tab switching
+   - Focus behavior after modal close
+   - Keyboard navigation for remaining custom shortcuts
+
+5. Evaluate snapshot tests for stable UI surfaces.
+   - Use only where the screen structure is stable enough to justify the maintenance cost.
+
+Acceptance criteria:
+
+- Each refactor phase adds or updates TUI tests alongside implementation.
+- The suite protects the new command, worker, and navigation behaviors from regression.
+
+Files likely affected:
+
+- `tests/io/test_textual_app.py`
+- any new snapshot or pilot-driven UI test modules
+
+## Optional Follow-Up Tasks
+
+These are useful, but not on the critical path:
+
+1. Introduce screen-scoped command providers for modal/detail screens.
+2. Evaluate `MODES` if the app grows into distinct top-level workflows beyond a single chat shell.
+3. Evaluate `Lazy` or `Reveal` mounting if the post-refactor UI grows heavier and startup responsiveness becomes an issue.
+
+## Out Of Scope
+
+- Rewriting repository/business logic to depend on Textual
+- Removing APScheduler globally if it remains useful for non-UI scheduling
+- Replacing the chat streaming model wholesale
+- Forcing a fully async architecture where Textual thread workers remain a practical integration point
+
+## Suggested Execution Order
+
+Implement the phases in this order:
+
+1. Phase 1: Command Palette Foundation
+2. Phase 2: Modal Command Forms
+3. Phase 3: Worker Consolidation
+4. Phase 4: Remove Legacy Threading From The TUI Path
+5. Phase 5: Sidebar And Navigation Cleanup
+6. Phase 6: Binding Discovery And Status Surface Cleanup
+7. Phase 7: Testing And Regression Coverage
+
+## Completion Definition
+
+This refactor is complete when:
+
+- The command palette is the primary TUI command surface.
+- Multi-argument commands use Textual forms instead of prompt loops.
+- UI-owned background work is managed through Textual workers and worker groups.
+- Raw thread helpers are no longer part of normal TUI interaction flows.
+- Sidebar section switching and keybinding discovery use Textual-native primitives.
+- TUI behavior is covered by targeted Textual tests for commands, workers, and navigation.

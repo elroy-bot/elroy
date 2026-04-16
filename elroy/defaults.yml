@@ -56,18 +56,12 @@ user_input_color: "#FFE377"  # Color for user input
 assistant_color: "#77DFD8"  # Color for assistant output
 warning_color: "yellow"  # Color for warning messages
 internal_thought_color: "#708090"  # Color for internal thought messages
-show_memory_panel: true  # Whether to display the memory panel
 
 
 # Shell commands
 shell_commands: false  # Whether to enable shell commands
 allowed_shell_command_prefixes:
   - .*
-
-# Background Document Ingestion
-background_ingest_enabled: false  # Whether to enable background document ingestion
-background_ingest_paths: []  # List of paths to automatically ingest in the background
-background_ingest_interval_minutes: 60  # Minutes between background ingestion runs
 
 # File-backed Memories (Obsidian Integration)
 memory_dir: null  # Directory to store memory text as markdown files (enables Obsidian integration)

@@ -8,7 +8,7 @@ from elroy.core.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
 from elroy.core.ctx import ElroyContext
 from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
-from elroy.repository.context_messages.operations import add_context_messages
+from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
 from elroy.tools.registry import get_system_tool_schemas
 from tests.fixtures.custom_tools import (
     get_game_info,
@@ -49,7 +49,7 @@ def test_missing_tool_message_recovers(ctx: ElroyContext):
 
     ctx.debug = False
 
-    add_context_messages(ctx, _missing_tool_message(ctx))
+    build_context_refresh_orchestrator(ctx).add_context_messages(_missing_tool_message(ctx))
 
     process_test_message(ctx, "Tell me more!")
     assert True  # ie, no error is raised
@@ -62,7 +62,7 @@ def test_missing_tool_call_recovers(ctx: ElroyContext):
 
     ctx.debug = False
 
-    add_context_messages(ctx, _missing_tool_call(ctx))
+    build_context_refresh_orchestrator(ctx).add_context_messages(_missing_tool_call(ctx))
 
     process_test_message(ctx, "Tell me more!")
     assert True  # ie, no error is raised

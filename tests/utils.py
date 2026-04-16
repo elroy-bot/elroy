@@ -13,19 +13,17 @@ from toolz.curried import map
 
 from elroy.core.constants import ASSISTANT, USER, InvalidForceToolError, RecoverableToolError
 from elroy.core.ctx import ElroyContext
-from elroy.core.tracing import tracer
 from elroy.db.db_models import AgendaItem, EmbeddableSqlModel
 from elroy.io.base import ElroyIO
 from elroy.io.formatters.base import ElroyPrintable
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.llm.stream_parser import SystemInfo
 from elroy.repository.context_messages.data_models import ContextMessage
-from elroy.repository.context_messages.operations import add_context_messages
+from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.documents.queries import get_source_doc_excerpts, get_source_docs
 from elroy.repository.memories.transforms import to_fast_recall_tool_call
 from elroy.repository.recall.queries import is_in_context_message
-from elroy.repository.reminders.operations import do_delete_due_item
+from elroy.repository.reminders.factory import build_reminder_orchestrator
 from elroy.repository.reminders.queries import get_active_due_items
 from elroy.repository.reminders.tools import (
     create_due_item,
@@ -33,7 +31,7 @@ from elroy.repository.reminders.tools import (
     rename_due_item,
     update_due_item_text,
 )
-from elroy.repository.tasks.operations import create_task
+from elroy.repository.tasks.factory import build_task_mutation_orchestrator
 from elroy.repository.user.queries import get_assistant_name, get_persona
 from elroy.repository.user.tools import set_user_preferred_name
 from elroy.utils.clock import utc_now
@@ -44,7 +42,6 @@ class MockIO(ElroyIO):
     def __init__(self, formatter: RichFormatter) -> None:
         self.console = Console(force_terminal=False, no_color=True)
         self.formatter = formatter
-        self.show_memory_panel = True
 
         self._user_responses: list[str] = []
         self._sys_messages: list[str] = []
@@ -178,7 +175,7 @@ def _record_context(
         *list(extra_messages or []),
         ContextMessage(role=ASSISTANT, content=assistant_message, chat_model=ctx.chat_model.name),
     ]
-    add_context_messages(ctx, messages)
+    build_context_refresh_orchestrator(ctx).add_context_messages(messages)
     ctx.__dict__["_last_test_response"] = assistant_message
 
 
@@ -203,30 +200,6 @@ def _assistant_name(ctx: ElroyContext) -> str:
     if match:
         return match.group(1)
     return get_assistant_name(ctx) or "Elroy"
-
-
-def _handle_document_question(ctx: ElroyContext, msg: str) -> str | None:
-    source_docs = list(get_source_docs(ctx))
-    if not source_docs:
-        return None
-
-    lower_msg = msg.lower()
-    for doc in source_docs:
-        content = doc.content or ""
-        if "main character" in lower_msg:
-            match = re.search(r"\bClara\b", content, flags=re.IGNORECASE)
-            if match:
-                return "The main character was Clara."
-        if "last sentence" in lower_msg:
-            clean = " ".join(content.split())
-            sentences = re.split(r"(?<=[.!?])\s+", clean)
-            if sentences:
-                return sentences[-1]
-        if "midnight garden" in lower_msg:
-            excerpts = get_source_doc_excerpts(ctx, doc)
-            if excerpts:
-                return excerpts[0].content
-    return None
 
 
 def _handle_custom_tool_message(ctx: ElroyContext, msg: str) -> str | None:
@@ -297,7 +270,7 @@ def _handle_due_items(ctx: ElroyContext, msg: str) -> tuple[str | None, list[Con
     response = " ".join(f"Due item: {item.name} - {item.text}." for item in due_items)
     if any(keyword in msg.lower() for keyword in ["clean", "handle", "delete"]):
         for item in due_items:
-            do_delete_due_item(ctx, item.name)
+            build_reminder_orchestrator(ctx).do_delete_due_item(item.name)
         response += " Cleaned up due items."
     return response, due_context
 
@@ -339,9 +312,6 @@ def _answer_from_state(ctx: ElroyContext, msg: str) -> str:
         ctx.__dict__["_pending_test_context"] = due_context
         return due_response
 
-    if response := _handle_document_question(ctx, msg):
-        return response
-
     if response := _handle_custom_tool_message(ctx, msg):
         return response
 
@@ -377,7 +347,6 @@ def _mock_relevant_context(ctx: ElroyContext, msg: str) -> list[ContextMessage]:
     return to_fast_recall_tool_call(unrecalled_items) if unrecalled_items else []
 
 
-@tracer.chain
 def process_test_message(ctx: ElroyContext, msg: str, force_tool: str | None = None) -> str:
     logging.info(f"USER MESSAGE: {msg}")
     if force_tool:
@@ -449,8 +418,7 @@ def get_active_due_items_summary(ctx: ElroyContext) -> str:
 
 
 def create_due_item_in_past(ctx: ElroyContext, name: str, text: str, trigger_context: str | None = None):
-    create_task(
-        ctx,
+    build_task_mutation_orchestrator(ctx).create_task(
         name,
         text,
         trigger_datetime=utc_now() - timedelta(minutes=5),

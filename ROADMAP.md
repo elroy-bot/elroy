@@ -18,7 +18,7 @@ The TUI is implemented in `elroy/io/textual_app.py` using the [Textual](https://
 
 #### Layout
 - **Left panel**: scrolling `RichLog` (history) + `Static` streaming buffer below
-- **Right panel** (toggleable, `F2` key): in-context memories sidebar, 36 columns wide
+- **Right panel**: context sidebar, 36 columns wide
 - **Input bar**: full-width `Input` widget with slash-command autocomplete and up/down history
 - **Status bar**: model name or "⏳ streaming..." indicator
 
