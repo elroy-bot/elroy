@@ -9,22 +9,22 @@ logger = get_logger()
 
 
 def verify_inline_tool_call_instruct_matches_ctx(ctx: ElroyContext) -> None:
-    from ..repository.context_messages.operations import refresh_system_instructions
+    # verify system instruct matches startup settings
+    from ..repository.context_messages.factory import build_context_refresh_orchestrator
     from ..repository.context_messages.queries import get_current_system_instruct
 
-    # verify system instruct matches startup settings
-
+    context_refresh_orchestrator = build_context_refresh_orchestrator(ctx)
     system_msg = get_current_system_instruct(ctx)
 
     if system_msg is None or system_msg.content is None:
         logger.warning("System instruct message is missing, refreshing system instruct")
-        refresh_system_instructions(ctx)
+        context_refresh_orchestrator.refresh_system_instructions()
     elif ctx.inline_tool_calls and TOOL_CALL_INSTRUCTION_OPEN_TAG not in system_msg.content:
         logger.info("Inline tool calls enabled but instruction not present in system instruct, refreshing system instruct")
-        refresh_system_instructions(ctx)
+        context_refresh_orchestrator.refresh_system_instructions()
     elif not ctx.inline_tool_calls and TOOL_CALL_INSTRUCTION_OPEN_TAG in system_msg.content:
         logger.info("Inline tool calls disabled but instruction present in system instruct, refreshing system instruct")
-        refresh_system_instructions(ctx)
+        context_refresh_orchestrator.refresh_system_instructions()
     else:
         logger.debug("System instruct message matches startup settings")
 

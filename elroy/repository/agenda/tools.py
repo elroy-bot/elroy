@@ -9,8 +9,8 @@ from ...config.paths import get_agenda_dir
 from ...core.constants import RecoverableToolError, tool, user_only_tool
 from ...core.ctx import ElroyContext
 from ...db.db_models import AgendaItem
-from ...repository.recall.operations import upsert_embedding_if_needed
-from ..tasks.operations import complete_task, create_task, delete_task
+from ...repository.recall.factory import build_recall_indexer
+from ..tasks.factory import build_task_mutation_orchestrator
 from .file_storage import (
     add_checklist_item,
     append_agenda_update,
@@ -70,7 +70,7 @@ def add_agenda_item(ctx: ElroyContext, text: str, item_date: str | None = None) 
         path = write_agenda_item(get_agenda_dir(), name, text, target_date)
         return f"Agenda item added for {target_date.isoformat()}: {path.stem}"
 
-    row = create_task(ctx, name, text, item_date=target_date)
+    row = build_task_mutation_orchestrator(ctx).create_task(name, text, item_date=target_date)
     return f"Agenda item added for {target_date.isoformat()}: {row.name}"
 
 
@@ -89,7 +89,7 @@ def complete_agenda_item(ctx: ElroyContext, item_name: str) -> str:
     if ctx is not None:
         row = ctx.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == ctx.user_id)).first()
         if row:
-            complete_task(ctx, row.name)
+            build_task_mutation_orchestrator(ctx).complete_task(row.name)
     return f"Agenda item '{path.stem}' marked as completed."
 
 
@@ -107,7 +107,7 @@ def delete_agenda_item(ctx: ElroyContext, item_name: str) -> str:
     if ctx is not None:
         row = ctx.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == ctx.user_id)).first()
         if row:
-            delete_task(ctx, row.name, delete_file=True)
+            build_task_mutation_orchestrator(ctx).delete_task(row.name, delete_file=True)
         else:
             path.unlink()
     else:
@@ -120,7 +120,7 @@ def _reembed_agenda_item(ctx: ElroyContext, path) -> None:
         return
     row = ctx.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == ctx.user_id)).first()
     if row:
-        upsert_embedding_if_needed(ctx, row)
+        build_recall_indexer(ctx).upsert_embedding_if_needed(row)
 
 
 @tool

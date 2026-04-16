@@ -22,7 +22,8 @@ The right panel shows a single list at a time. Its header always shows both `Mem
 | --- | --- |
 | `Ctrl+D` | Exit the app. |
 | `Ctrl+C` | Cancel the current streaming response, if one is in progress. |
-| `F2` | Toggle the right-hand panel open or closed. |
+| `Ctrl+M` | Show the sidebar in `Memories` mode and focus it. |
+| `Ctrl+A` | Show the sidebar in `Agenda` mode and focus it. |
 | `Escape` | Toggle between chat mode and command mode. |
 
 ## Chat Mode
@@ -71,7 +72,8 @@ When a command-mode pane is focused:
 Notes:
 
 - `i` and `a` are vim-style shortcuts for leaving command mode and going back to input.
-- `m` and `g` are the primary way to switch the sidebar between memories and agenda.
+- `Ctrl+M` and `Ctrl+A` are the primary global shortcuts for switching the sidebar between memories and agenda.
+- `m` and `g` do the same thing while you are already in command mode.
 
 ## Detail Modal
 

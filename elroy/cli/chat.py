@@ -5,10 +5,7 @@ from sqlmodel import select
 from ..core.constants import USER
 from ..core.ctx import ElroyContext
 from ..db.db_models import Message
-from ..repository.context_messages.operations import (
-    get_refreshed_system_message,
-    replace_context_messages,
-)
+from ..repository.context_messages.factory import build_context_refresh_orchestrator
 from ..repository.user.queries import do_get_user_preferred_name
 from ..utils.clock import local_now, local_tz, today_start_local
 from ..utils.utils import datetime_to_string
@@ -45,4 +42,5 @@ def get_session_context(ctx: ElroyContext) -> str:
 
 
 def onboard_non_interactive(ctx: ElroyContext) -> None:
-    replace_context_messages(ctx, [get_refreshed_system_message(ctx)])
+    context_refresh_orchestrator = build_context_refresh_orchestrator(ctx)
+    context_refresh_orchestrator.store.replace_context_messages([context_refresh_orchestrator.get_refreshed_system_message()])

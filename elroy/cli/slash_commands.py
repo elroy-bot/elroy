@@ -1,134 +1,12 @@
-import json
 import types
 from inspect import Parameter
 from multiprocessing import get_logger
 from typing import Any, Union, get_args, get_origin
 
-from rich.console import Group
-from rich.pretty import Pretty
-from rich.table import Table
 from toolz import pipe
-from toolz.curried import map, tail
-
-from ..core.constants import ASSISTANT, SYSTEM, TOOL, USER, user_only_tool
-from ..core.ctx import ElroyContext
-from ..repository.context_messages.operations import add_context_messages
-from ..repository.context_messages.queries import (
-    get_context_messages,
-    get_current_system_instruct,
-)
-from ..repository.context_messages.tools import to_synthetic_tool_call
-from ..repository.memo import do_ingest_memo
+from toolz.curried import map
 
 logger = get_logger()
-
-
-@user_only_tool
-def print_context_messages(ctx: ElroyContext, n: int | None = None) -> Table:
-    """Logs the last n current context messages to stdout
-
-    Args:
-
-        n (Optional[int]): The number of messages to print. If not provided, prints all messages.
-
-    Returns:
-        the formatted last n messages.
-    """
-    table = Table(show_header=True, padding=(0, 2), show_lines=True)
-    table.add_column("#", style="dim", width=3)
-    table.add_column("Message Details")
-
-    msgs = pipe(get_context_messages(ctx), tail(n or 1000))
-
-    for idx, message in enumerate(msgs):
-        details = [
-            f"[bold]ID[/]: {message.id}",
-            f"[bold]Role[/]: {message.role}",
-            f"[bold]Model[/]: {message.chat_model or ''}",
-        ]
-
-        if message.created_at:
-            details.append(f"[bold]Created[/]: {message.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
-
-        if message.content:
-            details.append(f"\n[bold]Content[/]:\n{message.content}")
-
-        if message.tool_calls:
-            details.append("[bold]Tool Calls:[/]")
-            for tc in message.tool_calls:
-                try:
-                    tc.function["arguments"] = json.loads(tc.function["arguments"])
-                except json.JSONDecodeError:
-                    logger.info("Couldn't decode arguments for tool call")
-                details.append(Pretty(tc, expand_all=True))
-
-        table.add_row(
-            str(idx),
-            Group(*details),
-            style={
-                ASSISTANT: ctx.ui_config.assistant_color,
-                USER: ctx.ui_config.user_input_color,
-                SYSTEM: ctx.ui_config.system_message_color,
-                TOOL: ctx.ui_config.system_message_color,
-            }.get(message.role, "white"),
-        )
-
-    return table
-
-
-@user_only_tool
-def memo(ctx: ElroyContext, text: str) -> str:
-    """Ingests a memo from the user. This could result in a memory or due item being created.
-
-    Args:
-        text (str): Content of memo
-
-    Returns:
-        str: The result of the memo ingestion
-    """
-
-    res = do_ingest_memo(ctx, text)
-    return str(res)
-
-
-@user_only_tool
-def add_internal_thought(ctx: ElroyContext, thought: str) -> str:
-    """Inserts internal thought for the assistant. Useful for guiding the assistant's thoughts in a specific direction.
-
-    Args:
-        context (ElroyContext): context obj
-        thought (str): The thought to add
-
-    Returns:
-        str: The result of the internal thought addition
-    """
-
-    _ = ctx
-    add_context_messages(
-        to_synthetic_tool_call(
-            "user_added_internal_thought",
-            thought,
-        )
-    )
-
-    return f"Internal thought added: {thought}"
-
-
-@user_only_tool
-def print_system_instruction(ctx: ElroyContext) -> str | None:
-    """Prints the current system instruction for the assistant
-
-    Args:
-        user_id (int): user id
-
-    Returns:
-        str: The current system instruction
-    """
-
-    return pipe(
-        get_current_system_instruct(ctx),
-        lambda _: _.content if _ else None,
-    )
 
 
 def _is_optional(param: Parameter) -> bool:
@@ -139,7 +17,6 @@ def _is_optional(param: Parameter) -> bool:
 def get_casted_value(parameter: Parameter, str_value: str) -> Any | None:
     if not str_value:
         return None
-    # detect if it is union
     arg_type = get_args(parameter.annotation)[0] if _is_optional(parameter) else parameter.annotation
     return arg_type(str_value)
 

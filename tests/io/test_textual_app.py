@@ -4,16 +4,19 @@ import pytest
 from rich.text import Text
 from sqlmodel import desc, select
 from textual import events
-from textual.widgets import Label, ListItem, ListView, RichLog
+from textual.command import CommandPalette
+from textual.widgets import Input, Label, ListItem, ListView, RichLog, Tabs
 
 from elroy.core.ctx import ElroyContext
 from elroy.core.services.sidebar_service import AgendaPresenter
 from elroy.db.db_models import AgendaItem
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.io.textual_app import ChatInput, ElroyApp, MemoryDetailModal
+from elroy.io.textual_forms import CommandFormScreen
 from elroy.repository.context_messages.tools import add_memory_to_current_context
 from elroy.repository.memories.tools import create_memory
-from elroy.repository.tasks.operations import create_task
+from elroy.repository.tasks.factory import build_task_mutation_orchestrator
+from elroy.repository.user.queries import get_assistant_name
 from elroy.utils.clock import utc_now
 
 
@@ -30,7 +33,7 @@ class HarnessElroyApp(ElroyApp):
         state = AgendaPresenter(self.ctx).build_sidebar_state()
         self._panel_entries = {"memories": state.memories, "agenda": state.agenda}
         self._chat_suggestions = state.completions
-        self._render_sidebar_list()
+        self._render_sidebar_lists()
 
 
 def _make_app(ctx: ElroyContext, rich_formatter: RichFormatter) -> HarnessElroyApp:
@@ -39,7 +42,6 @@ def _make_app(ctx: ElroyContext, rich_formatter: RichFormatter) -> HarnessElroyA
         formatter=rich_formatter,
         enable_greeting=False,
         show_internal_thought=False,
-        show_memory_panel=True,
     )
 
 
@@ -50,14 +52,18 @@ def _label_text(label: Label) -> str:
     return str(renderable)
 
 
+def _current_list_view(app: ElroyApp) -> ListView:
+    return app._current_sidebar_list()
+
+
 def _sidebar_titles(app: ElroyApp) -> list[str]:
-    list_view = app.query_one("#sidebar-list", ListView)
+    list_view = _current_list_view(app)
     items = [child for child in list_view.children if isinstance(child, ListItem)]
     return [_label_text(item.query_one(Label)) for item in items]
 
 
 def _highlighted_indices(app: ElroyApp) -> list[int]:
-    list_view = app.query_one("#sidebar-list", ListView)
+    list_view = _current_list_view(app)
     items = [child for child in list_view.children if isinstance(child, ListItem)]
     return [index for index, item in enumerate(items) if item.highlighted]
 
@@ -67,13 +73,21 @@ def _history_text(app: ElroyApp) -> str:
     return "\n".join(strip.text for strip in log.lines)
 
 
+def _status_text(app: ElroyApp) -> str:
+    return _label_text(app.query_one("#status-bar", Label))
+
+
+def _binding_description(app: ElroyApp, key: str) -> str:
+    return app.active_bindings[key].binding.description
+
+
 @pytest.mark.asyncio
 async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
     create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
     add_memory_to_current_context(ctx, "Travel preference")
-    create_task(ctx, "Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
-    create_task(
-        ctx,
+    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+    task_mutation_orchestrator.create_task(
         "Pay electricity bill",
         "Pay electricity bill before the cutoff date.",
         trigger_datetime=utc_now() - timedelta(minutes=5),
@@ -86,14 +100,14 @@ async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyCo
 
         assert app.query_one("#chat-input", ChatInput).has_focus
         assert _sidebar_titles(app) == ["Travel preference"]
-        assert app.query_one("#memories-title", Label).has_class("active")
+        assert app.query_one("#sidebar-tabs", Tabs).active == "memories-tab"
 
         await pilot.press("escape")
         await pilot.pause()
 
         assert app._browse_mode is True
         assert app._browse_target == "sidebar"
-        assert app.query_one("#sidebar-list", ListView).has_focus
+        assert _current_list_view(app).has_focus
 
         await pilot.press("g")
         await pilot.pause()
@@ -101,8 +115,7 @@ async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyCo
         titles = _sidebar_titles(app)
         assert "Drop off parents at airport" in titles
         assert any(title.startswith("Pay electricity bill [") and title.endswith("(Due)") for title in titles)
-        assert app.query_one("#agenda-title", Label).has_class("active")
-        assert not app.query_one("#memories-title", Label).has_class("active")
+        assert app.query_one("#sidebar-tabs", Tabs).active == "agenda-tab"
 
         await pilot.press("tab")
         await pilot.pause()
@@ -114,7 +127,7 @@ async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyCo
         await pilot.pause()
 
         assert app._browse_target == "sidebar"
-        assert app.query_one("#sidebar-list", ListView).has_focus
+        assert _current_list_view(app).has_focus
 
 
 @pytest.mark.asyncio
@@ -128,7 +141,7 @@ async def test_tui_initial_memory_highlight_matches_first_selected_item(ctx: Elr
         await pilot.press("escape")
         await pilot.pause()
 
-        list_view = app.query_one("#sidebar-list", ListView)
+        list_view = _current_list_view(app)
         assert list_view.index == 0
         assert _highlighted_indices(app) == [0]
 
@@ -188,9 +201,10 @@ async def test_tui_renders_existing_context_messages_on_startup(george_ctx: Elro
 
 @pytest.mark.asyncio
 async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
-    create_task(ctx, "Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
-    create_task(ctx, "Buy groceries", "Buy groceries\nMilk, eggs, bread.")
+    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+    task_mutation_orchestrator.create_task("Buy groceries", "Buy groceries\nMilk, eggs, bread.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -198,7 +212,7 @@ async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: El
         await pilot.press("escape", "g")
         await pilot.pause()
 
-        list_view = app.query_one("#sidebar-list", ListView)
+        list_view = _current_list_view(app)
         assert list_view.index == 0
         assert _highlighted_indices(app) == [0]
 
@@ -224,8 +238,74 @@ async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: El
 
 
 @pytest.mark.asyncio
+async def test_tui_ctrl_m_focuses_memories_sidebar(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
+    add_memory_to_current_context(ctx, "Travel preference")
+
+    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert app.query_one("#chat-input", ChatInput).has_focus
+        assert _binding_description(app, "ctrl+m") == "Memories"
+
+        app.action_focus_agenda()
+        await pilot.pause()
+
+        assert app.query_one("#sidebar-tabs", Tabs).active == "agenda-tab"
+
+        app.action_toggle_memory()
+        await pilot.pause()
+
+        assert app._browse_mode is True
+        assert app._browse_target == "sidebar"
+        assert _current_list_view(app).has_focus
+        assert app.query_one("#sidebar-tabs", Tabs).active == "memories-tab"
+        assert _binding_description(app, "ctrl+m") == "Memories"
+
+
+@pytest.mark.asyncio
+async def test_tui_ctrl_a_binding_targets_agenda(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert _binding_description(app, "ctrl+a") == "Agenda"
+
+
+@pytest.mark.asyncio
+async def test_tui_focus_agenda_enters_sidebar_and_supports_arrow_navigation(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app.action_focus_agenda()
+        await pilot.pause()
+
+        list_view = _current_list_view(app)
+        assert app._browse_mode is True
+        assert app._browse_target == "sidebar"
+        assert app.query_one("#sidebar-tabs", Tabs).active == "agenda-tab"
+        assert list_view.has_focus
+        assert list_view.index == 0
+
+        await pilot.press("down")
+        await pilot.pause()
+
+        assert list_view.index == 1
+        assert _highlighted_indices(app) == [1]
+
+
+@pytest.mark.asyncio
 async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
+    build_task_mutation_orchestrator(ctx).create_task("Job search", "Job search\nReach out to three contacts.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -247,9 +327,37 @@ async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_form
 
 
 @pytest.mark.asyncio
+async def test_tui_open_agenda_select_item_and_mark_complete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app.action_focus_agenda()
+        await pilot.pause()
+        await pilot.press("down", "enter")
+        await pilot.pause()
+
+        assert isinstance(app.screen, MemoryDetailModal)
+        assert _label_text(app.screen.query_one("#memory-detail-title", Label)) == "Drop off parents at airport"
+
+        await pilot.press("c")
+        await pilot.pause()
+
+        task = ctx.db.exec(
+            select(AgendaItem).where(AgendaItem.name == "Drop off parents at airport").order_by(desc(AgendaItem.created_at))
+        ).first()
+        assert task is not None
+        assert task.status == "completed"
+        assert "Drop off parents at airport" not in _sidebar_titles(app)
+
+
+@pytest.mark.asyncio
 async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(
-        ctx,
+    build_task_mutation_orchestrator(ctx).create_task(
         "Pay rent",
         "Pay rent before the first of the month.",
         trigger_datetime=utc_now() - timedelta(minutes=5),
@@ -277,3 +385,101 @@ async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_format
         assert task is not None
         assert task.status == "deleted"
         assert all("Pay rent" not in title for title in _sidebar_titles(app))
+
+
+@pytest.mark.asyncio
+async def test_tui_system_commands_include_palette_actions(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        commands = list(app.get_system_commands(app.screen))
+        titles = {command.title for command in commands}
+        assert "Focus Memories" in titles
+        assert "Focus Agenda" in titles
+        assert "Refresh System Instructions" in titles
+        assert "Reset Messages" in titles
+
+
+@pytest.mark.asyncio
+async def test_tui_status_bar_does_not_duplicate_command_palette_hint(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        status = _status_text(app)
+        assert "Ctrl+P" not in status
+        assert "commands" not in status.lower()
+
+
+@pytest.mark.asyncio
+async def test_tui_slash_command_with_missing_args_opens_modal_form(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        input_widget.value = "/set_assistant_name"
+        app._submit_chat_input()
+        await pilot.pause()
+
+        assert isinstance(app.screen, CommandFormScreen)
+        field = app.screen.query_one("#input-assistant_name", Input)
+        field.value = "Jarvis"
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.pause()
+
+        assert get_assistant_name(ctx) == "Jarvis"
+
+
+@pytest.mark.asyncio
+async def test_tui_enter_submits_chat_input(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        input_widget.value = "/set_assistant_name Jarvis"
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.pause()
+
+        assert get_assistant_name(ctx) == "Jarvis"
+        assert input_widget.value == ""
+
+
+@pytest.mark.asyncio
+async def test_tui_ctrl_p_opens_command_palette_from_chat_input(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert app.query_one("#chat-input", ChatInput).has_focus
+
+        await pilot.press("ctrl+p")
+        await pilot.pause()
+
+        assert isinstance(app.screen, CommandPalette)
+
+
+@pytest.mark.asyncio
+async def test_tui_launch_tool_command_opens_modal_form(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app.launch_tool_command("create_memory")
+        await pilot.pause()
+
+        assert isinstance(app.screen, CommandFormScreen)
+        name_field = app.screen.query_one("#input-name", Input)
+        text_field = app.screen.query_one("#input-text", Input)
+        name_field.value = "Trip note"
+        text_field.value = "User prefers aisle seats."
+        text_field.focus()
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.pause()
+
+        assert "Trip note" in _sidebar_titles(app)

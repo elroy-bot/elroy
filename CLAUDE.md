@@ -12,32 +12,19 @@
 - **Lint**: `just lint`
 - **Format**: `just format`
 
-### Why just?
-
-The `just` command runner ensures:
-- Correct environment setup
-- Consistent command execution across different systems
-- Proper dependency management
-- Project-specific configurations are applied
-
 ### Finding Available Commands
 
 Run `just --list` to see all available commands for this project.
 
-## Development Workflow
+## Code Review Standard
 
-When the user asks you to:
-- "run the tests" → use `just test`
-- "build the project" → use `just build`
-- "check for lint errors" → use `just lint`
-- "format the code" → use `just format`
+Use `CODE_REVIEW.md` as the source of truth for code review expectations in this repository.
 
-Always prefer `just` commands over direct tool invocation.
+During review:
+- Apply the role, dependency, and validation rules defined in `CODE_REVIEW.md`
+- Do not duplicate or invent competing review standards in review comments
+- Treat `just lint` and `just typecheck` as required validation before code is ready for review
 
 ## Project Roadmap
 
-The project roadmap is maintained in `ROADMAP.md`. When working on features or discussing project direction:
-- Reference the roadmap for current priorities
-- Update the roadmap when completing items (move to "Completed" section)
-- Add new items as they are identified or requested
-- Keep items well-organized by category (Performance, Features, etc.)
+Reference `ROADMAP.md` for current priorities, and update it when completing roadmap items or adding new ones.

@@ -22,7 +22,7 @@ DEPRECATED_KEYS = {
 }
 
 MODEL_ALIASES = ["sonnet", "opus", "gpt4o", "gpt4o_mini", "o1", "o1_mini"]
-CLI_ONLY_PARAMS = {"enable_assistant_greeting", "show_memory_panel"}
+CLI_ONLY_PARAMS = {"enable_assistant_greeting"}
 
 
 def resolve_model_alias(alias: str) -> str | None:
@@ -64,13 +64,6 @@ def get_resolved_params(**kwargs) -> dict[str, Any]:
     """Get resolved parameter values from environment and config."""
     # n.b merge priority is lib default < user config file < env var < explicit CLI arg
 
-    def convert_comma_separated_to_list(d: dict[str, Any]) -> dict[str, Any]:
-        """Convert comma-separated string for background_ingest_paths to list if needed."""
-        if "background_ingest_paths" in d and isinstance(d["background_ingest_paths"], str):
-            paths = [p.strip() for p in d["background_ingest_paths"].split(",") if p.strip()]
-            return assoc(d, "background_ingest_paths", paths)
-        return d
-
     return pipe(
         [
             DEFAULTS_CONFIG,  # package defaults
@@ -81,7 +74,6 @@ def get_resolved_params(**kwargs) -> dict[str, Any]:
         map(valfilter(lambda x: x is not None and x != ())),
         merge,
         lambda d: assoc(d, "database_url", get_default_sqlite_url()) if not d.get("database_url") else d,
-        convert_comma_separated_to_list,
     )
 
 

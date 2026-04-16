@@ -1,7 +1,7 @@
 """add messages since memory
 
 Revision ID: 3949becbb55b
-Revises: dcef5cfbde59
+Revises: a69db7c09d71
 Create Date: 2025-03-17 09:25:07.058456
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "3949becbb55b"
-down_revision: str | None = "dcef5cfbde59"
+down_revision: str | None = "a69db7c09d71"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

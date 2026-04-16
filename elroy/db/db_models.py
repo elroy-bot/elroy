@@ -117,39 +117,6 @@ class Memory(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
         return f"#{self.name}\n{text}"
 
 
-class SourceDocument(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "address"), {"extend_existing": True})
-    id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
-    user_id: int = Field(..., description="Elroy user for context")
-    address: str = Field(..., description="The address of the document")
-    name: str = Field(..., description="The name of the document")
-    content: str | None = Field(..., description="The extracted content of the document")
-    extracted_at: datetime = Field(default_factory=utc_now, nullable=False)
-    content_md5: str | None = Field(..., description="The MD5 hash of the extracted content")
-
-
-class DocumentExcerpt(EmbeddableSqlModel, MemorySource, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "source_document_id", "chunk_index", "is_active"), {"extend_existing": True})
-    id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=utc_now, nullable=False)
-    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
-    user_id: int = Field(..., description="Elroy user for context")
-    name: str = Field(..., description="The name of the document")
-    content: str = Field(..., description="The text of the document")
-    source_document_id: int = Field(..., description="The source document ID")
-    chunk_index: int = Field(..., description="The index of the chunk in the source document")
-    content_md5: str = Field(..., description="The MD5 hash of the text")
-    is_active: bool | None = Field(default=True, description="Whether the context is active")
-
-    def get_name(self) -> str:
-        return self.name
-
-    def to_fact(self) -> str:
-        return f"#{self.name}\n{self.content}"
-
-
 class AgendaItem(EmbeddableSqlModel, MemorySource, SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: int | None = Field(default=None, primary_key=True)
@@ -244,7 +211,6 @@ class UserPreference(SQLModel, table=True):
     full_name: str | None = Field(default=None, description="The full name for the user")
     is_active: bool | None = Field(default=True, description="Whether the context is active")
     assistant_name: str | None = Field(default=None, description="The assistant name for the user")
-    background_ingest_last_run: datetime | None = Field(default=None, description="Timestamp of the last background ingestion run")
 
 
 class ContextMessageSet(SQLModel, table=True):

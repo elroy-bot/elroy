@@ -10,11 +10,7 @@ from elroy.core.constants import USER
 from elroy.core.ctx import ElroyContext
 from elroy.db.db_models import ContextMessageSet
 from elroy.repository.context_messages.data_models import ContextMessage
-from elroy.repository.context_messages.operations import (
-    add_context_messages,
-    pop,
-    remove_context_messages,
-)
+from elroy.repository.context_messages.factory import build_context_message_store, build_context_refresh_orchestrator
 from elroy.repository.context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
@@ -29,7 +25,9 @@ def test_rm_context_messages(george_ctx: ElroyContext):
     to_rm = msgs[-3:]
     for msg in to_rm:
         # Concurrent removals
-        run_in_background(remove_context_messages, george_ctx, [msg])
+        run_in_background(
+            lambda new_ctx, messages: build_context_message_store(new_ctx).remove_context_messages(messages), george_ctx, [msg]
+        )
 
     attempts = 0
     max_attempts = 5
@@ -59,7 +57,11 @@ def test_add_context_messages(george_ctx: ElroyContext):
     ]
     for msg in to_add:
         # Concurrent removals
-        run_in_background(add_context_messages, george_ctx, [msg])
+        run_in_background(
+            lambda new_ctx, messages: build_context_refresh_orchestrator(new_ctx).add_context_messages(messages),
+            george_ctx,
+            [msg],
+        )
 
     attempts = 0
     max_attempts = 5
@@ -73,14 +75,6 @@ def test_add_context_messages(george_ctx: ElroyContext):
             logging.info("Msgs not yet removed, retrying...")
             attempts += 1
             time.sleep(1)
-
-
-def test_pop(george_ctx: ElroyContext):
-    original_len = len(list(get_context_messages(george_ctx)))
-
-    pop(george_ctx, 2)
-
-    assert len(list(get_context_messages(george_ctx))) == original_len - 2
 
 
 def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: ElroyContext, monkeypatch: pytest.MonkeyPatch):
@@ -99,7 +93,7 @@ def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: Elr
 
     monkeypatch.setattr(ctx.db.session, "commit", flaky_commit)
 
-    context_message_set = get_or_create_context_message_set(ctx)
+    context_message_set = get_or_create_context_message_set(ctx.db, ctx.user_id)
     assert context_message_set.id is not None
     assert list(get_context_messages(ctx)) == []
 
@@ -112,4 +106,4 @@ def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: Elr
         ).all()
     )
     assert len(active_contexts) == 1
-    assert get_or_create_context_message_set(ctx).id == context_message_set.id
+    assert get_or_create_context_message_set(ctx.db, ctx.user_id).id == context_message_set.id

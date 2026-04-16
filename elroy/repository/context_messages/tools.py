@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel
 
-from ...core.constants import ASSISTANT, TOOL, tool
+from ...core.constants import ASSISTANT, TOOL, tool, user_only_tool
 from ...core.ctx import ElroyContext
 from ...db.db_models import Memory, ToolCall
 from .data_models import ContextMessage
@@ -42,9 +42,9 @@ def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     Returns:
         str: Status message indicating success or failure of adding memory
     """
-    from ..recall.operations import add_to_current_context_by_name
+    from ..recall.factory import build_recall_context_bridge
 
-    return add_to_current_context_by_name(ctx, memory_name, Memory)
+    return build_recall_context_bridge(ctx).add_to_current_context_by_name(memory_name, Memory)
 
 
 @tool
@@ -57,6 +57,22 @@ def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str
     Returns:
         str: Status message indicating success or failure of removing memory
     """
-    from ..recall.operations import drop_from_context_by_name
+    from ..recall.factory import build_recall_context_bridge
 
-    return drop_from_context_by_name(ctx, memory_name, Memory)
+    return build_recall_context_bridge(ctx).drop_from_context_by_name(memory_name, Memory)
+
+
+@user_only_tool
+def refresh_system_instructions(ctx: ElroyContext) -> str:
+    """Refreshes the system instructions."""
+    from .factory import build_context_refresh_orchestrator
+
+    return build_context_refresh_orchestrator(ctx).refresh_system_instructions()
+
+
+@user_only_tool
+def reset_messages(ctx: ElroyContext) -> str:
+    """Resets the context for the user, keeping only the system message."""
+    from .factory import build_context_refresh_orchestrator
+
+    return build_context_refresh_orchestrator(ctx).reset_messages()
