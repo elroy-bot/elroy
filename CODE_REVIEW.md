@@ -1,8 +1,10 @@
-# TODO
+# Code Review Rules
 
-## Architecture Roles
+This document defines the architectural and change-validation rules used during review.
 
-Adopt a small vocabulary for application structure. Avoid introducing new `*Service` names by default.
+## Role Vocabulary
+
+Prefer these names over generic `*Service` names.
 
 ### `Store`
 
@@ -12,18 +14,12 @@ Responsible for:
 - Lightweight invariants tied directly to persisted state
 - Mapping between DB/file representation and domain objects
 
-Not responsible for:
+Must not be responsible for:
 - Multi-step workflows across domains
 - Calling sibling components to coordinate side effects
 - Background scheduling
 - Prompt construction, summarization, or other transformation-heavy logic
 - Embedding or recall index maintenance unless that index is the store's primary persisted state
-
-Examples:
-- `ContextMessageStore`
-- `MemoryStore`
-- `TaskStore`
-- `UserPreferenceStore`
 
 ### `Orchestrator`
 
@@ -33,17 +29,11 @@ Responsible for:
 - Transaction or workflow boundaries
 - Converting a user or system action into calls across stores, indexers, builders, and jobs
 
-Not responsible for:
+Must not be responsible for:
 - Owning low-level persistence details
-- Becoming a grab bag for unrelated business logic
+- Becoming a generic home for unrelated logic
 - Re-implementing transformation logic that belongs in a builder
-- Hiding unclear ownership behind generic helper methods
-
-Examples:
-- `ConversationOrchestrator`
-- `MemoryLifecycleOrchestrator`
-- `ContextRefreshOrchestrator`
-- `ReminderOrchestrator`
+- Hiding unclear ownership behind vague helper methods
 
 ### `Indexer`
 
@@ -53,15 +43,11 @@ Responsible for:
 - Activating or deactivating index entries to match source state
 - Translating domain objects into retrieval/index artifacts
 
-Not responsible for:
+Must not be responsible for:
 - Primary persistence of the source entity
 - Cross-domain workflow ownership
 - Prompt construction
 - General context lifecycle management unless narrowly scoped to indexing-related context projection
-
-Examples:
-- `RecallIndexer`
-- `EmbeddingIndexer`
 
 ### `Builder`
 
@@ -71,16 +57,11 @@ Responsible for:
 - Summaries, refresh payloads, or other transformation-heavy outputs
 - Pure or mostly pure read-oriented logic
 
-Not responsible for:
+Must not be responsible for:
 - Persistence
 - Workflow coordination
 - Scheduling
 - Mutating multiple systems as part of a larger action
-
-Examples:
-- `SystemPromptBuilder`
-- `MemorySummarizer`
-- `ContextSummaryBuilder`
 
 ## Dependency Rules
 
@@ -91,28 +72,24 @@ Examples:
 - `Builder` should be pure or read-only where possible.
 - Bidirectional dependencies between categories are a design smell and should trigger review.
 - If a component needs several siblings to complete one action, that logic likely belongs in an `Orchestrator`.
-- Avoid generic `Service` naming unless the role is genuinely broader than the categories above and that breadth is justified in review.
+- Avoid generic `Service` naming unless the broader role is explicit and justified in review.
 
-## Refactor Direction
+## Review Checks
 
-- `ConversationService` -> `ConversationOrchestrator`
-- Split `ContextMessageOperationService` into:
-  - `ContextMessageStore`
-  - `ContextRefreshOrchestrator`
-  - `SystemPromptBuilder`
-- Split `MemoryOperationService` into:
-  - `MemoryStore`
-  - `MemoryLifecycleOrchestrator`
-  - `MemorySummarizer`
-- `RecallOperationService` -> `RecallIndexer` plus a narrowly scoped context bridge if still needed
-- `TaskOperationService` -> `TaskStore`
-- `ReminderOperationService` -> `ReminderOrchestrator` or `ReminderFacade`
+Reviewers should check:
+- Does the name match the actual responsibility?
+- Is workflow logic living in an `Orchestrator` instead of a `Store`?
+- Are persistence-heavy components staying narrow?
+- Are indexing concerns separate from source-of-truth persistence?
+- Are builders mostly pure and read-oriented?
+- Are there any new bidirectional dependencies?
+- Is a callback bundle being used where a clearer role boundary should exist instead?
+- Is a generic `Service` name masking a more precise category?
 
-## Performance Optimizations
+## Change Validation
 
-✅ **Completed**: Add classifier early in message cycle to help latency of responses
-   - Implemented two-stage hybrid classifier (heuristics + fast_llm)
-   - Integrated at messenger.py:51 (replaced TODO comment)
-   - Uses fast_model infrastructure for efficient classification
-   - Configurable via `memory_recall_classifier_enabled` and `memory_recall_classifier_window`
-   - All tests passing (117 passed, 3 skipped)
+Every code change must be followed by:
+- `just lint`
+- `just typecheck`
+
+If either command fails, the change is not ready for review.

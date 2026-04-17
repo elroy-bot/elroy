@@ -1,4 +1,4 @@
-# Claude Code Configuration for Elroy
+# Agent Instructions for Elroy
 
 ## Build and Test Commands
 
