@@ -5,7 +5,7 @@ from ...core.ctx import ElroyContext
 from ...core.logging import log_execution_time
 from ...db.db_models import EmbeddableSqlModel, Memory, MemoryOperationTracker, MemorySource
 from ..context_messages.data_models import ContextMessage
-from ..context_messages.queries import ContextMessageQueryService
+from ..context_messages.queries import ContextMessageReadStore
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
 from .consolidation import consolidate_memories
 from .memory_lifecycle_orchestrator import (
@@ -37,7 +37,7 @@ def _summarizer(ctx: ElroyContext) -> MemorySummarizer:
 
 
 def _orchestrator(ctx: ElroyContext) -> MemoryLifecycleOrchestrator:
-    context_message_query_service = ContextMessageQueryService(ctx.db, ctx.user_id)
+    context_message_read_store = ContextMessageReadStore(ctx.db, ctx.user_id)
 
     def remove_from_context(item: EmbeddableSqlModel) -> None:
         from ..recall.operations import remove_from_context as _remove_from_context
@@ -61,7 +61,7 @@ def _orchestrator(ctx: ElroyContext) -> MemoryLifecycleOrchestrator:
             memories_between_consolidation=ctx.memories_between_consolidation,
         ),
         metadata_providers=MemoryLifecycleMetadataProviders(
-            get_context_messages_fn=lambda: list(context_message_query_service.get_context_messages()),
+            get_context_messages_fn=lambda: list(context_message_read_store.get_context_messages()),
         ),
         callbacks=MemoryLifecycleCallbacks(
             schedule_consolidation_fn=lambda: schedule_task(consolidate_memories, ctx),

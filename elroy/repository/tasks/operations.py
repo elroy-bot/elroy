@@ -1,5 +1,3 @@
-from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -32,17 +30,10 @@ class TaskAlreadyExistsError(RecoverableToolError):
         super().__init__(f"Task '{task_name}' already exists")
 
 
-@dataclass(frozen=True)
-class TaskOperationCallbacks:
-    remove_from_context_fn: Callable[[AgendaItem], None]
-    upsert_embedding_if_needed_fn: Callable[[AgendaItem], None]
-
-
-class TaskOperationService:
-    def __init__(self, db: DbSession, user_id: int, callbacks: TaskOperationCallbacks):
+class TaskStore:
+    def __init__(self, db: DbSession, user_id: int):
         self.db = db
         self.user_id = user_id
-        self.callbacks = callbacks
 
     def create_task(
         self,
@@ -75,7 +66,7 @@ class TaskOperationService:
                 status="created",
             ),
         )
-        row = self.db.persist(
+        return self.db.persist(
             AgendaItem(
                 user_id=self.user_id,
                 name=name,
@@ -86,8 +77,6 @@ class TaskOperationService:
                 is_active=True,
             )
         )
-        self.callbacks.upsert_embedding_if_needed_fn(row)
-        return row
 
     def complete_task(self, task_name: str, closing_comment: str | None = None) -> AgendaItem:
         task = get_task_by_name_for_service(self.db, self.user_id, task_name)
@@ -102,7 +91,6 @@ class TaskOperationService:
         task.updated_at = utc_now()
         task = self.db.persist(task)
         update_agenda_metadata(task_path(task), {"completed": True, "status": "completed", "closing_comment": closing_comment})
-        self.callbacks.upsert_embedding_if_needed_fn(task)
         return task
 
     def delete_task(self, task_name: str, closing_comment: str | None = None, *, delete_file: bool = False) -> AgendaItem:
@@ -114,10 +102,8 @@ class TaskOperationService:
         task.is_active = None
         task.closing_comment = closing_comment
         task.updated_at = utc_now()
-        self.callbacks.remove_from_context_fn(task)
         task = self.db.persist(task)
         update_agenda_metadata(task_path(task), {"status": "deleted", "closing_comment": closing_comment})
-        self.callbacks.upsert_embedding_if_needed_fn(task)
         if delete_file:
             task_path(task).unlink(missing_ok=True)
         return task
@@ -135,9 +121,7 @@ class TaskOperationService:
         task.name = new_name
         task.file_path = str(target_path)
         task.updated_at = utc_now()
-        task = self.db.persist(task)
-        self.callbacks.upsert_embedding_if_needed_fn(task)
-        return task
+        return self.db.persist(task)
 
     def update_task_text(self, task_name: str, new_text: str) -> AgendaItem:
         task = get_task_by_name_for_service(self.db, self.user_id, task_name)
@@ -145,9 +129,7 @@ class TaskOperationService:
             raise RecoverableToolError(f"Active task '{task_name}' not found.")
         update_agenda_body(task_path(task), new_text)
         task.updated_at = utc_now()
-        task = self.db.persist(task)
-        self.callbacks.upsert_embedding_if_needed_fn(task)
-        return task
+        return self.db.persist(task)
 
 
 def get_task_by_name_for_service(db: DbSession, user_id: int, task_name: str) -> AgendaItem | None:
@@ -156,17 +138,25 @@ def get_task_by_name_for_service(db: DbSession, user_id: int, task_name: str) ->
     ).first()
 
 
-def _service(ctx: ElroyContext) -> TaskOperationService:
-    from ..recall.operations import remove_from_context, upsert_embedding_if_needed
-
-    return TaskOperationService(
+def _store(ctx: ElroyContext) -> TaskStore:
+    return TaskStore(
         db=ctx.db,
         user_id=ctx.user_id,
-        callbacks=TaskOperationCallbacks(
-            remove_from_context_fn=lambda task: remove_from_context(ctx, task),
-            upsert_embedding_if_needed_fn=lambda task: upsert_embedding_if_needed(ctx, task),
-        ),
     )
+
+
+def _reindex_task(ctx: ElroyContext, task: AgendaItem) -> AgendaItem:
+    from ..recall.operations import upsert_embedding_if_needed
+
+    upsert_embedding_if_needed(ctx, task)
+    return task
+
+
+def _remove_task_from_context(ctx: ElroyContext, task: AgendaItem) -> None:
+    from ..recall.operations import remove_from_context, upsert_embedding_if_needed
+
+    remove_from_context(ctx, task)
+    upsert_embedding_if_needed(ctx, task)
 
 
 def create_task(
@@ -179,30 +169,35 @@ def create_task(
     trigger_context: str | None = None,
     allow_past_trigger: bool = False,
 ) -> AgendaItem:
-    return _service(ctx).create_task(
-        name,
-        text,
-        item_date=item_date,
-        trigger_datetime=trigger_datetime,
-        trigger_context=trigger_context,
-        allow_past_trigger=allow_past_trigger,
+    return _reindex_task(
+        ctx,
+        _store(ctx).create_task(
+            name,
+            text,
+            item_date=item_date,
+            trigger_datetime=trigger_datetime,
+            trigger_context=trigger_context,
+            allow_past_trigger=allow_past_trigger,
+        ),
     )
 
 
 def complete_task(ctx: ElroyContext, task_name: str, closing_comment: str | None = None) -> AgendaItem:
-    return _service(ctx).complete_task(task_name, closing_comment)
+    return _reindex_task(ctx, _store(ctx).complete_task(task_name, closing_comment))
 
 
 def delete_task(ctx: ElroyContext, task_name: str, closing_comment: str | None = None, *, delete_file: bool = False) -> AgendaItem:
-    return _service(ctx).delete_task(task_name, closing_comment, delete_file=delete_file)
+    task = _store(ctx).delete_task(task_name, closing_comment, delete_file=delete_file)
+    _remove_task_from_context(ctx, task)
+    return task
 
 
 def rename_task(ctx: ElroyContext, old_name: str, new_name: str) -> AgendaItem:
-    return _service(ctx).rename_task(old_name, new_name)
+    return _reindex_task(ctx, _store(ctx).rename_task(old_name, new_name))
 
 
 def update_task_text(ctx: ElroyContext, task_name: str, new_text: str) -> AgendaItem:
-    return _service(ctx).update_task_text(task_name, new_text)
+    return _reindex_task(ctx, _store(ctx).update_task_text(task_name, new_text))
 
 
 def task_path(task: AgendaItem) -> Path:

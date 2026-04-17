@@ -10,7 +10,7 @@ from sqlmodel import select
 from ...core.logging import get_logger
 from ...db.db_models import ContextMessageSet
 from .data_models import ContextMessage
-from .queries import ContextMessageQueryService
+from .queries import ContextMessageReadStore
 from .transforms import context_message_to_db_message
 
 logger = get_logger()
@@ -38,10 +38,10 @@ def retry_on_integrity_error[T](fn: Callable[..., T]) -> Callable[..., T]:
 
 
 class ContextMessageStore:
-    def __init__(self, query_service: ContextMessageQueryService):
-        self.query_service = query_service
-        self.db = query_service.db
-        self.user_id = query_service.user_id
+    def __init__(self, read_store: ContextMessageReadStore):
+        self.read_store = read_store
+        self.db = read_store.db
+        self.user_id = read_store.user_id
 
     def persist_messages(self, messages: Iterable[ContextMessage]) -> Iterator[int]:
         for msg in messages:
@@ -86,4 +86,4 @@ class ContextMessageStore:
         assert all(m.id is not None for m in messages), "All messages must have an id to be removed"
 
         msg_ids = [m.id for m in messages]
-        self.replace_context_messages([m for m in self.query_service.get_context_messages() if m.id not in msg_ids])
+        self.replace_context_messages([m for m in self.read_store.get_context_messages() if m.id not in msg_ids])

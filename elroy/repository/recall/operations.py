@@ -20,18 +20,17 @@ logger = get_logger()
 
 
 @dataclass(frozen=True)
-class RecallOperationCallbacks:
+class RecallContextBridgeCallbacks:
     get_context_messages_fn: Callable[[], Iterable[ContextMessage]]
     add_context_messages_fn: Callable[[Iterable[ContextMessage]], None]
     remove_context_messages_fn: Callable[[list[ContextMessage]], None]
 
 
-class RecallOperationService:
-    def __init__(self, db: DbSession, user_id: int, llm: "LlmClient", callbacks: RecallOperationCallbacks):
+class RecallIndexer:
+    def __init__(self, db: DbSession, user_id: int, llm: "LlmClient"):
         self.db = db
         self.user_id = user_id
         self.llm = llm
-        self.callbacks = callbacks
 
     def upsert_embedding_if_needed(self, row: EmbeddableSqlModel) -> None:
         new_text = row.to_fact()
@@ -51,6 +50,12 @@ class RecallOperationService:
             self.db.insert_embedding(row=row, embedding_data=embedding, embedding_text_md5=new_md5)
         if row.is_active is not True:
             self.db.update_embedding_active(row)
+
+
+class RecallContextBridge:
+    def __init__(self, db: DbSession, callbacks: RecallContextBridgeCallbacks):
+        self.db = db
+        self.callbacks = callbacks
 
     def add_to_context(self, memory: EmbeddableSqlModel) -> None:
         memory_id = memory.id
@@ -87,15 +92,21 @@ class RecallOperationService:
         return f"{memory_type.__name__} '{name}' not found."
 
 
-def _service(ctx: ElroyContext) -> RecallOperationService:
-    from ..context_messages.operations import add_context_messages, remove_context_messages
-    from ..context_messages.queries import get_context_messages
-
-    return RecallOperationService(
+def _indexer(ctx: ElroyContext) -> RecallIndexer:
+    return RecallIndexer(
         db=ctx.db,
         user_id=ctx.user_id,
         llm=ctx.llm,
-        callbacks=RecallOperationCallbacks(
+    )
+
+
+def _context_bridge(ctx: ElroyContext) -> RecallContextBridge:
+    from ..context_messages.operations import add_context_messages, remove_context_messages
+    from ..context_messages.queries import get_context_messages
+
+    return RecallContextBridge(
+        db=ctx.db,
+        callbacks=RecallContextBridgeCallbacks(
             get_context_messages_fn=lambda: get_context_messages(ctx),
             add_context_messages_fn=lambda messages: add_context_messages(ctx, messages),
             remove_context_messages_fn=lambda messages: remove_context_messages(ctx, messages),
@@ -104,20 +115,20 @@ def _service(ctx: ElroyContext) -> RecallOperationService:
 
 
 def upsert_embedding_if_needed(ctx: ElroyContext, row: EmbeddableSqlModel) -> None:
-    _service(ctx).upsert_embedding_if_needed(row)
+    _indexer(ctx).upsert_embedding_if_needed(row)
 
 
 def add_to_context(ctx: ElroyContext, memory: EmbeddableSqlModel) -> None:
-    _service(ctx).add_to_context(memory)
+    _context_bridge(ctx).add_to_context(memory)
 
 
 def remove_from_context(ctx: ElroyContext, memory: EmbeddableSqlModel):
-    _service(ctx).remove_from_context(memory)
+    _context_bridge(ctx).remove_from_context(memory)
 
 
 def add_to_current_context_by_name(ctx: ElroyContext, name: str, memory_type: type[EmbeddableSqlModel]) -> str:
-    return _service(ctx).add_to_current_context_by_name(name, memory_type)
+    return _context_bridge(ctx).add_to_current_context_by_name(name, memory_type)
 
 
 def drop_from_context_by_name(ctx: ElroyContext, name: str, memory_type: type[EmbeddableSqlModel]) -> str:
-    return _service(ctx).drop_from_context_by_name(name, memory_type)
+    return _context_bridge(ctx).drop_from_context_by_name(name, memory_type)

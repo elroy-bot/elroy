@@ -41,7 +41,7 @@ def is_in_context(context_messages: Iterable[ContextMessage], memory: Embeddable
 T = TypeVar("T", bound=EmbeddableSqlModel)
 
 
-class RecallQueryService:
+class RecallReadStore:
     def __init__(self, db: DbSession, user_id: int, memory_config: MemoryConfig):
         self.db = db
         self.user_id = user_id
@@ -67,8 +67,8 @@ class RecallQueryService:
         return [item for item in self.query_vector(AgendaItem, query) if not (item.trigger_datetime or item.trigger_context)][:2]
 
 
-def _service(ctx: ElroyContext) -> RecallQueryService:
-    return RecallQueryService(ctx.db, ctx.user_id, ctx.memory_config)
+def _store(ctx: ElroyContext) -> RecallReadStore:
+    return RecallReadStore(ctx.db, ctx.user_id, ctx.memory_config)
 
 
 def query_vector[T: EmbeddableSqlModel](table: type[T], ctx: ElroyContext, query: list[float]) -> Iterable[T]:
@@ -82,20 +82,20 @@ def query_vector[T: EmbeddableSqlModel](table: type[T], ctx: ElroyContext, query
     Returns:
         List[Tuple[Fact, float]]: A list of tuples containing the matching Fact and its similarity score.
     """
-    return _service(ctx).query_vector(table, query)
+    return _store(ctx).query_vector(table, query)
 
 
 @log_execution_time
 def get_most_relevant_memories(ctx: ElroyContext, query: list[float]) -> list[Memory]:
     """Get the most relevant memory for the given query."""
-    return _service(ctx).get_most_relevant_memories(query)
+    return _store(ctx).get_most_relevant_memories(query)
 
 
 @log_execution_time
 def get_most_relevant_due_items(ctx: ElroyContext, query: list[float]) -> list[AgendaItem]:
-    return _service(ctx).get_most_relevant_due_items(query)
+    return _store(ctx).get_most_relevant_due_items(query)
 
 
 @log_execution_time
 def get_most_relevant_agenda_items(ctx: ElroyContext, query: list[float]) -> list[AgendaItem]:
-    return _service(ctx).get_most_relevant_agenda_items(query)
+    return _store(ctx).get_most_relevant_agenda_items(query)

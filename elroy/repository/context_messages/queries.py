@@ -11,7 +11,7 @@ from .data_models import ContextMessage
 from .transforms import ContextMessageSetWithMessages
 
 
-class ContextMessageQueryService:
+class ContextMessageReadStore:
     def __init__(self, db: DbSession, user_id: int):
         self.db = db
         self.user_id = user_id
@@ -57,12 +57,12 @@ class ContextMessageQueryService:
 
 
 def get_or_create_context_message_set(db: DbSession, user_id: int) -> ContextMessageSetWithMessages:
-    return ContextMessageQueryService(db, user_id).get_or_create_context_message_set()
+    return ContextMessageReadStore(db, user_id).get_or_create_context_message_set()
 
 
 def get_context_messages(ctx: Any) -> Iterable[ContextMessage]:
-    return ContextMessageQueryService(ctx.db, ctx.user_id).get_context_messages()
+    return ContextMessageReadStore(ctx.db, ctx.user_id).get_context_messages()
 
 
 def get_current_system_instruct(ctx: Any) -> ContextMessage | None:
-    return ContextMessageQueryService(ctx.db, ctx.user_id).get_current_system_instruct()
+    return ContextMessageReadStore(ctx.db, ctx.user_id).get_current_system_instruct()

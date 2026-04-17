@@ -1,13 +1,13 @@
 """Helpers for building slash-command autocomplete suggestions and memory panel titles."""
 
 from ..core.ctx import ElroyContext
-from ..repository.context_messages.queries import ContextMessageQueryService
+from ..repository.context_messages.queries import ContextMessageReadStore
 
 
-class CompletionsService:
+class CompletionsBuilder:
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
-        self.context_message_query_service = ContextMessageQueryService(ctx.db, ctx.user_id)
+        self.context_message_read_store = ContextMessageReadStore(ctx.db, ctx.user_id)
 
     def get_memory_panel_entries(self) -> list[tuple[str, str]]:
         """Return (display_name, type_key) pairs for the in-context memories sidebar.
@@ -16,7 +16,7 @@ class CompletionsService:
         """
         from ..repository.memories.queries import get_in_context_memories_metadata
 
-        raw = get_in_context_memories_metadata(self.context_message_query_service.get_context_messages())
+        raw = get_in_context_memories_metadata(self.context_message_read_store.get_context_messages())
         return [(t.split(": ", 1)[-1], t) for t in raw]
 
     def get_memory_panel_titles(self) -> list[str]:
@@ -45,7 +45,7 @@ class CompletionsService:
             USER_ONLY_COMMANDS,
         )
 
-        context_messages = list(self.context_message_query_service.get_context_messages())
+        context_messages = list(self.context_message_read_store.get_context_messages())
         memories = get_active_memories(self.ctx)
         due_items = get_active_due_items(self.ctx)
         agenda_titles = get_active_agenda_titles(self.ctx)
@@ -70,12 +70,12 @@ class CompletionsService:
 
 
 def get_memory_panel_entries(ctx: ElroyContext) -> list[tuple[str, str]]:
-    return CompletionsService(ctx).get_memory_panel_entries()
+    return CompletionsBuilder(ctx).get_memory_panel_entries()
 
 
 def get_memory_panel_titles(ctx: ElroyContext) -> list[str]:
-    return CompletionsService(ctx).get_memory_panel_titles()
+    return CompletionsBuilder(ctx).get_memory_panel_titles()
 
 
 def build_completions(ctx: ElroyContext) -> list[str]:
-    return CompletionsService(ctx).build_completions()
+    return CompletionsBuilder(ctx).build_completions()

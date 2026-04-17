@@ -14,7 +14,7 @@ from ...llm.client import LlmClient
 from ...llm.prompts import summarize_conversation
 from ...utils.clock import db_time_to_local, utc_now
 from .data_models import ContextMessage
-from .queries import ContextMessageQueryService
+from .queries import ContextMessageReadStore
 from .store import ContextMessageStore, retry_on_integrity_error
 from .system_prompt_builder import SystemPromptBuilder
 from .tools import to_synthetic_tool_call
@@ -53,7 +53,7 @@ class ContextRefreshMemoryCallbacks:
 class ContextRefreshOrchestrator:
     def __init__(
         self,
-        query_service: ContextMessageQueryService,
+        read_store: ContextMessageReadStore,
         store: ContextMessageStore,
         system_prompt_builder: SystemPromptBuilder,
         fast_llm: LlmClient,
@@ -61,14 +61,14 @@ class ContextRefreshOrchestrator:
         metadata_providers: ContextRefreshMetadataProviders,
         memory_callbacks: ContextRefreshMemoryCallbacks,
     ):
-        self.query_service = query_service
+        self.read_store = read_store
         self.store = store
         self.fast_llm = fast_llm
         self.system_prompt_builder = system_prompt_builder
         self.config = config
         self.metadata_providers = metadata_providers
         self.memory_callbacks = memory_callbacks
-        self.db = query_service.db
+        self.db = read_store.db
 
     def add_context_message(self, message: ContextMessage) -> None:
         self.add_context_messages([message])
@@ -79,7 +79,7 @@ class ContextRefreshOrchestrator:
         user_and_asst_msgs_ct = len([msg for msg in msgs_list if msg.role == USER and msg.content])
 
         pipe(
-            concatv(self.query_service.get_context_messages(), msgs_list),
+            concatv(self.read_store.get_context_messages(), msgs_list),
             self.store.replace_context_messages,
         )
 
@@ -133,7 +133,7 @@ class ContextRefreshOrchestrator:
 
     def drop_old_context_messages(self) -> None:
         now = utc_now()
-        context_messages = list(self.query_service.get_context_messages())
+        context_messages = list(self.read_store.get_context_messages())
         to_keep = [
             m
             for m in context_messages
@@ -146,13 +146,13 @@ class ContextRefreshOrchestrator:
             self.store.replace_context_messages(to_keep)
 
     def refresh_context_if_needed(self) -> None:
-        context_messages = list(self.query_service.get_context_messages())
+        context_messages = list(self.read_store.get_context_messages())
         if is_context_refresh_needed(context_messages, self.config.chat_model_name, self.config.max_tokens):
             self.context_refresh(context_messages)
 
     def save(self, n: int = 1000) -> str:
         msgs = pipe(
-            self.query_service.get_context_messages(),
+            self.read_store.get_context_messages(),
             tail(n),
             list,
         )
@@ -170,7 +170,7 @@ class ContextRefreshOrchestrator:
         return "Saved messages to " + str(full_path)
 
     def pop(self, n: int) -> str:
-        original_list = list(self.query_service.get_context_messages())
+        original_list = list(self.read_store.get_context_messages())
 
         if n <= 0:
             return "Cannot pop 0 or fewer messages"
@@ -182,13 +182,13 @@ class ContextRefreshOrchestrator:
             return f"Popping {n} message would separate an assistant message with a tool call from the tool result. Please pop fewer or more messages."
 
         self.store.replace_context_messages(context_messages)
-        return f"Popped {n} messages from context, new context has {len(list(self.query_service.get_context_messages()))} messages"
+        return f"Popped {n} messages from context, new context has {len(list(self.read_store.get_context_messages()))} messages"
 
     def rewrite(self, new_message: str) -> str:
         if not new_message:
             return "Cannot rewrite message with empty message"
 
-        context_messages = list(self.query_service.get_context_messages())
+        context_messages = list(self.read_store.get_context_messages())
         if len(context_messages) == 0:
             return "No messages to rewrite"
 
@@ -201,7 +201,7 @@ class ContextRefreshOrchestrator:
         return "Replaced last assistant message with new message"
 
     def refresh_system_instructions(self) -> str:
-        context_messages = list(self.query_service.get_context_messages())
+        context_messages = list(self.read_store.get_context_messages())
         if len(context_messages) == 0:
             context_messages.append(self.get_refreshed_system_message())
         else:

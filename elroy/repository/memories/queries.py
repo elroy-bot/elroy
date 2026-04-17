@@ -40,7 +40,7 @@ logger = get_logger()
 T = TypeVar("T")
 
 
-class MemoryQueryService:
+class MemoryReadStore:
     def __init__(self, db: DbSession, user_id: int, memory_config: MemoryConfig, llm: LlmClient, reflect: bool):
         self.db = db
         self.user_id = user_id
@@ -160,32 +160,32 @@ class MemoryQueryService:
         return list(self.db.exec(select(Memory).where(Memory.user_id == self.user_id, col(Memory.id).in_(memory_ids))).all())
 
 
-def _service(ctx: ElroyContext) -> MemoryQueryService:
-    return MemoryQueryService(ctx.db, ctx.user_id, ctx.memory_config, ctx.llm, ctx.reflect)
+def _store(ctx: ElroyContext) -> MemoryReadStore:
+    return MemoryReadStore(ctx.db, ctx.user_id, ctx.memory_config, ctx.llm, ctx.reflect)
 
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> MemorySource | None:
-    return _service(ctx).db_get_memory_source_by_name(source_type, name)
+    return _store(ctx).db_get_memory_source_by_name(source_type, name)
 
 
 def db_get_source_list_for_memory(ctx: ElroyContext, memory: Memory) -> Sequence[MemorySource]:
-    return _service(ctx).db_get_source_list_for_memory(memory)
+    return _store(ctx).db_get_source_list_for_memory(memory)
 
 
 def db_get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> MemorySource | None:
-    return _service(ctx).db_get_memory_source(source_type, id)
+    return _store(ctx).db_get_memory_source(source_type, id)
 
 
 def get_active_memories(ctx: ElroyContext) -> list[Memory]:
-    return _service(ctx).get_active_memories()
+    return _store(ctx).get_active_memories()
 
 
 def get_relevant_memories_and_due_items(ctx: ElroyContext, query: str) -> list[Memory | AgendaItem]:
-    return _service(ctx).get_relevant_memories_and_due_items(query)
+    return _store(ctx).get_relevant_memories_and_due_items(query)
 
 
 def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Memory | None:
-    return _service(ctx).get_memory_by_name(memory_name)
+    return _store(ctx).get_memory_by_name(memory_name)
 
 
 @log_execution_time
@@ -235,7 +235,7 @@ def get_message_content(context_messages: list[ContextMessage], n: int) -> str:
 
 
 def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[ContextMessage]) -> list[ContextMessage]:
-    return _service(ctx).get_relevant_memory_context_msgs(
+    return _store(ctx).get_relevant_memory_context_msgs(
         context_messages,
         get_assistant_name(ctx),
         do_get_user_preferred_name(ctx.db.session, ctx.user_id),
@@ -367,7 +367,7 @@ def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage])
 
 
 def get_memories(ctx: ElroyContext, memory_ids: list[int]) -> list[Memory]:
-    return _service(ctx).get_memories(memory_ids)
+    return _store(ctx).get_memories(memory_ids)
 
 
 def get_most_relevant_memories_from_db(

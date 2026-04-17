@@ -15,12 +15,12 @@ logger = get_logger()
 
 
 @dataclass(frozen=True)
-class UserOperationCallbacks:
+class UserPreferenceCallbacks:
     refresh_system_instructions_fn: Callable[[], None]
 
 
-class UserOperationService:
-    def __init__(self, db: DbSession, user_id: int, callbacks: UserOperationCallbacks):
+class UserPreferenceOrchestrator:
+    def __init__(self, db: DbSession, user_id: int, callbacks: UserPreferenceCallbacks):
         self.db = db
         self.user_id = user_id
         self.callbacks = callbacks
@@ -71,20 +71,20 @@ def create_user_id(db: DbSession, user_token: str) -> int:
     return user_id
 
 
-def _service(ctx: ElroyContext) -> UserOperationService:
+def _orchestrator(ctx: ElroyContext) -> UserPreferenceOrchestrator:
     from ..context_messages.operations import refresh_system_instructions
 
-    return UserOperationService(
+    return UserPreferenceOrchestrator(
         db=ctx.db,
         user_id=ctx.user_id,
-        callbacks=UserOperationCallbacks(
+        callbacks=UserPreferenceCallbacks(
             refresh_system_instructions_fn=lambda: refresh_system_instructions(ctx),
         ),
     )
 
 
 def get_or_create_user_preference(ctx: ElroyContext) -> UserPreference:
-    return _service(ctx).get_or_create_user_preference()
+    return _orchestrator(ctx).get_or_create_user_preference()
 
 
 def do_get_or_create_user_preference(session: Session, user_id: int) -> UserPreference:
@@ -108,18 +108,18 @@ def set_assistant_name(ctx: ElroyContext, assistant_name: str) -> str:
     """
     Sets the assistant name for the user
     """
-    return _service(ctx).set_assistant_name(assistant_name)
+    return _orchestrator(ctx).set_assistant_name(assistant_name)
 
 
 def reset_system_persona(ctx: ElroyContext) -> str:
     """
     Clears the system instruction for the user
     """
-    return _service(ctx).reset_system_persona()
+    return _orchestrator(ctx).reset_system_persona()
 
 
 def set_persona(ctx: ElroyContext, system_persona: str) -> str:
     """
     Sets the system instruction for the user
     """
-    return _service(ctx).set_persona(system_persona)
+    return _orchestrator(ctx).set_persona(system_persona)

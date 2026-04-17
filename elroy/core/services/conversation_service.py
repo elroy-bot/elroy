@@ -16,7 +16,7 @@ from ...llm.stream_parser import AssistantInternalThought, AssistantResponse, Co
 from ...messenger.tools import exec_function_call
 from ...repository.context_messages.data_models import ContextMessage
 from ...repository.context_messages.operations import add_context_messages
-from ...repository.context_messages.queries import ContextMessageQueryService
+from ...repository.context_messages.queries import ContextMessageReadStore
 from ...repository.context_messages.validations import Validator
 from ...repository.memories.queries import get_relevant_memory_context_msgs
 from ...repository.memories.recall_classifier import should_recall_memory
@@ -28,7 +28,7 @@ logger = get_logger()
 class ConversationOrchestrator:
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
-        self.context_message_query_service = ContextMessageQueryService(ctx.db, ctx.user_id)
+        self.context_message_read_store = ContextMessageReadStore(ctx.db, ctx.user_id)
 
     def _tracker(self) -> LatencyTracker:
         tracker = self.ctx.latency_tracker
@@ -38,7 +38,7 @@ class ConversationOrchestrator:
     def _load_context_messages(self, request_id: str) -> list[ContextMessage]:
         with self._tracker().measure("load_context_messages"):
             context_messages: list[ContextMessage] = pipe(
-                self.context_message_query_service.get_context_messages(),
+                self.context_message_read_store.get_context_messages(),
                 lambda msgs: Validator(self.ctx, msgs).validated_msgs(),
                 list,
             )

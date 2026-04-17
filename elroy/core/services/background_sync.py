@@ -20,7 +20,7 @@ class MemorySyncPlan:
     db_file_memories: list[Memory]
 
 
-class MemoryFileSyncService:
+class MemoryFileSyncOrchestrator:
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
 

@@ -17,19 +17,19 @@ from .context_refresh_orchestrator import (
     ContextRefreshOrchestrator,
 )
 from .data_models import ContextMessage
-from .queries import ContextMessageQueryService
+from .queries import ContextMessageReadStore
 from .store import ContextMessageStore
 from .system_prompt_builder import SystemPromptBuilder, SystemPromptMetadataProviders
 
 
 def _store(ctx: ElroyContext) -> ContextMessageStore:
-    query_service = ContextMessageQueryService(ctx.db, ctx.user_id)
-    return ContextMessageStore(query_service)
+    read_store = ContextMessageReadStore(ctx.db, ctx.user_id)
+    return ContextMessageStore(read_store)
 
 
 def _orchestrator(ctx: ElroyContext) -> ContextRefreshOrchestrator:
-    query_service = ContextMessageQueryService(ctx.db, ctx.user_id)
-    store = ContextMessageStore(query_service)
+    read_store = ContextMessageReadStore(ctx.db, ctx.user_id)
+    store = ContextMessageStore(read_store)
     system_prompt_builder = SystemPromptBuilder(
         tool_registry=ctx.tool_registry,
         chat_model_inline_tool_calls=ctx.chat_model.inline_tool_calls,
@@ -38,7 +38,7 @@ def _orchestrator(ctx: ElroyContext) -> ContextRefreshOrchestrator:
         ),
     )
     return ContextRefreshOrchestrator(
-        query_service=query_service,
+        read_store=read_store,
         store=store,
         system_prompt_builder=system_prompt_builder,
         fast_llm=ctx.fast_llm,

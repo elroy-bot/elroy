@@ -6,7 +6,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from ...core.async_tasks import get_scheduler
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...core.services.background_sync import MemoryFileSyncService
+from ...core.services.background_sync import MemoryFileSyncOrchestrator
 from ...core.status import clear_background_status, set_background_status
 
 logger = get_logger()
@@ -21,7 +21,7 @@ def sync_memory_files(ctx: ElroyContext) -> None:
 
     status_key = f"memory_sync_{ctx.user_id}"
     set_background_status(status_key, "syncing memories...")
-    service = MemoryFileSyncService(ctx)
+    service = MemoryFileSyncOrchestrator(ctx)
     service.apply_plan(service.build_plan())
     clear_background_status(status_key)
 
