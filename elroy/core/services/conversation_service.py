@@ -25,7 +25,7 @@ from ...repository.reminders.queries import get_due_item_context_msgs
 logger = get_logger()
 
 
-class ConversationService:
+class ConversationOrchestrator:
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
         self.context_message_query_service = ContextMessageQueryService(ctx.db, ctx.user_id)
