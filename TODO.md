@@ -1,5 +1,15 @@
 # TODO
 
+## Status
+
+This refactor is functionally complete.
+
+Current repo status:
+- The explicit refactor targets below have been implemented.
+- Repo scan shows no remaining `*Service`, `*OperationService`, or `*QueryService` class names in `elroy/` or `tests/`.
+- The active vocabulary in the codebase now centers on `Store`, `Orchestrator`, `Indexer`, and `Builder`.
+- `CODE_REVIEW.md` reflects the same architectural rules used here.
+
 ## Architecture Roles
 
 Adopt a small vocabulary for application structure. Avoid introducing new `*Service` names by default.
@@ -95,6 +105,7 @@ Examples:
 
 ## Refactor Direction
 
+Completed:
 - `ConversationService` -> `ConversationOrchestrator`
 - Split `ContextMessageOperationService` into:
   - `ContextMessageStore`
@@ -104,9 +115,22 @@ Examples:
   - `MemoryStore`
   - `MemoryLifecycleOrchestrator`
   - `MemorySummarizer`
-- `RecallOperationService` -> `RecallIndexer` plus a narrowly scoped context bridge if still needed
+- `RecallOperationService` -> `RecallIndexer` plus `RecallContextBridge`
 - `TaskOperationService` -> `TaskStore`
-- `ReminderOperationService` -> `ReminderOrchestrator` or `ReminderFacade`
+- `ReminderOperationService` -> `ReminderOrchestrator`
+- Renamed remaining generic helper/query classes to role-aligned names where appropriate:
+  - `ContextMessageReadStore`
+  - `MemoryReadStore`
+  - `RecallReadStore`
+  - `CompletionsBuilder`
+  - `MemoryFileSyncOrchestrator`
+  - `UserPreferenceOrchestrator`
+
+No open refactor items remain from this architecture pass.
+
+Possible future follow-up:
+- Keep `operations.py` modules as compatibility facades for now, or gradually replace them with direct imports from the role-specific modules if that improves clarity.
+- Continue enforcing the vocabulary during new feature work so generic `*Service` naming does not return.
 
 ## Performance Optimizations
 
