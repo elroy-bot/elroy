@@ -15,12 +15,15 @@ from ...db.db_models import FunctionCall
 from ...llm.stream_parser import AssistantInternalThought, AssistantResponse, CodeBlock, StatusUpdate
 from ...messenger.tools import exec_function_call
 from ...repository.context_messages.data_models import ContextMessage
-from ...repository.context_messages.operations import add_context_messages
-from ...repository.context_messages.queries import ContextMessageReadStore
+from ...repository.context_messages.factory import (
+    build_context_message_read_store,
+    build_context_refresh_orchestrator,
+)
 from ...repository.context_messages.validations import Validator
-from ...repository.memories.queries import get_relevant_memory_context_msgs
+from ...repository.memories.factory import build_memory_recall_orchestrator
 from ...repository.memories.recall_classifier import should_recall_memory
 from ...repository.reminders.queries import get_due_item_context_msgs
+from ...repository.user.queries import do_get_user_preferred_name, get_assistant_name
 
 logger = get_logger()
 
@@ -28,7 +31,9 @@ logger = get_logger()
 class ConversationOrchestrator:
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
-        self.context_message_read_store = ContextMessageReadStore(ctx.db, ctx.user_id)
+        self.context_message_read_store = build_context_message_read_store(ctx)
+        self.context_refresh_orchestrator = build_context_refresh_orchestrator(ctx)
+        self.memory_recall_orchestrator = build_memory_recall_orchestrator(ctx)
 
     def _tracker(self) -> LatencyTracker:
         tracker = self.ctx.latency_tracker
@@ -60,6 +65,9 @@ class ConversationOrchestrator:
         context_messages: list[ContextMessage],
         new_msgs: list[ContextMessage],
     ) -> Iterator[BaseModel]:
+        assistant_name = get_assistant_name(self.ctx)
+        user_preferred_name = do_get_user_preferred_name(self.ctx.db.session, self.ctx.user_id)
+
         if self.ctx.memory_config.memory_recall_classifier_enabled:
             yield StatusUpdate(content="classifying recall...")
             with self._tracker().measure("memory_recall_classification"):
@@ -77,12 +85,20 @@ class ConversationOrchestrator:
             logger.debug(f"Memory recall enabled: {recall_decision.reasoning}")
             yield StatusUpdate(content="fetching memories...")
             with self._tracker().measure("memory_recall", needs_recall=True):
-                new_msgs += get_relevant_memory_context_msgs(self.ctx, context_messages + new_msgs)
+                new_msgs += self.memory_recall_orchestrator.get_relevant_memory_context_msgs(
+                    context_messages + new_msgs,
+                    assistant_name,
+                    user_preferred_name,
+                )
             return
 
         yield StatusUpdate(content="fetching memories...")
         with self._tracker().measure("memory_recall", classifier_disabled=True):
-            new_msgs += get_relevant_memory_context_msgs(self.ctx, context_messages + new_msgs)
+            new_msgs += self.memory_recall_orchestrator.get_relevant_memory_context_msgs(
+                context_messages + new_msgs,
+                assistant_name,
+                user_preferred_name,
+            )
 
     def _append_due_items(self, new_msgs: list[ContextMessage]) -> None:
         with self._tracker().measure("due_items_check"):
@@ -161,13 +177,13 @@ class ConversationOrchestrator:
             if force_tool:
                 assert tool_context_messages, "force_tool set, but no tool messages generated"
                 with self._tracker().measure("persist_context_messages", count=len(new_msgs)):
-                    add_context_messages(self.ctx, new_msgs)
+                    self.context_refresh_orchestrator.add_context_messages(new_msgs)
                 return
             if tool_context_messages:
                 loops += 1
                 continue
             with self._tracker().measure("persist_context_messages", count=len(new_msgs)):
-                add_context_messages(self.ctx, new_msgs)
+                self.context_refresh_orchestrator.add_context_messages(new_msgs)
             return
 
     def process_message(

@@ -11,10 +11,10 @@ from ..core.logging import get_logger
 from ..db.db_models import AgendaItem, EmbeddableSqlModel, Memory
 from ..utils.clock import local_now, utc_now
 from .data_models import CreateDueItemRequest, CreateMemoryRequest
-from .memories.operations import do_create_memory
+from .memories.factory import build_memory_lifecycle_orchestrator
 from .memories.queries import filter_for_relevance
 from .recall.queries import get_most_relevant_due_items, get_most_relevant_memories
-from .reminders.operations import do_create_due_item
+from .reminders.factory import build_reminder_orchestrator
 
 logger = get_logger()
 
@@ -103,8 +103,7 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:
             if req.create_memory_request:
                 logger.info("Creating memory")
                 resp.append(
-                    do_create_memory(
-                        ctx,
+                    build_memory_lifecycle_orchestrator(ctx).do_create_memory(
                         req.create_memory_request.name,
                         req.create_memory_request.text,
                         [],
@@ -114,8 +113,7 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:
             if req.create_due_item_request:
                 logger.info("Creating due item")
                 resp.append(
-                    do_create_due_item(
-                        ctx,
+                    build_reminder_orchestrator(ctx).do_create_due_item(
                         req.create_due_item_request.name,
                         req.create_due_item_request.text,
                         req.create_due_item_request.trigger_datetime,

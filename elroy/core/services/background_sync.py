@@ -7,7 +7,9 @@ from sqlmodel import select
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...db.db_models import Memory
+from ...repository.memories.factory import build_memory_lifecycle_orchestrator
 from ...repository.memories.file_storage import read_memory_frontmatter, read_memory_text, write_id_to_frontmatter
+from ...repository.recall.factory import build_recall_indexer
 
 logger = get_logger()
 
@@ -23,6 +25,8 @@ class MemorySyncPlan:
 class MemoryFileSyncOrchestrator:
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
+        self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
+        self.recall_indexer = build_recall_indexer(ctx)
 
     def build_plan(self) -> MemorySyncPlan:
         disk_files = [p for p in self.ctx.memory_dir_path.glob("*.md") if p.is_file()]
@@ -60,8 +64,6 @@ class MemoryFileSyncOrchestrator:
         self._mark_missing_disk_files(plan.db_file_memories)
 
     def _sync_new_disk_files(self, disk_files: list[Path], disk_path_to_fm: dict[Path, dict[str, Any]]) -> None:
-        from ...repository.memories.operations import do_create_memory
-
         for path in disk_files:
             fm = disk_path_to_fm[path]
             if "id" in fm:
@@ -69,7 +71,7 @@ class MemoryFileSyncOrchestrator:
             text = read_memory_text(path)
             name = path.stem.replace("_", " ")
             try:
-                memory = do_create_memory(self.ctx, name, text, [], False)
+                memory = self.memory_lifecycle_orchestrator.do_create_memory(name, text, [], False)
                 assert memory.id is not None
                 if memory.file_path and memory.file_path != str(path):
                     new_path = Path(memory.file_path)
@@ -84,8 +86,6 @@ class MemoryFileSyncOrchestrator:
                 logger.error(f"Failed to create memory from file {path}: {e}", exc_info=True)
 
     def _sync_existing_disk_files(self, disk_id_to_path: dict[int, Path], db_id_to_memory: dict[int, Memory]) -> None:
-        from ...repository.recall.operations import upsert_embedding_if_needed
-
         for mid, disk_path in disk_id_to_path.items():
             db_memory = db_id_to_memory.get(mid)
             if db_memory is None:
@@ -99,13 +99,11 @@ class MemoryFileSyncOrchestrator:
                 self.ctx.db.commit()
                 logger.info(f"Memory {mid} renamed: {old_name!r} -> {db_memory.name!r}, path updated")
             try:
-                upsert_embedding_if_needed(self.ctx, db_memory)
+                self.recall_indexer.upsert_embedding_if_needed(db_memory)
             except Exception as e:
                 logger.error(f"Failed to re-embed memory {mid} from file {disk_path}: {e}", exc_info=True)
 
     def _mark_missing_disk_files(self, db_file_memories: list[Memory]) -> None:
-        from ...repository.memories.operations import mark_inactive
-
         for db_memory in db_file_memories:
             if not db_memory.file_path:
                 continue
@@ -117,6 +115,6 @@ class MemoryFileSyncOrchestrator:
             self.ctx.db.add(db_memory)
             self.ctx.db.commit()
             try:
-                mark_inactive(self.ctx, db_memory)
+                self.memory_lifecycle_orchestrator.mark_inactive(db_memory)
             except Exception as e:
                 logger.error(f"Failed to mark memory {db_memory.id} inactive: {e}", exc_info=True)

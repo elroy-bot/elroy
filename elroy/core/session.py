@@ -12,7 +12,6 @@ logger = get_logger()
 def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool, should_onboard_interactive: bool):
     _ = (io, should_onboard_interactive)
     from ..cli.chat import onboard_non_interactive
-    from ..repository.context_messages.operations import drop_old_context_messages
     from ..repository.user.queries import get_user_id_if_exists
     from ..tools.inline_tools import verify_inline_tool_call_instruct_matches_ctx
 
@@ -31,7 +30,9 @@ def init_elroy_session(ctx: ElroyContext, io: ElroyIO, check_db_migration: bool,
                 onboard_non_interactive(ctx)
 
             verify_inline_tool_call_instruct_matches_ctx(ctx)
-            drop_old_context_messages(ctx)
+            from ..repository.context_messages.factory import build_context_refresh_orchestrator
+
+            build_context_refresh_orchestrator(ctx).drop_old_context_messages()
 
             yield
 

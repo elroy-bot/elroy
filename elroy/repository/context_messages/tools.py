@@ -42,9 +42,9 @@ def add_memory_to_current_context(ctx: ElroyContext, memory_name: str) -> str:
     Returns:
         str: Status message indicating success or failure of adding memory
     """
-    from ..recall.operations import add_to_current_context_by_name
+    from ..recall.factory import build_recall_context_bridge
 
-    return add_to_current_context_by_name(ctx, memory_name, Memory)
+    return build_recall_context_bridge(ctx).add_to_current_context_by_name(memory_name, Memory)
 
 
 @tool
@@ -57,6 +57,6 @@ def drop_memory_from_current_context(ctx: ElroyContext, memory_name: str) -> str
     Returns:
         str: Status message indicating success or failure of removing memory
     """
-    from ..recall.operations import drop_from_context_by_name
+    from ..recall.factory import build_recall_context_bridge
 
-    return drop_from_context_by_name(ctx, memory_name, Memory)
+    return build_recall_context_bridge(ctx).drop_from_context_by_name(memory_name, Memory)

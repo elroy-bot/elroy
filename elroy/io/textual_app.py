@@ -384,14 +384,17 @@ class ElroyApp(App):
     def _start_session(self) -> None:
         from ..cli.chat import get_session_context
         from ..messenger.messenger import process_message
-        from ..repository.context_messages.operations import add_context_messages
-        from ..repository.context_messages.queries import get_context_messages
+        from ..repository.context_messages.factory import (
+            build_context_message_read_store,
+            build_context_refresh_orchestrator,
+        )
         from ..repository.context_messages.tools import to_synthetic_tool_call
         from ..repository.context_messages.transforms import get_time_since_most_recent_user_message
         from ..repository.context_messages.validations import Validator
 
-        add_context_messages(self.ctx, to_synthetic_tool_call("get_session_context", get_session_context(self.ctx)))
-        context_messages = list(Validator(self.ctx, get_context_messages(self.ctx)).validated_msgs())
+        context_refresh_orchestrator = build_context_refresh_orchestrator(self.ctx)
+        context_refresh_orchestrator.add_context_messages(to_synthetic_tool_call("get_session_context", get_session_context(self.ctx)))
+        context_messages = list(Validator(self.ctx, build_context_message_read_store(self.ctx).get_context_messages()).validated_msgs())
         self.call_from_thread(self._render_existing_context_messages, context_messages)
 
         if self.enable_greeting and (
@@ -570,9 +573,11 @@ class ElroyApp(App):
             self._refresh_memory_panel()
             self._update_completions()
             from ..core.async_tasks import schedule_task
-            from ..repository.context_messages.operations import refresh_context_if_needed
+            from ..repository.context_messages.factory import build_context_refresh_orchestrator
 
-            schedule_task(refresh_context_if_needed, self.ctx, replace=True, delay_seconds=5)
+            schedule_task(
+                lambda ctx: build_context_refresh_orchestrator(ctx).refresh_context_if_needed(), self.ctx, replace=True, delay_seconds=5
+            )
 
     # ── actions ───────────────────────────────────────────────────────────────
 
