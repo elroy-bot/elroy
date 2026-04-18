@@ -1,20 +1,16 @@
 import json
 from collections.abc import Callable, Iterable, Sequence
-from functools import partial
 from typing import Any, TypeVar, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlmodel import col, select
-from toolz import concat, pipe, unique
-from toolz.curried import filter, map, remove, tail
+from toolz import pipe
+from toolz.curried import map, remove
 
-from ...core.configs import MemoryConfig
-from ...core.constants import SYSTEM, TOOL
 from ...core.ctx import ElroyContext
-from ...core.logging import get_logger, log_execution_time
+from ...core.logging import log_execution_time
 from ...db.db_models import (
     AgendaItem,
-    EmbeddableSqlModel,
     Memory,
     MemorySource,
     get_memory_source_class,
@@ -22,31 +18,18 @@ from ...db.db_models import (
 from ...db.db_session import DbSession
 from ...llm.client import LlmClient
 from ..context_messages.data_models import ContextMessage
-from ..context_messages.tools import to_synthetic_tool_call
-from ..context_messages.transforms import (
-    ContextMessageSetWithMessages,
-    format_context_messages,
-)
-from ..data_models import RecallMetadata, RecallResponse
-from ..recall.queries import (
-    get_recall_metadata,
-    is_in_context,
-)
+from ..context_messages.transforms import ContextMessageSetWithMessages
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
-from .transforms import to_fast_recall_tool_call
-
-logger = get_logger()
+from .memory_recall_builder import MemoryRecallBuilder
+from .memory_recall_orchestrator import MemoryRecallOrchestrator
 
 T = TypeVar("T")
 
 
 class MemoryReadStore:
-    def __init__(self, db: DbSession, user_id: int, memory_config: MemoryConfig, llm: LlmClient, reflect: bool):
+    def __init__(self, db: DbSession, user_id: int):
         self.db = db
         self.user_id = user_id
-        self.memory_config = memory_config
-        self.llm = llm
-        self.reflect = reflect
 
     def db_get_memory_source_by_name(self, source_type: str, name: str) -> MemorySource | None:
         source_class = get_memory_source_class(source_type)
@@ -85,32 +68,6 @@ class MemoryReadStore:
             ).all()
         )
 
-    def get_relevant_memories_and_due_items(self, query: str) -> list[Memory | AgendaItem]:
-        query_embedding = self.llm.get_embedding(query)
-
-        relevant_memories = [
-            memory
-            for memory in self.db.query_vector(
-                self.memory_config.l2_memory_relevance_distance_threshold,
-                Memory,
-                self.user_id,
-                query_embedding,
-            )
-            if isinstance(memory, Memory)
-        ]
-
-        relevant_due_items = list(
-            self.db.query_vector(
-                self.memory_config.l2_memory_relevance_distance_threshold,
-                AgendaItem,
-                self.user_id,
-                query_embedding,
-            )
-        )
-        relevant_due_items = [item for item in relevant_due_items if item.trigger_datetime or item.trigger_context][:2]
-
-        return relevant_memories + relevant_due_items
-
     def get_memory_by_name(self, memory_name: str) -> Memory | None:
         return self.db.exec(
             select(Memory).where(
@@ -120,48 +77,27 @@ class MemoryReadStore:
             )
         ).first()
 
-    def get_relevant_memory_context_msgs(
-        self,
-        context_messages: list[ContextMessage],
-        assistant_name: str,
-        user_preferred_name: str | None,
-    ) -> list[ContextMessage]:
-        message_content = get_message_content(context_messages, 6)
-
-        if not message_content:
-            return []
-
-        relevant_items = pipe(
-            message_content,
-            self.llm.get_embedding,
-            lambda x: concat(
-                [
-                    get_most_relevant_memories_from_db(self.db, self.user_id, self.memory_config, x),
-                    get_most_relevant_due_items_from_db(self.db, self.user_id, self.memory_config, x),
-                    get_most_relevant_agenda_items_from_db(self.db, self.user_id, self.memory_config, x),
-                ]
-            ),
-            filter(lambda x: x is not None),
-            remove(partial(is_in_context, context_messages)),
-            list,
-        )
-
-        if self.reflect:
-            return get_reflective_recall_from_service(
-                self.llm,
-                context_messages,
-                relevant_items,
-                assistant_name,
-                user_preferred_name,
-            )
-        return get_fast_recall(relevant_items)
-
     def get_memories(self, memory_ids: list[int]) -> list[Memory]:
         return list(self.db.exec(select(Memory).where(Memory.user_id == self.user_id, col(Memory.id).in_(memory_ids))).all())
 
 
 def _store(ctx: ElroyContext) -> MemoryReadStore:
-    return MemoryReadStore(ctx.db, ctx.user_id, ctx.memory_config, ctx.llm, ctx.reflect)
+    return MemoryReadStore(ctx.db, ctx.user_id)
+
+
+def _recall_builder() -> MemoryRecallBuilder:
+    return MemoryRecallBuilder()
+
+
+def _recall_orchestrator(ctx: ElroyContext) -> MemoryRecallOrchestrator:
+    return MemoryRecallOrchestrator(
+        db=ctx.db,
+        user_id=ctx.user_id,
+        memory_config=ctx.memory_config,
+        llm=ctx.llm,
+        reflect=ctx.reflect,
+        recall_builder=_recall_builder(),
+    )
 
 
 def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> MemorySource | None:
@@ -181,7 +117,7 @@ def get_active_memories(ctx: ElroyContext) -> list[Memory]:
 
 
 def get_relevant_memories_and_due_items(ctx: ElroyContext, query: str) -> list[Memory | AgendaItem]:
-    return _store(ctx).get_relevant_memories_and_due_items(query)
+    return _recall_orchestrator(ctx).get_relevant_memories_and_due_items(query)
 
 
 def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Memory | None:
@@ -222,41 +158,24 @@ def filter_for_relevance(
 
 
 def get_message_content(context_messages: list[ContextMessage], n: int) -> str:
-    return pipe(
-        context_messages,
-        remove(lambda x: x.role == SYSTEM),
-        remove(lambda x: x.role == TOOL),
-        tail(n),
-        map(lambda x: f"{x.role}: {x.content}" if x.content else None),
-        remove(lambda x: x is None),
-        list,
-        "\n".join,
-    )
+    return _recall_builder().get_message_content(context_messages, n)
 
 
 def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[ContextMessage]) -> list[ContextMessage]:
-    return _store(ctx).get_relevant_memory_context_msgs(
+    return _recall_orchestrator(ctx).get_relevant_memory_context_msgs(
         context_messages,
         get_assistant_name(ctx),
         do_get_user_preferred_name(ctx.db.session, ctx.user_id),
     )
 
 
-def get_fast_recall(memories: Iterable[EmbeddableSqlModel]) -> list[ContextMessage]:
-    """Add recalled content to context, unprocessed."""
-    if not memories:
-        return []
-
-    return to_fast_recall_tool_call(list(memories))
-
-
 @log_execution_time
 def get_reflective_recall(
     ctx: ElroyContext,
     context_messages: Iterable[ContextMessage],
-    memories: Iterable[EmbeddableSqlModel],
+    memories: Iterable[Any],
 ) -> list[ContextMessage]:
-    return get_reflective_recall_from_service(
+    return _recall_builder().build_reflective_recall(
         ctx.llm,
         context_messages,
         memories,
@@ -268,142 +187,16 @@ def get_reflective_recall(
 def get_reflective_recall_from_service(
     llm: LlmClient,
     context_messages: Iterable[ContextMessage],
-    memories: Iterable[EmbeddableSqlModel],
+    memories: Iterable[Any],
     assistant_name: str,
     user_preferred_name: str | None,
 ) -> list[ContextMessage]:
-    """Process memory into a reflective recall message."""
-    memories_list = list(memories)
-    if not memories_list:
-        return []
-
-    class ReflectionResponse(BaseModel):
-        content: str | None = Field(
-            description="The content of the reflection on the memories, written in the first person. If memories are irrelevant, this field should be empty"
-        )
-        is_relevant: bool = Field(description="Whether or not any of the recalled information is relevant to the conversation.")
-
-    output = pipe(
-        memories_list,
-        map(lambda x: x.to_fact()),
-        "\n\n".join,
-        lambda x: (
-            "Recalled Memory Content\n\n"
-            + x
-            + "#Converstaion Transcript:\n"
-            + format_context_messages(
-                tail(3, list(context_messages)[1:]),
-                user_preferred_name or "User",
-                assistant_name,
-            )
-        ),
-        lambda x: llm.query_llm_with_response_format(
-            x,
-            """#Identity and Purpose
-
-        I am the internal thoughts of an AI assistant. I am reflecting on memories that have entered my awareness.
-
-        I am considering recalled context, as well as the transcript of a recent conversation. I am:
-        - Re-stating the most relevant context from the recalled content
-        - Reflecting on how the recalled content relates to the conversation transcript
-
-        Specific examples are most helpful. For example, if the recalled content is:
-
-        "USER mentioned that when playing basketball, they struggle to remember to follow through on their shots."
-
-        and the conversation transcript includes:
-        "USER: I'm going to play basketball next week"
-
-        a good response would be:
-        "I remember that USER struggles to remember to follow through on their shots when playing basketball. I should remind USER about following through on their shots for next week's game."
-
-
-        My response will be in the first person, and will be transmitted to an AI assistant to inform their response. My response will NOT be transmitted to the user.
-
-        My response is brief and to the point, no more than 100 words.
-        """,
-            response_format=ReflectionResponse,
-        ),
-    )
-
-    assert isinstance(output, ReflectionResponse)
-    if not output.is_relevant:
-        return []
-    if output.is_relevant and not output.content:
-        logger.warning("Memories deemed relevant, but not content returned.")
-        return []
-    assert output.content
-    return to_synthetic_tool_call(
-        "get_reflective_recall",
-        RecallResponse(content=output.content, recall_metadata=_build_recall_metadata(cast(list[MemorySource], memories_list))),
-    )
-
-
-def _build_recall_metadata(memories: list[MemorySource]) -> list[RecallMetadata]:
-    recall_metadata: list[RecallMetadata] = []
-    for memory in memories:
-        memory_id = memory.id
-        assert memory_id is not None
-        recall_metadata.append(
-            RecallMetadata(
-                memory_type=memory.__class__.__name__,
-                memory_id=memory_id,
-                name=memory.get_name(),
-            )
-        )
-    return recall_metadata
+    return MemoryRecallBuilder().build_reflective_recall(llm, context_messages, memories, assistant_name, user_preferred_name)
 
 
 def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage]) -> list[str]:
-    return pipe(
-        context_messages,
-        map(get_recall_metadata),
-        concat,
-        map(lambda m: f"{m.memory_type}: {m.name}"),
-        unique,
-        list,
-        sorted,
-    )
+    return _recall_builder().get_in_context_memories_metadata(context_messages)
 
 
 def get_memories(ctx: ElroyContext, memory_ids: list[int]) -> list[Memory]:
     return _store(ctx).get_memories(memory_ids)
-
-
-def get_most_relevant_memories_from_db(
-    db: DbSession,
-    user_id: int,
-    memory_config: MemoryConfig,
-    query: list[float],
-) -> list[Memory]:
-    return [
-        item
-        for item in db.query_vector(memory_config.l2_memory_relevance_distance_threshold, Memory, user_id, query)
-        if isinstance(item, Memory)
-    ][:2]
-
-
-def get_most_relevant_due_items_from_db(
-    db: DbSession,
-    user_id: int,
-    memory_config: MemoryConfig,
-    query: list[float],
-) -> list[AgendaItem]:
-    return [
-        item
-        for item in db.query_vector(memory_config.l2_memory_relevance_distance_threshold, AgendaItem, user_id, query)
-        if isinstance(item, AgendaItem) and (item.trigger_datetime or item.trigger_context)
-    ][:2]
-
-
-def get_most_relevant_agenda_items_from_db(
-    db: DbSession,
-    user_id: int,
-    memory_config: MemoryConfig,
-    query: list[float],
-) -> list[AgendaItem]:
-    return [
-        item
-        for item in db.query_vector(memory_config.l2_memory_relevance_distance_threshold, AgendaItem, user_id, query)
-        if isinstance(item, AgendaItem) and not (item.trigger_datetime or item.trigger_context)
-    ][:2]

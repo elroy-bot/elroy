@@ -53,8 +53,9 @@ class RecallIndexer:
 
 
 class RecallContextBridge:
-    def __init__(self, db: DbSession, callbacks: RecallContextBridgeCallbacks):
+    def __init__(self, db: DbSession, user_id: int, callbacks: RecallContextBridgeCallbacks):
         self.db = db
+        self.user_id = user_id
         self.callbacks = callbacks
 
     def add_to_context(self, memory: EmbeddableSqlModel) -> None:
@@ -76,7 +77,7 @@ class RecallContextBridge:
         )
 
     def add_to_current_context_by_name(self, name: str, memory_type: type[EmbeddableSqlModel]) -> str:
-        item = self.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
+        item = self.db.exec(select(memory_type).where(memory_type.name == name, memory_type.user_id == self.user_id)).first()  # type: ignore
 
         if item:
             self.add_to_context(item)
@@ -84,7 +85,7 @@ class RecallContextBridge:
         return f"{memory_type.__name__} '{name}' not found."
 
     def drop_from_context_by_name(self, name: str, memory_type: type[EmbeddableSqlModel]) -> str:
-        item = self.db.exec(select(memory_type).where(memory_type.name == name)).first()  # type: ignore
+        item = self.db.exec(select(memory_type).where(memory_type.name == name, memory_type.user_id == self.user_id)).first()  # type: ignore
 
         if item:
             self.remove_from_context(item)
@@ -106,6 +107,7 @@ def _context_bridge(ctx: ElroyContext) -> RecallContextBridge:
 
     return RecallContextBridge(
         db=ctx.db,
+        user_id=ctx.user_id,
         callbacks=RecallContextBridgeCallbacks(
             get_context_messages_fn=lambda: get_context_messages(ctx),
             add_context_messages_fn=lambda messages: add_context_messages(ctx, messages),
