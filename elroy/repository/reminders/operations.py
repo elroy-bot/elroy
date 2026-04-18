@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import datetime
 
 from ...core.constants import RecoverableToolError
@@ -17,17 +16,18 @@ class DueItemAlreadyExistsError(RecoverableToolError):
         super().__init__(f"{item_type} due item '{item_name}' already exists")
 
 
-@dataclass(frozen=True)
-class ReminderOperationCallbacks:
-    create_task_fn: Callable[..., object]
-    complete_task_fn: Callable[[str, str | None], object]
-    delete_task_fn: Callable[[str, str | None], object]
-
-
 class ReminderOrchestrator:
-    def __init__(self, ctx: ElroyContext, callbacks: ReminderOperationCallbacks):
+    def __init__(
+        self,
+        ctx: ElroyContext,
+        create_task_fn: Callable[..., object],
+        complete_task_fn: Callable[[str, str | None], object],
+        delete_task_fn: Callable[[str, str | None], object],
+    ):
         self.ctx = ctx
-        self.callbacks = callbacks
+        self.create_task_fn = create_task_fn
+        self.complete_task_fn = complete_task_fn
+        self.delete_task_fn = delete_task_fn
 
     def create_onboarding_due_item(self, preferred_name: str) -> None:
         self.do_create_due_item(
@@ -57,7 +57,7 @@ class ReminderOrchestrator:
             raise DueItemAlreadyExistsError(name, item_type)
 
         try:
-            return self.callbacks.create_task_fn(
+            return self.create_task_fn(
                 name,
                 text,
                 trigger_datetime=trigger_time,
@@ -78,7 +78,7 @@ class ReminderOrchestrator:
             raise RecoverableToolError(f"Active due item '{item_name}' not found. Active due items: {', '.join(active_names)}")
 
         logger.info(f"Completing agenda-backed due item {item_name} for user {self.ctx.user_id}")
-        self.callbacks.complete_task_fn(item_name, closing_comment)
+        self.complete_task_fn(item_name, closing_comment)
 
         if closing_comment:
             return f"Due item '{item_name}' has been marked as completed. Comment: {closing_comment}"
@@ -91,7 +91,7 @@ class ReminderOrchestrator:
             raise RecoverableToolError(f"Active due item '{item_name}' not found. Active due items: {', '.join(active_names)}")
 
         logger.info(f"Deleting agenda-backed due item {item_name} for user {self.ctx.user_id}")
-        self.callbacks.delete_task_fn(item_name, closing_comment)
+        self.delete_task_fn(item_name, closing_comment)
 
         if closing_comment:
             return f"Due item '{item_name}' has been deleted. Comment: {closing_comment}"
@@ -103,11 +103,9 @@ def _orchestrator(ctx: ElroyContext) -> ReminderOrchestrator:
 
     return ReminderOrchestrator(
         ctx=ctx,
-        callbacks=ReminderOperationCallbacks(
-            create_task_fn=lambda name, text, **kwargs: create_task(ctx, name, text, **kwargs),
-            complete_task_fn=lambda item_name, closing_comment: complete_task(ctx, item_name, closing_comment),
-            delete_task_fn=lambda item_name, closing_comment: delete_task(ctx, item_name, closing_comment),
-        ),
+        create_task_fn=lambda name, text, **kwargs: create_task(ctx, name, text, **kwargs),
+        complete_task_fn=lambda item_name, closing_comment: complete_task(ctx, item_name, closing_comment),
+        delete_task_fn=lambda item_name, closing_comment: delete_task(ctx, item_name, closing_comment),
     )
 
 

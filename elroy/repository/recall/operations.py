@@ -1,6 +1,5 @@
 import hashlib
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
 from functools import partial
 
 from sqlmodel import select
@@ -17,13 +16,6 @@ from ..memories.transforms import to_fast_recall_tool_call
 from .queries import is_in_context, is_in_context_message
 
 logger = get_logger()
-
-
-@dataclass(frozen=True)
-class RecallContextBridgeCallbacks:
-    get_context_messages_fn: Callable[[], Iterable[ContextMessage]]
-    add_context_messages_fn: Callable[[Iterable[ContextMessage]], None]
-    remove_context_messages_fn: Callable[[list[ContextMessage]], None]
 
 
 class RecallIndexer:
@@ -53,27 +45,36 @@ class RecallIndexer:
 
 
 class RecallContextBridge:
-    def __init__(self, db: DbSession, user_id: int, callbacks: RecallContextBridgeCallbacks):
+    def __init__(
+        self,
+        db: DbSession,
+        user_id: int,
+        get_context_messages_fn: Callable[[], Iterable[ContextMessage]],
+        add_context_messages_fn: Callable[[Iterable[ContextMessage]], None],
+        remove_context_messages_fn: Callable[[list[ContextMessage]], None],
+    ):
         self.db = db
         self.user_id = user_id
-        self.callbacks = callbacks
+        self.get_context_messages_fn = get_context_messages_fn
+        self.add_context_messages_fn = add_context_messages_fn
+        self.remove_context_messages_fn = remove_context_messages_fn
 
     def add_to_context(self, memory: EmbeddableSqlModel) -> None:
         memory_id = memory.id
         assert memory_id
 
-        context_messages = self.callbacks.get_context_messages_fn()
+        context_messages = self.get_context_messages_fn()
         if is_in_context(context_messages, memory):
             logger.info(f"Memory of type {memory.__class__.__name__} with id {memory_id} already in context.")
         else:
-            self.callbacks.add_context_messages_fn(to_fast_recall_tool_call([memory]))
+            self.add_context_messages_fn(to_fast_recall_tool_call([memory]))
 
     def remove_from_context(self, memory: EmbeddableSqlModel) -> None:
         pipe(
-            self.callbacks.get_context_messages_fn(),
+            self.get_context_messages_fn(),
             filter(partial(is_in_context_message, memory)),
             list,
-            self.callbacks.remove_context_messages_fn,
+            self.remove_context_messages_fn,
         )
 
     def add_to_current_context_by_name(self, name: str, memory_type: type[EmbeddableSqlModel]) -> str:
@@ -108,11 +109,9 @@ def _context_bridge(ctx: ElroyContext) -> RecallContextBridge:
     return RecallContextBridge(
         db=ctx.db,
         user_id=ctx.user_id,
-        callbacks=RecallContextBridgeCallbacks(
-            get_context_messages_fn=lambda: get_context_messages(ctx),
-            add_context_messages_fn=lambda messages: add_context_messages(ctx, messages),
-            remove_context_messages_fn=lambda messages: remove_context_messages(ctx, messages),
-        ),
+        get_context_messages_fn=lambda: get_context_messages(ctx),
+        add_context_messages_fn=lambda messages: add_context_messages(ctx, messages),
+        remove_context_messages_fn=lambda messages: remove_context_messages(ctx, messages),
     )
 
 

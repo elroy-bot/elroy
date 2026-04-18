@@ -9,9 +9,8 @@ from ..context_messages.queries import ContextMessageReadStore
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
 from .consolidation import consolidate_memories
 from .memory_lifecycle_orchestrator import (
-    MemoryLifecycleCallbacks,
     MemoryLifecycleConfig,
-    MemoryLifecycleMetadataProviders,
+    MemoryLifecycleDependencies,
     MemoryLifecycleOrchestrator,
 )
 from .store import MemoryStore, MemoryStoreConfig
@@ -60,10 +59,8 @@ def _orchestrator(ctx: ElroyContext) -> MemoryLifecycleOrchestrator:
         config=MemoryLifecycleConfig(
             memories_between_consolidation=ctx.memories_between_consolidation,
         ),
-        metadata_providers=MemoryLifecycleMetadataProviders(
+        dependencies=MemoryLifecycleDependencies(
             get_context_messages_fn=lambda: list(context_message_read_store.get_context_messages()),
-        ),
-        callbacks=MemoryLifecycleCallbacks(
             schedule_consolidation_fn=lambda: schedule_task(consolidate_memories, ctx),
             remove_from_context_fn=remove_from_context,
             add_to_context_fn=add_to_context,

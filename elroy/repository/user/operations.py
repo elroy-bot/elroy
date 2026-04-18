@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any, cast
 
 from sqlmodel import Session, select
@@ -14,16 +13,11 @@ from ...utils.utils import is_blank
 logger = get_logger()
 
 
-@dataclass(frozen=True)
-class UserPreferenceCallbacks:
-    refresh_system_instructions_fn: Callable[[], None]
-
-
 class UserPreferenceOrchestrator:
-    def __init__(self, db: DbSession, user_id: int, callbacks: UserPreferenceCallbacks):
+    def __init__(self, db: DbSession, user_id: int, refresh_system_instructions_fn: Callable[[], None]):
         self.db = db
         self.user_id = user_id
-        self.callbacks = callbacks
+        self.refresh_system_instructions_fn = refresh_system_instructions_fn
 
     def get_or_create_user_preference(self) -> UserPreference:
         return do_get_or_create_user_preference(self.db.session, self.user_id)
@@ -33,7 +27,7 @@ class UserPreferenceOrchestrator:
         user_preference.assistant_name = assistant_name
         self.db.add(user_preference)
         self.db.commit()
-        self.callbacks.refresh_system_instructions_fn()
+        self.refresh_system_instructions_fn()
         return f"Assistant name updated to {assistant_name}."
 
     def reset_system_persona(self) -> str:
@@ -44,7 +38,7 @@ class UserPreferenceOrchestrator:
         user_preference.system_persona = None
         self.db.add(user_preference)
         self.db.commit()
-        self.callbacks.refresh_system_instructions_fn()
+        self.refresh_system_instructions_fn()
         return "System persona cleared, will now use default persona."
 
     def set_persona(self, system_persona: str) -> str:
@@ -60,7 +54,7 @@ class UserPreferenceOrchestrator:
         user_preference.system_persona = system_persona
         self.db.add(user_preference)
         self.db.commit()
-        self.callbacks.refresh_system_instructions_fn()
+        self.refresh_system_instructions_fn()
         return "System persona updated."
 
 
@@ -77,9 +71,7 @@ def _orchestrator(ctx: ElroyContext) -> UserPreferenceOrchestrator:
     return UserPreferenceOrchestrator(
         db=ctx.db,
         user_id=ctx.user_id,
-        callbacks=UserPreferenceCallbacks(
-            refresh_system_instructions_fn=lambda: refresh_system_instructions(ctx),
-        ),
+        refresh_system_instructions_fn=lambda: refresh_system_instructions(ctx),
     )
 
 

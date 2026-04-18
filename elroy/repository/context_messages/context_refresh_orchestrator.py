@@ -37,13 +37,9 @@ class ContextRefreshConfig:
 
 
 @dataclass(frozen=True)
-class ContextRefreshMetadataProviders:
+class ContextRefreshDependencies:
     get_assistant_name_fn: Callable[[], str]
     get_user_preferred_name_fn: Callable[[], str | None]
-
-
-@dataclass(frozen=True)
-class ContextRefreshMemoryCallbacks:
     get_or_create_memory_op_tracker_fn: Callable[[], Any]
     schedule_memory_creation_fn: Callable[[], None]
     formulate_memory_fn: Callable[[list[ContextMessage]], tuple[str, str]]
@@ -58,16 +54,14 @@ class ContextRefreshOrchestrator:
         system_prompt_builder: SystemPromptBuilder,
         fast_llm: LlmClient,
         config: ContextRefreshConfig,
-        metadata_providers: ContextRefreshMetadataProviders,
-        memory_callbacks: ContextRefreshMemoryCallbacks,
+        dependencies: ContextRefreshDependencies,
     ):
         self.read_store = read_store
         self.store = store
         self.fast_llm = fast_llm
         self.system_prompt_builder = system_prompt_builder
         self.config = config
-        self.metadata_providers = metadata_providers
-        self.memory_callbacks = memory_callbacks
+        self.dependencies = dependencies
         self.db = read_store.db
 
     def add_context_message(self, message: ContextMessage) -> None:
@@ -84,12 +78,12 @@ class ContextRefreshOrchestrator:
         )
 
         if user_and_asst_msgs_ct > 0:
-            tracker = self.memory_callbacks.get_or_create_memory_op_tracker_fn()
+            tracker = self.dependencies.get_or_create_memory_op_tracker_fn()
             tracker.messages_since_memory += user_and_asst_msgs_ct
             tracker = self.db.persist(tracker)
 
             if tracker.messages_since_memory >= self.config.messages_between_memory:
-                self.memory_callbacks.schedule_memory_creation_fn()
+                self.dependencies.schedule_memory_creation_fn()
 
     def get_refreshed_system_message(self) -> ContextMessage:
         return self.system_prompt_builder.build()
@@ -98,8 +92,8 @@ class ContextRefreshOrchestrator:
         logger.info("Refreshing context (cache-friendly: preserving system message)")
         context_message_list = list(context_messages)
 
-        memory_title, memory_text = self.memory_callbacks.formulate_memory_fn(context_message_list)
-        self.memory_callbacks.create_memory_fn(memory_title, memory_text)
+        memory_title, memory_text = self.dependencies.formulate_memory_fn(context_message_list)
+        self.dependencies.create_memory_fn(memory_title, memory_text)
 
         compressed_messages = pipe(
             context_message_list,
@@ -112,12 +106,12 @@ class ContextRefreshOrchestrator:
         )
 
         if len([msg for msg in context_message_list if msg.role == USER]) > 0:
-            assistant_name = self.metadata_providers.get_assistant_name_fn()
+            assistant_name = self.dependencies.get_assistant_name_fn()
             conversation_summary = pipe(
                 context_message_list[1:],
                 lambda msgs: format_context_messages(
                     msgs,
-                    self.metadata_providers.get_user_preferred_name_fn() or "User",
+                    self.dependencies.get_user_preferred_name_fn() or "User",
                     assistant_name,
                 ),
                 partial(summarize_conversation, self.fast_llm, assistant_name),

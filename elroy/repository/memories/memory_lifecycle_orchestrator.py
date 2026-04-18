@@ -17,12 +17,8 @@ class MemoryLifecycleConfig:
 
 
 @dataclass(frozen=True)
-class MemoryLifecycleMetadataProviders:
+class MemoryLifecycleDependencies:
     get_context_messages_fn: Callable[[], list[ContextMessage]]
-
-
-@dataclass(frozen=True)
-class MemoryLifecycleCallbacks:
     schedule_consolidation_fn: Callable[[], None]
     remove_from_context_fn: Callable[[EmbeddableSqlModel], None]
     add_to_context_fn: Callable[[Memory], None]
@@ -35,21 +31,19 @@ class MemoryLifecycleOrchestrator:
         store: MemoryStore,
         summarizer: MemorySummarizer,
         config: MemoryLifecycleConfig,
-        metadata_providers: MemoryLifecycleMetadataProviders,
-        callbacks: MemoryLifecycleCallbacks,
+        dependencies: MemoryLifecycleDependencies,
     ):
         self.store = store
         self.summarizer = summarizer
         self.config = config
-        self.metadata_providers = metadata_providers
-        self.callbacks = callbacks
+        self.dependencies = dependencies
         self.db = store.db
         self.user_id = store.user_id
 
     @log_execution_time
     def create_mem_from_current_context(self) -> None:
         logger.info("Creating memory from current context")
-        memory_title, memory_text = self.summarizer.formulate_memory(self.metadata_providers.get_context_messages_fn())
+        memory_title, memory_text = self.summarizer.formulate_memory(self.dependencies.get_context_messages_fn())
         self.do_create_memory_from_ctx_msgs(memory_title, memory_text)
 
     def manually_record_user_memory(self, text: str, name: str | None = None) -> None:
@@ -58,7 +52,7 @@ class MemoryLifecycleOrchestrator:
 
     def mark_inactive(self, item: EmbeddableSqlModel) -> None:
         self.store.mark_inactive(item)
-        self.callbacks.remove_from_context_fn(item)
+        self.dependencies.remove_from_context_fn(item)
 
     def do_create_memory_from_ctx_msgs(self, name: str, text: str) -> Memory:
         return self.do_create_op_tracked_memory(
@@ -76,9 +70,9 @@ class MemoryLifecycleOrchestrator:
         add_mem_to_context: bool,
     ) -> Memory:
         memory = self.store.create_memory(name, text, source_metadata)
-        self.callbacks.upsert_embedding_if_needed_fn(memory)
+        self.dependencies.upsert_embedding_if_needed_fn(memory)
         if add_mem_to_context:
-            self.callbacks.add_to_context_fn(memory)
+            self.dependencies.add_to_context_fn(memory)
         return memory
 
     def do_create_op_tracked_memory(
@@ -100,7 +94,7 @@ class MemoryLifecycleOrchestrator:
 
         if tracker.memories_since_consolidation >= self.config.memories_between_consolidation:
             logger.info("Running memory consolidation")
-            self.callbacks.schedule_consolidation_fn()
+            self.dependencies.schedule_consolidation_fn()
             tracker.memories_since_consolidation = 0
             self.db.persist(tracker)
         else:

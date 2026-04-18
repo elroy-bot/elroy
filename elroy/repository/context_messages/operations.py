@@ -12,8 +12,7 @@ from ..memories.tools import create_memory
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
 from .context_refresh_orchestrator import (
     ContextRefreshConfig,
-    ContextRefreshMemoryCallbacks,
-    ContextRefreshMetadataProviders,
+    ContextRefreshDependencies,
     ContextRefreshOrchestrator,
 )
 from .data_models import ContextMessage
@@ -49,11 +48,9 @@ def _orchestrator(ctx: ElroyContext) -> ContextRefreshOrchestrator:
             max_in_context_message_age=ctx.max_in_context_message_age,
             messages_between_memory=ctx.messages_between_memory,
         ),
-        metadata_providers=ContextRefreshMetadataProviders(
+        dependencies=ContextRefreshDependencies(
             get_assistant_name_fn=lambda: get_assistant_name(ctx),
             get_user_preferred_name_fn=lambda: do_get_user_preferred_name(ctx.db.session, ctx.user_id),
-        ),
-        memory_callbacks=ContextRefreshMemoryCallbacks(
             get_or_create_memory_op_tracker_fn=lambda: get_or_create_memory_op_tracker(ctx),
             schedule_memory_creation_fn=lambda: schedule_task(create_mem_from_current_context, ctx),
             formulate_memory_fn=lambda context_messages: formulate_memory(ctx, context_messages),
