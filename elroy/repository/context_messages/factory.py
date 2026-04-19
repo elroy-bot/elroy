@@ -1,10 +1,5 @@
 from ...core.async_tasks import schedule_task
 from ...core.ctx import ElroyContext
-from ..memories.operations import (
-    create_mem_from_current_context,
-    formulate_memory,
-    get_or_create_memory_op_tracker,
-)
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
 from .context_refresh_orchestrator import (
     ContextRefreshConfig,
@@ -35,6 +30,12 @@ def build_system_prompt_builder(ctx: ElroyContext) -> SystemPromptBuilder:
 
 
 def build_context_refresh_orchestrator(ctx: ElroyContext) -> ContextRefreshOrchestrator:
+    from ..memories.factory import (
+        create_mem_from_current_context,
+        formulate_memory,
+        get_or_create_memory_op_tracker,
+    )
+
     def create_memory_from_tool(name: str, text: str) -> str:
         from ..memories.tools import create_memory
 

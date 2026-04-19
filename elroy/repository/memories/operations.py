@@ -6,6 +6,7 @@ from ...core.logging import log_execution_time
 from ...db.db_models import EmbeddableSqlModel, Memory, MemoryOperationTracker, MemorySource
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.queries import ContextMessageReadStore
+from ..recall.factory import build_recall_context_bridge, build_recall_indexer
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
 from .consolidation import consolidate_memories
 from .memory_lifecycle_orchestrator import (
@@ -37,21 +38,8 @@ def _summarizer(ctx: ElroyContext) -> MemorySummarizer:
 
 def _orchestrator(ctx: ElroyContext) -> MemoryLifecycleOrchestrator:
     context_message_read_store = ContextMessageReadStore(ctx.db, ctx.user_id)
-
-    def remove_from_context(item: EmbeddableSqlModel) -> None:
-        from ..recall.operations import remove_from_context as _remove_from_context
-
-        _remove_from_context(ctx, item)
-
-    def add_to_context(memory: Memory) -> None:
-        from ..recall.operations import add_to_context as _add_to_context
-
-        _add_to_context(ctx, memory)
-
-    def upsert_embedding_if_needed(item: EmbeddableSqlModel) -> None:
-        from ..recall.operations import upsert_embedding_if_needed as _upsert_embedding_if_needed
-
-        _upsert_embedding_if_needed(ctx, item)
+    recall_context_bridge = build_recall_context_bridge(ctx)
+    recall_indexer = build_recall_indexer(ctx)
 
     return MemoryLifecycleOrchestrator(
         store=_store(ctx),
@@ -62,9 +50,9 @@ def _orchestrator(ctx: ElroyContext) -> MemoryLifecycleOrchestrator:
         dependencies=MemoryLifecycleDependencies(
             get_context_messages_fn=lambda: list(context_message_read_store.get_context_messages()),
             schedule_consolidation_fn=lambda: schedule_task(consolidate_memories, ctx),
-            remove_from_context_fn=remove_from_context,
-            add_to_context_fn=add_to_context,
-            upsert_embedding_if_needed_fn=upsert_embedding_if_needed,
+            remove_from_context_fn=recall_context_bridge.remove_from_context,
+            add_to_context_fn=recall_context_bridge.add_to_context,
+            upsert_embedding_if_needed_fn=recall_indexer.upsert_embedding_if_needed,
         ),
     )
 

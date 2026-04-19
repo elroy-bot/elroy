@@ -18,13 +18,11 @@ from ..repository.agenda.tools import (
     list_agenda_items,
     list_agenda_items_cmd,
 )
-from ..repository.context_messages.operations import (
-    refresh_system_instructions,
-    reset_messages,
-)
 from ..repository.context_messages.tools import (
     add_memory_to_current_context,
     drop_memory_from_current_context,
+    refresh_system_instructions,
+    reset_messages,
 )
 from ..repository.memories.tools import (
     create_memory,
@@ -48,10 +46,10 @@ from ..repository.reminders.tools import (
     rename_due_item,
     update_due_item_text,
 )
-from ..repository.user.operations import set_assistant_name
 from ..repository.user.tools import (
     get_user_full_name,
     get_user_preferred_name,
+    set_assistant_name,
     set_user_full_name,
     set_user_preferred_name,
 )

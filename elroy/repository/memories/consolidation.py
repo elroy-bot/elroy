@@ -208,20 +208,20 @@ def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None
 
 
 def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: list[Memory]):
-    from .operations import do_create_memory, mark_inactive
+    from .factory import build_memory_lifecycle_orchestrator
 
     logger.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
     logger.info(f"source memories are: {', '.join([m.name for m in sources])}")
 
-    memory = do_create_memory(
-        ctx,
+    memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
+    memory = memory_lifecycle_orchestrator.do_create_memory(
         name,
         text,
         sources,
         False,
     )
 
-    [mark_inactive(ctx, m) for m in sources]
+    [memory_lifecycle_orchestrator.mark_inactive(m) for m in sources]
     assert isinstance(memory, Memory)
     memory_id = memory.id
     assert memory_id

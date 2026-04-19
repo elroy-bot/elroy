@@ -1,7 +1,14 @@
 from ...core.constants import DEFAULT_USER_NAME, tool
 from ...core.ctx import ElroyContext
+from .factory import build_user_preference_orchestrator
 from .queries import do_get_user_preferred_name
 from .store import UserPreferenceStore
+
+
+@tool
+def set_assistant_name(ctx: ElroyContext, assistant_name: str) -> str:
+    """Sets the assistant name for the user."""
+    return build_user_preference_orchestrator(ctx).set_assistant_name(assistant_name)
 
 
 @tool

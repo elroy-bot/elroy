@@ -1,5 +1,7 @@
 from ...core.async_tasks import schedule_task
 from ...core.ctx import ElroyContext
+from ...db.db_models import MemoryOperationTracker
+from ..context_messages.data_models import ContextMessage
 from ..context_messages.factory import build_context_message_read_store
 from ..recall.factory import build_recall_context_bridge, build_recall_indexer
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
@@ -71,3 +73,15 @@ def build_memory_lifecycle_orchestrator(ctx: ElroyContext) -> MemoryLifecycleOrc
             upsert_embedding_if_needed_fn=recall_indexer.upsert_embedding_if_needed,
         ),
     )
+
+
+def get_or_create_memory_op_tracker(ctx: ElroyContext) -> MemoryOperationTracker:
+    return build_memory_store(ctx).get_or_create_memory_op_tracker()
+
+
+def create_mem_from_current_context(ctx: ElroyContext) -> None:
+    build_memory_lifecycle_orchestrator(ctx).create_mem_from_current_context()
+
+
+def formulate_memory(ctx: ElroyContext, context_messages: list[ContextMessage]) -> tuple[str, str]:
+    return build_memory_summarizer(ctx).formulate_memory(context_messages)
