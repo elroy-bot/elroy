@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -92,6 +92,3 @@ class RuntimeConfig:
     default_persona: str | None = None
     use_background_threads: bool = True
     reflect: bool = False
-    background_ingest_paths: list[str] = field(default_factory=list)
-    background_ingest_interval_minutes: int = 60
-    background_ingest_enabled: bool = False

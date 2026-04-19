@@ -1,5 +1,5 @@
 from elroy.cli.chat import get_session_context
-from elroy.repository.context_messages.operations import context_refresh
+from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.memories.queries import get_active_memories
 
@@ -8,7 +8,7 @@ def test_context_refresh(george_ctx):
     before_memory_count = len(get_active_memories(george_ctx))
 
     context_messages = get_context_messages(george_ctx)
-    context_refresh(george_ctx, context_messages)
+    build_context_refresh_orchestrator(george_ctx).context_refresh(context_messages)
 
     assert len(get_active_memories(george_ctx)) == before_memory_count + 1
 

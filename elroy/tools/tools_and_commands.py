@@ -5,12 +5,6 @@ from rich.table import Table
 from toolz import concatv, pipe
 from toolz.curried import map
 
-from ..cli.slash_commands import (
-    add_internal_thought,
-    memo,
-    print_context_messages,
-    print_system_instruction,
-)
 from ..core.constants import IS_ENABLED, user_only_tool
 from ..core.ctx import ElroyContext
 from ..repository.agenda.tools import (
@@ -24,23 +18,11 @@ from ..repository.agenda.tools import (
     list_agenda_items,
     list_agenda_items_cmd,
 )
-from ..repository.context_messages.operations import (
-    pop,
-    refresh_system_instructions,
-    reset_messages,
-    rewrite,
-    save,
-)
 from ..repository.context_messages.tools import (
     add_memory_to_current_context,
     drop_memory_from_current_context,
-)
-from ..repository.documents.tools import (
-    get_document_excerpt,
-    get_source_doc_metadata,
-    get_source_documents,
-    ingest_doc,
-    reingest_doc,
+    refresh_system_instructions,
+    reset_messages,
 )
 from ..repository.memories.tools import (
     create_memory,
@@ -52,7 +34,6 @@ from ..repository.memories.tools import (
     search_memories,
     update_outdated_or_incorrect_memory,
 )
-from ..repository.recall.queries import search_documents
 from ..repository.reminders.queries import (
     print_active_due_items,
     print_inactive_due_items,
@@ -65,10 +46,10 @@ from ..repository.reminders.tools import (
     rename_due_item,
     update_due_item_text,
 )
-from ..repository.user.operations import set_assistant_name
 from ..repository.user.tools import (
     get_user_full_name,
     get_user_preferred_name,
+    set_assistant_name,
     set_user_full_name,
     set_user_preferred_name,
 )
@@ -112,10 +93,6 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     examine_memories,
     get_user_full_name,
     set_user_full_name,
-    search_documents,
-    get_document_excerpt,
-    get_source_doc_metadata,
-    get_source_documents,
     get_user_preferred_name,
     set_user_preferred_name,
     get_current_date,
@@ -123,17 +100,8 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,
-    ingest_doc,
-    reingest_doc,
     print_config,
-    add_internal_thought,
-    memo,
     reset_messages,
-    print_context_messages,
-    print_system_instruction,
-    pop,
-    save,
-    rewrite,
     refresh_system_instructions,
     print_memories,
     search_memories,

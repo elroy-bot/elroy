@@ -10,7 +10,7 @@ from ...core.constants import RecoverableToolError, tool, user_only_tool
 from ...core.ctx import ElroyContext
 from ...db.db_models import AgendaItem, Memory
 from ...utils.clock import db_time_to_local
-from .operations import do_create_memory, do_create_memory_from_ctx_msgs
+from .factory import build_memory_lifecycle_orchestrator
 from .queries import (
     db_get_memory_source_by_name,
     db_get_source_list_for_memory,
@@ -217,8 +217,7 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
     ctx.db.commit()
     ctx.db.update_embedding_active(original_memory)
 
-    do_create_memory(
-        ctx,
+    build_memory_lifecycle_orchestrator(ctx).do_create_memory(
         memory_name,
         updated_text,
         [original_memory],
@@ -262,7 +261,7 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
         str: Confirmation message that the memory was created.
     """
 
-    do_create_memory_from_ctx_msgs(ctx, name, text)
+    build_memory_lifecycle_orchestrator(ctx).do_create_memory_from_ctx_msgs(name, text)
 
     return f"New memory created: {name}"
 

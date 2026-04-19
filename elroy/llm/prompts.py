@@ -1,5 +1,4 @@
 from ..core.constants import MEMORY_WORD_COUNT_LIMIT
-from ..core.tracing import tracer
 from ..llm.parsing import extract_title_and_body
 from .client import LlmClient
 
@@ -16,7 +15,6 @@ However, avoid asking too many questions at once. Be sure to engage in a natural
 """
 
 
-@tracer.chain
 def summarize_conversation(fast_llm: LlmClient, assistant_name: str, convo_summary: str) -> str:
     """Summarize conversation using fast model for efficiency."""
     return fast_llm.query_llm_with_word_limit(
@@ -34,7 +32,6 @@ Only output the summary, do NOT include anything else in your output.
     )
 
 
-@tracer.chain
 def summarize_for_memory(fast_llm: LlmClient, conversation_summary: str, user_preferred_name: str | None) -> tuple[str, str]:
     """Generate memory from conversation summary using fast model."""
     user_noun = user_preferred_name or "the user"

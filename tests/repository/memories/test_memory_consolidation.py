@@ -9,17 +9,18 @@ from elroy.repository.memories.consolidation import (
     MemoryCluster,
     consolidate_memory_cluster,
 )
-from elroy.repository.memories.operations import do_create_memory_from_ctx_msgs
+from elroy.repository.memories.factory import build_memory_lifecycle_orchestrator
 from elroy.repository.memories.queries import get_active_memories, get_memory_by_name
 
 
 def test_identical_memories(ctx):
     """Test consolidation of identical memories marks one inactive"""
-    memory1 = do_create_memory_from_ctx_msgs(
-        ctx, "User's Hiking Habits", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
+    memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
+    memory1 = memory_lifecycle_orchestrator.do_create_memory_from_ctx_msgs(
+        "User's Hiking Habits", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
     )
-    memory2 = do_create_memory_from_ctx_msgs(
-        ctx, "User's Mountain Activities", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
+    memory2 = memory_lifecycle_orchestrator.do_create_memory_from_ctx_msgs(
+        "User's Mountain Activities", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
     )
 
     assert memory1 and memory2
@@ -42,7 +43,7 @@ def test_trigger(ctx):
             "Today, New Year's Day, I went to the store",
             "I bought some items on New Year's Day",
         ],
-        map(partial(do_create_memory_from_ctx_msgs, ctx, "Shopping Trip")),
+        map(partial(build_memory_lifecycle_orchestrator(ctx).do_create_memory_from_ctx_msgs, "Shopping Trip")),
         filter(lambda x: x is not None),
         list,
     )

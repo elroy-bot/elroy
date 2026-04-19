@@ -1,5 +1,5 @@
 from elroy.core.ctx import ElroyContext
-from elroy.repository.memories.operations import do_create_memory
+from elroy.repository.memories.factory import build_memory_lifecycle_orchestrator
 from elroy.repository.memories.queries import get_memories
 from tests.utils import MockCliIO
 
@@ -7,9 +7,10 @@ from tests.utils import MockCliIO
 def test_get_memories(io: MockCliIO, ctx: ElroyContext):
     """Test that get_memories returns the correct Memory objects for given IDs"""
     # Create some test memories
-    do_create_memory(ctx, "Test Memory 1", "This is the first test memory", [], False)
-    do_create_memory(ctx, "Test Memory 2", "This is the second test memory", [], False)
-    do_create_memory(ctx, "Test Memory 3", "This is the third test memory", [], False)
+    memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
+    memory_lifecycle_orchestrator.do_create_memory("Test Memory 1", "This is the first test memory", [], False)
+    memory_lifecycle_orchestrator.do_create_memory("Test Memory 2", "This is the second test memory", [], False)
+    memory_lifecycle_orchestrator.do_create_memory("Test Memory 3", "This is the third test memory", [], False)
 
     # Extract memory IDs from the results (assuming the function returns a string with ID info)
     # We'll need to get the actual memory objects to get their IDs

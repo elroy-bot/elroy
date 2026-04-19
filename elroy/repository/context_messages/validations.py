@@ -6,9 +6,8 @@ from ...core.constants import ASSISTANT, TOOL, USER
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from .data_models import ContextMessage
+from .factory import build_context_message_read_store, build_context_refresh_orchestrator
 from .inspect import has_assistant_tool_call
-from .operations import get_refreshed_system_message, replace_context_messages
-from .queries import get_context_messages
 from .transforms import is_system_instruction
 
 logger = get_logger()
@@ -78,7 +77,7 @@ class Validator:
         for idx, message in enumerate(ctx_msg_list):
             if idx == 0 and not is_system_instruction(message):
                 self.errors.append("First message is not system instruction, repairing by inserting system instruction")
-                yield get_refreshed_system_message(self.ctx)
+                yield build_context_refresh_orchestrator(self.ctx).get_refreshed_system_message()
                 yield message
             elif idx != 0 and is_system_instruction(message):
                 self.errors.append("Found system message in non-first position, repairing by dropping message")
@@ -117,7 +116,7 @@ class Validator:
             logger.info("Context messages have been repaired")
             for error in self.errors:
                 logger.info(error)
-            replace_context_messages(self.ctx, messages)
-            yield from get_context_messages(self.ctx)
+            build_context_refresh_orchestrator(self.ctx).store.replace_context_messages(messages)
+            yield from build_context_message_read_store(self.ctx).get_context_messages()
         else:
             yield from messages

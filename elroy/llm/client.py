@@ -17,7 +17,6 @@ from ..core.constants import (
     Provider,
 )
 from ..core.logging import get_logger
-from ..core.tracing import tracer
 from ..repository.context_messages.data_models import ContextMessage
 from .stream_parser import StreamParser
 
@@ -95,7 +94,6 @@ class LlmClient:
         self.chat_model = chat_model
         self.embedding_model = embedding_model
 
-    @tracer.chain
     def generate_chat_completion_message(
         self,
         context_messages: list[ContextMessage],

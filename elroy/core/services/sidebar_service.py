@@ -9,10 +9,10 @@ from ...core.ctx import ElroyContext
 from ...db.db_models import AgendaItem, EmbeddableSqlModel
 from ...io.completions import build_completions, get_memory_panel_entries
 from ...repository.agenda.file_storage import get_checklist, read_agenda_metadata
-from ...repository.memories.operations import mark_inactive
+from ...repository.memories.factory import build_memory_lifecycle_orchestrator
 from ...repository.memories.queries import db_get_memory_source_by_name
-from ...repository.reminders.operations import do_delete_due_item
-from ...repository.tasks.operations import complete_task
+from ...repository.reminders.factory import build_reminder_orchestrator
+from ...repository.tasks.factory import build_task_mutation_orchestrator
 from ...repository.tasks.queries import get_active_tasks, get_task_by_name
 from ...utils.clock import db_time_to_local, ensure_utc, utc_now
 
@@ -41,10 +41,13 @@ class ModalSpec:
 
 
 class AgendaPresenter:
-    MEMORY_BUFFER_SOURCE_TYPES: ClassVar[set[str]] = {"Memory", "DocumentExcerpt", "ContextMessageSet"}
+    MEMORY_BUFFER_SOURCE_TYPES: ClassVar[set[str]] = {"Memory", "ContextMessageSet"}
 
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
+        self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
+        self.reminder_orchestrator = build_reminder_orchestrator(ctx)
+        self.task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
 
     def build_sidebar_state(self) -> SidebarState:
         memory_entries = self._build_memory_entries()
@@ -98,7 +101,7 @@ class AgendaPresenter:
         if isinstance(source, EmbeddableSqlModel):
 
             def on_delete(s=source) -> None:
-                mark_inactive(self.ctx, s)
+                self.memory_lifecycle_orchestrator.mark_inactive(s)
                 refresh()
 
         return ModalSpec(title=name, content=source.to_fact(), on_delete=on_delete)
@@ -145,13 +148,13 @@ class AgendaPresenter:
             if task.status == "created":
 
                 def on_complete(name=entry.lookup_key) -> None:
-                    complete_task(self.ctx, name)
+                    self.task_mutation_orchestrator.complete_task(name)
                     refresh()
 
         if entry.deletable:
 
             def on_delete(name=entry.lookup_key) -> None:
-                do_delete_due_item(self.ctx, name)
+                self.reminder_orchestrator.do_delete_due_item(name)
                 refresh()
 
         return ModalSpec(title=title, content=content, on_delete=on_delete, on_complete=on_complete)

@@ -3,10 +3,10 @@ from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
 from ...utils.clock import string_to_datetime
 from ...utils.utils import is_blank
-from ..context_messages.operations import add_context_messages
+from ..context_messages.factory import build_context_refresh_orchestrator
 from ..memories.transforms import to_fast_recall_tool_call
-from ..tasks.operations import rename_task, update_task_text
-from .operations import do_complete_due_item, do_create_due_item, do_delete_due_item
+from ..reminders.factory import build_reminder_orchestrator
+from ..tasks.factory import build_task_mutation_orchestrator
 from .queries import get_active_due_item_names, get_db_due_item_by_name
 
 logger = get_logger()
@@ -45,7 +45,7 @@ def create_due_item(
     if trigger_time:
         trigger_datetime = string_to_datetime(trigger_time)
 
-    due_item = do_create_due_item(ctx, name, text, trigger_datetime, trigger_context)
+    due_item = build_reminder_orchestrator(ctx).do_create_due_item(name, text, trigger_datetime, trigger_context)
     # Validation
     if is_blank(name):
         raise ValueError("Due item name cannot be empty")
@@ -57,7 +57,7 @@ def create_due_item(
     else:
         pass
 
-    add_context_messages(ctx, to_fast_recall_tool_call(due_item))
+    build_context_refresh_orchestrator(ctx).add_context_messages(to_fast_recall_tool_call(due_item))
 
     if trigger_time and trigger_context:
         return f"Hybrid due item '{name}' has been created for {trigger_time} and context: {trigger_context}."
@@ -77,7 +77,7 @@ def complete_due_item(ctx: ElroyContext, name: str, closing_comment: str | None 
     Returns:
         str: Confirmation message that the item was completed
     """
-    return do_complete_due_item(ctx, name, closing_comment)
+    return build_reminder_orchestrator(ctx).do_complete_due_item(name, closing_comment)
 
 
 @tool
@@ -91,7 +91,7 @@ def delete_due_item(ctx: ElroyContext, name: str, closing_comment: str | None = 
     Returns:
         str: Confirmation message that the item was deleted
     """
-    return do_delete_due_item(ctx, name, closing_comment)
+    return build_reminder_orchestrator(ctx).do_delete_due_item(name, closing_comment)
 
 
 @tool
@@ -119,7 +119,7 @@ def rename_due_item(ctx: ElroyContext, old_name: str, new_name: str) -> str:
     if existing_due_item_with_new_name:
         raise Exception(f"Active due item '{new_name}' already exists for user {ctx.user_id}")
 
-    rename_task(ctx, old_name, new_name)
+    build_task_mutation_orchestrator(ctx).rename_task(old_name, new_name)
 
     return f"Due item '{old_name}' has been renamed to '{new_name}'."
 
@@ -171,6 +171,6 @@ def update_due_item_text(ctx: ElroyContext, name: str, new_text: str) -> str:
         valid_due_items = ",".join(sorted(get_active_due_item_names(ctx)))
         raise RecoverableToolError(f"Due item '{name}' not found. Valid items: {valid_due_items}")
 
-    update_task_text(ctx, name, new_text)
+    build_task_mutation_orchestrator(ctx).update_task_text(name, new_text)
 
     return f"Due item '{name}' text has been updated."
