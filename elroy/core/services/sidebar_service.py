@@ -12,7 +12,7 @@ from ...repository.agenda.file_storage import get_checklist, read_agenda_metadat
 from ...repository.memories.factory import build_memory_lifecycle_orchestrator
 from ...repository.memories.queries import db_get_memory_source_by_name
 from ...repository.reminders.factory import build_reminder_orchestrator
-from ...repository.tasks.operations import complete_task
+from ...repository.tasks.factory import build_task_mutation_orchestrator
 from ...repository.tasks.queries import get_active_tasks, get_task_by_name
 from ...utils.clock import db_time_to_local, ensure_utc, utc_now
 
@@ -47,6 +47,7 @@ class AgendaPresenter:
         self.ctx = ctx
         self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
         self.reminder_orchestrator = build_reminder_orchestrator(ctx)
+        self.task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
 
     def build_sidebar_state(self) -> SidebarState:
         memory_entries = self._build_memory_entries()
@@ -147,7 +148,7 @@ class AgendaPresenter:
             if task.status == "created":
 
                 def on_complete(name=entry.lookup_key) -> None:
-                    complete_task(self.ctx, name)
+                    self.task_mutation_orchestrator.complete_task(name)
                     refresh()
 
         if entry.deletable:

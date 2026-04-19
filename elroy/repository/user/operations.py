@@ -1,14 +1,12 @@
 from collections.abc import Callable
-from typing import Any, cast
-
-from sqlmodel import Session, select
 
 from ...core.constants import user_only_tool
 from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
-from ...db.db_models import User, UserPreference
+from ...db.db_models import UserPreference
 from ...db.db_session import DbSession
 from ...utils.utils import is_blank
+from .store import UserPreferenceStore
 
 logger = get_logger()
 
@@ -18,9 +16,10 @@ class UserPreferenceOrchestrator:
         self.db = db
         self.user_id = user_id
         self.refresh_system_instructions_fn = refresh_system_instructions_fn
+        self.store = UserPreferenceStore(db, user_id)
 
     def get_or_create_user_preference(self) -> UserPreference:
-        return do_get_or_create_user_preference(self.db.session, self.user_id)
+        return self.store.get_or_create_user_preference()
 
     def set_assistant_name(self, assistant_name: str) -> str:
         user_preference = self.get_or_create_user_preference()
@@ -58,13 +57,6 @@ class UserPreferenceOrchestrator:
         return "System persona updated."
 
 
-def create_user_id(db: DbSession, user_token: str) -> int:
-    user = db.persist(User(token=user_token))
-    user_id = user.id
-    assert user_id
-    return user_id
-
-
 def _orchestrator(ctx: ElroyContext) -> UserPreferenceOrchestrator:
     from ..context_messages.operations import refresh_system_instructions
 
@@ -79,20 +71,10 @@ def get_or_create_user_preference(ctx: ElroyContext) -> UserPreference:
     return _orchestrator(ctx).get_or_create_user_preference()
 
 
-def do_get_or_create_user_preference(session: Session, user_id: int) -> UserPreference:
-    user_preference = session.exec(
-        select(UserPreference).where(
-            UserPreference.user_id == user_id,
-            cast(Any, UserPreference.is_active),
-        )
-    ).first()
+def create_user_id(db: DbSession, user_token: str) -> int:
+    from .store import create_user_id as create_user_id_in_store
 
-    if user_preference is None:
-        user_preference = UserPreference(user_id=user_id, is_active=True)
-        session.add(user_preference)
-        session.commit()
-        session.refresh(user_preference)
-    return user_preference
+    return create_user_id_in_store(db, user_token)
 
 
 @user_only_tool

@@ -356,8 +356,8 @@ class ElroyContext:
 
     @cached_property
     def user_id(self) -> int:
-        from ..repository.user.operations import create_user_id
         from ..repository.user.queries import get_user_id_if_exists
+        from ..repository.user.store import create_user_id
 
         return get_user_id_if_exists(self.db, self.runtime_config.user_token) or create_user_id(self.db, self.runtime_config.user_token)
 

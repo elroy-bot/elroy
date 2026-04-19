@@ -1,7 +1,7 @@
 from ...core.constants import DEFAULT_USER_NAME, tool
 from ...core.ctx import ElroyContext
-from .operations import get_or_create_user_preference
 from .queries import do_get_user_preferred_name
+from .store import UserPreferenceStore
 
 
 @tool
@@ -20,7 +20,7 @@ def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: boo
         str: Result of the attempt to set the user's full name
     """
 
-    user_preference = get_or_create_user_preference(ctx)
+    user_preference = UserPreferenceStore(ctx.db, ctx.user_id).get_or_create_user_preference()
 
     old_full_name = user_preference.full_name or DEFAULT_USER_NAME
     if old_full_name != DEFAULT_USER_NAME and not override_existing:
@@ -41,7 +41,7 @@ def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_exi
         override_existing: Whether to override an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect.
     """
 
-    user_preference = get_or_create_user_preference(ctx)
+    user_preference = UserPreferenceStore(ctx.db, ctx.user_id).get_or_create_user_preference()
 
     old_preferred_name = user_preference.preferred_name or DEFAULT_USER_NAME
 
@@ -61,7 +61,7 @@ def get_user_full_name(ctx: ElroyContext) -> str:
         str: String representing the user's full name.
     """
 
-    user_preference = get_or_create_user_preference(ctx)
+    user_preference = UserPreferenceStore(ctx.db, ctx.user_id).get_or_create_user_preference()
 
     return user_preference.full_name or "Unknown name"
 

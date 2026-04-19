@@ -6,7 +6,7 @@ from ...utils.utils import is_blank
 from ..context_messages.factory import build_context_refresh_orchestrator
 from ..memories.transforms import to_fast_recall_tool_call
 from ..reminders.factory import build_reminder_orchestrator
-from ..tasks.operations import rename_task, update_task_text
+from ..tasks.factory import build_task_mutation_orchestrator
 from .queries import get_active_due_item_names, get_db_due_item_by_name
 
 logger = get_logger()
@@ -119,7 +119,7 @@ def rename_due_item(ctx: ElroyContext, old_name: str, new_name: str) -> str:
     if existing_due_item_with_new_name:
         raise Exception(f"Active due item '{new_name}' already exists for user {ctx.user_id}")
 
-    rename_task(ctx, old_name, new_name)
+    build_task_mutation_orchestrator(ctx).rename_task(old_name, new_name)
 
     return f"Due item '{old_name}' has been renamed to '{new_name}'."
 
@@ -171,6 +171,6 @@ def update_due_item_text(ctx: ElroyContext, name: str, new_text: str) -> str:
         valid_due_items = ",".join(sorted(get_active_due_item_names(ctx)))
         raise RecoverableToolError(f"Due item '{name}' not found. Valid items: {valid_due_items}")
 
-    update_task_text(ctx, name, new_text)
+    build_task_mutation_orchestrator(ctx).update_task_text(name, new_text)
 
     return f"Due item '{name}' text has been updated."
