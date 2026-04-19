@@ -1,6 +1,6 @@
 from ...core.ctx import ElroyContext
 from ..context_messages.factory import build_context_refresh_orchestrator
-from .operations import UserPreferenceOrchestrator
+from .user_preference_orchestrator import UserPreferenceOrchestrator
 
 
 def build_user_preference_orchestrator(ctx: ElroyContext) -> UserPreferenceOrchestrator:

@@ -1,6 +1,6 @@
 from ...core.ctx import ElroyContext
 from ..tasks.factory import build_task_mutation_orchestrator
-from .operations import ReminderOrchestrator
+from .reminder_orchestrator import ReminderOrchestrator
 
 
 def build_reminder_orchestrator(ctx: ElroyContext) -> ReminderOrchestrator:

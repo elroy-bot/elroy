@@ -1,8 +1,9 @@
 from datetime import date, datetime
 
 from ...db.db_models import AgendaItem
-from ..recall.operations import RecallContextBridge, RecallIndexer
-from .operations import TaskStore
+from ..recall.context_bridge import RecallContextBridge
+from ..recall.indexer import RecallIndexer
+from .store import TaskStore
 
 
 class TaskMutationOrchestrator:

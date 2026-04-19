@@ -1,6 +1,6 @@
 from ...core.ctx import ElroyContext
 from ..recall.factory import build_recall_context_bridge, build_recall_indexer
-from .operations import TaskStore
+from .store import TaskStore
 from .task_mutation_orchestrator import TaskMutationOrchestrator
 
 

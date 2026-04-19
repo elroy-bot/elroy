@@ -1,6 +1,7 @@
 from ...core.ctx import ElroyContext
 from ..context_messages.factory import build_context_message_read_store, build_context_refresh_orchestrator
-from .operations import RecallContextBridge, RecallIndexer
+from .context_bridge import RecallContextBridge
+from .indexer import RecallIndexer
 
 
 def build_recall_indexer(ctx: ElroyContext) -> RecallIndexer:
