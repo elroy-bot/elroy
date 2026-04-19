@@ -11,6 +11,14 @@ def set_assistant_name(ctx: ElroyContext, assistant_name: str) -> str:
     return build_user_preference_orchestrator(ctx).set_assistant_name(assistant_name)
 
 
+def reset_system_persona(ctx: ElroyContext) -> str:
+    return build_user_preference_orchestrator(ctx).reset_system_persona()
+
+
+def set_persona(ctx: ElroyContext, system_persona: str) -> str:
+    return build_user_preference_orchestrator(ctx).set_persona(system_persona)
+
+
 @tool
 def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: bool | None = False) -> str:
     """Sets the user's full name.

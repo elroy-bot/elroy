@@ -1,11 +1,11 @@
 from elroy.core.ctx import ElroyContext
-from elroy.repository.context_messages.operations import reset_messages
-from elroy.repository.user.operations import (
+from elroy.repository.context_messages.tools import reset_messages
+from elroy.repository.user.queries import do_get_user_preferred_name
+from elroy.repository.user.tools import (
     reset_system_persona,
     set_assistant_name,
     set_persona,
 )
-from elroy.repository.user.queries import do_get_user_preferred_name
 from tests.utils import process_test_message
 
 

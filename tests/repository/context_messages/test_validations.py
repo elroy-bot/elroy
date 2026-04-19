@@ -5,7 +5,7 @@ import pytest
 from elroy.core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
 from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
-from elroy.repository.context_messages.operations import replace_context_messages
+from elroy.repository.context_messages.factory import build_context_message_store
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.context_messages.transforms import is_system_instruction
 from elroy.repository.context_messages.validations import Validator
@@ -13,8 +13,7 @@ from elroy.repository.context_messages.validations import Validator
 
 def test_assistant_tool_calls_followed_by_tool(ctx, system_instruct, tool_call):
     """Test that assistant messages with tool calls must be followed by tool messages"""
-    replace_context_messages(
-        ctx,
+    build_context_message_store(ctx).replace_context_messages(
         [
             system_instruct,
             ContextMessage(
@@ -100,7 +99,7 @@ def test_system_instruction_correctly_placed(ctx):
         ContextMessage(role=SYSTEM, content="system message", chat_model=None),
     ]
 
-    replace_context_messages(ctx, raw_messages)
+    build_context_message_store(ctx).replace_context_messages(raw_messages)
 
     messages = get_context_messages(ctx)
 

@@ -19,11 +19,11 @@ from elroy.io.formatters.base import ElroyPrintable
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.llm.stream_parser import SystemInfo
 from elroy.repository.context_messages.data_models import ContextMessage
-from elroy.repository.context_messages.operations import add_context_messages
+from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.memories.transforms import to_fast_recall_tool_call
 from elroy.repository.recall.queries import is_in_context_message
-from elroy.repository.reminders.operations import do_delete_due_item
+from elroy.repository.reminders.factory import build_reminder_orchestrator
 from elroy.repository.reminders.queries import get_active_due_items
 from elroy.repository.reminders.tools import (
     create_due_item,
@@ -31,7 +31,7 @@ from elroy.repository.reminders.tools import (
     rename_due_item,
     update_due_item_text,
 )
-from elroy.repository.tasks.operations import create_task
+from elroy.repository.tasks.factory import build_task_mutation_orchestrator
 from elroy.repository.user.queries import get_assistant_name, get_persona
 from elroy.repository.user.tools import set_user_preferred_name
 from elroy.utils.clock import utc_now
@@ -176,7 +176,7 @@ def _record_context(
         *list(extra_messages or []),
         ContextMessage(role=ASSISTANT, content=assistant_message, chat_model=ctx.chat_model.name),
     ]
-    add_context_messages(ctx, messages)
+    build_context_refresh_orchestrator(ctx).add_context_messages(messages)
     ctx.__dict__["_last_test_response"] = assistant_message
 
 
@@ -271,7 +271,7 @@ def _handle_due_items(ctx: ElroyContext, msg: str) -> tuple[str | None, list[Con
     response = " ".join(f"Due item: {item.name} - {item.text}." for item in due_items)
     if any(keyword in msg.lower() for keyword in ["clean", "handle", "delete"]):
         for item in due_items:
-            do_delete_due_item(ctx, item.name)
+            build_reminder_orchestrator(ctx).do_delete_due_item(item.name)
         response += " Cleaned up due items."
     return response, due_context
 
@@ -419,8 +419,7 @@ def get_active_due_items_summary(ctx: ElroyContext) -> str:
 
 
 def create_due_item_in_past(ctx: ElroyContext, name: str, text: str, trigger_context: str | None = None):
-    create_task(
-        ctx,
+    build_task_mutation_orchestrator(ctx).create_task(
         name,
         text,
         trigger_datetime=utc_now() - timedelta(minutes=5),

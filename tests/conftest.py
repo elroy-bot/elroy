@@ -23,9 +23,9 @@ from elroy.db.db_models import (
 from elroy.db.db_session import DbSession
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
-from elroy.repository.context_messages.operations import add_context_messages
-from elroy.repository.reminders.operations import do_create_due_item
-from elroy.repository.user.operations import create_user_id
+from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
+from elroy.repository.reminders.factory import build_reminder_orchestrator
+from elroy.repository.user.store import create_user_id
 from tests.utils import MockCliIO, MockLlmClient, _match_score
 
 
@@ -156,18 +156,17 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
         ),
     ]
 
-    add_context_messages(ctx, messages)
+    build_context_refresh_orchestrator(ctx).add_context_messages(messages)
 
-    do_create_due_item(
-        ctx,
+    reminder_orchestrator = build_reminder_orchestrator(ctx)
+    reminder_orchestrator.do_create_due_item(
         BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
         "Remind Goerge to follow through if he mentions basketball.",
         None,
         "Whenever George mentions basketball",
     )
 
-    do_create_due_item(
-        ctx,
+    reminder_orchestrator.do_create_due_item(
         "Pay off car loan by end of year",
         "Remind George to pay off his loan by the end of the year.",
         None,

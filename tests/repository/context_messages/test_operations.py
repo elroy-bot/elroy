@@ -10,10 +10,7 @@ from elroy.core.constants import USER
 from elroy.core.ctx import ElroyContext
 from elroy.db.db_models import ContextMessageSet
 from elroy.repository.context_messages.data_models import ContextMessage
-from elroy.repository.context_messages.operations import (
-    add_context_messages,
-    remove_context_messages,
-)
+from elroy.repository.context_messages.factory import build_context_message_store, build_context_refresh_orchestrator
 from elroy.repository.context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
@@ -28,7 +25,9 @@ def test_rm_context_messages(george_ctx: ElroyContext):
     to_rm = msgs[-3:]
     for msg in to_rm:
         # Concurrent removals
-        run_in_background(remove_context_messages, george_ctx, [msg])
+        run_in_background(
+            lambda new_ctx, messages: build_context_message_store(new_ctx).remove_context_messages(messages), george_ctx, [msg]
+        )
 
     attempts = 0
     max_attempts = 5
@@ -58,7 +57,11 @@ def test_add_context_messages(george_ctx: ElroyContext):
     ]
     for msg in to_add:
         # Concurrent removals
-        run_in_background(add_context_messages, george_ctx, [msg])
+        run_in_background(
+            lambda new_ctx, messages: build_context_refresh_orchestrator(new_ctx).add_context_messages(messages),
+            george_ctx,
+            [msg],
+        )
 
     attempts = 0
     max_attempts = 5

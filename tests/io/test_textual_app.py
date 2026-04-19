@@ -13,7 +13,7 @@ from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.io.textual_app import ChatInput, ElroyApp, MemoryDetailModal
 from elroy.repository.context_messages.tools import add_memory_to_current_context
 from elroy.repository.memories.tools import create_memory
-from elroy.repository.tasks.operations import create_task
+from elroy.repository.tasks.factory import build_task_mutation_orchestrator
 from elroy.utils.clock import utc_now
 
 
@@ -71,9 +71,9 @@ def _history_text(app: ElroyApp) -> str:
 async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
     create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
     add_memory_to_current_context(ctx, "Travel preference")
-    create_task(ctx, "Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
-    create_task(
-        ctx,
+    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+    task_mutation_orchestrator.create_task(
         "Pay electricity bill",
         "Pay electricity bill before the cutoff date.",
         trigger_datetime=utc_now() - timedelta(minutes=5),
@@ -188,9 +188,10 @@ async def test_tui_renders_existing_context_messages_on_startup(george_ctx: Elro
 
 @pytest.mark.asyncio
 async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
-    create_task(ctx, "Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
-    create_task(ctx, "Buy groceries", "Buy groceries\nMilk, eggs, bread.")
+    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+    task_mutation_orchestrator.create_task("Buy groceries", "Buy groceries\nMilk, eggs, bread.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -225,7 +226,7 @@ async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: El
 
 @pytest.mark.asyncio
 async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(ctx, "Job search", "Job search\nReach out to three contacts.")
+    build_task_mutation_orchestrator(ctx).create_task("Job search", "Job search\nReach out to three contacts.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -248,8 +249,7 @@ async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_form
 
 @pytest.mark.asyncio
 async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    create_task(
-        ctx,
+    build_task_mutation_orchestrator(ctx).create_task(
         "Pay rent",
         "Pay rent before the first of the month.",
         trigger_datetime=utc_now() - timedelta(minutes=5),

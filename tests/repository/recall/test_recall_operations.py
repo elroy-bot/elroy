@@ -2,13 +2,13 @@ from sqlmodel import select
 
 from elroy.db.db_models import Memory
 from elroy.repository.context_messages.queries import get_context_messages
-from elroy.repository.memories.operations import do_create_memory
-from elroy.repository.recall.operations import add_to_current_context_by_name
+from elroy.repository.memories.factory import build_memory_lifecycle_orchestrator
+from elroy.repository.recall.factory import build_recall_context_bridge
 from elroy.repository.recall.queries import is_in_context_message
 
 
 def test_add_to_current_context_by_name_scopes_to_current_user(ctx, db_manager, chat_model_name, tmp_path):
-    do_create_memory(ctx, "Shared Memory Name", "Current user memory", [], False)
+    build_memory_lifecycle_orchestrator(ctx).do_create_memory("Shared Memory Name", "Current user memory", [], False)
 
     other_ctx = ctx.init(
         user_token="other-user-token",
@@ -21,10 +21,10 @@ def test_add_to_current_context_by_name_scopes_to_current_user(ctx, db_manager, 
     other_ctx.__dict__["llm"] = ctx.llm
     other_ctx.__dict__["fast_llm"] = ctx.fast_llm
 
-    other_memory = do_create_memory(other_ctx, "Shared Memory Name", "Other user memory", [], False)
+    other_memory = build_memory_lifecycle_orchestrator(other_ctx).do_create_memory("Shared Memory Name", "Other user memory", [], False)
     assert other_memory.id is not None
 
-    add_to_current_context_by_name(ctx, "Shared Memory Name", Memory)
+    build_recall_context_bridge(ctx).add_to_current_context_by_name("Shared Memory Name", Memory)
 
     context_messages = list(get_context_messages(ctx))
     assert not any(is_in_context_message(other_memory, message) for message in context_messages)
