@@ -7,6 +7,8 @@ This refactor is functionally complete.
 Current repo status:
 - The explicit refactor targets below have been implemented.
 - Repo scan shows no remaining `*Service`, `*OperationService`, or `*QueryService` class names in `elroy/` or `tests/`.
+- Repo scan shows no remaining repository `operations.py` compatibility facades in `elroy/repository/`.
+- Internal and test imports now target the role-specific modules directly (`factory.py`, `store.py`, `queries.py`, `tools.py`, and the orchestrator/indexer modules) rather than facade modules.
 - The active vocabulary in the codebase now centers on `Store`, `Orchestrator`, `Indexer`, and `Builder`.
 - `CODE_REVIEW.md` reflects the same architectural rules used here.
 
@@ -125,12 +127,19 @@ Completed:
   - `CompletionsBuilder`
   - `MemoryFileSyncOrchestrator`
   - `UserPreferenceOrchestrator`
+- Removed repository facade modules after migrating all remaining callers to explicit role-specific imports:
+  - `context_messages/operations.py`
+  - `memories/operations.py`
+  - `recall/operations.py`
+  - `reminders/operations.py`
+  - `tasks/operations.py`
+  - `user/operations.py`
 
 No open refactor items remain from this architecture pass.
 
 Possible future follow-up:
-- Keep `operations.py` modules as compatibility facades for now, or gradually replace them with direct imports from the role-specific modules if that improves clarity.
 - Continue enforcing the vocabulary during new feature work so generic `*Service` naming does not return.
+- Optionally reduce broad function-level `ElroyContext` usage by pushing more call sites toward explicit role objects when that materially improves testability and dependency clarity.
 
 ## Performance Optimizations
 
@@ -139,4 +148,5 @@ Possible future follow-up:
    - Integrated at messenger.py:51 (replaced TODO comment)
    - Uses fast_model infrastructure for efficient classification
    - Configurable via `memory_recall_classifier_enabled` and `memory_recall_classifier_window`
-   - All tests passing (117 passed, 3 skipped)
+   - Current validation status: `just lint`, `just typecheck`, and `just test` all pass
+   - Latest full suite result: 119 passed, 3 skipped

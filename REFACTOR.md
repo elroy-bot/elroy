@@ -1,6 +1,6 @@
 # ElroyContext Refactoring
 
-This document outlines the ongoing refactoring of the `ElroyContext` class to address growing complexity and improve maintainability.
+This document records the `ElroyContext` refactor and the follow-on dependency cleanup that reduced generic service usage across the repository.
 
 ## Problem Statement
 
@@ -103,62 +103,58 @@ class ElroyContext:
 - ✅ **Better Organization**: Related settings grouped logically
 - ✅ **Type Safety**: Dataclasses provide better type hints
 - ✅ **Zero Breaking Changes**: Full backward compatibility maintained
-- ✅ **Foundation for Next Phase**: Ready for service layer extraction
+- ✅ **Foundation for Next Phase**: Ready for dependency narrowing
 
-### Phase 2: Service Layer (Planned)
+### Phase 2: Role-Based Repository Extraction ✅
 
-**Goal**: Replace direct context passing with injected services.
+**Goal**: Replace generic `*Service` and `*OperationService` concepts with role-specific components and explicit factories.
 
 ```python
-# Instead of passing entire context
+# Explicit role objects built from context
 def process_message(ctx: ElroyContext, msg: str) -> Iterator[BaseModel]:
-    llm_response = ctx.llm.generate_completion(...)
-    memories = get_relevant_memories(ctx, ...)
-
-# Use focused services  
-def process_message(
-    llm_service: LlmService, 
-    memory_service: MemoryService,
-    msg: str
-) -> Iterator[BaseModel]:
-    llm_response = llm_service.generate_completion(...)
-    memories = memory_service.get_relevant_memories(...)
+    conversation = build_conversation_orchestrator(ctx)
+    return conversation.process_message(msg)
 ```
 
-**Planned Service Classes:**
-- `LlmService`: Model interactions, completions
-- `MemoryService`: Memory storage, retrieval, clustering
-- `DatabaseService`: Session management, transactions
-- `ToolService`: Tool registry, execution
-- `UIService`: Display formatting, colors
+**Implemented role categories:**
+- `Store`: persistence and domain-scoped retrieval
+- `Orchestrator`: multi-step workflows and side-effect ordering
+- `Indexer`: derived retrieval/index state
+- `Builder`: prompt construction and transformation-heavy read logic
 
-### Phase 3: Dependency Injection (Future)
+**Representative migrations completed:**
+- `ConversationService` -> `ConversationOrchestrator`
+- `ContextMessageOperationService` -> `ContextMessageStore` + `ContextRefreshOrchestrator` + `SystemPromptBuilder`
+- `MemoryOperationService` -> `MemoryStore` + `MemoryLifecycleOrchestrator` + `MemorySummarizer`
+- `RecallOperationService` -> `RecallIndexer` + `RecallContextBridge`
+- `TaskOperationService` -> `TaskStore`
+- `ReminderOperationService` -> `ReminderOrchestrator`
+- Remaining generic helper/query names were aligned with the same vocabulary
 
-**Goal**: Use dependency injection framework for cleaner service management.
+**Compatibility cleanup completed:**
+- Repository `operations.py` facade modules were removed
+- Internal and test imports now target the role-specific modules directly
+
+### Phase 3: Dependency Narrowing (Ongoing / Optional)
+
+**Goal**: Reduce broad function-level `ElroyContext` dependencies where explicit role objects improve ownership, testability, and clarity.
 
 ```python
-# Service container setup
-container = Container()
-container.bind(DatabaseService, to=DatabaseService, config=db_config)
-container.bind(LlmService, to=LlmService, config=model_config)
-container.bind(MemoryService, to=MemoryService, 
-               deps=[DatabaseService, LlmService], config=memory_config)
+def create_due_item(ctx: ElroyContext, name: str, due: datetime | None) -> str:
+    reminder_orchestrator = build_reminder_orchestrator(ctx)
+    return reminder_orchestrator.do_create_due_item(name, due)
 
-# Function signatures become cleaner
-@inject
-def process_message(
-    msg: str,
-    llm_service: LlmService = Depends(),
-    memory_service: MemoryService = Depends()
-) -> Iterator[BaseModel]:
-    # Implementation uses injected services
+def do_create_due_item(reminder_orchestrator: ReminderOrchestrator, name: str, due: datetime | None) -> str:
+    return reminder_orchestrator.do_create_due_item(name, due)
 ```
+
+This is not a commitment to introduce a DI container. The current direction is to prefer explicit construction and narrow dependencies over framework-heavy injection unless the repo develops a concrete need for it.
 
 ## Migration Guidelines
 
 ### For Developers
 
-**Current (Phase 1)**: Both patterns work
+**Current**: Both patterns work
 ```python
 # New structured approach (preferred)
 database_url = ctx.database_config.database_url
@@ -171,18 +167,16 @@ max_tokens = ctx.max_tokens
 show_thought = ctx.show_internal_thought
 ```
 
-**Future (Phase 2)**: Function signatures will change
+**When narrowing dependencies**: Prefer explicit role objects for code that does not need the whole context
 ```python
-# Current
+# Broad context dependency
 def my_function(ctx: ElroyContext) -> Result:
-    return process_with_llm(ctx.llm, ctx.memory_service, ...)
+    memory_store = build_memory_store(ctx)
+    return use_memory_store(memory_store)
 
-# Future  
-def my_function(
-    llm_service: LlmService,
-    memory_service: MemoryService
-) -> Result:
-    return process_with_llm(llm_service, memory_service, ...)
+# Narrow explicit dependency
+def my_function(memory_store: MemoryStore) -> Result:
+    return use_memory_store(memory_store)
 ```
 
 ### Testing Benefits
@@ -199,15 +193,15 @@ def test_model_config():
     assert config.max_tokens == 2000
 ```
 
-**Future Phases**: Can mock individual services
+**Current follow-on work**: Can mock individual role objects
 ```python
 def test_message_processing():
-    mock_llm = Mock(spec=LlmService)
-    mock_memory = Mock(spec=MemoryService) 
+    mock_memory_store = Mock(spec=MemoryStore)
+    mock_recall_indexer = Mock(spec=RecallIndexer)
     
-    result = process_message("Hello", mock_llm, mock_memory)
+    result = process_message("Hello", mock_memory_store, mock_recall_indexer)
     
-    mock_llm.generate_completion.assert_called_once()
+    mock_recall_indexer.activate_memory.assert_called_once()
 ```
 
 ## Implementation Status
@@ -218,15 +212,16 @@ def test_message_processing():
   - Maintained full backward compatibility
   - All tests passing
 
-- 🔄 **Phase 2**: Service layer extraction (Planned)
-  - Extract services from ElroyContext
-  - Update function signatures to use services
-  - Maintain ElroyContext as facade during transition
+- ✅ **Phase 2**: Role-based repository extraction (Completed)
+  - Replaced generic service-style names with `Store`, `Orchestrator`, `Indexer`, and `Builder`
+  - Added explicit factories for role construction from `ElroyContext`
+  - Removed repository `operations.py` facades after migrating callers
+  - Updated internal and test imports to target role-specific modules directly
 
-- 📅 **Phase 3**: Dependency injection (Future)
-  - Implement DI container
-  - Clean up remaining context passing
-  - Full separation of concerns achieved
+- 🔄 **Phase 3**: Dependency narrowing (Optional ongoing work)
+  - Reduce broad `ElroyContext` function dependencies where beneficial
+  - Prefer passing explicit role objects into leaf functions and tests
+  - Keep construction simple and local unless stronger abstraction pressure emerges
 
 ## Files Changed
 
@@ -235,22 +230,22 @@ def test_message_processing():
 - `elroy/core/ctx.py` - Updated to use config objects
 - Tests verified functionality preserved
 
-### Future Phases
-- Service classes in `elroy/services/`
-- Function signature updates across codebase
-- DI container setup
+### Phase 2 / 3
+- Repository role modules under `elroy/repository/**`
+- Factory helpers that build role objects from `ElroyContext`
+- Continued function signature narrowing where whole-context access is unnecessary
 
 ## Functional Programming Considerations
 
 This refactoring respects the codebase's functional programming preferences:
 
 1. **Immutable Config Objects**: Dataclasses are immutable by default
-2. **Composition over Inheritance**: Services compose config objects
-3. **Pure Functions**: Services can be designed as pure functions
+2. **Composition over Inheritance**: Role objects compose focused collaborators
+3. **Pure Functions**: Builders and many query helpers can stay pure or read-only
 4. **Partial Application**: Can use `functools.partial` to reduce parameter passing
 
 ```python
-# Functional approach with services
+# Functional approach with explicit dependencies
 from functools import partial
 
 # Create specialized functions
@@ -260,6 +255,6 @@ get_user_memories = partial(get_memories, user_id=user_id)
 
 ## Conclusion
 
-This refactoring maintains the functional programming style while providing better organization and separation of concerns. The phased approach ensures no breaking changes while progressively improving the codebase architecture.
+This refactoring maintains the functional programming style while providing better organization and separation of concerns. The completed migration replaced generic service abstractions with role-specific components and removed the temporary facade layer once callers were updated.
 
-Each phase provides immediate benefits while preparing for the next level of improvement, ultimately resulting in a more maintainable, testable, and understandable codebase.
+The remaining work is narrower: continue reducing `ElroyContext` usage only where explicit role dependencies materially improve ownership, testability, or readability.
