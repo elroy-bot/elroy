@@ -5,6 +5,7 @@ from typing import Any, cast
 from sqlmodel import select
 from toolz import first
 
+from ...core.db import require_db_session
 from ...db.db_models import ContextMessageSet
 from ...db.db_session import DbSession
 from .data_models import ContextMessage
@@ -61,8 +62,8 @@ def get_or_create_context_message_set(db: DbSession, user_id: int) -> ContextMes
 
 
 def get_context_messages(ctx: Any) -> Iterable[ContextMessage]:
-    return ContextMessageReadStore(ctx.db, ctx.user_id).get_context_messages()
+    return ContextMessageReadStore(require_db_session(ctx), ctx.user_id).get_context_messages()
 
 
 def get_current_system_instruct(ctx: Any) -> ContextMessage | None:
-    return ContextMessageReadStore(ctx.db, ctx.user_id).get_current_system_instruct()
+    return ContextMessageReadStore(require_db_session(ctx), ctx.user_id).get_current_system_instruct()

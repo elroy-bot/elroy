@@ -9,5 +9,9 @@ def build_reminder_orchestrator(ctx: ElroyContext) -> ReminderOrchestrator:
         ctx=ctx,
         create_task_fn=task_orchestrator.create_task,
         complete_task_fn=task_orchestrator.complete_task,
-        delete_task_fn=task_orchestrator.delete_task,
+        delete_task_fn=lambda item_name, closing_comment: task_orchestrator.delete_task(
+            item_name,
+            closing_comment,
+            delete_file=True,
+        ),
     )

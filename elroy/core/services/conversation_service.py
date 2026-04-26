@@ -9,10 +9,11 @@ from toolz import pipe
 
 from ...core.constants import ASSISTANT, SYSTEM, TOOL, USER
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...core.latency import LatencyTracker
 from ...core.logging import get_logger
 from ...db.db_models import FunctionCall
-from ...llm.stream_parser import AssistantInternalThought, AssistantResponse, CodeBlock, StatusUpdate
+from ...llm.stream_parser import AssistantInternalThought, AssistantResponse, AssistantToolResult, CodeBlock, StatusUpdate
 from ...messenger.tools import exec_function_call
 from ...repository.context_messages.data_models import ContextMessage
 from ...repository.context_messages.factory import (
@@ -66,7 +67,7 @@ class ConversationOrchestrator:
         new_msgs: list[ContextMessage],
     ) -> Iterator[BaseModel]:
         assistant_name = get_assistant_name(self.ctx)
-        user_preferred_name = do_get_user_preferred_name(self.ctx.db.session, self.ctx.user_id)
+        user_preferred_name = do_get_user_preferred_name(require_db_session(self.ctx).session, self.ctx.user_id)
 
         if self.ctx.memory_config.memory_recall_classifier_enabled:
             yield StatusUpdate(content="classifying recall...")
@@ -157,7 +158,11 @@ class ConversationOrchestrator:
                                 ContextMessage(
                                     role=TOOL,
                                     tool_call_id=stream_chunk.id,
-                                    content=str(tool_call_result),
+                                    content=(
+                                        tool_call_result.model_dump_json()
+                                        if isinstance(tool_call_result, BaseModel) and not isinstance(tool_call_result, AssistantToolResult)
+                                        else str(tool_call_result)
+                                    ),
                                     chat_model=self.ctx.chat_model.name,
                                 )
                             )

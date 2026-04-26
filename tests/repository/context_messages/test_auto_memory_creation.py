@@ -3,6 +3,7 @@ from sqlmodel import select
 
 from elroy.core.constants import ASSISTANT, USER
 from elroy.core.ctx import ElroyContext
+from elroy.core.db import require_db_session
 from elroy.db.db_models import MemoryOperationTracker
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
@@ -40,15 +41,16 @@ def test_memory_creation_trigger(mem_op_ctx: ElroyContext, dummy_msgs: list[Cont
     2. When the counter exceeds the threshold, memory creation is triggered
     """
     # Get the current tracker state
-    tracker = mem_op_ctx.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == mem_op_ctx.user_id)).one_or_none()
+    db_session = require_db_session(mem_op_ctx)
+    tracker = db_session.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == mem_op_ctx.user_id)).one_or_none()
 
     if not tracker:
-        tracker = mem_op_ctx.db.persist(MemoryOperationTracker(user_id=mem_op_ctx.user_id, messages_since_memory=0))
+        tracker = db_session.persist(MemoryOperationTracker(user_id=mem_op_ctx.user_id, messages_since_memory=0))
     else:
         tracker.messages_since_memory = 0
-        mem_op_ctx.db.add(tracker)
-        mem_op_ctx.db.commit()
-        mem_op_ctx.db.refresh(tracker)
+        db_session.add(tracker)
+        db_session.commit()
+        db_session.refresh(tracker)
 
     memory_ct = len(get_active_memories(mem_op_ctx))
     context_refresh_orchestrator = build_context_refresh_orchestrator(mem_op_ctx)

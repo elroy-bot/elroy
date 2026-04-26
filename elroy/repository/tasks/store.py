@@ -74,6 +74,40 @@ class TaskStore:
             )
         )
 
+    def get_task_by_name(self, task_name: str) -> AgendaItem | None:
+        return get_task_by_name_for_service(self.db, self.user_id, task_name)
+
+    def get_active_tasks(self) -> list[AgendaItem]:
+        return list(
+            self.db.exec(
+                select(AgendaItem)
+                .where(
+                    AgendaItem.user_id == self.user_id,
+                    cast(Any, AgendaItem.is_active),
+                    AgendaItem.status == "created",
+                )
+                .order_by(AgendaItem.created_at)  # type: ignore[arg-type]
+            ).all()
+        )
+
+    def get_task_by_file_path(self, path: Path) -> AgendaItem | None:
+        return self.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == self.user_id)).first()
+
+    def get_active_agenda_titles(self) -> list[str]:
+        return sorted(
+            [
+                item.name
+                for item in self.db.exec(
+                    select(AgendaItem).where(
+                        AgendaItem.user_id == self.user_id,
+                        cast(Any, AgendaItem.is_active),
+                        AgendaItem.trigger_datetime.is_(None),  # type: ignore[union-attr]
+                        AgendaItem.trigger_context.is_(None),  # type: ignore[union-attr]
+                    )
+                ).all()
+            ]
+        )
+
     def complete_task(self, task_name: str, closing_comment: str | None = None) -> AgendaItem:
         task = get_task_by_name_for_service(self.db, self.user_id, task_name)
         if not task:
@@ -130,7 +164,12 @@ class TaskStore:
 
 def get_task_by_name_for_service(db: DbSession, user_id: int, task_name: str) -> AgendaItem | None:
     return db.exec(
-        select(AgendaItem).where(AgendaItem.user_id == user_id, AgendaItem.name == task_name, cast(Any, AgendaItem.is_active))
+        select(AgendaItem).where(
+            AgendaItem.user_id == user_id,
+            AgendaItem.name == task_name,
+            cast(Any, AgendaItem.is_active),
+            AgendaItem.status == "created",
+        )
     ).first()
 
 

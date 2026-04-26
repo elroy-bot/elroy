@@ -2,6 +2,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
+from elroy.core.db import require_db_session
 from elroy.db.db_models import AgendaItem
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.queries import get_context_messages
@@ -26,12 +27,16 @@ def test_reminder_relevance(george_ctx):
 
 
 def test_reminder_in_context(george_ctx):
-    reminder = george_ctx.db.exec(
-        select(AgendaItem).where(
-            AgendaItem.user_id == george_ctx.user_id,
-            AgendaItem.name == BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
+    reminder = (
+        require_db_session(george_ctx)
+        .exec(
+            select(AgendaItem).where(
+                AgendaItem.user_id == george_ctx.user_id,
+                AgendaItem.name == BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
+            )
         )
-    ).one_or_none()
+        .one_or_none()
+    )
     assert reminder
 
     process_test_message(george_ctx, "I'm off to go play basketball!")

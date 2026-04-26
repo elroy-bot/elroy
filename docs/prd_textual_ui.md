@@ -70,7 +70,7 @@ The memory panel collapses (M to toggle), the status footer collapses (S to togg
 - LLM stream runs as a Textual `worker` (background task on the asyncio loop)
 - Each yielded token is posted to the app via `call_from_thread` or `post_message`
 - The conversation pane appends each token without clearing previous content
-- While streaming: input bar is disabled, spinner shows in footer
+- While streaming: input bar stays editable for drafting, spinner shows in footer, and submit is blocked until the current task finishes
 - Ctrl-C during stream: cancels the worker, rolls back DB, re-enables input
 
 ### Memory panel updates
@@ -102,12 +102,14 @@ The memory panel collapses (M to toggle), the status footer collapses (S to togg
 ## Implementation scope
 
 ### New
-- `elroy/io/textual_app.py` — `ElroyApp(App)`, layout, key bindings, workers
-- `elroy/io/widgets/` — `ConversationPane`, `MemoryPanel`, `StatusFooter`, `SystemStatusModal`
+- `elroy/ui/app.py` — `ElroyApp(App)`, layout, key bindings, workers
+- `elroy/ui/widgets.py` — `ConversationPane`, `SidebarPanel`, `StatusBar`
+- `elroy/ui/state.py` — browse/focus/worker state models
+- `elroy/ui/session.py`, `sidebar.py`, `status.py`, `command_flow.py` — UI controllers
 
 ### Adapted
 - `RichFormatter` — kept as-is; its Rich renderables work inside `RichLog`
-- `ElroyIO` — `TextualIO` subclass replaces `CliIO`; implements same interface (`print`, `print_stream`, `prompt_user`, `info`, `warning`)
+- `ElroyIO` — `TextualIO` in `elroy/ui/output.py` replaces `CliIO`; implements same interface (`print`, `print_stream`, `prompt_user`, `info`, `warning`)
 - `chat.py` `handle_chat` — thin wrapper that launches `ElroyApp` instead of the `while True` prompt loop
 
 ### Unchanged

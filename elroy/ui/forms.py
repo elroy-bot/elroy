@@ -10,10 +10,10 @@ from textual.screen import ModalScreen
 from textual.validation import Function
 from textual.widgets import Button, Input, Label
 
-from .textual_commands import ToolCommandSpec
+from .commands import ToolCommandSpec
 
 if TYPE_CHECKING:
-    from .textual_app import ElroyApp
+    from .app import ElroyApp
 
 
 class CommandFormScreen(ModalScreen[dict[str, str] | None]):

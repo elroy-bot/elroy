@@ -4,6 +4,7 @@ from sqlmodel import select
 
 from ..core.constants import USER
 from ..core.ctx import ElroyContext
+from ..core.db import require_db_session
 from ..db.db_models import Message
 from ..repository.context_messages.factory import build_context_refresh_orchestrator
 from ..repository.user.queries import do_get_user_preferred_name
@@ -12,7 +13,8 @@ from ..utils.utils import datetime_to_string
 
 
 def get_session_context(ctx: ElroyContext) -> str:
-    preferred_name = do_get_user_preferred_name(ctx.db.session, ctx.user_id)
+    db_session = require_db_session(ctx)
+    preferred_name = do_get_user_preferred_name(db_session.session, ctx.user_id)
 
     if preferred_name == "Unknown":
         preferred_name = "User (preferred name unknown)"
@@ -25,7 +27,7 @@ def get_session_context(ctx: ElroyContext) -> str:
     # Convert to UTC for database comparison
     today_start_utc = today_start.astimezone(UTC)
 
-    earliest_today_msg = ctx.db.exec(
+    earliest_today_msg = db_session.exec(
         select(Message)
         .where(Message.user_id == ctx.user_id)
         .where(Message.role == USER)

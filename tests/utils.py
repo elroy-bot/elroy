@@ -13,6 +13,7 @@ from toolz.curried import map
 
 from elroy.core.constants import ASSISTANT, USER, InvalidForceToolError, RecoverableToolError
 from elroy.core.ctx import ElroyContext
+from elroy.core.db import require_db_session
 from elroy.db.db_models import AgendaItem, EmbeddableSqlModel
 from elroy.io.base import ElroyIO
 from elroy.io.formatters.base import ElroyPrintable
@@ -119,9 +120,9 @@ class MockLlmClient:
         del ctx
         embedding = _hash_embedding(text)
         if hasattr(self.ctx, "db"):
-            embedding_queries = getattr(self.ctx.db, "_test_embedding_queries", {})
+            embedding_queries = getattr(require_db_session(self.ctx), "_test_embedding_queries", {})
             embedding_queries[tuple(embedding)] = text
-            cast(Any, self.ctx.db)._test_embedding_queries = embedding_queries
+            cast(Any, require_db_session(self.ctx))._test_embedding_queries = embedding_queries
         return embedding
 
 
@@ -368,7 +369,7 @@ def vector_search_by_text(ctx: ElroyContext, query: str, table: type[EmbeddableS
     if table is AgendaItem:
         candidates = get_active_due_items(ctx)
     else:
-        candidates = list(ctx.db.exec(select(table).where(table.user_id == ctx.user_id)).all())
+        candidates = list(require_db_session(ctx).exec(select(table).where(table.user_id == ctx.user_id)).all())
     ranked = sorted(
         candidates,
         key=lambda item: _match_score(query, item.to_fact()),

@@ -1,11 +1,12 @@
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ..recall.factory import build_recall_context_bridge, build_recall_indexer
 from .store import TaskStore
 from .task_mutation_orchestrator import TaskMutationOrchestrator
 
 
 def build_task_store(ctx: ElroyContext) -> TaskStore:
-    return TaskStore(ctx.db, ctx.user_id)
+    return TaskStore(require_db_session(ctx), ctx.user_id)
 
 
 def build_task_mutation_orchestrator(ctx: ElroyContext) -> TaskMutationOrchestrator:

@@ -9,6 +9,7 @@ from toolz import pipe
 from toolz.curried import map, take
 
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...core.logging import get_logger
 from ...db.db_models import Memory
 from ...io.base import ElroyIO
@@ -159,8 +160,9 @@ def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None
 
     # TODO: Optimize this to batch load in single query (currently N+1)
     # Challenge: pgvector deserialization issues with some DB configurations
+    db_session = require_db_session(ctx)
     for memory in memories:
-        embedding = ctx.db.get_embedding(memory)
+        embedding = db_session.get_embedding(memory)
         if embedding is not None:
             embeddings.append(embedding)
             valid_memories.append(memory)

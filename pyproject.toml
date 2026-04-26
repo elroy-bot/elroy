@@ -58,7 +58,7 @@ docs = [
 ]
 
 [project.scripts]
-elroy = "elroy.io.textual_app:main"
+elroy = "elroy.ui.app:main"
 
 [tool.ruff]
 line-length = 140

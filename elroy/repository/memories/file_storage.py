@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...core.logging import get_logger
 from ...db.db_models import Memory
 from ..file_utils import (
@@ -79,11 +80,12 @@ def migrate_memories_to_files(ctx: ElroyContext) -> int:
     from sqlmodel import select
 
     memory_dir = ctx.memory_dir_path
+    db_session = require_db_session(ctx)
 
     existing_paths: set[str] = {str(p) for p in memory_dir.glob("*.md")}
 
     memories = list(
-        ctx.db.exec(
+        db_session.exec(
             select(Memory).where(
                 Memory.user_id == ctx.user_id,
                 cast(Any, Memory.is_active),
@@ -111,13 +113,13 @@ def migrate_memories_to_files(ctx: ElroyContext) -> int:
             path = write_memory_file(memory_dir, memory, text, existing_paths)
             existing_paths.add(str(path))
             memory.file_path = str(path)
-            ctx.db.add(memory)
+            db_session.add(memory)
             count += 1
         except Exception as e:
             logger.error(f"Failed to migrate memory {memory.id} to file: {e}", exc_info=True)
 
     if count:
-        ctx.db.commit()
+        db_session.commit()
         logger.info(f"Migrated {count} memories to files in {memory_dir}")
 
     return count

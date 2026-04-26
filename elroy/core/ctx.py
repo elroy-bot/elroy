@@ -359,13 +359,12 @@ class ElroyContext:
         from ..repository.user.queries import get_user_id_if_exists
         from ..repository.user.store import create_user_id
 
-        return get_user_id_if_exists(self.db, self.runtime_config.user_token) or create_user_id(self.db, self.runtime_config.user_token)
-
-    @property
-    def db(self) -> DbSession:
-        if not self._db:
+        db_session = self._db
+        if db_session is None:
             raise ValueError("No db session open")
-        return self._db
+        return get_user_id_if_exists(db_session, self.runtime_config.user_token) or create_user_id(
+            db_session, self.runtime_config.user_token
+        )
 
     @cached_property
     def db_manager(self) -> DbManager:

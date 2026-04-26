@@ -1,5 +1,6 @@
 from ...core.async_tasks import schedule_task
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...db.db_models import MemoryOperationTracker
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.factory import build_context_message_read_store
@@ -20,21 +21,21 @@ from .summarizer import MemorySummarizer, MemorySummarizerMetadataProviders
 
 def build_memory_store(ctx: ElroyContext) -> MemoryStore:
     return MemoryStore(
-        db=ctx.db,
+        db=require_db_session(ctx),
         user_id=ctx.user_id,
         config=MemoryStoreConfig(memory_dir_path=ctx.memory_dir_path),
     )
 
 
 def build_memory_read_store(ctx: ElroyContext) -> MemoryReadStore:
-    return MemoryReadStore(ctx.db, ctx.user_id)
+    return MemoryReadStore(require_db_session(ctx), ctx.user_id)
 
 
 def build_memory_summarizer(ctx: ElroyContext) -> MemorySummarizer:
     return MemorySummarizer(
         fast_llm=ctx.fast_llm,
         metadata_providers=MemorySummarizerMetadataProviders(
-            get_user_preferred_name_fn=lambda: do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+            get_user_preferred_name_fn=lambda: do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id),
             get_assistant_name_fn=lambda: get_assistant_name(ctx),
         ),
     )
@@ -46,7 +47,7 @@ def build_memory_recall_builder() -> MemoryRecallBuilder:
 
 def build_memory_recall_orchestrator(ctx: ElroyContext) -> MemoryRecallOrchestrator:
     return MemoryRecallOrchestrator(
-        db=ctx.db,
+        db=require_db_session(ctx),
         user_id=ctx.user_id,
         memory_config=ctx.memory_config,
         llm=ctx.llm,
