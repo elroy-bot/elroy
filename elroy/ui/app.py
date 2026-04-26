@@ -4,48 +4,56 @@ from __future__ import annotations
 
 import re
 import sys
-from collections.abc import Callable, Iterable, Iterator
-from datetime import timedelta
-from pathlib import Path
-from typing import ClassVar, cast
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
+from typing import ClassVar, Literal
 
 from rich.text import Text
 from textual import events, work
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.message import Message
 from textual.screen import ModalScreen
-from textual.widgets import ContentSwitcher, Footer, Label, ListItem, ListView, RichLog, Static, Tab, Tabs, TextArea
-from textual.worker import Worker, WorkerState, get_current_worker
+from textual.widgets import Footer, Label, RichLog, TextArea
+from textual.worker import Worker, get_current_worker
 
 from .. import __version__
-from ..config.paths import get_prompt_history_path
 from ..core.constants import ASSISTANT, EXIT, SYSTEM, TOOL, USER, RecoverableToolError
 from ..core.ctx import ElroyContext
+from ..core.db import require_db_session
 from ..core.logging import get_logger
-from ..core.services.sidebar_service import AgendaPresenter, ModalSpec, SidebarEntry, SidebarState
+from ..core.services.sidebar_service import DetailModalSpec, SidebarEntry, SidebarState
 from ..io.base import ElroyIO
 from ..io.formatters.rich_formatter import RichFormatter
-from ..io.textual_commands import (
+from ..io.prompt_history import PromptHistoryStore
+from ..llm.stream_parser import AssistantToolResult
+from .command_flow import CommandFlowController
+from .commands import (
     ToolCommandProvider,
     ToolCommandSpec,
-    build_initial_values,
-    build_tool_command_specs,
-    can_execute_from_values,
-    execute_tool_command,
-    parse_slash_command,
 )
-from ..io.textual_forms import CommandFormScreen
-from ..io.textual_io import TextualIO
+from .forms import CommandFormScreen
+from .output import TextualIO
+from .session import SessionController
+from .sidebar import SidebarController
+from .state import AppKeyAction, BrowseAction, BrowseState
+from .status import StatusController
+from .widgets import ConversationPane, SidebarListView, SidebarPanel, StatusBar
 
 logger = get_logger()
 
 
-class MemoryDetailModal(ModalScreen):
-    """Shows the full content of a single in-context memory."""
+@dataclass(frozen=True)
+class DetailModalResult:
+    action: Literal["delete", "complete"]
+
+
+class DetailModal(ModalScreen):
+    """Shows the full content of a selected sidebar entry."""
 
     DEFAULT_CSS = """
-    MemoryDetailModal {
+    DetailModal {
         align: center middle;
     }
     #memory-detail-container {
@@ -82,14 +90,14 @@ class MemoryDetailModal(ModalScreen):
         self,
         title: str,
         content: str,
-        on_delete: Callable[[], None] | None = None,
-        on_complete: Callable[[], None] | None = None,
+        can_delete: bool = False,
+        can_complete: bool = False,
     ):
         super().__init__()
         self._memory_title = title
         self._memory_content = content
-        self._on_delete = on_delete
-        self._on_complete = on_complete
+        self._can_delete = can_delete
+        self._can_complete = can_complete
         self._confirming_delete = False
 
     def compose(self) -> ComposeResult:
@@ -102,19 +110,17 @@ class MemoryDetailModal(ModalScreen):
         self.query_one("#memory-detail-log", RichLog).write(self._memory_content)
 
     def on_key(self, event: events.Key) -> None:
-        if event.key == "d" and self._on_delete:
+        if event.key == "d" and self._can_delete:
             if self._confirming_delete:
-                self._on_delete()
-                self.dismiss()
+                self.dismiss(DetailModalResult(action="delete"))
             else:
                 self._confirming_delete = True
                 footer = self.query_one("#memory-detail-footer", Label)
                 footer.update("Press D again to confirm deletion, any other key to cancel")
                 footer.add_class("confirm")
             event.stop()
-        elif event.key == "c" and self._on_complete:
-            self._on_complete()
-            self.dismiss()
+        elif event.key == "c" and self._can_complete:
+            self.dismiss(DetailModalResult(action="complete"))
             event.stop()
         elif self._confirming_delete:
             self._confirming_delete = False
@@ -124,26 +130,50 @@ class MemoryDetailModal(ModalScreen):
 
     def _build_footer_text(self) -> str:
         actions: list[str] = []
-        if self._on_complete:
+        if self._can_complete:
             actions.append("C: complete")
-        if self._on_delete:
+        if self._can_delete:
             actions.append("D: delete")
         actions.append("Escape/Enter/Q: close")
         return "  |  ".join(actions)
 
 
-class SidebarListView(ListView):
-    """List view with keyboard navigation delegated to the app."""
-
-
 class ChatInput(TextArea):
     """Wrapped chat composer that keeps messages single-paragraph on submit."""
 
+    class SubmitRequested(Message):
+        pass
+
+    class HistoryPreviousRequested(Message):
+        pass
+
+    class HistoryNextRequested(Message):
+        pass
+
+    class CompletionRequested(Message):
+        pass
+
+    class CommandPaletteRequested(Message):
+        pass
+
+    class FocusMemoriesRequested(Message):
+        pass
+
+    class FocusAgendaRequested(Message):
+        pass
+
+    class BrowseToggleRequested(Message):
+        pass
+
     BINDINGS: ClassVar[list[Binding]] = [
         Binding("enter", "submit", "Send", show=False, priority=True),
+        Binding("up", "history_previous", "Previous History", show=False, priority=True),
+        Binding("down", "history_next", "Next History", show=False, priority=True),
+        Binding("tab", "complete_input", "Complete", show=False, priority=True),
         Binding("ctrl+p", "command_palette", "Commands", show=False, priority=True),
         Binding("ctrl+m", "focus_memories", "Memories", priority=True),
         Binding("ctrl+a", "focus_agenda", "Agenda", priority=True),
+        Binding("escape", "toggle_browse", "Browse", show=False, priority=True),
     ]
 
     @staticmethod
@@ -162,6 +192,10 @@ class ChatInput(TextArea):
         self.load_text(text)
         self.move_cursor((0, len(self.text)))
 
+    def resize_to_content(self) -> None:
+        content_height = max(1, self.virtual_size.height)
+        self.styles.height = max(3, min(8, content_height + 2))
+
     async def _on_paste(self, event: events.Paste) -> None:
         text = self._normalize_paste_text(event.text)
         if text:
@@ -176,21 +210,29 @@ class ChatInput(TextArea):
         result = self.replace(clipboard, start, end)
         self.move_cursor(result.end_location)
 
-    @property
-    def elroy_app(self) -> ElroyApp:
-        return cast("ElroyApp", self.app)
-
     def action_submit(self) -> None:
-        self.elroy_app._submit_chat_input()
+        self.post_message(self.SubmitRequested())
+
+    def action_history_previous(self) -> None:
+        self.post_message(self.HistoryPreviousRequested())
+
+    def action_history_next(self) -> None:
+        self.post_message(self.HistoryNextRequested())
+
+    def action_complete_input(self) -> None:
+        self.post_message(self.CompletionRequested())
 
     def action_command_palette(self) -> None:
-        self.elroy_app.action_command_palette()
+        self.post_message(self.CommandPaletteRequested())
 
     def action_focus_memories(self) -> None:
-        self.elroy_app.action_focus_memories()
+        self.post_message(self.FocusMemoriesRequested())
 
     def action_focus_agenda(self) -> None:
-        self.elroy_app.action_focus_agenda()
+        self.post_message(self.FocusAgendaRequested())
+
+    def action_toggle_browse(self) -> None:
+        self.post_message(self.BrowseToggleRequested())
 
 
 class ElroyApp(App):
@@ -293,7 +335,6 @@ class ElroyApp(App):
         Binding("ctrl+c", "cancel_stream", "Cancel Stream", show=False),
         Binding("ctrl+m", "focus_memories", "Memories"),
         Binding("ctrl+a", "focus_agenda", "Agenda"),
-        Binding("escape", "toggle_browse", "Browse", show=False),
         Binding("m", "focus_memories", "Memories", show=False),
         Binding("g", "focus_agenda", "Agenda", show=False),
     ]
@@ -310,29 +351,47 @@ class ElroyApp(App):
         self.formatter = formatter
         self.enable_greeting = enable_greeting
         self.io: ElroyIO = TextualIO(self, formatter, show_internal_thought)
-        self.tool_command_specs = build_tool_command_specs(ctx)
+        self.command_flow = CommandFlowController(ctx)
+        self.sidebar_controller = SidebarController(ctx)
+        self.session_controller = SessionController(ctx)
+        self.prompt_history = PromptHistoryStore()
         self._streaming_buffer = ""
         self._streaming_style = ""
         self._thought_buffer = ""
-        self._memory_panel_visible = True
-        self._browse_mode = False
-        self._browse_target = "sidebar"
+        self._browse_state = BrowseState(self.SIDEBAR_SECTIONS)
         self._panel_entries: dict[str, list[SidebarEntry]] = {buffer_name: [] for buffer_name in self.SIDEBAR_SECTIONS}
-        self._panel_indices: dict[str, int | None] = dict.fromkeys(self.SIDEBAR_SECTIONS)
         self._input_history: list[str] = []
         self._history_index = -1
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-        self._spinner_index = 0
+        self.status_controller = StatusController(self._spinner_chars)
         self._spinner_handle = None
-        self._status_message = ""
         self._bg_status_handle = None
         self._chat_suggestions: list[str] = []
-        self._active_worker_groups: set[str] = set()
-        self._load_input_history()
+        self._input_history = self.prompt_history.load()
+
+    @property
+    def _browse_mode(self) -> bool:
+        return self._browse_state.is_browsing
+
+    @property
+    def _browse_target(self) -> str:
+        return self._browse_state.target
+
+    @property
+    def _panel_indices(self) -> dict[str, int | None]:
+        return self._browse_state.panel_indices
+
+    @property
+    def _active_worker_groups(self) -> set[str]:
+        return self.status_controller.active_groups
 
     @property
     def chat_suggestions(self) -> list[str]:
         return self._chat_suggestions
+
+    @property
+    def tool_command_specs(self) -> list[ToolCommandSpec]:
+        return self.command_flow.tool_command_specs
 
     def get_system_commands(self, screen) -> Iterable[SystemCommand]:
         yield from super().get_system_commands(screen)
@@ -348,51 +407,27 @@ class ElroyApp(App):
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         _ = parameters
         if action == "cancel_stream":
-            return "chat-stream" in self._active_worker_groups
+            return "chat-stream" in self.status_controller.active_groups
         return None
 
     # ── history ──────────────────────────────────────────────────────────────
 
-    def _load_input_history(self) -> None:
-        try:
-            p = Path(get_prompt_history_path())
-            if p.exists():
-                lines = p.read_text().splitlines()
-                self._input_history = [ln[1:] for ln in reversed(lines) if ln.startswith("+")]
-        except Exception:
-            pass
-
-    def _save_to_history(self, text: str) -> None:
-        try:
-            with Path(get_prompt_history_path()).open("a") as f:
-                f.write(f"+{text}\n")
-            self._input_history.insert(0, text)
-        except Exception:
-            pass
+    def _remember_prompt(self, text: str) -> None:
+        self.prompt_history.append(text)
+        self._input_history.insert(0, text)
 
     # ── layout ───────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="conversation-container"):
-            with Vertical(id="left-panel"):
-                yield RichLog(id="history-log", wrap=True, highlight=False, markup=False)
-                yield Static("", id="streaming-output")
-            with Vertical(id="memory-panel"):
-                yield Tabs(
-                    Tab("Memories", id="memories-tab"),
-                    Tab("Agenda", id="agenda-tab"),
-                    active="memories-tab",
-                    id="sidebar-tabs",
-                )
-                with ContentSwitcher(initial="memories-list", id="sidebar-switcher"):
-                    yield SidebarListView(id="memories-list", classes="panel-list")
-                    yield SidebarListView(id="agenda-list", classes="panel-list")
+            yield ConversationPane(id="left-panel")
+            yield SidebarPanel(id="memory-panel")
         yield ChatInput(placeholder="> ", id="chat-input")
-        yield Label("", id="status-bar")
+        yield StatusBar("", id="status-bar")
         yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one("#chat-input", ChatInput).focus()
+        self._chat_input().focus()
         self.call_after_refresh(self._resize_chat_input)
 
         from ..repository.user.queries import get_assistant_name
@@ -405,19 +440,21 @@ class ElroyApp(App):
     # ── commands ─────────────────────────────────────────────────────────────
 
     def get_tool_command_spec(self, name: str) -> ToolCommandSpec | None:
-        return next((spec for spec in self.tool_command_specs if spec.name == name), None)
+        return self.command_flow.get_tool_command_spec(name)
 
     def launch_tool_command(self, name: str, initial_values: dict[str, str] | None = None, source: str = "palette") -> None:
-        spec = self.get_tool_command_spec(name)
-        if spec is None:
+        request = self.command_flow.resolve_launch_request(name, initial_values=initial_values, source=source)
+        if request is None:
             self._emit_error(f"Invalid command: {name}")
             return
-        if spec.is_zero_arg and not initial_values:
-            self._execute_tool_command(name, {}, source)
+        if request.execute_immediately:
+            self._execute_tool_command(request.spec.name, request.initial_values, request.source)
             return
         self.push_screen(
-            CommandFormScreen(spec, initial_values),
-            lambda values, spec_name=name, source_name=source: self._handle_command_form_result(spec_name, source_name, values),
+            CommandFormScreen(request.spec, request.initial_values),
+            lambda values, spec_name=request.spec.name, source_name=request.source: self._handle_command_form_result(
+                spec_name, source_name, values
+            ),
         )
 
     def _handle_command_form_result(self, name: str, source: str, values: dict[str, str] | None) -> None:
@@ -426,18 +463,17 @@ class ElroyApp(App):
         self._execute_tool_command(name, values, source)
 
     def _handle_slash_command(self, text: str) -> bool:
-        command_name, raw_values = parse_slash_command(text)
-        if not command_name:
+        request, invalid_name = self.command_flow.resolve_slash_command(text)
+        if request is None and invalid_name is None:
             return True
-        spec = self.get_tool_command_spec(command_name)
-        if spec is None:
-            self._emit_error(f"Invalid command: {command_name}. Open the command palette or use /help for available commands.")
+        if invalid_name is not None:
+            self._emit_error(f"Invalid command: {invalid_name}. Open the command palette or use /help for available commands.")
             return True
-        initial_values = build_initial_values(spec, raw_values)
-        if spec.is_zero_arg or can_execute_from_values(spec, raw_values):
-            self._execute_tool_command(spec.name, initial_values, "slash")
+        assert request is not None
+        if request.execute_immediately:
+            self._execute_tool_command(request.spec.name, request.initial_values, request.source)
         else:
-            self.launch_tool_command(spec.name, initial_values=initial_values, source="slash")
+            self.launch_tool_command(request.spec.name, initial_values=request.initial_values, source=request.source)
         return True
 
     @work(thread=True, group="command-action", exclusive=True, exit_on_error=False)
@@ -447,10 +483,9 @@ class ElroyApp(App):
             self.call_from_thread(self._emit_error, f"Invalid command: {name}")
             return
 
-        self.call_from_thread(self._set_input_disabled, True)
         self.call_from_thread(self._set_status_message, f"running /{spec.name}")
         try:
-            result = execute_tool_command(spec, self.ctx, values)
+            result = self.session_controller.run_tool_command(spec, values)
             if isinstance(result, Iterator):
                 self._run_stream(result)
             elif result is not None:
@@ -458,7 +493,6 @@ class ElroyApp(App):
         except RecoverableToolError as exc:
             self.call_from_thread(self._emit_error, str(exc))
         finally:
-            self.call_from_thread(self._set_input_disabled, False)
             self.call_from_thread(self._refresh_sidebar_state)
             self.call_from_thread(self._schedule_context_refresh)
 
@@ -473,53 +507,69 @@ class ElroyApp(App):
 
     # ── memory panel ─────────────────────────────────────────────────────────
 
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        section = self._section_for_list(event.list_view)
-        if section is None or event.index is None:
-            return
-        self._panel_indices[section] = event.index
-        self._browse_target = "sidebar"
-        self._open_panel_entry(section, event.index)
+    def on_sidebar_panel_entry_selected(self, message: SidebarPanel.EntrySelected) -> None:
+        self._browse_state.remember_selection(message.section, message.index)
+        self._browse_state.focus_sidebar()
+        self._open_panel_entry(message.section, message.index)
         self._render_browse_state()
 
-    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
-        section = self._section_for_list(event.list_view)
-        if section is None:
-            return
-        self._panel_indices[section] = event.list_view.index
-        self._browse_target = "sidebar"
+    def on_sidebar_panel_entry_highlighted(self, message: SidebarPanel.EntryHighlighted) -> None:
+        self._browse_state.remember_selection(message.section, message.index)
+        self._browse_state.focus_sidebar()
         self._render_browse_state()
 
-    def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
-        section = self._section_for_tab_id(event.tab.id or "")
-        if section is None:
-            return
-        self.query_one("#sidebar-switcher", ContentSwitcher).current = self._list_id(section)
-        self.call_after_refresh(self._ensure_panel_index, section)
+    def on_sidebar_panel_section_changed(self, message: SidebarPanel.SectionChanged) -> None:
+        self._apply_sidebar_selection(message.section)
         if self._browse_mode and self._browse_target == "sidebar":
-            self._current_sidebar_list().focus()
+            self._sidebar_panel().focus_current_list()
         self._render_browse_state()
+
+    def on_chat_input_submit_requested(self, _: ChatInput.SubmitRequested) -> None:
+        self._submit_chat_input()
+
+    def on_chat_input_history_previous_requested(self, _: ChatInput.HistoryPreviousRequested) -> None:
+        input_widget = self._chat_input()
+        if self._input_history and self._history_index < len(self._input_history) - 1:
+            self._history_index += 1
+            input_widget.value = self._input_history[self._history_index]
+
+    def on_chat_input_history_next_requested(self, _: ChatInput.HistoryNextRequested) -> None:
+        input_widget = self._chat_input()
+        if self._history_index > 0:
+            self._history_index -= 1
+            input_widget.value = self._input_history[self._history_index]
+        elif self._history_index == 0:
+            self._history_index = -1
+            input_widget.value = ""
+
+    def on_chat_input_completion_requested(self, _: ChatInput.CompletionRequested) -> None:
+        self._accept_input_completion()
+
+    def on_chat_input_command_palette_requested(self, _: ChatInput.CommandPaletteRequested) -> None:
+        self.action_command_palette()
+
+    def on_chat_input_focus_memories_requested(self, _: ChatInput.FocusMemoriesRequested) -> None:
+        self.action_focus_memories()
+
+    def on_chat_input_focus_agenda_requested(self, _: ChatInput.FocusAgendaRequested) -> None:
+        self.action_focus_agenda()
+
+    def on_chat_input_browse_toggle_requested(self, _: ChatInput.BrowseToggleRequested) -> None:
+        self.action_toggle_browse()
 
     # ── session init ─────────────────────────────────────────────────────────
 
     @work(thread=True, group="session-bootstrap", exclusive=True, exit_on_error=False)
     def _start_session(self) -> None:
-        from ..cli.chat import get_session_context
-        from ..messenger.messenger import process_message
-        from ..repository.context_messages.factory import build_context_message_read_store, build_context_refresh_orchestrator
-        from ..repository.context_messages.tools import to_synthetic_tool_call
-        from ..repository.context_messages.transforms import get_time_since_most_recent_user_message
-        from ..repository.context_messages.validations import Validator
+        bootstrap_data = self.session_controller.load_bootstrap_data(self.enable_greeting)
+        self.call_from_thread(
+            self._render_existing_context_messages,
+            bootstrap_data.context_messages,
+            bootstrap_data.bootstrap_tool_call_ids,
+        )
 
-        context_refresh_orchestrator = build_context_refresh_orchestrator(self.ctx)
-        context_refresh_orchestrator.add_context_messages(to_synthetic_tool_call("get_session_context", get_session_context(self.ctx)))
-        context_messages = list(Validator(self.ctx, build_context_message_read_store(self.ctx).get_context_messages()).validated_msgs())
-        self.call_from_thread(self._render_existing_context_messages, context_messages)
-
-        if self.enable_greeting and (
-            (get_time_since_most_recent_user_message(context_messages) or timedelta()) >= self.ctx.min_convo_age_for_greeting
-        ):
-            self._run_stream(process_message(role=USER, ctx=self.ctx, msg="<Empty user response>", enable_tools=False))
+        if bootstrap_data.should_greet:
+            self._run_stream(self.session_controller.greeting_stream())
 
         self.call_from_thread(self._refresh_sidebar_state)
 
@@ -530,7 +580,6 @@ class ElroyApp(App):
         from ..llm.stream_parser import StatusUpdate
 
         worker = get_current_worker()
-        self.call_from_thread(self._set_input_disabled, True)
         self.call_from_thread(self._start_spinner)
         try:
             for item in stream:
@@ -544,19 +593,18 @@ class ElroyApp(App):
             self.call_from_thread(self._flush_thought_buffer)
             self.call_from_thread(self._flush_streaming_buffer)
             self.call_from_thread(self._stop_spinner)
-            self.call_from_thread(self._set_input_disabled, False)
 
     def _append_streaming_token(self, token: str, style: str) -> None:
         self._streaming_buffer += token
         self._streaming_style = style
-        self.query_one("#streaming-output", Static).update(Text(self._streaming_buffer, style=style))
+        self._conversation_pane().set_streaming_text(self._streaming_buffer, style)
 
     def _flush_streaming_buffer(self) -> None:
         if self._streaming_buffer:
             self._write_to_history(Text(self._streaming_buffer, style=self._streaming_style))
             self._streaming_buffer = ""
             self._streaming_style = ""
-        self.query_one("#streaming-output", Static).update("")
+        self._conversation_pane().clear_streaming()
 
     def _append_thought_token(self, token: str) -> None:
         self._thought_buffer += token
@@ -568,17 +616,9 @@ class ElroyApp(App):
             self._thought_buffer = ""
 
     def _write_to_history(self, renderable) -> None:
-        self.query_one("#history-log", RichLog).write(renderable)
+        self._conversation_pane().write_history(renderable)
 
-    def _render_existing_context_messages(self, context_messages: list) -> None:
-        bootstrap_tool_call_ids = {
-            tool_call.id
-            for message in context_messages
-            if message.role == ASSISTANT and message.tool_calls
-            for tool_call in message.tool_calls
-            if tool_call.function.get("name") == "get_session_context"
-        }
-
+    def _render_existing_context_messages(self, context_messages: list, bootstrap_tool_call_ids: set[str]) -> None:
         for message in context_messages:
             if message.role == SYSTEM:
                 continue
@@ -598,17 +638,11 @@ class ElroyApp(App):
             elif message.role == ASSISTANT:
                 renderable = Text(message.content, style=self.formatter.assistant_message_color)
             elif message.role == TOOL:
-                renderable = Text(message.content, style=self.formatter.system_message_color)
+                renderable = next(self.formatter.format(AssistantToolResult(content=message.content, is_error=False)))
             else:
                 renderable = Text(message.content, style=self.formatter.system_message_color)
 
             self._write_to_history(renderable)
-
-    def _set_input_disabled(self, disabled: bool) -> None:
-        input_widget = self.query_one("#chat-input", ChatInput)
-        input_widget.disabled = disabled
-        if not disabled:
-            self._focus_chat_input()
 
     # ── input handling ────────────────────────────────────────────────────────
 
@@ -617,14 +651,17 @@ class ElroyApp(App):
             self.call_after_refresh(self._resize_chat_input)
 
     def _submit_chat_input(self) -> None:
-        text = self.query_one("#chat-input", ChatInput).value.strip()
+        text = self._chat_input().value.strip()
         if not text:
             return
+        if self._submit_blocked():
+            self._emit_error("Wait for the current task to finish before sending another message.")
+            return
 
-        self.query_one("#chat-input", ChatInput).value = ""
+        self._chat_input().value = ""
         self._resize_chat_input()
 
-        self._save_to_history(text)
+        self._remember_prompt(text)
         self._history_index = -1
 
         if text.lower() in (EXIT, f"/{EXIT}"):
@@ -639,59 +676,41 @@ class ElroyApp(App):
         msg = re.sub(r"^/ask\s*", "", text).strip() if text.lower().startswith("/ask") else text
         self._process_chat_message(msg)
 
+    def _submit_blocked(self) -> bool:
+        return self.status_controller.is_submit_blocked()
+
     def on_key(self, event: events.Key) -> None:
-        input_widget = self.query_one("#chat-input", ChatInput)
-        history_log = self.query_one("#history-log", RichLog)
+        input_widget = self._chat_input()
         if self.screen is not self.screen_stack[0]:
             return
 
-        if event.key == "ctrl+d":
-            self.exit()
+        app_action = self._browse_state.app_action_for_key(event.key)
+        if app_action is not None:
+            self._perform_app_key_action(app_action)
             event.prevent_default()
             event.stop()
             return
-        if event.key == "ctrl+c":
-            self.action_cancel_stream()
-            event.prevent_default()
-            event.stop()
-            return
-        if event.key == "ctrl+m":
-            self.action_focus_memories()
-            event.prevent_default()
-            event.stop()
-            return
-        if event.key == "ctrl+a":
-            self.action_focus_agenda()
-            event.prevent_default()
-            event.stop()
-            return
-        if event.key == "escape":
-            self._toggle_mode()
-            event.prevent_default()
-            event.stop()
-            return
-
         if self._browse_mode:
-            handled = self._handle_browse_key(event, history_log)
+            handled = self._handle_browse_key(event.key)
             if handled:
+                event.prevent_default()
+                event.stop()
                 return
-        elif input_widget.has_focus:
-            handled = self._handle_chat_key(event, input_widget)
-            if handled:
-                return
-
         current_sidebar = self._current_sidebar_list()
-        if not input_widget.has_focus and not history_log.has_focus and not current_sidebar.has_focus:
-            self._focus_chat_input()
+        recovery_target = self._browse_state.recovery_focus_target(
+            chat_has_focus=input_widget.has_focus,
+            history_has_focus=self._conversation_pane().history_has_focus(),
+            sidebar_has_focus=current_sidebar.has_focus,
+        )
+        if recovery_target is not None:
+            self._focus_target(recovery_target)
             event.prevent_default()
 
     @work(thread=True, group="chat-stream", exclusive=True, exit_on_error=False)
     def _process_chat_message(self, text: str) -> None:
-        from ..messenger.messenger import process_message
-
         self.call_from_thread(self._set_status_message, "thinking...")
         try:
-            self._run_stream(process_message(role=USER, ctx=self.ctx, msg=text))
+            self._run_stream(self.session_controller.chat_stream(text))
         except Exception as exc:
             self.call_from_thread(self._emit_error, str(exc))
             logger.exception("Error processing chat input")
@@ -705,11 +724,13 @@ class ElroyApp(App):
         if "chat-stream" in self._active_worker_groups:
             self.workers.cancel_group(self, "chat-stream")
             self._flush_streaming_buffer()
-            self._set_input_disabled(False)
-            self.ctx.db.rollback()
+            require_db_session(self.ctx).rollback()
 
     def action_toggle_browse(self) -> None:
-        self._toggle_mode()
+        if self._browse_mode:
+            self._focus_chat_input()
+            return
+        self._switch_sidebar_section(self.current_sidebar_section, focus_sidebar=True)
 
     def action_toggle_memory(self) -> None:
         self.action_focus_memories()
@@ -728,7 +749,7 @@ class ElroyApp(App):
     @work(thread=True, group="sidebar-refresh", exclusive=True, exit_on_error=False)
     def _fetch_sidebar_state(self) -> None:
         try:
-            state = AgendaPresenter(self.ctx).build_sidebar_state()
+            state = self.sidebar_controller.build_state()
             self.call_from_thread(self._apply_sidebar_state, state)
         except Exception:
             logger.debug("Failed to refresh sidebar state", exc_info=True)
@@ -740,10 +761,8 @@ class ElroyApp(App):
 
     @work(thread=True, group="deferred-context-refresh", exclusive=True, exit_on_error=False)
     def _deferred_context_refresh(self) -> None:
-        from ..repository.context_messages.factory import build_context_refresh_orchestrator
-
         try:
-            build_context_refresh_orchestrator(self.ctx).refresh_context_if_needed()
+            self.session_controller.refresh_context_if_needed()
         except Exception:
             logger.debug("Deferred context refresh failed", exc_info=True)
 
@@ -754,37 +773,34 @@ class ElroyApp(App):
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         group = getattr(event.worker, "group", "default")
-        if group not in {"session-bootstrap", "chat-stream", "sidebar-refresh", "command-action", "deferred-context-refresh"}:
+        if not self.status_controller.should_track_group(group):
             return
-
-        if event.state == WorkerState.RUNNING:
-            self._active_worker_groups.add(group)
-            if group == "sidebar-refresh":
-                self._set_status_message("refreshing sidebar")
-            elif group == "command-action":
-                self._set_status_message("running command")
-            self._render_status_bar()
-            return
-
-        self._active_worker_groups.discard(group)
-        if event.state == WorkerState.ERROR and event.worker.error:
-            self._emit_error(str(event.worker.error))
-        elif event.state == WorkerState.CANCELLED and group == "chat-stream":
+        transition = self.status_controller.handle_worker_state_changed(
+            group,
+            event.state,
+            str(event.worker.error) if event.worker.error else None,
+        )
+        if transition.status_message is not None:
+            self.status_controller.set_status_message(transition.status_message)
+        if transition.error_message is not None:
+            self._emit_error(transition.error_message)
+        elif transition.notify_cancelled:
             self.notify("Chat stream cancelled")
-        self._render_status_bar()
+        if transition.should_render:
+            self._render_status_bar()
 
     def _start_spinner(self) -> None:
-        self._spinner_index = 0
+        self.status_controller.reset_spinner()
         if self._spinner_handle:
             self._spinner_handle.stop()
         self._spinner_handle = self.set_interval(0.08, self._tick_spinner)
 
     def _tick_spinner(self) -> None:
-        self._spinner_index = (self._spinner_index + 1) % len(self._spinner_chars)
+        self.status_controller.advance_spinner()
         self._render_status_bar()
 
     def _set_status_message(self, message: str) -> None:
-        self._status_message = message
+        self.status_controller.set_status_message(message)
         self._render_status_bar()
 
     def _stop_spinner(self) -> None:
@@ -794,7 +810,7 @@ class ElroyApp(App):
         self._render_status_bar()
 
     def _tick_background_status(self) -> None:
-        if "chat-stream" not in self._active_worker_groups:
+        if self.status_controller.should_render_background_status():
             self._render_status_bar()
 
     def _emit_error(self, message: str) -> None:
@@ -803,168 +819,124 @@ class ElroyApp(App):
 
     # ── focus / browse helpers ───────────────────────────────────────────────
 
-    def _handle_chat_key(self, event: events.Key, input_widget: ChatInput) -> bool:
-        if event.key == "enter":
-            self._submit_chat_input()
-            event.prevent_default()
-            event.stop()
-            return True
-
-        if event.key == "up":
-            if self._input_history and self._history_index < len(self._input_history) - 1:
-                self._history_index += 1
-                input_widget.value = self._input_history[self._history_index]
-            event.prevent_default()
-            event.stop()
-            return True
-
-        if event.key == "down":
-            if self._history_index > 0:
-                self._history_index -= 1
-                input_widget.value = self._input_history[self._history_index]
-            elif self._history_index == 0:
-                self._history_index = -1
-                input_widget.value = ""
-            event.prevent_default()
-            event.stop()
-            return True
-
-        if event.key == "tab":
-            self._accept_input_completion()
-            event.prevent_default()
-            event.stop()
-            return True
-
-        return False
-
-    def _handle_browse_key(self, event: events.Key, history_log: RichLog) -> bool:
-        if event.key in {"j", "down"}:
-            if self._browse_target == "history":
-                history_log.scroll_down(animate=False, immediate=True)
-            else:
-                self._move_sidebar_selection(1)
-        elif event.key in {"k", "up"}:
-            if self._browse_target == "history":
-                history_log.scroll_up(animate=False, immediate=True)
-            else:
-                self._move_sidebar_selection(-1)
-        elif event.key == "tab":
-            self._cycle_browse_target()
-        elif event.key == "m":
-            self._switch_sidebar_section("memories")
-        elif event.key == "g":
-            self._switch_sidebar_section("agenda")
-        elif event.key == "enter":
-            if self._browse_target == "sidebar":
-                list_widget = self._current_sidebar_list()
-                index = list_widget.index
-                if index is not None:
-                    self._open_panel_entry(self.current_sidebar_section, index)
-        elif event.key in {"escape", "i", "a"}:
-            self._focus_chat_input()
-        else:
+    def _handle_browse_key(self, key: str) -> bool:
+        action = self._browse_state.browse_action_for_key(key, self.current_sidebar_section, self._current_sidebar_list().index)
+        if action is None:
             return False
-
-        event.prevent_default()
-        event.stop()
+        self._perform_browse_action(action)
         return True
 
-    def _toggle_mode(self) -> None:
-        if self._browse_mode:
+    def _perform_browse_action(self, action: BrowseAction) -> None:
+        history_log = self.query_one("#history-log", RichLog)
+        if action.kind == "move":
+            if self._browse_target == "history":
+                if action.delta > 0:
+                    history_log.scroll_down(animate=False, immediate=True)
+                else:
+                    history_log.scroll_up(animate=False, immediate=True)
+            else:
+                self._move_sidebar_selection(action.delta)
+            return
+        if action.kind == "cycle":
+            self._cycle_browse_target()
+            return
+        if action.kind == "switch_section" and action.section is not None:
+            self._switch_sidebar_section(action.section)
+            return
+        if action.kind == "open":
+            index = self._current_sidebar_list().index
+            if index is not None:
+                self._open_panel_entry(self.current_sidebar_section, index)
+            return
+        if action.kind == "focus_chat":
             self._focus_chat_input()
-        else:
-            self._focus_browse_target()
+
+    def _perform_app_key_action(self, action: AppKeyAction) -> None:
+        if action.kind == "quit":
+            self.exit()
+            return
+        if action.kind == "cancel_stream":
+            self.action_cancel_stream()
+            return
+        if action.kind == "focus_memories":
+            self.action_focus_memories()
+            return
+        if action.kind == "focus_agenda":
+            self.action_focus_agenda()
+            return
+        if action.kind == "toggle_browse":
+            self.action_toggle_browse()
 
     @property
     def current_sidebar_section(self) -> str:
-        active = self.query_one("#sidebar-tabs", Tabs).active or "memories-tab"
-        return self._section_for_tab_id(active) or "memories"
+        return self._sidebar_panel().current_section
 
     def _focus_chat_input(self) -> None:
-        self._browse_mode = False
-        self.query_one("#chat-input", ChatInput).focus()
+        self._browse_state.focus_chat()
+        self._chat_input().focus()
         self._render_browse_state()
 
     def _resize_chat_input(self) -> None:
-        input_widget = self.query_one("#chat-input", ChatInput)
-        content_height = max(1, input_widget.virtual_size.height)
-        input_widget.styles.height = max(3, min(8, content_height + 2))
+        self._chat_input().resize_to_content()
 
     def _focus_browse_target(self) -> None:
-        self._browse_mode = True
-        if self._browse_target == "history":
-            self.query_one("#history-log", RichLog).focus()
-        else:
-            self._current_sidebar_list().focus()
-            self._ensure_panel_index(self.current_sidebar_section)
+        if not self._browse_mode:
+            self._browse_state.focus_sidebar()
+        self._focus_target(self._browse_state.focus_target())
+        self._render_browse_state()
+
+    def _focus_target(self, target: str) -> None:
+        if target == "chat":
+            self._focus_chat_input()
+            return
+        if target == "history":
+            self._conversation_pane().focus_history()
+            self._render_browse_state()
+            return
+        self._sidebar_panel().focus_current_list()
+        self._apply_sidebar_selection(self.current_sidebar_section)
         self._render_browse_state()
 
     def _cycle_browse_target(self) -> None:
-        self._browse_target = "history" if self._browse_target == "sidebar" else "sidebar"
+        self._browse_state.cycle_target()
         self._focus_browse_target()
 
     def _render_sidebar_lists(self) -> None:
-        for section in self.SIDEBAR_SECTIONS:
-            list_view = self._sidebar_list(section)
-            list_view.clear()
-            entries = self._panel_entries[section]
-            list_view.extend([ListItem(Label(entry.title), name=entry.lookup_key) for entry in entries])
-            self.call_after_refresh(self._ensure_panel_index, section)
+        selected_indices = {section: self._resolved_sidebar_index(section) for section in self.SIDEBAR_SECTIONS}
+        self._sidebar_panel().render_entries(self._panel_entries, selected_indices)
         self._render_browse_state()
 
-    def _ensure_panel_index(self, section: str) -> None:
-        list_view = self._sidebar_list(section)
+    def _resolved_sidebar_index(self, section: str) -> int | None:
         entries = self._panel_entries[section]
         if not entries:
-            self._panel_indices[section] = None
-            list_view.index = None
-            return
+            self._browse_state.remember_selection(section, None)
+            return None
+        return self._browse_state.clamp_index(section, len(entries))
 
-        saved_index = self._panel_indices[section]
-        if saved_index is None:
-            saved_index = 0
-        saved_index = max(0, min(saved_index, len(entries) - 1))
-        self._panel_indices[section] = saved_index
-        list_view.index = saved_index
-        self._sync_sidebar_highlight(section, saved_index)
+    def _apply_sidebar_selection(self, section: str) -> None:
+        self._sidebar_panel().apply_selection(section, self._resolved_sidebar_index(section))
 
     def _move_sidebar_selection(self, delta: int) -> None:
         section = self.current_sidebar_section
-        list_view = self._sidebar_list(section)
         entries = self._panel_entries[section]
         if not entries:
-            self._panel_indices[section] = None
-            list_view.index = None
+            self._browse_state.remember_selection(section, None)
+            self._sidebar_panel().apply_selection(section, None)
             return
 
-        current_index = self._panel_indices[section]
-        if current_index is None:
-            current_index = list_view.index if list_view.index is not None else 0
-
-        next_index = max(0, min(current_index + delta, len(entries) - 1))
-        self._panel_indices[section] = next_index
-        list_view.index = next_index
-        self._sync_sidebar_highlight(section, next_index)
-
-    def _sync_sidebar_highlight(self, section: str, active_index: int | None) -> None:
-        list_view = self._sidebar_list(section)
-        items = [child for child in list_view.children if isinstance(child, ListItem)]
-        for index, item in enumerate(items):
-            item.highlighted = active_index is not None and index == active_index
+        next_index = self._browse_state.move_selection(section, len(entries), delta, self._sidebar_panel().current_index(section))
+        assert next_index is not None
+        self._sidebar_panel().apply_selection(section, next_index)
 
     def _switch_sidebar_section(self, section: str, focus_sidebar: bool = False) -> None:
         if section not in self._panel_entries:
             return
-        self.query_one("#sidebar-tabs", Tabs).active = self._tab_id(section)
-        self.query_one("#sidebar-switcher", ContentSwitcher).current = self._list_id(section)
-        self._ensure_panel_index(section)
-        if focus_sidebar:
-            self._browse_mode = True
-            self._browse_target = "sidebar"
-            self._current_sidebar_list().focus()
-        elif self._browse_mode:
-            self._browse_target = "sidebar"
-            self._current_sidebar_list().focus()
+        self._sidebar_panel().switch_section(section)
+        self._apply_sidebar_selection(section)
+        if focus_sidebar or self._browse_mode:
+            self._browse_state.focus_sidebar()
+            self._sidebar_panel().focus_current_list()
+            self._apply_sidebar_selection(section)
         self._render_browse_state()
 
     def _open_panel_entry(self, section: str, index: int) -> None:
@@ -973,19 +945,28 @@ class ElroyApp(App):
             return
 
         entry = entries[index]
-        presenter = AgendaPresenter(self.ctx)
-        if section == "memories":
-            modal = presenter.build_memory_modal(entry, self._refresh_sidebar_state)
-            if modal is None:
-                return
-        else:
-            modal = presenter.build_agenda_modal(entry, self._refresh_sidebar_state)
+        modal = self.sidebar_controller.build_detail_modal(entry)
+        if modal is None:
+            return
 
-        assert isinstance(modal, ModalSpec)
-        self.push_screen(MemoryDetailModal(modal.title, modal.content, on_delete=modal.on_delete, on_complete=modal.on_complete))
+        self.push_screen(
+            DetailModal(
+                modal.title,
+                modal.content,
+                can_delete=modal.can_delete,
+                can_complete=modal.can_complete,
+            ),
+            lambda result, modal_spec=modal: self._handle_detail_modal_result(modal_spec, result),
+        )
+
+    def _handle_detail_modal_result(self, modal: DetailModalSpec, result: DetailModalResult | None) -> None:
+        if result is None:
+            return
+        if self.sidebar_controller.apply_modal_result(modal, result.action):
+            self._refresh_sidebar_state()
 
     def _accept_input_completion(self) -> None:
-        input_widget = self.query_one("#chat-input", ChatInput)
+        input_widget = self._chat_input()
         if input_widget.cursor_location[1] != len(input_widget.value):
             return
 
@@ -1001,54 +982,36 @@ class ElroyApp(App):
             input_widget.value = match
 
     def _render_browse_state(self) -> None:
-        left_panel = self.query_one("#left-panel", Vertical)
         history_active = self._browse_mode and self._browse_target == "history"
-        left_panel.set_class(history_active, "active")
-        for section in self.SIDEBAR_SECTIONS:
-            sidebar = self._sidebar_list(section)
-            sidebar_active = self._browse_mode and self._browse_target == "sidebar" and self.current_sidebar_section == section
-            sidebar.set_class(sidebar_active, "active")
+        self._conversation_pane().set_history_active(history_active)
+        active_sidebar_section = self.current_sidebar_section if self._browse_mode and self._browse_target == "sidebar" else None
+        self._sidebar_panel().set_browse_active(active_sidebar_section)
         self._render_status_bar()
 
     def _render_status_bar(self) -> None:
-        import contextlib
+        try:
+            self.query_one("#status-bar", StatusBar).status_text = self._build_status_text()
+        except Exception:
+            logger.debug("Failed to render status bar", exc_info=True)
 
+    def _build_status_text(self) -> str:
         from ..core.status import get_background_status
 
-        try:
-            model_name = self.ctx.chat_model.name
-        except Exception:
-            return
-
-        if "chat-stream" in self._active_worker_groups:
-            prefix = f"{self._spinner_chars[self._spinner_index]} {self._status_message or 'thinking...'}"
-        elif self._active_worker_groups:
-            active = ", ".join(sorted(self._active_worker_groups))
-            prefix = f"● {model_name}  ⟳ {active}"
-        else:
-            bg = get_background_status()
-            prefix = f"● {model_name}  ⟳ {bg}" if bg else f"● {model_name}"
-
-        with contextlib.suppress(Exception):
-            self.query_one("#status-bar", Label).update(prefix)
-
-    def _section_for_list(self, list_view: ListView) -> str | None:
-        return {self._list_id(section): section for section in self.SIDEBAR_SECTIONS}.get(list_view.id or "")
-
-    def _section_for_tab_id(self, tab_id: str) -> str | None:
-        return {self._tab_id(section): section for section in self.SIDEBAR_SECTIONS}.get(tab_id)
-
-    def _tab_id(self, section: str) -> str:
-        return f"{section}-tab"
-
-    def _list_id(self, section: str) -> str:
-        return f"{section}-list"
-
-    def _sidebar_list(self, section: str) -> SidebarListView:
-        return self.query_one(f"#{self._list_id(section)}", SidebarListView)
+        model_name = self.ctx.chat_model.name
+        bg = get_background_status()
+        return self.status_controller.status_text(model_name, bg)
 
     def _current_sidebar_list(self) -> SidebarListView:
-        return self._sidebar_list(self.current_sidebar_section)
+        return self._sidebar_panel().current_list_view()
+
+    def _sidebar_panel(self) -> SidebarPanel:
+        return self.query_one("#memory-panel", SidebarPanel)
+
+    def _conversation_pane(self) -> ConversationPane:
+        return self.query_one("#left-panel", ConversationPane)
+
+    def _chat_input(self) -> ChatInput:
+        return self.query_one("#chat-input", ChatInput)
 
 
 def make_app(**overrides) -> ElroyApp:

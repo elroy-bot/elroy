@@ -1,4 +1,5 @@
 from elroy.core.ctx import ElroyContext
+from elroy.core.db import require_db_session
 from elroy.repository.context_messages.tools import reset_messages
 from elroy.repository.user.queries import do_get_user_preferred_name
 from elroy.repository.user.tools import (
@@ -16,7 +17,7 @@ def test_update_user_preferred_name(ctx: ElroyContext):
         "Please call me TestUser500 from now on.",
     )
 
-    assert do_get_user_preferred_name(ctx.db.session, ctx.user_id) == "TestUser500"
+    assert do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id) == "TestUser500"
 
 
 def test_update_persona(ctx):

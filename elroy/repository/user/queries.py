@@ -6,6 +6,7 @@ from ...core.constants import (
     USER_ALIAS_STRING,
 )
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...db.db_models import User
 from ...db.db_session import DbSession
 from .store import UserPreferenceStore, do_get_or_create_user_preference
@@ -14,7 +15,7 @@ from .store import UserPreferenceStore, do_get_or_create_user_preference
 def get_assistant_name(ctx: ElroyContext) -> str:
     if not ctx.user_id:
         return ctx.default_assistant_name
-    user_preference = UserPreferenceStore(ctx.db, ctx.user_id).get_or_create_user_preference()
+    user_preference = UserPreferenceStore(require_db_session(ctx), ctx.user_id).get_or_create_user_preference()
     if user_preference.assistant_name:
         return user_preference.assistant_name
     return ctx.default_assistant_name
@@ -34,7 +35,7 @@ def get_persona(ctx: ElroyContext):
         str: The text of the persona.
 
     """
-    user_preference = UserPreferenceStore(ctx.db, ctx.user_id).get_or_create_user_preference()
+    user_preference = UserPreferenceStore(require_db_session(ctx), ctx.user_id).get_or_create_user_preference()
     raw_persona = user_preference.system_persona or ctx.default_persona or ""
 
     user_noun = user_preference.preferred_name or "my user"

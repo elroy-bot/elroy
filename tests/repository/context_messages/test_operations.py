@@ -8,6 +8,7 @@ from sqlmodel import delete, select
 
 from elroy.core.constants import USER
 from elroy.core.ctx import ElroyContext
+from elroy.core.db import require_db_session
 from elroy.db.db_models import ContextMessageSet
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_message_store, build_context_refresh_orchestrator
@@ -78,10 +79,11 @@ def test_add_context_messages(george_ctx: ElroyContext):
 
 
 def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: ElroyContext, monkeypatch: pytest.MonkeyPatch):
-    ctx.db.exec(delete(ContextMessageSet).where(cast(Any, ContextMessageSet.user_id) == ctx.user_id))
-    ctx.db.commit()
+    db_session = require_db_session(ctx)
+    db_session.exec(delete(ContextMessageSet).where(cast(Any, ContextMessageSet.user_id) == ctx.user_id))
+    db_session.commit()
 
-    real_commit = ctx.db.session.commit
+    real_commit = db_session.session.commit
     attempts = 0
 
     def flaky_commit():
@@ -91,14 +93,14 @@ def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: Elr
             raise IntegrityError("insert into contextmessageset", {}, Exception("simulated create failure"))
         return real_commit()
 
-    monkeypatch.setattr(ctx.db.session, "commit", flaky_commit)
+    monkeypatch.setattr(db_session.session, "commit", flaky_commit)
 
-    context_message_set = get_or_create_context_message_set(ctx.db, ctx.user_id)
+    context_message_set = get_or_create_context_message_set(db_session, ctx.user_id)
     assert context_message_set.id is not None
     assert list(get_context_messages(ctx)) == []
 
     active_contexts = list(
-        ctx.db.exec(
+        db_session.exec(
             select(ContextMessageSet).where(
                 ContextMessageSet.user_id == ctx.user_id,
                 cast(Any, ContextMessageSet.is_active).is_(True),
@@ -106,4 +108,4 @@ def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: Elr
         ).all()
     )
     assert len(active_contexts) == 1
-    assert get_or_create_context_message_set(ctx.db, ctx.user_id).id == context_message_set.id
+    assert get_or_create_context_message_set(db_session, ctx.user_id).id == context_message_set.id

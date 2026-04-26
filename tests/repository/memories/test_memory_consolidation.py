@@ -4,6 +4,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter, map
 
+from elroy.core.db import require_db_session
 from elroy.db.db_models import Memory, MemoryOperationTracker
 from elroy.repository.memories.consolidation import (
     MemoryCluster,
@@ -50,7 +51,8 @@ def test_trigger(ctx):
 
     assert len(get_active_memories(ctx)) == 1
     assert (
-        ctx.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == ctx.user_id))
+        require_db_session(ctx)
+        .exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == ctx.user_id))
         .first()
         .memories_since_consolidation
         == 0
@@ -60,5 +62,5 @@ def test_trigger(ctx):
 def get_cluster(ctx, memories: list[Memory]) -> MemoryCluster:
     return MemoryCluster(
         memories=memories,
-        embeddings=[ctx.db.get_embedding(memory) for memory in memories],  # type: ignore
+        embeddings=[require_db_session(ctx).get_embedding(memory) for memory in memories],  # type: ignore
     )

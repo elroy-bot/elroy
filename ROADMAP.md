@@ -14,12 +14,12 @@ This document tracks planned improvements and features for Elroy.
 
 ### Textual TUI (current)
 
-The TUI is implemented in `elroy/io/textual_app.py` using the [Textual](https://textual.textualize.io/) framework.
+The TUI is implemented under `elroy/ui/` using the [Textual](https://textual.textualize.io/) framework.
 
 #### Layout
-- **Left panel**: scrolling `RichLog` (history) + `Static` streaming buffer below
+- **Left panel**: `ConversationPane` with scrolling `RichLog` history + live streaming buffer
 - **Right panel**: context sidebar, 36 columns wide
-- **Input bar**: full-width `Input` widget with slash-command autocomplete and up/down history
+- **Input bar**: full-width `ChatInput` (`TextArea`) with slash-command completion and up/down history
 - **Status bar**: model name or "⏳ streaming..." indicator
 
 #### Color Differentiation (required — must be preserved)
@@ -45,6 +45,12 @@ They can be hidden via `--no-show-internal-thought` or `show_internal_thought: f
 - `AssistantResponse` tokens accumulate in `_streaming_buffer` (shown live in `Static#streaming-output`)
 - On stream end, the buffer is flushed as a single `Text` object to `RichLog#history-log`
 - All other message types write directly to `RichLog` via `RichFormatter.format()`
+
+#### Package structure
+- `elroy/ui/app.py` — app shell and top-level wiring
+- `elroy/ui/widgets.py` — Textual widgets such as `ConversationPane`, `SidebarPanel`, and `StatusBar`
+- `elroy/ui/state.py` — pure UI decision/state models
+- `elroy/ui/session.py`, `sidebar.py`, `status.py`, `command_flow.py` — UI-side controllers
 
 ## Completed
 

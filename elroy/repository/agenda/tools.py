@@ -1,16 +1,16 @@
 """Tools for managing daily agenda items."""
 
 from datetime import date
+from pathlib import Path
 
 from rich.table import Table
-from sqlmodel import col, select
 
 from ...config.paths import get_agenda_dir
 from ...core.constants import RecoverableToolError, tool, user_only_tool
 from ...core.ctx import ElroyContext
-from ...db.db_models import AgendaItem
 from ...repository.recall.factory import build_recall_indexer
-from ..tasks.factory import build_task_mutation_orchestrator
+from ..data_models import AgendaListItem, AgendaListResponse
+from ..tasks.factory import build_task_mutation_orchestrator, build_task_store
 from .file_storage import (
     add_checklist_item,
     append_agenda_update,
@@ -52,6 +52,27 @@ def _find_agenda_path(item_name: str):
         raise RecoverableToolError(str(e)) from e
 
 
+def _build_agenda_list_response(target_date: date) -> AgendaListResponse:
+    agenda_dir = get_agenda_dir()
+    items = list_agenda_items_from_dir(agenda_dir, for_date=target_date)
+
+    response_items: list[AgendaListItem] = []
+    for path, _fm, text in items:
+        main_text = text.split("\n## Updates\n", 1)[0].strip()
+        checklist = get_checklist(path)
+        completed_count = sum(1 for item in checklist if item["completed"])
+        response_items.append(
+            AgendaListItem(
+                name=path.stem,
+                text=main_text,
+                checklist_completed=completed_count,
+                checklist_total=len(checklist),
+            )
+        )
+
+    return AgendaListResponse(item_date=target_date.isoformat(), items=response_items)
+
+
 @tool
 def add_agenda_item(ctx: ElroyContext, text: str, item_date: str | None = None) -> str:
     """Add a new agenda item for a given date (defaults to today).
@@ -87,7 +108,7 @@ def complete_agenda_item(ctx: ElroyContext, item_name: str) -> str:
     path = _find_agenda_path(item_name)
     mark_completed(path)
     if ctx is not None:
-        row = ctx.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == ctx.user_id)).first()
+        row = build_task_store(ctx).get_task_by_file_path(path)
         if row:
             build_task_mutation_orchestrator(ctx).complete_task(row.name)
     return f"Agenda item '{path.stem}' marked as completed."
@@ -105,7 +126,7 @@ def delete_agenda_item(ctx: ElroyContext, item_name: str) -> str:
     """
     path = _find_agenda_path(item_name)
     if ctx is not None:
-        row = ctx.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == ctx.user_id)).first()
+        row = build_task_store(ctx).get_task_by_file_path(path)
         if row:
             build_task_mutation_orchestrator(ctx).delete_task(row.name, delete_file=True)
         else:
@@ -115,10 +136,10 @@ def delete_agenda_item(ctx: ElroyContext, item_name: str) -> str:
     return f"Agenda item '{path.stem}' deleted."
 
 
-def _reembed_agenda_item(ctx: ElroyContext, path) -> None:
+def _reembed_agenda_item(ctx: ElroyContext, path: Path) -> None:
     if ctx is None:
         return
-    row = ctx.db.exec(select(AgendaItem).where(AgendaItem.file_path == str(path), AgendaItem.user_id == ctx.user_id)).first()
+    row = build_task_store(ctx).get_task_by_file_path(path)
     if row:
         build_recall_indexer(ctx).upsert_embedding_if_needed(row)
 
@@ -205,33 +226,18 @@ def add_agenda_item_update(ctx: ElroyContext, item_name: str, note: str) -> str:
 
 
 @tool
-def list_agenda_items(ctx: ElroyContext, item_date: str | None = None) -> str:
+def list_agenda_items(ctx: ElroyContext, item_date: str | None = None) -> AgendaListResponse:
     """List agenda items for a given date (defaults to today).
 
     Args:
         item_date (str | None): ISO 8601 date string (YYYY-MM-DD). Defaults to today.
 
     Returns:
-        str: A text description of agenda items.
+        AgendaListResponse: Structured agenda items for the requested date.
     """
     _ = ctx
     target_date = _parse_iso_date(item_date)
-    agenda_dir = get_agenda_dir()
-    items = list_agenda_items_from_dir(agenda_dir, for_date=target_date)
-
-    if not items:
-        return f"No agenda items for {target_date.isoformat()}."
-
-    lines = [f"Agenda for {target_date.isoformat()}:"]
-    for path, _fm, text in items:
-        main_text = text.split("\n## Updates\n", 1)[0].strip()
-        checklist = get_checklist(path)
-        checklist_info = ""
-        if checklist:
-            completed_count = sum(1 for item in checklist if item["completed"])
-            checklist_info = f" [{completed_count}/{len(checklist)} checklist items done]"
-        lines.append(f"- {path.stem}: {main_text}{checklist_info}")
-    return "\n".join(lines)
+    return _build_agenda_list_response(target_date)
 
 
 @user_only_tool
@@ -246,11 +252,9 @@ def list_agenda_items_cmd(ctx: ElroyContext, item_date: str | None = None) -> Ta
     """
     _ = ctx
     target_date = _parse_iso_date(item_date)
+    response = _build_agenda_list_response(target_date)
 
-    agenda_dir = get_agenda_dir()
-    items = list_agenda_items_from_dir(agenda_dir, for_date=target_date)
-
-    if not items:
+    if not response.items:
         return f"No agenda items for {target_date.isoformat()}."
 
     table = Table(title=f"Agenda for {target_date.isoformat()}", show_lines=True)
@@ -258,14 +262,8 @@ def list_agenda_items_cmd(ctx: ElroyContext, item_date: str | None = None) -> Ta
     table.add_column("Text", style="green")
     table.add_column("Checklist", style="magenta")
 
-    for path, _fm, text in items:
-        main_text = text.split("\n## Updates\n", 1)[0].strip()
-        checklist = get_checklist(path)
-        checklist_progress = ""
-        if checklist:
-            completed_count = sum(1 for item in checklist if item["completed"])
-            checklist_progress = f"{completed_count}/{len(checklist)} done"
-        table.add_row(path.stem, main_text, checklist_progress)
+    for item in response.items:
+        table.add_row(item.name, item.text, item.checklist_progress)
 
     return table
 
@@ -279,16 +277,4 @@ def get_today_agenda_titles() -> list[str]:
 
 def get_active_agenda_titles(ctx: ElroyContext) -> list[str]:
     """Return active non-triggered agenda item names for command completion."""
-    return sorted(
-        [
-            item.name
-            for item in ctx.db.exec(
-                select(AgendaItem).where(
-                    AgendaItem.user_id == ctx.user_id,
-                    col(AgendaItem.is_active).is_(True),
-                    col(AgendaItem.trigger_datetime).is_(None),
-                    col(AgendaItem.trigger_context).is_(None),
-                )
-            ).all()
-        ]
-    )
+    return build_task_store(ctx).get_active_agenda_titles()

@@ -1,5 +1,6 @@
 from sqlmodel import select
 
+from elroy.core.db import require_db_session
 from elroy.db.db_models import Memory
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.memories.factory import build_memory_lifecycle_orchestrator
@@ -17,7 +18,7 @@ def test_add_to_current_context_by_name_scopes_to_current_user(ctx, db_manager, 
         use_background_threads=True,
         memory_dir=str(tmp_path / "other-memories"),
     )
-    other_ctx.set_db_session(ctx.db)
+    other_ctx.set_db_session(require_db_session(ctx))
     other_ctx.__dict__["llm"] = ctx.llm
     other_ctx.__dict__["fast_llm"] = ctx.fast_llm
 
@@ -29,7 +30,9 @@ def test_add_to_current_context_by_name_scopes_to_current_user(ctx, db_manager, 
     context_messages = list(get_context_messages(ctx))
     assert not any(is_in_context_message(other_memory, message) for message in context_messages)
 
-    current_user_memory = ctx.db.exec(select(Memory).where(Memory.user_id == ctx.user_id, Memory.name == "Shared Memory Name")).one()
+    current_user_memory = (
+        require_db_session(ctx).exec(select(Memory).where(Memory.user_id == ctx.user_id, Memory.name == "Shared Memory Name")).one()
+    )
     assert current_user_memory.id is not None
     assert any(is_in_context_message(current_user_memory, message) for message in context_messages)
 

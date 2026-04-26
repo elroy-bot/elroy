@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from elroy.core.ctx import ElroyContext
+from elroy.core.db import require_db_session
 from elroy.repository.reminders.factory import build_reminder_orchestrator
 from elroy.repository.reminders.queries import get_due_item_context_msgs
 from elroy.utils.clock import utc_now
@@ -57,7 +58,7 @@ def test_no_due_items_no_extra_context(io: MockCliIO, ctx: ElroyContext):
     )
     future_due_item.status = "completed"
     future_due_item.is_active = False
-    ctx.db.persist(future_due_item)
+    require_db_session(ctx).persist(future_due_item)
 
     context_msgs = get_due_item_context_msgs(ctx)
     assert len(context_msgs) == 0, "Context messages generated for future due item"

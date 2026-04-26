@@ -8,6 +8,7 @@ from toolz import pipe
 from toolz.curried import map, remove
 
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...core.logging import log_execution_time
 from ...db.db_models import (
     AgendaItem,
@@ -82,7 +83,7 @@ class MemoryReadStore:
 
 
 def _store(ctx: ElroyContext) -> MemoryReadStore:
-    return MemoryReadStore(ctx.db, ctx.user_id)
+    return MemoryReadStore(require_db_session(ctx), ctx.user_id)
 
 
 def _recall_builder() -> MemoryRecallBuilder:
@@ -91,7 +92,7 @@ def _recall_builder() -> MemoryRecallBuilder:
 
 def _recall_orchestrator(ctx: ElroyContext) -> MemoryRecallOrchestrator:
     return MemoryRecallOrchestrator(
-        db=ctx.db,
+        db=require_db_session(ctx),
         user_id=ctx.user_id,
         memory_config=ctx.memory_config,
         llm=ctx.llm,
@@ -165,7 +166,7 @@ def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[C
     return _recall_orchestrator(ctx).get_relevant_memory_context_msgs(
         context_messages,
         get_assistant_name(ctx),
-        do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+        do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id),
     )
 
 
@@ -180,7 +181,7 @@ def get_reflective_recall(
         context_messages,
         memories,
         get_assistant_name(ctx),
-        do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+        do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id),
     )
 
 

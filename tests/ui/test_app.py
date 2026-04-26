@@ -1,4 +1,5 @@
 from datetime import timedelta
+from threading import Event
 
 import pytest
 from rich.text import Text
@@ -8,15 +9,16 @@ from textual.command import CommandPalette
 from textual.widgets import Input, Label, ListItem, ListView, RichLog, Tabs
 
 from elroy.core.ctx import ElroyContext
-from elroy.core.services.sidebar_service import AgendaPresenter
+from elroy.core.db import require_db_session
+from elroy.core.services.sidebar_service import SidebarBuilder, SidebarEntry, SidebarEntryRef, SidebarState
 from elroy.db.db_models import AgendaItem
 from elroy.io.formatters.rich_formatter import RichFormatter
-from elroy.io.textual_app import ChatInput, ElroyApp, MemoryDetailModal
-from elroy.io.textual_forms import CommandFormScreen
 from elroy.repository.context_messages.tools import add_memory_to_current_context
 from elroy.repository.memories.tools import create_memory
 from elroy.repository.tasks.factory import build_task_mutation_orchestrator
 from elroy.repository.user.queries import get_assistant_name
+from elroy.ui.app import ChatInput, DetailModal, ElroyApp
+from elroy.ui.forms import CommandFormScreen
 from elroy.utils.clock import utc_now
 
 
@@ -30,7 +32,7 @@ class HarnessElroyApp(ElroyApp):
         self._load_sidebar_state()
 
     def _load_sidebar_state(self) -> None:
-        state = AgendaPresenter(self.ctx).build_sidebar_state()
+        state = SidebarBuilder(self.ctx).build_sidebar_state()
         self._panel_entries = {"memories": state.memories, "agenda": state.agenda}
         self._chat_suggestions = state.completions
         self._render_sidebar_lists()
@@ -102,7 +104,7 @@ async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyCo
         assert _sidebar_titles(app) == ["Travel preference"]
         assert app.query_one("#sidebar-tabs", Tabs).active == "memories-tab"
 
-        await pilot.press("escape")
+        app.action_focus_memories()
         await pilot.pause()
 
         assert app._browse_mode is True
@@ -138,7 +140,7 @@ async def test_tui_initial_memory_highlight_matches_first_selected_item(ctx: Elr
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("escape")
+        app.action_toggle_browse()
         await pilot.pause()
 
         list_view = _current_list_view(app)
@@ -209,7 +211,7 @@ async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: El
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("escape", "g")
+        app.action_focus_agenda()
         await pilot.pause()
 
         list_view = _current_list_view(app)
@@ -310,17 +312,23 @@ async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_form
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("escape", "g", "enter")
+        app.action_focus_agenda()
+        await pilot.pause()
+        await pilot.press("enter")
         await pilot.pause()
 
-        assert isinstance(app.screen, MemoryDetailModal)
+        assert isinstance(app.screen, DetailModal)
         footer = app.screen.query_one("#memory-detail-footer", Label)
         assert _label_text(footer) == "C: complete  |  Escape/Enter/Q: close"
 
         await pilot.press("c")
         await pilot.pause()
 
-        task = ctx.db.exec(select(AgendaItem).where(AgendaItem.name == "Job search").order_by(desc(AgendaItem.created_at))).first()
+        task = (
+            require_db_session(ctx)
+            .exec(select(AgendaItem).where(AgendaItem.name == "Job search").order_by(desc(AgendaItem.created_at)))
+            .first()
+        )
         assert task is not None
         assert task.status == "completed"
         assert "Job search" not in _sidebar_titles(app)
@@ -341,15 +349,17 @@ async def test_tui_open_agenda_select_item_and_mark_complete(ctx: ElroyContext, 
         await pilot.press("down", "enter")
         await pilot.pause()
 
-        assert isinstance(app.screen, MemoryDetailModal)
+        assert isinstance(app.screen, DetailModal)
         assert _label_text(app.screen.query_one("#memory-detail-title", Label)) == "Drop off parents at airport"
 
         await pilot.press("c")
         await pilot.pause()
 
-        task = ctx.db.exec(
-            select(AgendaItem).where(AgendaItem.name == "Drop off parents at airport").order_by(desc(AgendaItem.created_at))
-        ).first()
+        task = (
+            require_db_session(ctx)
+            .exec(select(AgendaItem).where(AgendaItem.name == "Drop off parents at airport").order_by(desc(AgendaItem.created_at)))
+            .first()
+        )
         assert task is not None
         assert task.status == "completed"
         assert "Drop off parents at airport" not in _sidebar_titles(app)
@@ -367,10 +377,12 @@ async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_format
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await pilot.press("escape", "g", "enter")
+        app.action_focus_agenda()
+        await pilot.pause()
+        await pilot.press("enter")
         await pilot.pause()
 
-        assert isinstance(app.screen, MemoryDetailModal)
+        assert isinstance(app.screen, DetailModal)
         footer = app.screen.query_one("#memory-detail-footer", Label)
         assert _label_text(footer) == "C: complete  |  D: delete  |  Escape/Enter/Q: close"
 
@@ -381,7 +393,11 @@ async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_format
         await pilot.press("d")
         await pilot.pause()
 
-        task = ctx.db.exec(select(AgendaItem).where(AgendaItem.name == "Pay rent").order_by(desc(AgendaItem.created_at))).first()
+        task = (
+            require_db_session(ctx)
+            .exec(select(AgendaItem).where(AgendaItem.name == "Pay rent").order_by(desc(AgendaItem.created_at)))
+            .first()
+        )
         assert task is not None
         assert task.status == "deleted"
         assert all("Pay rent" not in title for title in _sidebar_titles(app))
@@ -447,6 +463,263 @@ async def test_tui_enter_submits_chat_input(ctx: ElroyContext, rich_formatter: R
 
         assert get_assistant_name(ctx) == "Jarvis"
         assert input_widget.value == ""
+
+
+@pytest.mark.asyncio
+async def test_tui_chat_input_stays_editable_while_chat_stream_runs(
+    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started = Event()
+    release = Event()
+
+    def fake_process_message(*, role, ctx, msg, enable_tools=True):
+        del role, ctx, msg, enable_tools
+        started.set()
+        release.wait(timeout=2)
+        yield "done"
+
+    monkeypatch.setattr("elroy.messenger.messenger.process_message", fake_process_message)
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        app._process_chat_message("hello")
+
+        for _ in range(20):
+            await pilot.pause()
+            if started.is_set() and "chat-stream" in app._active_worker_groups:
+                break
+
+        assert started.is_set()
+        assert "chat-stream" in app._active_worker_groups
+
+        await pilot.press("d", "r", "a", "f", "t")
+        await pilot.pause()
+
+        assert input_widget.value == "draft"
+        assert input_widget.disabled is False
+        assert input_widget.has_focus
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert input_widget.value == "draft"
+        assert "Wait for the current task to finish before sending another message." in _history_text(app)
+
+        release.set()
+        await pilot.pause()
+        await pilot.pause()
+
+
+@pytest.mark.asyncio
+async def test_tui_cancel_stream_preserves_draft_text(
+    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started = Event()
+    release = Event()
+
+    def fake_process_message(*, role, ctx, msg, enable_tools=True):
+        del role, ctx, msg, enable_tools
+        started.set()
+        release.wait(timeout=2)
+        yield "done"
+
+    monkeypatch.setattr("elroy.messenger.messenger.process_message", fake_process_message)
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        app._process_chat_message("hello")
+
+        for _ in range(20):
+            await pilot.pause()
+            if started.is_set() and "chat-stream" in app._active_worker_groups:
+                break
+
+        assert started.is_set()
+
+        await pilot.press("d", "r", "a", "f", "t")
+        await pilot.pause()
+        assert input_widget.value == "draft"
+
+        app.action_cancel_stream()
+        release.set()
+        await pilot.pause()
+        await pilot.pause()
+
+        assert input_widget.value == "draft"
+        assert "chat-stream" not in app._active_worker_groups
+
+
+@pytest.mark.asyncio
+async def test_tui_chat_input_stays_editable_while_command_runs(
+    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started = Event()
+    release = Event()
+
+    def fake_run_tool_command(self, spec, values):
+        del self, spec, values
+
+        def stream():
+            started.set()
+            release.wait(timeout=2)
+            yield "done"
+
+        return stream()
+
+    monkeypatch.setattr("elroy.ui.session.SessionController.run_tool_command", fake_run_tool_command)
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        app._execute_tool_command("refresh_system_instructions", {}, "palette")
+
+        for _ in range(20):
+            await pilot.pause()
+            if started.is_set() and "command-action" in app._active_worker_groups:
+                break
+
+        assert started.is_set()
+        assert "command-action" in app._active_worker_groups
+
+        await pilot.press("d", "r", "a", "f", "t")
+        await pilot.pause()
+
+        assert input_widget.value == "draft"
+        assert input_widget.disabled is False
+        assert input_widget.has_focus
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert input_widget.value == "draft"
+        assert "Wait for the current task to finish before sending another message." in _history_text(app)
+
+        release.set()
+        await pilot.pause()
+        await pilot.pause()
+
+
+@pytest.mark.asyncio
+async def test_tui_streaming_draft_survives_browse_mode_switches(
+    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started = Event()
+    release = Event()
+
+    def fake_process_message(*, role, ctx, msg, enable_tools=True):
+        del role, ctx, msg, enable_tools
+        started.set()
+        release.wait(timeout=2)
+        yield "done"
+
+    monkeypatch.setattr("elroy.messenger.messenger.process_message", fake_process_message)
+
+    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        app._process_chat_message("hello")
+
+        for _ in range(20):
+            await pilot.pause()
+            if started.is_set() and "chat-stream" in app._active_worker_groups:
+                break
+
+        await pilot.press("d", "r", "a", "f", "t")
+        await pilot.pause()
+        assert input_widget.value == "draft"
+
+        app.action_focus_memories()
+        await pilot.pause()
+        assert app._browse_mode is True
+        assert input_widget.value == "draft"
+
+        await pilot.press("g")
+        await pilot.pause()
+        assert app.query_one("#sidebar-tabs", Tabs).active == "agenda-tab"
+        assert input_widget.value == "draft"
+
+        app._focus_chat_input()
+        await pilot.pause()
+        assert app._browse_mode is False
+        assert input_widget.has_focus
+        assert input_widget.value == "draft"
+
+        release.set()
+        await pilot.pause()
+        await pilot.pause()
+
+
+@pytest.mark.asyncio
+async def test_tui_streaming_draft_survives_sidebar_and_status_updates(
+    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started = Event()
+    release = Event()
+
+    def fake_process_message(*, role, ctx, msg, enable_tools=True):
+        del role, ctx, msg, enable_tools
+        started.set()
+        release.wait(timeout=2)
+        yield "done"
+
+    monkeypatch.setattr("elroy.messenger.messenger.process_message", fake_process_message)
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        app._process_chat_message("hello")
+
+        for _ in range(20):
+            await pilot.pause()
+            if started.is_set() and "chat-stream" in app._active_worker_groups:
+                break
+
+        await pilot.press("d", "r", "a", "f", "t")
+        await pilot.pause()
+        assert input_widget.value == "draft"
+
+        app._apply_sidebar_state(
+            SidebarState(
+                memories=[
+                    SidebarEntry(
+                        title="Trip note",
+                        ref=SidebarEntryRef(kind="memory", key="Trip note", source_type="Memory"),
+                        content="",
+                    )
+                ],
+                agenda=[SidebarEntry(title="Call mom", ref=SidebarEntryRef(kind="agenda", key="Call mom"), content="Call mom tonight")],
+                completions=["Trip note"],
+            )
+        )
+        await pilot.pause()
+
+        assert input_widget.value == "draft"
+        assert _sidebar_titles(app) == ["Trip note"]
+
+        app._set_status_message("loading context...")
+        await pilot.pause()
+
+        assert input_widget.value == "draft"
+        assert "loading context..." in _status_text(app)
+
+        release.set()
+        await pilot.pause()
+        await pilot.pause()
 
 
 @pytest.mark.asyncio

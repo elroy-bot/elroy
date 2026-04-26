@@ -19,10 +19,13 @@ from elroy.repository.agenda.tools import (
     add_agenda_item_update,
     complete_agenda_checklist_item,
     complete_agenda_item,
+    delete_agenda_item,
     edit_agenda_checklist_item,
+    list_agenda_items,
     list_agenda_items_cmd,
 )
 from elroy.repository.file_utils import read_file_text, read_frontmatter
+from elroy.repository.reminders.tools import create_due_item
 from tests.utils import MockCliIO
 
 
@@ -128,6 +131,17 @@ def test_ambiguous_partial_name_matches_raise_clear_error(agenda_dir):
         add_agenda_item_update(None, "write", "Blocked")
 
 
+def test_find_matching_agenda_item_ignores_completed_and_deleted_files(ctx: ElroyContext, agenda_dir) -> None:
+    add_agenda_item(ctx, "Write Q2 report.", "2026-03-20")
+    first_stem = next(agenda_dir.glob("*.md")).stem
+    complete_agenda_item(ctx, first_stem)
+    add_agenda_item(ctx, "Write Q2 report.", "2026-03-20")
+
+    matched = find_matching_agenda_item(agenda_dir, "write")
+
+    assert matched.stem != "Write_the_Q2_report"
+
+
 def test_new_agenda_capabilities_are_registered_as_slash_commands(ctx: ElroyContext, agenda_dir, io: MockCliIO):
     add_agenda_item(ctx, "Write the Q2 report.", "2026-03-20")
 
@@ -143,3 +157,27 @@ def test_new_agenda_capabilities_are_registered_as_slash_commands(ctx: ElroyCont
     result = invoke_slash_command(io, ctx, "/add_agenda_checklist_item")
 
     assert result == "Checklist item 1 added to 'Write_the_Q2_report'."
+
+
+def test_list_agenda_items_excludes_deleted_items(ctx: ElroyContext, agenda_dir) -> None:
+    add_agenda_item(ctx, "Write the Q2 report.", "2026-03-20")
+    first_stem = next(agenda_dir.glob("*.md")).stem
+    delete_agenda_item(ctx, first_stem)
+
+    response = list_agenda_items(ctx, "2026-03-20")
+
+    assert response.items == []
+
+
+def test_list_agenda_items_excludes_due_items(ctx: ElroyContext, agenda_dir) -> None:
+    add_agenda_item(ctx, "Write the Q2 report.", "2026-03-20")
+    create_due_item(
+        ctx,
+        "Pay rent",
+        "Pay rent before the first of the month.",
+        trigger_context="when I mention rent",
+    )
+
+    response = list_agenda_items(ctx, "2026-03-20")
+
+    assert [item.name for item in response.items] == ["Write_the_Q2_report"]

@@ -1,34 +1,17 @@
 from datetime import date
-from typing import Any, cast
-
-from sqlmodel import col, select
 
 from ...core.ctx import ElroyContext
 from ...db.db_models import AgendaItem
 from ...utils.clock import ensure_utc, utc_now
+from .factory import build_task_store
 
 
 def get_task_by_name(ctx: ElroyContext, name: str) -> AgendaItem | None:
-    return ctx.db.exec(
-        select(AgendaItem).where(
-            AgendaItem.user_id == ctx.user_id,
-            AgendaItem.name == name,
-            cast(Any, AgendaItem.is_active),
-        )
-    ).first()
+    return build_task_store(ctx).get_task_by_name(name)
 
 
 def get_active_tasks(ctx: ElroyContext) -> list[AgendaItem]:
-    return list(
-        ctx.db.exec(
-            select(AgendaItem)
-            .where(
-                AgendaItem.user_id == ctx.user_id,
-                cast(Any, AgendaItem.is_active),
-            )
-            .order_by(col(AgendaItem.created_at))
-        ).all()
-    )
+    return build_task_store(ctx).get_active_tasks()
 
 
 def get_triggered_tasks(ctx: ElroyContext) -> list[AgendaItem]:

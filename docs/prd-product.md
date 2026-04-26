@@ -116,7 +116,7 @@ The TUI status bar and CLI output should update in real time as the pipeline pro
 **Implementation notes**:
 - The messenger's generator already yields typed stream chunks (`AssistantInternalThought`, `FunctionCall`, token strings). Add a new `ProcessingStatus` yield type (a lightweight dataclass with a `message: str` field) emitted at each phase boundary.
 - `TextualIO` and `PlainIO` consume the stream; `PlainIO` can print status lines to stderr so they don't pollute piped output.
-- The `_run_stream` loop in `textual_app.py` handles each item type; add a branch for `ProcessingStatus` that calls `_update_status_bar(message)`.
+- The `_run_stream` loop in `elroy/ui/app.py` handles each item type; add a branch for `ProcessingStatus` that calls `_update_status_bar(message)`.
 - Background consolidation is fire-and-forget; surface it as a brief sidebar notice ("Consolidating memories…") rather than blocking the status bar.
 - No new config needed — this is always-on behavior.
 

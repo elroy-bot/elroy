@@ -1,15 +1,19 @@
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
 from elroy.core.ctx import ElroyContext
+from elroy.repository.context_messages.queries import get_context_messages
+from elroy.repository.recall.queries import is_in_context
 from elroy.repository.reminders.factory import build_reminder_orchestrator
 from elroy.repository.reminders.queries import (
+    get_db_due_item_by_name,
     get_due_item_by_name,
     get_due_item_context_msgs,
     get_due_timed_items,
 )
-from elroy.repository.reminders.tools import delete_due_item
+from elroy.repository.reminders.tools import create_due_item, delete_due_item
 from elroy.utils.clock import utc_now
 from tests.utils import (
     MockCliIO,
@@ -58,6 +62,21 @@ def test_delete_due_item(ctx: ElroyContext):
     process_test_message(ctx, "Please delete my reminder called 'test_reminder' without any clarifying questions.")
 
     quiz_assistant_bool(False, ctx, "Do I have a reminder called 'test_reminder'?")
+
+
+def test_delete_due_item_removes_it_from_context_and_disk(ctx: ElroyContext):
+    create_due_item(ctx, "test_reminder", "Test reminder text", trigger_context="whenever")
+    due_item = get_db_due_item_by_name(ctx, "test_reminder")
+
+    assert due_item is not None
+    assert is_in_context(get_context_messages(ctx), due_item)
+
+    file_path = due_item.file_path
+    delete_due_item(ctx, "test_reminder")
+
+    assert get_due_item_by_name(ctx, "test_reminder") is None
+    assert not is_in_context(get_context_messages(ctx), due_item)
+    assert not Path(file_path).exists()
 
 
 def test_rename_due_item(ctx: ElroyContext):

@@ -153,8 +153,15 @@ def mark_completed(path: Path, closing_comment: str | None = None) -> None:
 
 
 def find_matching_agenda_item(agenda_dir: Path, item_name: str) -> Path:
-    """Find an agenda item by case-insensitive partial stem match."""
-    matches = [p for p in agenda_dir.glob("*.md") if item_name.lower() in p.stem.lower()]
+    """Find an active agenda item by case-insensitive partial stem match."""
+    matches = []
+    for path in agenda_dir.glob("*.md"):
+        if item_name.lower() not in path.stem.lower():
+            continue
+        frontmatter = read_frontmatter(path)
+        if frontmatter.get("completed") or frontmatter.get("status") == "deleted":
+            continue
+        matches.append(path)
     if not matches:
         raise FileNotFoundError(f"No agenda item found matching '{item_name}'.")
     if len(matches) > 1:
@@ -245,12 +252,16 @@ def list_agenda_items(agenda_dir: Path, for_date: date | None = None) -> list[tu
     """Return list of (path, frontmatter, text) for all agenda items.
 
     If for_date is given, only return items matching that date.
-    Items with completed=True are excluded.
+    Items with completed=True, deleted status, or due-item triggers are excluded.
     """
     results = []
     for path in sorted(agenda_dir.glob("*.md")):
         fm = read_frontmatter(path)
         if fm.get("completed"):
+            continue
+        if fm.get("status") == "deleted":
+            continue
+        if fm.get("trigger_datetime") or fm.get("trigger_context") or fm.get("reminder_context"):
             continue
         if for_date is not None:
             item_date_raw = fm.get("date")

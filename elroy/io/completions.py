@@ -1,13 +1,13 @@
 """Helpers for building slash-command autocomplete suggestions and memory panel titles."""
 
 from ..core.ctx import ElroyContext
-from ..repository.context_messages.queries import ContextMessageReadStore
+from ..repository.context_messages.factory import build_context_message_read_store
 
 
 class CompletionsBuilder:
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
-        self.context_message_read_store = ContextMessageReadStore(ctx.db, ctx.user_id)
+        self.context_message_read_store = build_context_message_read_store(ctx)
 
     def get_memory_panel_entries(self) -> list[tuple[str, str]]:
         """Return (display_name, type_key) pairs for the in-context memories sidebar.

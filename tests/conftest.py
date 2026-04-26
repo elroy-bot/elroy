@@ -11,6 +11,7 @@ from elroy.cli.chat import onboard_non_interactive
 from elroy.cli.options import resolve_model_alias
 from elroy.core.constants import ASSISTANT, USER, allow_unused
 from elroy.core.ctx import ElroyContext
+from elroy.core.db import require_db_session
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     AgendaItem,
@@ -194,8 +195,9 @@ def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_nam
         memory_dir=str(tmp_path / "memories"),
     )
     ctx.set_db_session(db_session)
-    ctx.db.query_vector = _mock_query_vector.__get__(ctx.db, DbSession)
-    cast(Any, ctx.db)._test_embedding_queries = {}
+    test_db_session = require_db_session(ctx)
+    cast(Any, test_db_session).query_vector = _mock_query_vector.__get__(test_db_session, DbSession)
+    cast(Any, test_db_session)._test_embedding_queries = {}
     ctx.__dict__["llm"] = MockLlmClient(ctx)
     ctx.__dict__["fast_llm"] = MockLlmClient(ctx)
 

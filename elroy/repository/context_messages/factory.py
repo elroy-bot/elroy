@@ -1,5 +1,6 @@
 from ...core.async_tasks import schedule_task
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
 from .context_refresh_orchestrator import (
     ContextRefreshConfig,
@@ -12,7 +13,7 @@ from .system_prompt_builder import SystemPromptBuilder, SystemPromptMetadataProv
 
 
 def build_context_message_read_store(ctx: ElroyContext) -> ContextMessageReadStore:
-    return ContextMessageReadStore(ctx.db, ctx.user_id)
+    return ContextMessageReadStore(require_db_session(ctx), ctx.user_id)
 
 
 def build_context_message_store(ctx: ElroyContext) -> ContextMessageStore:
@@ -55,7 +56,7 @@ def build_context_refresh_orchestrator(ctx: ElroyContext) -> ContextRefreshOrche
         ),
         dependencies=ContextRefreshDependencies(
             get_assistant_name_fn=lambda: get_assistant_name(ctx),
-            get_user_preferred_name_fn=lambda: do_get_user_preferred_name(ctx.db.session, ctx.user_id),
+            get_user_preferred_name_fn=lambda: do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id),
             get_or_create_memory_op_tracker_fn=lambda: get_or_create_memory_op_tracker(ctx),
             schedule_memory_creation_fn=lambda: schedule_task(create_mem_from_current_context, ctx),
             formulate_memory_fn=lambda context_messages: formulate_memory(ctx, context_messages),

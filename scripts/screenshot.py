@@ -19,7 +19,7 @@ from pathlib import Path
 
 async def main(output: str, message: str | None, wait: float, width: int, height: int, show_internal_thought: bool | None) -> None:
     from elroy.core.session import init_elroy_session
-    from elroy.io.textual_app import make_app
+    from elroy.ui.app import make_app
 
     overrides: dict = {"enable_assistant_greeting": False}
     if show_internal_thought is not None:

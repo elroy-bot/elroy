@@ -8,6 +8,7 @@ from toolz.curried import filter
 from ...core.configs import MemoryConfig
 from ...core.constants import TOOL
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...core.logging import log_execution_time
 from ...db.db_models import AgendaItem, EmbeddableSqlModel, Memory
 from ...db.db_session import DbSession
@@ -68,7 +69,7 @@ class RecallReadStore:
 
 
 def _store(ctx: ElroyContext) -> RecallReadStore:
-    return RecallReadStore(ctx.db, ctx.user_id, ctx.memory_config)
+    return RecallReadStore(require_db_session(ctx), ctx.user_id, ctx.memory_config)
 
 
 def query_vector[T: EmbeddableSqlModel](table: type[T], ctx: ElroyContext, query: list[float]) -> Iterable[T]:

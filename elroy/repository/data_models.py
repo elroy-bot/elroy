@@ -39,3 +39,33 @@ class RecallMetadata(BaseModel):
 class RecallResponse(BaseModel):
     content: str
     recall_metadata: list[RecallMetadata]
+
+
+class AgendaListItem(BaseModel):
+    name: str
+    text: str
+    checklist_completed: int = 0
+    checklist_total: int = 0
+
+    @property
+    def checklist_progress(self) -> str:
+        if self.checklist_total == 0:
+            return ""
+        return f"{self.checklist_completed}/{self.checklist_total} done"
+
+
+class AgendaListResponse(BaseModel):
+    item_date: str
+    items: list[AgendaListItem]
+
+    def __str__(self) -> str:
+        if not self.items:
+            return f"No agenda items for {self.item_date}."
+
+        lines = [f"Agenda for {self.item_date}:"]
+        for item in self.items:
+            checklist_info = ""
+            if item.checklist_total:
+                checklist_info = f" [{item.checklist_completed}/{item.checklist_total} checklist items done]"
+            lines.append(f"- {item.name}: {item.text}{checklist_info}")
+        return "\n".join(lines)

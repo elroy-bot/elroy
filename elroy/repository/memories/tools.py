@@ -8,6 +8,7 @@ from toolz.curried import map
 
 from ...core.constants import RecoverableToolError, tool, user_only_tool
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...db.db_models import AgendaItem, Memory
 from ...utils.clock import db_time_to_local
 from .factory import build_memory_lifecycle_orchestrator
@@ -143,9 +144,16 @@ def print_memories(ctx: ElroyContext, n: int | None = None) -> Table | str:
     Returns:
         str: A formatted string containing all memories.
     """
-    memories = ctx.db.exec(
-        select(Memory).where(Memory.user_id == ctx.user_id, cast(Any, Memory.is_active)).order_by(desc(Memory.created_at)).limit(n or 1000)
-    ).all()
+    memories = (
+        require_db_session(ctx)
+        .exec(
+            select(Memory)
+            .where(Memory.user_id == ctx.user_id, cast(Any, Memory.is_active))
+            .order_by(desc(Memory.created_at))
+            .limit(n or 1000)
+        )
+        .all()
+    )
 
     if not memories:
         return "No memories found."
@@ -209,13 +217,14 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
 
     # Mark existing memory as inactive
     original_memory.is_active = False
-    ctx.db.add(original_memory)
+    db_session = require_db_session(ctx)
+    db_session.add(original_memory)
 
     # Create new memory with updated text
     update_time = db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
     updated_text = f"{_memory_text_content(original_memory)}\n\nUpdate ({update_time}):\n{update_text}"
-    ctx.db.commit()
-    ctx.db.update_embedding_active(original_memory)
+    db_session.commit()
+    db_session.update_embedding_active(original_memory)
 
     build_memory_lifecycle_orchestrator(ctx).do_create_memory(
         memory_name,

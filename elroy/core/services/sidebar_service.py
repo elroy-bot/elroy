@@ -1,9 +1,8 @@
-"""Presentation helpers for the Textual sidebar and item modals."""
+"""Read models and actions for the Textual sidebar."""
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from ...core.ctx import ElroyContext
 from ...db.db_models import AgendaItem, EmbeddableSqlModel
@@ -16,47 +15,59 @@ from ...repository.tasks.factory import build_task_mutation_orchestrator
 from ...repository.tasks.queries import get_active_tasks, get_task_by_name
 from ...utils.clock import db_time_to_local, ensure_utc, utc_now
 
+SidebarEntryKind = Literal["memory", "agenda"]
 
-@dataclass
+
+@dataclass(frozen=True)
+class SidebarEntryRef:
+    kind: SidebarEntryKind
+    key: str
+    source_type: str | None = None
+
+
+@dataclass(frozen=True)
 class SidebarEntry:
     title: str
-    lookup_key: str
+    ref: SidebarEntryRef
     content: str
     deletable: bool = False
 
 
-@dataclass
+@dataclass(frozen=True)
 class SidebarState:
     memories: list[SidebarEntry]
     agenda: list[SidebarEntry]
     completions: list[str]
 
 
-@dataclass
-class ModalSpec:
+@dataclass(frozen=True)
+class DetailModalSpec:
     title: str
     content: str
-    on_delete: Callable[[], None] | None = None
-    on_complete: Callable[[], None] | None = None
+    ref: SidebarEntryRef
+    can_delete: bool = False
+    can_complete: bool = False
 
 
-class AgendaPresenter:
+class SidebarBuilder:
+    """Build read models for sidebar lists and detail modals."""
+
     MEMORY_BUFFER_SOURCE_TYPES: ClassVar[set[str]] = {"Memory", "ContextMessageSet"}
 
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
-        self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
-        self.reminder_orchestrator = build_reminder_orchestrator(ctx)
-        self.task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
 
     def build_sidebar_state(self) -> SidebarState:
-        memory_entries = self._build_memory_entries()
-        agenda_entries = self._build_agenda_entries()
         return SidebarState(
-            memories=memory_entries,
-            agenda=agenda_entries,
+            memories=self._build_memory_entries(),
+            agenda=self._build_agenda_entries(),
             completions=build_completions(self.ctx),
         )
+
+    def build_detail_modal(self, entry: SidebarEntry) -> DetailModalSpec | None:
+        if entry.ref.kind == "memory":
+            return self._build_memory_detail_modal(entry)
+        return self._build_agenda_detail_modal(entry)
 
     def _build_memory_entries(self) -> list[SidebarEntry]:
         memory_entries: list[SidebarEntry] = []
@@ -64,7 +75,13 @@ class AgendaPresenter:
             source_type, _, _ = type_key.partition(": ")
             if source_type not in self.MEMORY_BUFFER_SOURCE_TYPES:
                 continue
-            memory_entries.append(SidebarEntry(title=display_name, lookup_key=type_key, content=""))
+            memory_entries.append(
+                SidebarEntry(
+                    title=display_name,
+                    ref=SidebarEntryRef(kind="memory", key=display_name, source_type=source_type),
+                    content="",
+                )
+            )
             if len(memory_entries) >= 15:
                 break
         return memory_entries
@@ -82,29 +99,26 @@ class AgendaPresenter:
         return [
             SidebarEntry(
                 title=self._format_agenda_title(item),
-                lookup_key=item.name,
+                ref=SidebarEntryRef(kind="agenda", key=item.name),
                 content=item.to_fact(),
                 deletable=bool(item.trigger_datetime or item.trigger_context),
             )
             for item in get_active_tasks(self.ctx)[:15]
         ]
 
-    def build_memory_modal(self, entry: SidebarEntry, refresh: Callable[[], None]) -> ModalSpec | None:
-        if ": " not in entry.lookup_key:
+    def _build_memory_detail_modal(self, entry: SidebarEntry) -> DetailModalSpec | None:
+        if entry.ref.source_type is None:
             return None
-        source_type, name = entry.lookup_key.split(": ", 1)
-        source = db_get_memory_source_by_name(self.ctx, source_type, name)
+        source = db_get_memory_source_by_name(self.ctx, entry.ref.source_type, entry.ref.key)
         if not source:
             return None
 
-        on_delete = None
-        if isinstance(source, EmbeddableSqlModel):
-
-            def on_delete(s=source) -> None:
-                self.memory_lifecycle_orchestrator.mark_inactive(s)
-                refresh()
-
-        return ModalSpec(title=name, content=source.to_fact(), on_delete=on_delete)
+        return DetailModalSpec(
+            title=entry.ref.key,
+            content=source.to_fact(),
+            ref=entry.ref,
+            can_delete=isinstance(source, EmbeddableSqlModel),
+        )
 
     def _build_agenda_modal_content(self, task: AgendaItem) -> str:
         metadata = read_agenda_metadata(Path(task.file_path))
@@ -136,25 +150,52 @@ class AgendaPresenter:
             lines.append(body)
         return "\n\n".join(lines) if lines else task.text
 
-    def build_agenda_modal(self, entry: SidebarEntry, refresh: Callable[[], None]) -> ModalSpec:
+    def _build_agenda_detail_modal(self, entry: SidebarEntry) -> DetailModalSpec:
         title = entry.title
         content = entry.content
-        on_delete = None
-        on_complete = None
-        task = get_task_by_name(self.ctx, entry.lookup_key)
+        can_complete = False
+        task = get_task_by_name(self.ctx, entry.ref.key)
         if task:
             title = task.name
             content = self._build_agenda_modal_content(task)
-            if task.status == "created":
+            can_complete = task.status == "created"
 
-                def on_complete(name=entry.lookup_key) -> None:
-                    self.task_mutation_orchestrator.complete_task(name)
-                    refresh()
+        return DetailModalSpec(
+            title=title,
+            content=content,
+            ref=entry.ref,
+            can_delete=entry.deletable,
+            can_complete=can_complete,
+        )
 
-        if entry.deletable:
 
-            def on_delete(name=entry.lookup_key) -> None:
-                self.reminder_orchestrator.do_delete_due_item(name)
-                refresh()
+class SidebarActionOrchestrator:
+    """Apply sidebar-triggered mutations."""
 
-        return ModalSpec(title=title, content=content, on_delete=on_delete, on_complete=on_complete)
+    def __init__(self, ctx: ElroyContext):
+        self.ctx = ctx
+        self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
+        self.reminder_orchestrator = build_reminder_orchestrator(ctx)
+        self.task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+
+    def delete(self, ref: SidebarEntryRef) -> None:
+        if ref.kind == "memory":
+            self._delete_memory(ref)
+            return
+        self.reminder_orchestrator.do_delete_due_item(ref.key)
+
+    def complete(self, ref: SidebarEntryRef) -> None:
+        if ref.kind != "agenda":
+            return
+        self.task_mutation_orchestrator.complete_task(ref.key)
+
+    def _delete_memory(self, ref: SidebarEntryRef) -> None:
+        if ref.source_type is None:
+            return
+        source = db_get_memory_source_by_name(self.ctx, ref.source_type, ref.key)
+        if isinstance(source, EmbeddableSqlModel):
+            self.memory_lifecycle_orchestrator.mark_inactive(source)
+
+
+AgendaPresenter = SidebarBuilder
+ModalSpec = DetailModalSpec

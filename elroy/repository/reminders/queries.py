@@ -3,6 +3,7 @@ from sqlmodel import col, select
 
 from ...core.constants import allow_unused, user_only_tool
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...db.db_models import AgendaItem
 from ...utils.clock import db_time_to_local
 from ..context_messages.data_models import ContextMessage
@@ -27,8 +28,9 @@ def get_due_items(ctx: ElroyContext, include_completed: bool = False) -> list[Du
     if not include_completed:
         return get_active_due_items(ctx)
 
+    db_session = require_db_session(ctx)
     return list(
-        ctx.db.exec(
+        db_session.exec(
             select(AgendaItem).where(
                 AgendaItem.user_id == ctx.user_id,
                 col(AgendaItem.status).in_(["created", "completed"]),

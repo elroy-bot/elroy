@@ -1,6 +1,6 @@
 from elroy import __version__
 from elroy.core.ctx import ElroyContext
-from elroy.io.textual_app import main
+from elroy.ui.app import main
 
 from .utils import process_test_message
 

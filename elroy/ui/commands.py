@@ -17,7 +17,7 @@ from ..core.ctx import ElroyContext
 from ..tools.tools_and_commands import USER_ONLY_COMMANDS, get_help
 
 if TYPE_CHECKING:
-    from .textual_app import ElroyApp
+    from .app import ElroyApp
 
 
 @dataclass(frozen=True)

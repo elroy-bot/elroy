@@ -1,8 +1,8 @@
 from ...core.constants import DEFAULT_USER_NAME, tool
 from ...core.ctx import ElroyContext
-from .factory import build_user_preference_orchestrator
+from ...core.db import require_db_session
+from .factory import build_user_preference_orchestrator, build_user_preference_store
 from .queries import do_get_user_preferred_name
-from .store import UserPreferenceStore
 
 
 @tool
@@ -35,13 +35,13 @@ def set_user_full_name(ctx: ElroyContext, full_name: str, override_existing: boo
         str: Result of the attempt to set the user's full name
     """
 
-    user_preference = UserPreferenceStore(ctx.db, ctx.user_id).get_or_create_user_preference()
+    user_preference = build_user_preference_store(ctx).get_or_create_user_preference()
 
     old_full_name = user_preference.full_name or DEFAULT_USER_NAME
     if old_full_name != DEFAULT_USER_NAME and not override_existing:
         return f"Full name already set to {user_preference.full_name}. If this should be changed, set override_existing=True."
     user_preference.full_name = full_name
-    ctx.db.commit()
+    require_db_session(ctx).commit()
 
     return f"Full name set to {full_name}. Previous value was {old_full_name}."
 
@@ -56,7 +56,7 @@ def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_exi
         override_existing: Whether to override an existing preferred name, if it is already set. Override existing should only be used if a known preferred name has been found to be incorrect.
     """
 
-    user_preference = UserPreferenceStore(ctx.db, ctx.user_id).get_or_create_user_preference()
+    user_preference = build_user_preference_store(ctx).get_or_create_user_preference()
 
     old_preferred_name = user_preference.preferred_name or DEFAULT_USER_NAME
 
@@ -64,7 +64,7 @@ def set_user_preferred_name(ctx: ElroyContext, preferred_name: str, override_exi
         return f"Preferred name already set to {user_preference.preferred_name}. If this should be changed, use override_existing=True."
     user_preference.preferred_name = preferred_name
 
-    ctx.db.commit()
+    require_db_session(ctx).commit()
     return f"Set user preferred name to {preferred_name}. Was {old_preferred_name}."
 
 
@@ -76,7 +76,7 @@ def get_user_full_name(ctx: ElroyContext) -> str:
         str: String representing the user's full name.
     """
 
-    user_preference = UserPreferenceStore(ctx.db, ctx.user_id).get_or_create_user_preference()
+    user_preference = build_user_preference_store(ctx).get_or_create_user_preference()
 
     return user_preference.full_name or "Unknown name"
 
@@ -89,4 +89,4 @@ def get_user_preferred_name(ctx: ElroyContext) -> str:
         str: String representing the user's preferred name.
     """
 
-    return do_get_user_preferred_name(ctx.db.session, ctx.user_id)
+    return do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id)

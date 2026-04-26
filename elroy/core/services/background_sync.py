@@ -5,6 +5,7 @@ from typing import Any, cast
 from sqlmodel import select
 
 from ...core.ctx import ElroyContext
+from ...core.db import require_db_session
 from ...core.logging import get_logger
 from ...db.db_models import Memory
 from ...repository.memories.factory import build_memory_lifecycle_orchestrator
@@ -25,6 +26,7 @@ class MemorySyncPlan:
 class MemoryFileSyncOrchestrator:
     def __init__(self, ctx: ElroyContext):
         self.ctx = ctx
+        self.db = require_db_session(ctx)
         self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
         self.recall_indexer = build_recall_indexer(ctx)
 
@@ -42,7 +44,7 @@ class MemoryFileSyncOrchestrator:
             except (ValueError, TypeError):
                 continue
         db_file_memories = list(
-            self.ctx.db.exec(
+            self.db.exec(
                 select(Memory).where(
                     Memory.user_id == self.ctx.user_id,
                     cast(Any, Memory.is_active),
@@ -78,8 +80,8 @@ class MemoryFileSyncOrchestrator:
                     if new_path.exists() and new_path != path:
                         new_path.unlink()
                     memory.file_path = str(path)
-                    self.ctx.db.add(memory)
-                    self.ctx.db.commit()
+                    self.db.add(memory)
+                    self.db.commit()
                 write_id_to_frontmatter(path, memory.id)
                 logger.info(f"Created new memory from file {path.name}: id={memory.id}")
             except Exception as e:
@@ -95,8 +97,8 @@ class MemoryFileSyncOrchestrator:
                 old_name = db_memory.name
                 db_memory.file_path = str(disk_path)
                 db_memory.name = disk_path.stem.replace("_", " ")
-                self.ctx.db.add(db_memory)
-                self.ctx.db.commit()
+                self.db.add(db_memory)
+                self.db.commit()
                 logger.info(f"Memory {mid} renamed: {old_name!r} -> {db_memory.name!r}, path updated")
             try:
                 self.recall_indexer.upsert_embedding_if_needed(db_memory)
@@ -112,8 +114,8 @@ class MemoryFileSyncOrchestrator:
                 continue
             logger.info(f"Memory file disappeared: {db_path.name}; marking memory {db_memory.id} inactive")
             db_memory.file_path = None
-            self.ctx.db.add(db_memory)
-            self.ctx.db.commit()
+            self.db.add(db_memory)
+            self.db.commit()
             try:
                 self.memory_lifecycle_orchestrator.mark_inactive(db_memory)
             except Exception as e:
