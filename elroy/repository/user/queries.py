@@ -1,5 +1,6 @@
 from sqlmodel import Session, select
 
+from ...config.personas import PERSONA
 from ...core.constants import (
     ASSISTANT_ALIAS_STRING,
     DEFAULT_USER_NAME,
@@ -36,7 +37,7 @@ def get_persona(ctx: ElroyContext):
 
     """
     user_preference = UserPreferenceStore(require_db_session(ctx), ctx.user_id).get_or_create_user_preference()
-    raw_persona = user_preference.system_persona or ctx.default_persona or ""
+    raw_persona = user_preference.system_persona or PERSONA
 
     user_noun = user_preference.preferred_name or "my user"
     return raw_persona.replace(USER_ALIAS_STRING, user_noun).replace(ASSISTANT_ALIAS_STRING, get_assistant_name(ctx))

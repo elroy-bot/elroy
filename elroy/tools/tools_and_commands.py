@@ -24,6 +24,11 @@ from ..repository.context_messages.tools import (
     refresh_system_instructions,
     reset_messages,
 )
+from ..repository.feature_requests.tools import (
+    edit_feature_request,
+    list_feature_requests,
+    make_feature_request,
+)
 from ..repository.memories.tools import (
     create_memory,
     examine_memories,
@@ -97,6 +102,9 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     set_user_preferred_name,
     get_current_date,
     get_fast_recall,
+    edit_feature_request,
+    list_feature_requests,
+    make_feature_request,
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,

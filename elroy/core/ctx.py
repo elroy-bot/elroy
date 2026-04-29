@@ -19,7 +19,6 @@ from ..config.llm import (
     infer_chat_model_name,
 )
 from ..config.paths import get_default_config_path
-from ..config.personas import PERSONA
 from ..db.db_manager import DbManager
 from ..db.db_session import DbSession
 from ..llm.client import LlmClient
@@ -94,7 +93,6 @@ class ElroyContext:
         memory_recall_classifier_window: int | None = None,
         # Basic Configuration
         debug: bool | None = None,
-        default_persona: str | None = None,
         default_assistant_name: str | None = None,
         use_background_threads: bool | None = None,
         max_ingested_doc_lines: int | None = None,
@@ -178,7 +176,6 @@ class ElroyContext:
                 config_path=config_path,
                 user_token=user_token or "",
                 debug=debug if debug is not None else False,
-                default_persona=default_persona or PERSONA,
                 default_assistant_name=default_assistant_name or "",
                 use_background_threads=use_background_threads if use_background_threads is not None else True,
                 max_ingested_doc_lines=max_ingested_doc_lines or 0,
@@ -194,7 +191,6 @@ class ElroyContext:
         self.user_token = self.runtime_config.user_token
         self.show_internal_thought = self.ui_config.show_internal_thought
         self.default_assistant_name = self.runtime_config.default_assistant_name
-        self.default_persona = self.runtime_config.default_persona
         self.debug = self.runtime_config.debug
         self.max_tokens = self.model_config.max_tokens
         self.max_assistant_loops = self.runtime_config.max_assistant_loops

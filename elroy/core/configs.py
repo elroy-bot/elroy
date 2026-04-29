@@ -89,6 +89,5 @@ class RuntimeConfig:
     max_ingested_doc_lines: int
     config_path: str | None = None
     debug: bool = False
-    default_persona: str | None = None
     use_background_threads: bool = True
     reflect: bool = False

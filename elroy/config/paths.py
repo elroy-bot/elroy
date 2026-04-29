@@ -49,3 +49,9 @@ def get_agenda_dir() -> Path:
     agenda_dir = get_home_dir() / "agenda"
     agenda_dir.mkdir(parents=True, exist_ok=True)
     return agenda_dir
+
+
+def get_feature_requests_dir() -> Path:
+    feature_requests_dir = get_home_dir() / "feature-requests"
+    feature_requests_dir.mkdir(parents=True, exist_ok=True)
+    return feature_requests_dir
