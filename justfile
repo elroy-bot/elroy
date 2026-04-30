@@ -48,12 +48,6 @@ typecheck:
 lint:
     just check
 
-# Clean up build artifacts and caches
-clean:
-    rm -rf build dist htmlcov .pytest_cache .coverage
-    find . -type d -name __pycache__ -exec rm -rf {} +
-    find . -type f -name "*.pyc" -delete
-
 # Install development dependencies
 install:
     uv pip install -e ".[dev,docs]"

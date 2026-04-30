@@ -3,19 +3,23 @@ from collections.abc import Generator, Iterable
 from toolz import identity, pipe
 
 from ...core.constants import ASSISTANT, TOOL, USER
-from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
+from ...core.turn import TurnContext
 from .data_models import ContextMessage
 from .factory import build_context_message_read_store, build_context_refresh_orchestrator
 from .inspect import has_assistant_tool_call
+from .runtime import build_context_validation_runtime
+from .session import build_context_message_session
 from .transforms import is_system_instruction
 
 logger = get_logger()
 
 
 class Validator:
-    def __init__(self, ctx: ElroyContext, context_messages: Iterable[ContextMessage]):
-        self.ctx = ctx
+    def __init__(self, turn: TurnContext, context_messages: Iterable[ContextMessage]):
+        self.turn = turn
+        self.context_session = build_context_message_session(turn)
+        self.runtime = build_context_validation_runtime(self.context_session)
         self.errors = []
         self.original_context_messages: list[ContextMessage] = list(context_messages)
 
@@ -77,7 +81,7 @@ class Validator:
         for idx, message in enumerate(ctx_msg_list):
             if idx == 0 and not is_system_instruction(message):
                 self.errors.append("First message is not system instruction, repairing by inserting system instruction")
-                yield build_context_refresh_orchestrator(self.ctx).get_refreshed_system_message()
+                yield build_context_refresh_orchestrator(self.context_session).get_refreshed_system_message()
                 yield message
             elif idx != 0 and is_system_instruction(message):
                 self.errors.append("Found system message in non-first position, repairing by dropping message")
@@ -108,7 +112,7 @@ class Validator:
             self.system_instruction_correctly_placed,
             self.assistant_tool_calls_followed_by_tool,
             self.tool_messages_have_assistant_tool_call,
-            self.first_user_precedes_first_assistant if self.ctx.chat_model.ensure_alternating_roles else identity,
+            self.first_user_precedes_first_assistant if self.runtime.ensure_alternating_roles else identity,
             list,
         )
 
@@ -116,7 +120,7 @@ class Validator:
             logger.info("Context messages have been repaired")
             for error in self.errors:
                 logger.info(error)
-            build_context_refresh_orchestrator(self.ctx).store.replace_context_messages(messages)
-            yield from build_context_message_read_store(self.ctx).get_context_messages()
+            build_context_refresh_orchestrator(self.context_session).store.replace_context_messages(messages)
+            yield from build_context_message_read_store(self.context_session).get_context_messages()
         else:
             yield from messages

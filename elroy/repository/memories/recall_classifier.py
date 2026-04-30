@@ -9,8 +9,8 @@ The classifier helps reduce latency by skipping unnecessary memory recall.
 
 from pydantic import BaseModel
 
-from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
+from ...core.runtime import RecallClassifierRuntime
 from ...repository.context_messages.data_models import ContextMessage
 from .queries import get_message_content
 
@@ -25,7 +25,7 @@ class MemoryRecallDecision(BaseModel):
 
 
 def should_recall_memory(
-    ctx: ElroyContext,
+    runtime: RecallClassifierRuntime,
     current_message: str,
     recent_messages: list[ContextMessage],
 ) -> MemoryRecallDecision:
@@ -36,7 +36,7 @@ def should_recall_memory(
     2. LLM-based classification for nuanced cases
 
     Args:
-        ctx: ElroyContext for config and LLM access
+        runtime: RecallClassifierRuntime for config and LLM access
         current_message: The user's current message
         recent_messages: Recent messages for context
 
@@ -49,7 +49,7 @@ def should_recall_memory(
         return heuristic_result
 
     # Stage 2: LLM-based classification
-    return _classify_with_llm(ctx, current_message, recent_messages)
+    return _classify_with_llm(runtime, current_message, recent_messages)
 
 
 def _apply_heuristics(message: str) -> MemoryRecallDecision | None:
@@ -103,14 +103,14 @@ def _apply_heuristics(message: str) -> MemoryRecallDecision | None:
 
 
 def _classify_with_llm(
-    ctx: ElroyContext,
+    runtime: RecallClassifierRuntime,
     current_message: str,
     recent_messages: list[ContextMessage],
 ) -> MemoryRecallDecision:
     """Use fast_llm to classify if memory recall is needed.
 
     Args:
-        ctx: ElroyContext for config and LLM access
+        runtime: RecallClassifierRuntime for config and LLM access
         current_message: The current message
         recent_messages: Recent messages for context
 
@@ -119,7 +119,7 @@ def _classify_with_llm(
     """
     # Build conversation context using existing utility
     # Get last N messages based on config
-    window_size = ctx.memory_config.memory_recall_classifier_window
+    window_size = runtime.window_size
     context_window = recent_messages[-window_size:] if len(recent_messages) > window_size else recent_messages
 
     # Use existing get_message_content utility to format messages
@@ -152,7 +152,7 @@ Analyze and decide if long-term memory recall is necessary."""
 
     system_message = "You are a classifier that determines if memory recall is necessary. Be VERY conservative - almost always enable recall unless the message is a pure acknowledgment/greeting with zero topic content. Missing a relevant due item is worse than doing unnecessary recall."
 
-    decision = ctx.fast_llm.query_llm_with_response_format(
+    decision = runtime.fast_llm.query_llm_with_response_format(
         prompt=prompt,
         system=system_message,
         response_format=MemoryRecallDecision,

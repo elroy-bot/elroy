@@ -5,10 +5,13 @@ from typing import Any, cast
 from sqlmodel import select
 from toolz import first
 
-from ...core.db import require_db_session
+from ...core.ctx import ElroyConfig
+from ...core.session import run_with_turn
+from ...core.turn import TurnContext
 from ...db.db_models import ContextMessageSet
 from ...db.db_session import DbSession
 from .data_models import ContextMessage
+from .session import build_context_message_session
 from .transforms import ContextMessageSetWithMessages
 
 
@@ -44,10 +47,6 @@ class ContextMessageReadStore:
         raise RuntimeError("Failed to get or create context message set")
 
     def get_context_messages(self) -> Iterable[ContextMessage]:
-        """
-        Gets context messages from db, in order of their position in ContextMessageSet
-        """
-
         yield from self.get_or_create_context_message_set().messages
 
     def get_current_system_instruct(self) -> ContextMessage | None:
@@ -61,9 +60,19 @@ def get_or_create_context_message_set(db: DbSession, user_id: int) -> ContextMes
     return ContextMessageReadStore(db, user_id).get_or_create_context_message_set()
 
 
-def get_context_messages(ctx: Any) -> Iterable[ContextMessage]:
-    return ContextMessageReadStore(require_db_session(ctx), ctx.user_id).get_context_messages()
+def do_get_context_messages(turn: TurnContext) -> Iterable[ContextMessage]:
+    context_session = build_context_message_session(turn)
+    return list(ContextMessageReadStore(context_session.db, context_session.user_id).get_context_messages())
 
 
-def get_current_system_instruct(ctx: Any) -> ContextMessage | None:
-    return ContextMessageReadStore(require_db_session(ctx), ctx.user_id).get_current_system_instruct()
+def do_get_current_system_instruct(turn: TurnContext) -> ContextMessage | None:
+    context_session = build_context_message_session(turn)
+    return ContextMessageReadStore(context_session.db, context_session.user_id).get_current_system_instruct()
+
+
+def get_context_messages(ctx: ElroyConfig) -> Iterable[ContextMessage]:
+    return run_with_turn(ctx, do_get_context_messages)
+
+
+def get_current_system_instruct(ctx: ElroyConfig) -> ContextMessage | None:
+    return run_with_turn(ctx, do_get_current_system_instruct)

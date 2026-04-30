@@ -60,6 +60,6 @@ class MemoryStore:
     def mark_inactive(self, item: EmbeddableSqlModel) -> None:
         self.archive_memory_file_if_needed(item)
         item.is_active = False
-        self.db.add(item)
+        item = self.db.session.merge(item)
         self.db.commit()
         self.db.update_embedding_active(item)

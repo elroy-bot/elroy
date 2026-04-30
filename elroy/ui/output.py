@@ -36,7 +36,7 @@ class TextualIO(ElroyIO):
             if not self.show_internal_thought:
                 logger.debug(f"Internal thought: {message}")
                 return
-            self.app.call_from_thread(self.app._append_thought_token, message.content)
+            self.app.call_from_thread(self.app.conversation_controller.append_thought_token, message.content)
             return
 
         self.app.call_from_thread(self.app._flush_thought_buffer)

@@ -5,9 +5,10 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Optional, TypeVar, Union
 
-from ..core.ctx import ElroyContext
+from ..core.ctx import ElroyConfig
 from ..core.logging import get_logger
-from ..core.session import dbsession
+from ..core.runtime import build_background_task_runtime
+from ..core.session import clone_config, invoke_with_config
 
 T = TypeVar("T")
 
@@ -79,28 +80,17 @@ def obscure_sensitive_info(d: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def run_in_background(fn: Callable, ctx: ElroyContext, *args) -> threading.Thread | None:
-    from ..core.ctx import ElroyContext
-
-    if not ctx.use_background_threads:
+def run_in_background(fn: Callable, ctx: ElroyConfig, *args) -> threading.Thread | None:
+    runtime = build_background_task_runtime(ctx)
+    if not runtime.use_background_threads:
         logger.debug("Background threads are disabled. Running function in the main thread.")
         fn(ctx, *args)
         return None
 
     # hack to get a new session for the thread
     def wrapped_fn():
-        # Create completely new connection in the new thread
-        new_ctx = ElroyContext(
-            database_url=ctx.database_url,
-            chroma_path=ctx.chroma_path,
-            model_config=ctx.model_config,
-            ui_config=ctx.ui_config,
-            memory_config=ctx.memory_config,
-            tool_config=ctx.tool_config,
-            runtime_config=ctx.runtime_config,
-        )
-        with dbsession(new_ctx):
-            fn(new_ctx, *args)
+        new_ctx = clone_config(ctx)
+        invoke_with_config(fn, new_ctx, *args)
 
     thread = threading.Thread(
         target=wrapped_fn,

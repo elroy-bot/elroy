@@ -8,15 +8,16 @@ from textual import events
 from textual.command import CommandPalette
 from textual.widgets import Input, Label, ListItem, ListView, RichLog, Tabs
 
-from elroy.core.ctx import ElroyContext
-from elroy.core.db import require_db_session
-from elroy.core.services.sidebar_service import SidebarBuilder, SidebarEntry, SidebarEntryRef, SidebarState
+from elroy.core.ctx import ElroyConfig
+from elroy.core.session import build_elroy_session, invoke_with_config, open_turn_context
+from elroy.core.sidebar_models import SidebarBuilder, SidebarEntry, SidebarEntryRef, SidebarState
 from elroy.db.db_models import AgendaItem
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.tools import add_memory_to_current_context
 from elroy.repository.memories.tools import create_memory
 from elroy.repository.tasks.factory import build_task_mutation_orchestrator
 from elroy.repository.user.queries import get_assistant_name
+from elroy.repository.user.session import build_user_runtime, build_user_session
 from elroy.ui.app import ChatInput, DetailModal, ElroyApp
 from elroy.ui.forms import CommandFormScreen
 from elroy.utils.clock import utc_now
@@ -32,15 +33,16 @@ class HarnessElroyApp(ElroyApp):
         self._load_sidebar_state()
 
     def _load_sidebar_state(self) -> None:
-        state = SidebarBuilder(self.ctx).build_sidebar_state()
+        state = SidebarBuilder(self.ctx, self.session).build_sidebar_state()
         self._panel_entries = {"memories": state.memories, "agenda": state.agenda}
         self._chat_suggestions = state.completions
         self._render_sidebar_lists()
 
 
-def _make_app(ctx: ElroyContext, rich_formatter: RichFormatter) -> HarnessElroyApp:
+def _make_app(ctx: ElroyConfig, rich_formatter: RichFormatter) -> HarnessElroyApp:
     return HarnessElroyApp(
         ctx=ctx,
+        session=build_elroy_session(ctx),
         formatter=rich_formatter,
         enable_greeting=False,
         show_internal_thought=False,
@@ -84,17 +86,18 @@ def _binding_description(app: ElroyApp, key: str) -> str:
 
 
 @pytest.mark.asyncio
-async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
-    add_memory_to_current_context(ctx, "Travel preference")
-    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
-    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
-    task_mutation_orchestrator.create_task(
-        "Pay electricity bill",
-        "Pay electricity bill before the cutoff date.",
-        trigger_datetime=utc_now() - timedelta(minutes=5),
-        allow_past_trigger=True,
-    )
+    invoke_with_config(add_memory_to_current_context, ctx, memory_name="Travel preference")
+    with open_turn_context(ctx) as turn:
+        task_mutation_orchestrator = build_task_mutation_orchestrator(turn)
+        task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+        task_mutation_orchestrator.create_task(
+            "Pay electricity bill",
+            "Pay electricity bill before the cutoff date.",
+            trigger_datetime=utc_now() - timedelta(minutes=5),
+            allow_past_trigger=True,
+        )
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -133,9 +136,9 @@ async def test_tui_cycles_between_chat_history_and_sidebar_sections(ctx: ElroyCo
 
 
 @pytest.mark.asyncio
-async def test_tui_initial_memory_highlight_matches_first_selected_item(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_initial_memory_highlight_matches_first_selected_item(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
-    add_memory_to_current_context(ctx, "Travel preference")
+    invoke_with_config(add_memory_to_current_context, ctx, memory_name="Travel preference")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -149,7 +152,7 @@ async def test_tui_initial_memory_highlight_matches_first_selected_item(ctx: Elr
 
 
 @pytest.mark.asyncio
-async def test_tui_ctrl_d_exits_even_when_chat_input_has_focus(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_ctrl_d_exits_even_when_chat_input_has_focus(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -164,7 +167,7 @@ async def test_tui_ctrl_d_exits_even_when_chat_input_has_focus(ctx: ElroyContext
 
 
 @pytest.mark.asyncio
-async def test_tui_multiline_paste_is_flattened_in_chat_input(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_multiline_paste_is_flattened_in_chat_input(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -176,7 +179,7 @@ async def test_tui_multiline_paste_is_flattened_in_chat_input(ctx: ElroyContext,
 
 
 @pytest.mark.asyncio
-async def test_tui_chat_input_grows_for_wrapped_text(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_chat_input_grows_for_wrapped_text(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test(size=(50, 20)) as pilot:
         await pilot.pause()
@@ -190,7 +193,7 @@ async def test_tui_chat_input_grows_for_wrapped_text(ctx: ElroyContext, rich_for
 
 
 @pytest.mark.asyncio
-async def test_tui_renders_existing_context_messages_on_startup(george_ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_renders_existing_context_messages_on_startup(george_ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(george_ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -202,11 +205,24 @@ async def test_tui_renders_existing_context_messages_on_startup(george_ctx: Elro
 
 
 @pytest.mark.asyncio
-async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
-    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
-    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
-    task_mutation_orchestrator.create_task("Buy groceries", "Buy groceries\nMilk, eggs, bread.")
+async def test_tui_does_not_render_synthetic_startup_user_message_on_empty_session(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    ctx.chat_model.ensure_alternating_roles = True
+    app = _make_app(ctx, rich_formatter)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        history = _history_text(app)
+        assert "The user has begun the conversation" not in history
+
+
+@pytest.mark.asyncio
+async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    with open_turn_context(ctx) as turn:
+        task_mutation_orchestrator = build_task_mutation_orchestrator(turn)
+        task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+        task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+        task_mutation_orchestrator.create_task("Buy groceries", "Buy groceries\nMilk, eggs, bread.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -240,12 +256,13 @@ async def test_tui_agenda_keyboard_navigation_works_after_section_switch(ctx: El
 
 
 @pytest.mark.asyncio
-async def test_tui_ctrl_m_focuses_memories_sidebar(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_ctrl_m_focuses_memories_sidebar(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     create_memory(ctx, "Travel preference", "User likes window seats on long flights.")
-    add_memory_to_current_context(ctx, "Travel preference")
+    invoke_with_config(add_memory_to_current_context, ctx, memory_name="Travel preference")
 
-    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
-    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+    with open_turn_context(ctx) as turn:
+        task_mutation_orchestrator = build_task_mutation_orchestrator(turn)
+        task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -270,7 +287,7 @@ async def test_tui_ctrl_m_focuses_memories_sidebar(ctx: ElroyContext, rich_forma
 
 
 @pytest.mark.asyncio
-async def test_tui_ctrl_a_binding_targets_agenda(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_ctrl_a_binding_targets_agenda(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -279,10 +296,11 @@ async def test_tui_ctrl_a_binding_targets_agenda(ctx: ElroyContext, rich_formatt
 
 
 @pytest.mark.asyncio
-async def test_tui_focus_agenda_enters_sidebar_and_supports_arrow_navigation(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
-    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
-    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+async def test_tui_focus_agenda_enters_sidebar_and_supports_arrow_navigation(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    with open_turn_context(ctx) as turn:
+        task_mutation_orchestrator = build_task_mutation_orchestrator(turn)
+        task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+        task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -306,8 +324,9 @@ async def test_tui_focus_agenda_enters_sidebar_and_supports_arrow_navigation(ctx
 
 
 @pytest.mark.asyncio
-async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    build_task_mutation_orchestrator(ctx).create_task("Job search", "Job search\nReach out to three contacts.")
+async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    with open_turn_context(ctx) as turn:
+        build_task_mutation_orchestrator(turn).create_task("Job search", "Job search\nReach out to three contacts.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -324,21 +343,23 @@ async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyContext, rich_form
         await pilot.press("c")
         await pilot.pause()
 
-        task = (
-            require_db_session(ctx)
-            .exec(select(AgendaItem).where(AgendaItem.name == "Job search").order_by(desc(AgendaItem.created_at)))
-            .first()
-        )
+        with open_turn_context(ctx) as turn:
+            task = (
+                build_user_session(turn)
+                .db.exec(select(AgendaItem).where(AgendaItem.name == "Job search").order_by(desc(AgendaItem.created_at)))
+                .first()
+            )
         assert task is not None
         assert task.status == "completed"
         assert "Job search" not in _sidebar_titles(app)
 
 
 @pytest.mark.asyncio
-async def test_tui_open_agenda_select_item_and_mark_complete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
-    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
-    task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
+async def test_tui_open_agenda_select_item_and_mark_complete(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    with open_turn_context(ctx) as turn:
+        task_mutation_orchestrator = build_task_mutation_orchestrator(turn)
+        task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+        task_mutation_orchestrator.create_task("Drop off parents at airport", "Drop off parents at airport\nBring snacks.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -355,24 +376,26 @@ async def test_tui_open_agenda_select_item_and_mark_complete(ctx: ElroyContext, 
         await pilot.press("c")
         await pilot.pause()
 
-        task = (
-            require_db_session(ctx)
-            .exec(select(AgendaItem).where(AgendaItem.name == "Drop off parents at airport").order_by(desc(AgendaItem.created_at)))
-            .first()
-        )
+        with open_turn_context(ctx) as turn:
+            task = (
+                build_user_session(turn)
+                .db.exec(select(AgendaItem).where(AgendaItem.name == "Drop off parents at airport").order_by(desc(AgendaItem.created_at)))
+                .first()
+            )
         assert task is not None
         assert task.status == "completed"
         assert "Drop off parents at airport" not in _sidebar_titles(app)
 
 
 @pytest.mark.asyncio
-async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
-    build_task_mutation_orchestrator(ctx).create_task(
-        "Pay rent",
-        "Pay rent before the first of the month.",
-        trigger_datetime=utc_now() - timedelta(minutes=5),
-        allow_past_trigger=True,
-    )
+async def test_tui_due_item_modal_confirms_delete(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    with open_turn_context(ctx) as turn:
+        build_task_mutation_orchestrator(turn).create_task(
+            "Pay rent",
+            "Pay rent before the first of the month.",
+            trigger_datetime=utc_now() - timedelta(minutes=5),
+            allow_past_trigger=True,
+        )
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -393,18 +416,19 @@ async def test_tui_due_item_modal_confirms_delete(ctx: ElroyContext, rich_format
         await pilot.press("d")
         await pilot.pause()
 
-        task = (
-            require_db_session(ctx)
-            .exec(select(AgendaItem).where(AgendaItem.name == "Pay rent").order_by(desc(AgendaItem.created_at)))
-            .first()
-        )
+        with open_turn_context(ctx) as turn:
+            task = (
+                build_user_session(turn)
+                .db.exec(select(AgendaItem).where(AgendaItem.name == "Pay rent").order_by(desc(AgendaItem.created_at)))
+                .first()
+            )
         assert task is not None
         assert task.status == "deleted"
         assert all("Pay rent" not in title for title in _sidebar_titles(app))
 
 
 @pytest.mark.asyncio
-async def test_tui_system_commands_include_palette_actions(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_system_commands_include_palette_actions(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -418,7 +442,7 @@ async def test_tui_system_commands_include_palette_actions(ctx: ElroyContext, ri
 
 
 @pytest.mark.asyncio
-async def test_tui_status_bar_does_not_duplicate_command_palette_hint(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_status_bar_does_not_duplicate_command_palette_hint(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -429,7 +453,7 @@ async def test_tui_status_bar_does_not_duplicate_command_palette_hint(ctx: Elroy
 
 
 @pytest.mark.asyncio
-async def test_tui_slash_command_with_missing_args_opens_modal_form(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_slash_command_with_missing_args_opens_modal_form(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -446,11 +470,12 @@ async def test_tui_slash_command_with_missing_args_opens_modal_form(ctx: ElroyCo
         await pilot.pause()
         await pilot.pause()
 
-        assert get_assistant_name(ctx) == "Jarvis"
+        with open_turn_context(ctx) as turn:
+            assert get_assistant_name(build_user_session(turn), build_user_runtime(turn)) == "Jarvis"
 
 
 @pytest.mark.asyncio
-async def test_tui_enter_submits_chat_input(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_enter_submits_chat_input(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -461,19 +486,20 @@ async def test_tui_enter_submits_chat_input(ctx: ElroyContext, rich_formatter: R
         await pilot.pause()
         await pilot.pause()
 
-        assert get_assistant_name(ctx) == "Jarvis"
+        with open_turn_context(ctx) as turn:
+            assert get_assistant_name(build_user_session(turn), build_user_runtime(turn)) == "Jarvis"
         assert input_widget.value == ""
 
 
 @pytest.mark.asyncio
 async def test_tui_chat_input_stays_editable_while_chat_stream_runs(
-    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+    ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     started = Event()
     release = Event()
 
-    def fake_process_message(*, role, ctx, msg, enable_tools=True):
-        del role, ctx, msg, enable_tools
+    def fake_process_message(*, role, ctx, session, msg, enable_tools=True):
+        del role, ctx, session, msg, enable_tools
         started.set()
         release.wait(timeout=2)
         yield "done"
@@ -515,13 +541,13 @@ async def test_tui_chat_input_stays_editable_while_chat_stream_runs(
 
 @pytest.mark.asyncio
 async def test_tui_cancel_stream_preserves_draft_text(
-    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+    ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     started = Event()
     release = Event()
 
-    def fake_process_message(*, role, ctx, msg, enable_tools=True):
-        del role, ctx, msg, enable_tools
+    def fake_process_message(*, role, ctx, session, msg, enable_tools=True):
+        del role, ctx, session, msg, enable_tools
         started.set()
         release.wait(timeout=2)
         yield "done"
@@ -557,7 +583,7 @@ async def test_tui_cancel_stream_preserves_draft_text(
 
 @pytest.mark.asyncio
 async def test_tui_chat_input_stays_editable_while_command_runs(
-    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+    ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     started = Event()
     release = Event()
@@ -609,21 +635,22 @@ async def test_tui_chat_input_stays_editable_while_command_runs(
 
 @pytest.mark.asyncio
 async def test_tui_streaming_draft_survives_browse_mode_switches(
-    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+    ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     started = Event()
     release = Event()
 
-    def fake_process_message(*, role, ctx, msg, enable_tools=True):
-        del role, ctx, msg, enable_tools
+    def fake_process_message(*, role, ctx, session, msg, enable_tools=True):
+        del role, ctx, session, msg, enable_tools
         started.set()
         release.wait(timeout=2)
         yield "done"
 
     monkeypatch.setattr("elroy.messenger.messenger.process_message", fake_process_message)
 
-    task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
-    task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
+    with open_turn_context(ctx) as turn:
+        task_mutation_orchestrator = build_task_mutation_orchestrator(turn)
+        task_mutation_orchestrator.create_task("Job search", "Job search\nReach out to three contacts.")
 
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
@@ -664,13 +691,13 @@ async def test_tui_streaming_draft_survives_browse_mode_switches(
 
 @pytest.mark.asyncio
 async def test_tui_streaming_draft_survives_sidebar_and_status_updates(
-    ctx: ElroyContext, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+    ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     started = Event()
     release = Event()
 
-    def fake_process_message(*, role, ctx, msg, enable_tools=True):
-        del role, ctx, msg, enable_tools
+    def fake_process_message(*, role, ctx, session, msg, enable_tools=True):
+        del role, ctx, session, msg, enable_tools
         started.set()
         release.wait(timeout=2)
         yield "done"
@@ -723,7 +750,7 @@ async def test_tui_streaming_draft_survives_sidebar_and_status_updates(
 
 
 @pytest.mark.asyncio
-async def test_tui_ctrl_p_opens_command_palette_from_chat_input(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_ctrl_p_opens_command_palette_from_chat_input(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -737,7 +764,7 @@ async def test_tui_ctrl_p_opens_command_palette_from_chat_input(ctx: ElroyContex
 
 
 @pytest.mark.asyncio
-async def test_tui_launch_tool_command_opens_modal_form(ctx: ElroyContext, rich_formatter: RichFormatter) -> None:
+async def test_tui_launch_tool_command_opens_modal_form(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(ctx, rich_formatter)
     async with app.run_test() as pilot:
         await pilot.pause()

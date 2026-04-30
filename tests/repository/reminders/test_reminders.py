@@ -2,8 +2,11 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from sqlmodel import select
 
-from elroy.core.ctx import ElroyContext
+from elroy.core.ctx import ElroyConfig
+from elroy.core.session import invoke_with_config, open_turn_context
+from elroy.db.db_models import AgendaItem
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.recall.queries import is_in_context
 from elroy.repository.reminders.factory import build_reminder_orchestrator
@@ -14,6 +17,7 @@ from elroy.repository.reminders.queries import (
     get_due_timed_items,
 )
 from elroy.repository.reminders.tools import create_due_item, delete_due_item
+from elroy.repository.user.session import build_user_session
 from elroy.utils.clock import utc_now
 from tests.utils import (
     MockCliIO,
@@ -25,7 +29,7 @@ from tests.utils import (
 
 
 @pytest.mark.flaky(reruns=3)
-def test_create_timed_due_item(ctx: ElroyContext):
+def test_create_timed_due_item(ctx: ElroyConfig):
     """Test creating a timed due item through assistant interaction."""
     quiz_assistant_bool(False, ctx, "Do I have any reminders about taking medicine?")
 
@@ -40,7 +44,7 @@ def test_create_timed_due_item(ctx: ElroyContext):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_create_contextual_due_item(ctx: ElroyContext):
+def test_create_contextual_due_item(ctx: ElroyConfig):
     """Test creating a contextual due item."""
     quiz_assistant_bool(False, ctx, "Do I have any reminders about exercise?")
 
@@ -53,9 +57,10 @@ def test_create_contextual_due_item(ctx: ElroyContext):
     quiz_assistant_bool(True, ctx, "Do I have any reminders about exercise or push-ups?")
 
 
-def test_delete_due_item(ctx: ElroyContext):
+def test_delete_due_item(ctx: ElroyConfig):
     """Test deleting a due item."""
-    build_reminder_orchestrator(ctx).do_create_due_item("test_reminder", "Test reminder text", trigger_context="whenever")
+    with open_turn_context(ctx) as turn:
+        build_reminder_orchestrator(turn).do_create_due_item("test_reminder", "Test reminder text", trigger_context="whenever")
 
     assert "test_reminder" in get_active_due_items_summary(ctx), "Test due item not created."
 
@@ -64,24 +69,25 @@ def test_delete_due_item(ctx: ElroyContext):
     quiz_assistant_bool(False, ctx, "Do I have a reminder called 'test_reminder'?")
 
 
-def test_delete_due_item_removes_it_from_context_and_disk(ctx: ElroyContext):
-    create_due_item(ctx, "test_reminder", "Test reminder text", trigger_context="whenever")
+def test_delete_due_item_removes_it_from_context_and_disk(ctx: ElroyConfig):
+    invoke_with_config(create_due_item, ctx, name="test_reminder", text="Test reminder text", trigger_context="whenever")
     due_item = get_db_due_item_by_name(ctx, "test_reminder")
 
     assert due_item is not None
     assert is_in_context(get_context_messages(ctx), due_item)
 
     file_path = due_item.file_path
-    delete_due_item(ctx, "test_reminder")
+    invoke_with_config(delete_due_item, ctx, name="test_reminder")
 
     assert get_due_item_by_name(ctx, "test_reminder") is None
     assert not is_in_context(get_context_messages(ctx), due_item)
     assert not Path(file_path).exists()
 
 
-def test_rename_due_item(ctx: ElroyContext):
+def test_rename_due_item(ctx: ElroyConfig):
     """Test renaming a due item."""
-    build_reminder_orchestrator(ctx).do_create_due_item("old_name", "Reminder to test renaming", None, "Any time")
+    with open_turn_context(ctx) as turn:
+        build_reminder_orchestrator(turn).do_create_due_item("old_name", "Reminder to test renaming", None, "Any time")
 
     process_test_message(ctx, "Please rename my reminder 'old_name' to 'new_name' without any clarifying questions.")
 
@@ -89,9 +95,10 @@ def test_rename_due_item(ctx: ElroyContext):
     quiz_assistant_bool(True, ctx, "Do I have a reminder called 'new_name'?")
 
 
-def test_update_due_item_text(ctx: ElroyContext):
+def test_update_due_item_text(ctx: ElroyConfig):
     """Test updating due-item text."""
-    build_reminder_orchestrator(ctx).do_create_due_item("update_test", "Original text", trigger_context="whenever")
+    with open_turn_context(ctx) as turn:
+        build_reminder_orchestrator(turn).do_create_due_item("update_test", "Original text", trigger_context="whenever")
 
     process_test_message(ctx, "Please update the text of my reminder 'update_test' to 'Updated text' without any clarifying questions.")
 
@@ -100,7 +107,7 @@ def test_update_due_item_text(ctx: ElroyContext):
     assert "Original text" not in summary, "Original text still present."
 
 
-def test_due_item_detection(ctx: ElroyContext):
+def test_due_item_detection(ctx: ElroyConfig):
     """Test that due timed items are properly detected."""
     create_due_item_in_past(
         ctx=ctx,
@@ -113,34 +120,15 @@ def test_due_item_detection(ctx: ElroyContext):
     assert any(item.name == "due_test" for item in due_items), "Specific due item not found."
 
 
-@pytest.mark.skip(reason="TODO")
-def test_due_item_context_messages(ctx: ElroyContext):
-    """Test that due items generate proper context messages."""
-    create_due_item_in_past(
-        ctx=ctx,
-        name="context_msg_test",
-        text="This generates context message",
-    )
-
-    context_msgs = get_due_item_context_msgs(ctx)
-
-    assert len(context_msgs) > 0, "No context messages generated for due item."
-
-    msg_content = context_msgs[-1].content
-    assert "⏰ DUE ITEM" in msg_content, "Context message missing due-item indicator."  # type: ignore[arg-type]
-    assert "context_msg_test" in msg_content, "Context message missing item name."  # type: ignore[arg-type]
-    assert "This generates context message" in msg_content, "Context message missing item text."  # type: ignore[arg-type]
-    assert "delete_due_item" in msg_content, "Context message missing instruction to delete."  # type: ignore[arg-type]
-
-
-def test_future_due_item_not_due(ctx: ElroyContext):
+def test_future_due_item_not_due(ctx: ElroyConfig):
     """Test that future due items are not considered due."""
     future_time = utc_now() + timedelta(days=1)
-    build_reminder_orchestrator(ctx).do_create_due_item(
-        name="future_test",
-        text="This reminder is for tomorrow",
-        trigger_time=future_time,
-    )
+    with open_turn_context(ctx) as turn:
+        build_reminder_orchestrator(turn).do_create_due_item(
+            name="future_test",
+            text="This reminder is for tomorrow",
+            trigger_time=future_time,
+        )
 
     due_items = get_due_timed_items(ctx)
     assert not any(item.name == "future_test" for item in due_items), "Future due item incorrectly marked as due."
@@ -149,21 +137,23 @@ def test_future_due_item_not_due(ctx: ElroyContext):
     assert not any("future_test" in msg.content for msg in context_msgs), "Context message generated for future due item."  # type: ignore
 
 
-def test_contextual_due_item_not_due(ctx: ElroyContext):
+def test_contextual_due_item_not_due(ctx: ElroyConfig):
     """Test that contextual-only due items are not considered due by time."""
-    build_reminder_orchestrator(ctx).do_create_due_item(
-        name="contextual_test",
-        text="Context-only reminder",
-        trigger_context="when user mentions work",
-    )
+    with open_turn_context(ctx) as turn:
+        build_reminder_orchestrator(turn).do_create_due_item(
+            name="contextual_test",
+            text="Context-only reminder",
+            trigger_context="when user mentions work",
+        )
 
     due_items = get_due_timed_items(ctx)
     assert not any(item.name == "contextual_test" for item in due_items), "Contextual due item incorrectly in due-timed items."
 
 
-def test_duplicate_due_item_name(io: MockCliIO, ctx: ElroyContext):
+def test_duplicate_due_item_name(io: MockCliIO, ctx: ElroyConfig):
     """Test that creating a due item with duplicate name is handled properly."""
-    build_reminder_orchestrator(ctx).do_create_due_item("duplicate_test", "First reminder", trigger_context="whenever")
+    with open_turn_context(ctx) as turn:
+        build_reminder_orchestrator(turn).do_create_due_item("duplicate_test", "First reminder", trigger_context="whenever")
 
     process_test_message(
         ctx, "Create a reminder called 'duplicate_test' with text 'Second reminder'. Please create without clarifying questions."
@@ -172,7 +162,7 @@ def test_duplicate_due_item_name(io: MockCliIO, ctx: ElroyContext):
     quiz_assistant_bool(True, ctx, "Did the reminder I asked you to create already exist with that name?")
 
 
-def test_nonexistent_due_item_operations(io: MockCliIO, ctx: ElroyContext):
+def test_nonexistent_due_item_operations(io: MockCliIO, ctx: ElroyConfig):
     """Test operations on non-existent due items."""
     process_test_message(ctx, "Please delete my reminder called 'nonexistent_reminder'.")
 
@@ -180,7 +170,7 @@ def test_nonexistent_due_item_operations(io: MockCliIO, ctx: ElroyContext):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_due_item_integration_workflow(ctx: ElroyContext):
+def test_due_item_integration_workflow(ctx: ElroyConfig):
     """Test a complete workflow of due-item operations."""
     quiz_assistant_bool(False, ctx, "Do I have any reminders about appointments?")
 
@@ -207,23 +197,37 @@ def test_due_item_integration_workflow(ctx: ElroyContext):
     quiz_assistant_bool(False, ctx, "Do I have any reminders about medical or checkup?")
 
 
-@pytest.mark.skip("TODO")
-def test_due_item_deactivation_sets_is_active_to_none(ctx: ElroyContext):
-    """Test that due-item deactivation sets is_active to None (not False) for unique constraint."""
-    due_item = build_reminder_orchestrator(ctx).do_create_due_item(
-        name="deactivation_test",
-        text="Test deactivation",
-    )
+def test_due_item_deactivation_sets_is_active_to_none(ctx: ElroyConfig):
+    """Deleted due items should become inactive and allow the same name to be reused."""
+    with open_turn_context(ctx) as turn:
+        due_item = build_reminder_orchestrator(turn).do_create_due_item(
+            name="deactivation_test",
+            text="Test deactivation",
+            trigger_context="whenever",
+        )
     original_id = due_item.id
 
-    delete_due_item(ctx, "deactivation_test")
+    invoke_with_config(delete_due_item, ctx, name="deactivation_test")
 
     assert get_due_item_by_name(ctx, "deactivation_test") is None, "Due item should not be returned since it should be inactive"
 
-    new_due_item = build_reminder_orchestrator(ctx).do_create_due_item(
-        name="deactivation_test",
-        text="New due item with same name",
-    )
+    with open_turn_context(ctx) as turn:
+        user_session = build_user_session(turn)
+        deleted_due_item = user_session.db.exec(
+            select(AgendaItem).where(
+                AgendaItem.user_id == user_session.user_id,
+                AgendaItem.id == original_id,
+            )
+        ).one()
+    assert deleted_due_item.status == "deleted"
+    assert deleted_due_item.is_active is None
+
+    with open_turn_context(ctx) as turn:
+        new_due_item = build_reminder_orchestrator(turn).do_create_due_item(
+            name="deactivation_test",
+            text="New due item with same name",
+            trigger_context="whenever",
+        )
 
     assert new_due_item.id != original_id, "New due item should have different ID"
     assert new_due_item.is_active is True, "New due item should be active"

@@ -10,8 +10,8 @@ from toolz.curried import do
 from elroy.cli.chat import onboard_non_interactive
 from elroy.cli.options import resolve_model_alias
 from elroy.core.constants import ASSISTANT, USER, allow_unused
-from elroy.core.ctx import ElroyContext
-from elroy.core.db import require_db_session
+from elroy.core.ctx import ElroyConfig
+from elroy.core.session import open_turn_context
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     AgendaItem,
@@ -25,14 +25,17 @@ from elroy.db.db_session import DbSession
 from elroy.io.formatters.rich_formatter import RichFormatter
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
+from elroy.repository.context_messages.session import build_context_message_session
 from elroy.repository.reminders.factory import build_reminder_orchestrator
 from elroy.repository.user.store import create_user_id
-from tests.utils import MockCliIO, MockLlmClient, _match_score
+from tests.utils import TEST_EMBEDDING_QUERIES, MockCliIO, MockLlmClient, _match_score
+
+TEST_EMBEDDINGS: dict[str, dict[str, dict[str, Any]]] = {}
 
 
 def _mock_query_vector(self: DbSession, l2_distance_threshold: float, table, user_id: int, query: list[float]):
     del l2_distance_threshold
-    query_text = getattr(self, "_test_embedding_queries", {}).get(tuple(query), "")
+    query_text = TEST_EMBEDDING_QUERIES.get(self.url, {}).get(tuple(query), "")
     rows = list(self.exec(select(table).where(table.user_id == user_id, table.is_active.is_(True))).all())
 
     def _row_text(row) -> str:
@@ -44,6 +47,56 @@ def _mock_query_vector(self: DbSession, l2_distance_threshold: float, table, use
 
     ranked = sorted(rows, key=lambda row: _match_score(query_text, _row_text(row)), reverse=True)
     return [row for row in ranked if _match_score(query_text, _row_text(row)) > 0]
+
+
+def _embedding_store(url: str) -> dict[str, dict[str, Any]]:
+    return TEST_EMBEDDINGS.setdefault(url, {})
+
+
+def _mock_insert_embedding(self: DbSession, row, embedding_data: list[float], embedding_text_md5: str):
+    if row.id is None:
+        raise ValueError("Cannot insert embedding for row without ID")
+    _embedding_store(self.url)[self._doc_id(row)] = {
+        "embedding": list(embedding_data),
+        "embedding_text_md5": embedding_text_md5,
+        "is_active": bool(row.is_active) if row.is_active is not None else False,
+    }
+
+
+def _mock_update_embedding(self: DbSession, row, embedding: list[float], embedding_text_md5: str):
+    if row.id is None:
+        raise ValueError("Cannot update embedding for row without ID")
+    _embedding_store(self.url)[self._doc_id(row)] = {
+        "embedding": list(embedding),
+        "embedding_text_md5": embedding_text_md5,
+        "is_active": bool(row.is_active) if row.is_active is not None else False,
+    }
+
+
+def _mock_get_embedding(self: DbSession, row) -> list[float] | None:
+    if row.id is None:
+        return None
+    record = _embedding_store(self.url).get(self._doc_id(row))
+    if record is None:
+        return None
+    return cast(list[float], record["embedding"])
+
+
+def _mock_get_embedding_text_md5(self: DbSession, row) -> str | None:
+    if row.id is None:
+        return None
+    record = _embedding_store(self.url).get(self._doc_id(row))
+    if record is None:
+        return None
+    return cast(str | None, record["embedding_text_md5"])
+
+
+def _mock_update_embedding_active(self: DbSession, row) -> None:
+    if row.id is None:
+        return
+    record = _embedding_store(self.url).get(self._doc_id(row))
+    if record is not None:
+        record["is_active"] = bool(row.is_active) if row.is_active is not None else False
 
 
 BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME = "Remember to follow through on basketball shots"
@@ -103,7 +156,7 @@ def io(rich_formatter: RichFormatter) -> Generator[MockCliIO, Any, None]:
 
 
 @pytest.fixture(scope="function")
-def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
+def george_ctx(ctx: ElroyConfig) -> Generator[ElroyConfig, Any, None]:
     messages = [
         ContextMessage(
             role=USER,
@@ -157,22 +210,23 @@ def george_ctx(ctx: ElroyContext) -> Generator[ElroyContext, Any, None]:
         ),
     ]
 
-    build_context_refresh_orchestrator(ctx).add_context_messages(messages)
+    with open_turn_context(ctx) as turn:
+        build_context_refresh_orchestrator(build_context_message_session(turn)).add_context_messages(messages)
 
-    reminder_orchestrator = build_reminder_orchestrator(ctx)
-    reminder_orchestrator.do_create_due_item(
-        BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
-        "Remind Goerge to follow through if he mentions basketball.",
-        None,
-        "Whenever George mentions basketball",
-    )
+        reminder_orchestrator = build_reminder_orchestrator(turn)
+        reminder_orchestrator.do_create_due_item(
+            BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
+            "Remind Goerge to follow through if he mentions basketball.",
+            None,
+            "Whenever George mentions basketball",
+        )
 
-    reminder_orchestrator.do_create_due_item(
-        "Pay off car loan by end of year",
-        "Remind George to pay off his loan by the end of the year.",
-        None,
-        "when george mentions bills",
-    )
+        reminder_orchestrator.do_create_due_item(
+            "Pay off car loan by end of year",
+            "Remind George to pay off his loan by the end of the year.",
+            None,
+            "when george mentions bills",
+        )
 
     yield ctx
 
@@ -183,27 +237,33 @@ def user_token() -> Generator[str, None, None]:
 
 
 @pytest.fixture(scope="function")
-def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str, tmp_path) -> Generator[ElroyContext, None, None]:
-    """Create an ElroyContext for testing, using the same defaults as the CLI"""
+def ctx(db_manager: DbManager, db_session: DbSession, user_token, chat_model_name: str, tmp_path) -> Generator[ElroyConfig, None, None]:
+    """Create an ElroyConfig for testing, using the same defaults as the CLI"""
 
     # Create new context with all parameters
-    ctx = ElroyContext.init(
+    ctx = ElroyConfig.init(
         user_token=user_token,
         database_url=db_manager.url,
         chat_model=chat_model_name,
         use_background_threads=True,
         memory_dir=str(tmp_path / "memories"),
     )
-    ctx.set_db_session(db_session)
-    test_db_session = require_db_session(ctx)
+    test_db_session = db_session
     cast(Any, test_db_session).query_vector = _mock_query_vector.__get__(test_db_session, DbSession)
-    cast(Any, test_db_session)._test_embedding_queries = {}
+    cast(Any, DbSession).query_vector = _mock_query_vector
+    cast(Any, DbSession).insert_embedding = _mock_insert_embedding
+    cast(Any, DbSession).update_embedding = _mock_update_embedding
+    cast(Any, DbSession).get_embedding = _mock_get_embedding
+    cast(Any, DbSession).get_embedding_text_md5 = _mock_get_embedding_text_md5
+    cast(Any, DbSession).update_embedding_active = _mock_update_embedding_active
+    TEST_EMBEDDING_QUERIES[db_manager.url] = {}
+    TEST_EMBEDDINGS[db_manager.url] = {}
     ctx.__dict__["llm"] = MockLlmClient(ctx)
     ctx.__dict__["fast_llm"] = MockLlmClient(ctx)
 
-    onboard_non_interactive(ctx)
+    with open_turn_context(ctx) as turn:
+        onboard_non_interactive(turn)
     yield ctx
-    ctx.unset_db_session()
 
 
 @pytest.fixture(scope="session")

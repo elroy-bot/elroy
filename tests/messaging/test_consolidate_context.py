@@ -1,13 +1,13 @@
 from lorem_text import lorem
 
 from elroy.core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, USER
-from elroy.core.ctx import ElroyContext
+from elroy.core.ctx import ElroyConfig
 from elroy.llm.utils import count_tokens
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.transforms import compress_context_messages
 
 
-def test_compress_context_messages(george_ctx: ElroyContext):
+def test_compress_context_messages(george_ctx: ElroyConfig):
     # create a very long context to test consolidation
     system_message = ContextMessage(
         role=SYSTEM,

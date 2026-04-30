@@ -15,6 +15,29 @@ class UserPreferenceStore:
         return do_get_or_create_user_preference(self.db.session, self.user_id)
 
 
+class UserStore:
+    def __init__(self, db: DbSession):
+        self.db = db
+
+    def get_user_id_if_exists(self, user_token: str) -> int | None:
+        user = self.db.exec(select(User).where(User.token == user_token)).first()
+        if user is None:
+            return None
+
+        user_id = user.id
+        assert user_id is not None
+        return user_id
+
+    def get_or_create_user_id(self, user_token: str) -> int:
+        return self.get_user_id_if_exists(user_token) or self.create_user_id(user_token)
+
+    def create_user_id(self, user_token: str) -> int:
+        user = self.db.persist(User(token=user_token))
+        user_id = user.id
+        assert user_id
+        return user_id
+
+
 def do_get_or_create_user_preference(session: Session, user_id: int) -> UserPreference:
     user_preference = session.exec(
         select(UserPreference).where(
@@ -32,7 +55,4 @@ def do_get_or_create_user_preference(session: Session, user_id: int) -> UserPref
 
 
 def create_user_id(db: DbSession, user_token: str) -> int:
-    user = db.persist(User(token=user_token))
-    user_id = user.id
-    assert user_id
-    return user_id
+    return UserStore(db).create_user_id(user_token)

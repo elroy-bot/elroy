@@ -3,17 +3,32 @@ import uuid
 import pytest
 
 from elroy.core.constants import ASSISTANT, SYSTEM, SYSTEM_INSTRUCTION_LABEL, TOOL, USER
+from elroy.core.session import open_turn_context
 from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_message_store
 from elroy.repository.context_messages.queries import get_context_messages
+from elroy.repository.context_messages.session import build_context_message_session
 from elroy.repository.context_messages.transforms import is_system_instruction
 from elroy.repository.context_messages.validations import Validator
 
 
+def _replace_messages(ctx, messages):
+    with open_turn_context(ctx) as turn:
+        build_context_message_store(build_context_message_session(turn)).replace_context_messages(messages)
+
+
+def _validate_messages(ctx, messages):
+    with open_turn_context(ctx) as turn:
+        validator = Validator(turn, messages)
+        validated = list(validator.validated_msgs())
+    return validator, validated
+
+
 def test_assistant_tool_calls_followed_by_tool(ctx, system_instruct, tool_call):
     """Test that assistant messages with tool calls must be followed by tool messages"""
-    build_context_message_store(ctx).replace_context_messages(
+    _replace_messages(
+        ctx,
         [
             system_instruct,
             ContextMessage(
@@ -31,8 +46,7 @@ def test_assistant_tool_calls_followed_by_tool(ctx, system_instruct, tool_call):
     )
     messages = get_context_messages(ctx)
 
-    validator = Validator(ctx, messages)
-    validated = list(validator.validated_msgs())
+    validator, validated = _validate_messages(ctx, messages)
 
     assert len(validated) == 3
     assert validated[2].tool_calls is None
@@ -53,8 +67,7 @@ def test_wrong_tool_call_id(ctx, system_instruct, tool_call: ToolCall, tool_call
         ContextMessage(role=TOOL, content="tool response", chat_model=None, tool_call_id="wrong_id"),
     ]
 
-    validator = Validator(ctx, messages)
-    validated = list(validator.validated_msgs())
+    validator, validated = _validate_messages(ctx, messages)
     assert len(validated) == 4  # wrong_id tool message is removed
     assert not any(msg.tool_call_id == "wrong_id" for msg in validated)
     assert any("without corresponding tool_message" in error for error in validator.errors)
@@ -70,8 +83,7 @@ def test_multiple_tool_calls(ctx, system_instruct, tool_call: ToolCall, tool_cal
         ContextMessage(role=TOOL, content="tool response", chat_model=None, tool_call_id=tool_call_2.id),
     ]
 
-    validator = Validator(ctx, messages)
-    validated = list(validator.validated_msgs())
+    validator, validated = _validate_messages(ctx, messages)
     assert len(validated) == 5
     assert not validator.errors
 
@@ -84,8 +96,7 @@ def test_tool_messages_have_assistant_tool_call(ctx, system_instruct):
         ContextMessage(role=TOOL, content="tool response", chat_model=None, tool_call_id="123"),
     ]
 
-    validator = Validator(ctx, messages)
-    validated = list(validator.validated_msgs())
+    validator, validated = _validate_messages(ctx, messages)
 
     assert len(validated) == 2
     assert "Tool message without preceding assistant message with tool_calls" in validator.errors[0]
@@ -99,12 +110,11 @@ def test_system_instruction_correctly_placed(ctx):
         ContextMessage(role=SYSTEM, content="system message", chat_model=None),
     ]
 
-    build_context_message_store(ctx).replace_context_messages(raw_messages)
+    _replace_messages(ctx, raw_messages)
 
     messages = get_context_messages(ctx)
 
-    validator = Validator(ctx, messages)
-    validated = list(validator.validated_msgs())
+    validator, validated = _validate_messages(ctx, messages)
 
     assert len(validated) == 3
     assert validated[0].role == SYSTEM
@@ -122,8 +132,7 @@ def test_first_user_precedes_first_assistant(ctx, system_instruct):
         ContextMessage(role=ASSISTANT, content="assistant message", chat_model=None),
     ]
 
-    validator = Validator(ctx, messages)
-    validated = list(validator.validated_msgs())
+    validator, validated = _validate_messages(ctx, messages)
 
     assert len(validated) == 3
     assert validated[0].role == SYSTEM
@@ -142,8 +151,7 @@ def test_ignore_first_user_precedes_first_assistant(ctx, system_instruct):
         ContextMessage(role=ASSISTANT, content="assistant message", chat_model=None),
     ]
 
-    validator = Validator(ctx, messages)
-    validated = list(validator.validated_msgs())
+    validator, validated = _validate_messages(ctx, messages)
 
     assert len(validated) == 2
     assert validated[0].role == SYSTEM
@@ -165,8 +173,7 @@ def test_valid_message_sequence(ctx, system_instruct, tool_call):
         ContextMessage(role=TOOL, content="tool response", chat_model=None, tool_call_id=tool_call.id),
     ]
 
-    validator = Validator(ctx, messages)
-    validated = list(validator.validated_msgs())
+    validator, validated = _validate_messages(ctx, messages)
 
     assert len(validated) == len(messages)
     assert len(validator.errors) == 0

@@ -7,22 +7,20 @@ from sqlmodel import col, select
 from toolz import pipe
 from toolz.curried import map, remove
 
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
+from ...core.ctx import ElroyConfig
 from ...core.logging import log_execution_time
-from ...db.db_models import (
-    AgendaItem,
-    Memory,
-    MemorySource,
-    get_memory_source_class,
-)
+from ...core.session import run_with_turn
+from ...core.turn import TurnContext
+from ...db.db_models import AgendaItem, Memory, MemorySource, get_memory_source_class
 from ...db.db_session import DbSession
 from ...llm.client import LlmClient
 from ..context_messages.data_models import ContextMessage
 from ..context_messages.transforms import ContextMessageSetWithMessages
 from ..user.queries import do_get_user_preferred_name, get_assistant_name
+from ..user.session import build_user_runtime, build_user_session
 from .memory_recall_builder import MemoryRecallBuilder
 from .memory_recall_orchestrator import MemoryRecallOrchestrator
+from .runtime import build_memory_runtime
 
 T = TypeVar("T")
 
@@ -82,47 +80,50 @@ class MemoryReadStore:
         return list(self.db.exec(select(Memory).where(Memory.user_id == self.user_id, col(Memory.id).in_(memory_ids))).all())
 
 
-def _store(ctx: ElroyContext) -> MemoryReadStore:
-    return MemoryReadStore(require_db_session(ctx), ctx.user_id)
+def _store(turn: TurnContext) -> MemoryReadStore:
+    user_session = build_user_session(turn)
+    return MemoryReadStore(user_session.db, user_session.user_id)
 
 
 def _recall_builder() -> MemoryRecallBuilder:
     return MemoryRecallBuilder()
 
 
-def _recall_orchestrator(ctx: ElroyContext) -> MemoryRecallOrchestrator:
+def _recall_orchestrator(turn: TurnContext) -> MemoryRecallOrchestrator:
+    user_session = build_user_session(turn)
+    runtime = build_memory_runtime(turn)
     return MemoryRecallOrchestrator(
-        db=require_db_session(ctx),
-        user_id=ctx.user_id,
-        memory_config=ctx.memory_config,
-        llm=ctx.llm,
-        reflect=ctx.reflect,
+        db=user_session.db,
+        user_id=user_session.user_id,
+        memory_config=runtime.memory_config,
+        llm=runtime.llm,
+        reflect=runtime.reflect,
         recall_builder=_recall_builder(),
     )
 
 
-def db_get_memory_source_by_name(ctx: ElroyContext, source_type: str, name: str) -> MemorySource | None:
-    return _store(ctx).db_get_memory_source_by_name(source_type, name)
+def do_db_get_memory_source_by_name(turn: TurnContext, source_type: str, name: str) -> MemorySource | None:
+    return _store(turn).db_get_memory_source_by_name(source_type, name)
 
 
-def db_get_source_list_for_memory(ctx: ElroyContext, memory: Memory) -> Sequence[MemorySource]:
-    return _store(ctx).db_get_source_list_for_memory(memory)
+def do_db_get_source_list_for_memory(turn: TurnContext, memory: Memory) -> Sequence[MemorySource]:
+    return _store(turn).db_get_source_list_for_memory(memory)
 
 
-def db_get_memory_source(ctx: ElroyContext, source_type: str, id: int) -> MemorySource | None:
-    return _store(ctx).db_get_memory_source(source_type, id)
+def do_db_get_memory_source(turn: TurnContext, source_type: str, id: int) -> MemorySource | None:
+    return _store(turn).db_get_memory_source(source_type, id)
 
 
-def get_active_memories(ctx: ElroyContext) -> list[Memory]:
-    return _store(ctx).get_active_memories()
+def do_get_active_memories(turn: TurnContext) -> list[Memory]:
+    return _store(turn).get_active_memories()
 
 
-def get_relevant_memories_and_due_items(ctx: ElroyContext, query: str) -> list[Memory | AgendaItem]:
-    return _recall_orchestrator(ctx).get_relevant_memories_and_due_items(query)
+def do_get_relevant_memories_and_due_items(turn: TurnContext, query: str) -> list[Memory | AgendaItem]:
+    return _recall_orchestrator(turn).get_relevant_memories_and_due_items(query)
 
 
-def get_memory_by_name(ctx: ElroyContext, memory_name: str) -> Memory | None:
-    return _store(ctx).get_memory_by_name(memory_name)
+def do_get_memory_by_name(turn: TurnContext, memory_name: str) -> Memory | None:
+    return _store(turn).get_memory_by_name(memory_name)
 
 
 @log_execution_time
@@ -162,30 +163,35 @@ def get_message_content(context_messages: list[ContextMessage], n: int) -> str:
     return _recall_builder().get_message_content(context_messages, n)
 
 
-def get_relevant_memory_context_msgs(ctx: ElroyContext, context_messages: list[ContextMessage]) -> list[ContextMessage]:
-    return _recall_orchestrator(ctx).get_relevant_memory_context_msgs(
+def do_get_relevant_memory_context_msgs(turn: TurnContext, context_messages: list[ContextMessage]) -> list[ContextMessage]:
+    user_session = build_user_session(turn)
+    user_runtime = build_user_runtime(turn)
+    return _recall_orchestrator(turn).get_relevant_memory_context_msgs(
         context_messages,
-        get_assistant_name(ctx),
-        do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id),
+        get_assistant_name(user_session, user_runtime),
+        do_get_user_preferred_name(user_session.db.session, user_session.user_id),
     )
 
 
 @log_execution_time
-def get_reflective_recall(
-    ctx: ElroyContext,
+def do_get_reflective_recall(
+    turn: TurnContext,
     context_messages: Iterable[ContextMessage],
     memories: Iterable[Any],
 ) -> list[ContextMessage]:
+    user_session = build_user_session(turn)
+    user_runtime = build_user_runtime(turn)
+    runtime = build_memory_runtime(turn)
     return _recall_builder().build_reflective_recall(
-        ctx.llm,
+        runtime.llm,
         context_messages,
         memories,
-        get_assistant_name(ctx),
-        do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id),
+        get_assistant_name(user_session, user_runtime),
+        do_get_user_preferred_name(user_session.db.session, user_session.user_id),
     )
 
 
-def get_reflective_recall_from_service(
+def build_reflective_recall(
     llm: LlmClient,
     context_messages: Iterable[ContextMessage],
     memories: Iterable[Any],
@@ -199,5 +205,46 @@ def get_in_context_memories_metadata(context_messages: Iterable[ContextMessage])
     return _recall_builder().get_in_context_memories_metadata(context_messages)
 
 
-def get_memories(ctx: ElroyContext, memory_ids: list[int]) -> list[Memory]:
-    return _store(ctx).get_memories(memory_ids)
+def do_get_memories(turn: TurnContext, memory_ids: list[int]) -> list[Memory]:
+    return _store(turn).get_memories(memory_ids)
+
+
+def db_get_memory_source_by_name(ctx: ElroyConfig, source_type: str, name: str) -> MemorySource | None:
+    return run_with_turn(ctx, do_db_get_memory_source_by_name, source_type, name)
+
+
+def db_get_source_list_for_memory(ctx: ElroyConfig, memory: Memory) -> Sequence[MemorySource]:
+    return run_with_turn(ctx, do_db_get_source_list_for_memory, memory)
+
+
+def db_get_memory_source(ctx: ElroyConfig, source_type: str, id: int) -> MemorySource | None:
+    return run_with_turn(ctx, do_db_get_memory_source, source_type, id)
+
+
+def get_active_memories(ctx: ElroyConfig) -> list[Memory]:
+    return run_with_turn(ctx, do_get_active_memories)
+
+
+def get_relevant_memories_and_due_items(ctx: ElroyConfig, query: str) -> list[Memory | AgendaItem]:
+    return run_with_turn(ctx, do_get_relevant_memories_and_due_items, query)
+
+
+def get_memory_by_name(ctx: ElroyConfig, memory_name: str) -> Memory | None:
+    return run_with_turn(ctx, do_get_memory_by_name, memory_name)
+
+
+def get_relevant_memory_context_msgs(ctx: ElroyConfig, context_messages: list[ContextMessage]) -> list[ContextMessage]:
+    return run_with_turn(ctx, do_get_relevant_memory_context_msgs, context_messages)
+
+
+@log_execution_time
+def get_reflective_recall(
+    ctx: ElroyConfig,
+    context_messages: Iterable[ContextMessage],
+    memories: Iterable[Any],
+) -> list[ContextMessage]:
+    return run_with_turn(ctx, do_get_reflective_recall, context_messages, memories)
+
+
+def get_memories(ctx: ElroyConfig, memory_ids: list[int]) -> list[Memory]:
+    return run_with_turn(ctx, do_get_memories, memory_ids)

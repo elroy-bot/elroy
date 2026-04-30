@@ -4,16 +4,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Literal
 
-from ...core.ctx import ElroyContext
-from ...db.db_models import AgendaItem, EmbeddableSqlModel
-from ...io.completions import build_completions, get_memory_panel_entries
-from ...repository.agenda.file_storage import get_checklist, read_agenda_metadata
-from ...repository.memories.factory import build_memory_lifecycle_orchestrator
-from ...repository.memories.queries import db_get_memory_source_by_name
-from ...repository.reminders.factory import build_reminder_orchestrator
-from ...repository.tasks.factory import build_task_mutation_orchestrator
-from ...repository.tasks.queries import get_active_tasks, get_task_by_name
-from ...utils.clock import db_time_to_local, ensure_utc, utc_now
+from ..db.db_models import AgendaItem, EmbeddableSqlModel
+from ..io.completions import do_build_completions, do_get_memory_panel_entries
+from ..repository.agenda.file_storage import get_checklist, read_agenda_metadata
+from ..repository.memories.factory import build_memory_lifecycle_orchestrator
+from ..repository.memories.queries import do_db_get_memory_source_by_name
+from ..repository.reminders.factory import build_reminder_orchestrator
+from ..repository.tasks.factory import build_task_mutation_orchestrator
+from ..repository.tasks.queries import do_get_active_tasks, do_get_task_by_name
+from ..utils.clock import db_time_to_local, ensure_utc, utc_now
+from .ctx import ElroyConfig
+from .session import open_turn_context
+from .turn import ElroySession, TurnContext
 
 SidebarEntryKind = Literal["memory", "agenda"]
 
@@ -54,24 +56,27 @@ class SidebarBuilder:
 
     MEMORY_BUFFER_SOURCE_TYPES: ClassVar[set[str]] = {"Memory", "ContextMessageSet"}
 
-    def __init__(self, ctx: ElroyContext):
+    def __init__(self, ctx: ElroyConfig, session: ElroySession):
         self.ctx = ctx
+        self.session = session
 
     def build_sidebar_state(self) -> SidebarState:
-        return SidebarState(
-            memories=self._build_memory_entries(),
-            agenda=self._build_agenda_entries(),
-            completions=build_completions(self.ctx),
-        )
+        with open_turn_context(self.ctx, self.session) as turn:
+            return SidebarState(
+                memories=self._build_memory_entries(turn),
+                agenda=self._build_agenda_entries(turn),
+                completions=do_build_completions(turn),
+            )
 
     def build_detail_modal(self, entry: SidebarEntry) -> DetailModalSpec | None:
-        if entry.ref.kind == "memory":
-            return self._build_memory_detail_modal(entry)
-        return self._build_agenda_detail_modal(entry)
+        with open_turn_context(self.ctx, self.session) as turn:
+            if entry.ref.kind == "memory":
+                return self._build_memory_detail_modal(turn, entry)
+            return self._build_agenda_detail_modal(turn, entry)
 
-    def _build_memory_entries(self) -> list[SidebarEntry]:
+    def _build_memory_entries(self, turn: TurnContext) -> list[SidebarEntry]:
         memory_entries: list[SidebarEntry] = []
-        for display_name, type_key in get_memory_panel_entries(self.ctx):
+        for display_name, type_key in do_get_memory_panel_entries(turn):
             source_type, _, _ = type_key.partition(": ")
             if source_type not in self.MEMORY_BUFFER_SOURCE_TYPES:
                 continue
@@ -95,7 +100,7 @@ class SidebarBuilder:
                 title = f"{title} (Due)"
         return title
 
-    def _build_agenda_entries(self) -> list[SidebarEntry]:
+    def _build_agenda_entries(self, turn: TurnContext) -> list[SidebarEntry]:
         return [
             SidebarEntry(
                 title=self._format_agenda_title(item),
@@ -103,13 +108,13 @@ class SidebarBuilder:
                 content=item.to_fact(),
                 deletable=bool(item.trigger_datetime or item.trigger_context),
             )
-            for item in get_active_tasks(self.ctx)[:15]
+            for item in do_get_active_tasks(turn)[:15]
         ]
 
-    def _build_memory_detail_modal(self, entry: SidebarEntry) -> DetailModalSpec | None:
+    def _build_memory_detail_modal(self, turn: TurnContext, entry: SidebarEntry) -> DetailModalSpec | None:
         if entry.ref.source_type is None:
             return None
-        source = db_get_memory_source_by_name(self.ctx, entry.ref.source_type, entry.ref.key)
+        source = do_db_get_memory_source_by_name(turn, entry.ref.source_type, entry.ref.key)
         if not source:
             return None
 
@@ -150,11 +155,11 @@ class SidebarBuilder:
             lines.append(body)
         return "\n\n".join(lines) if lines else task.text
 
-    def _build_agenda_detail_modal(self, entry: SidebarEntry) -> DetailModalSpec:
+    def _build_agenda_detail_modal(self, turn: TurnContext, entry: SidebarEntry) -> DetailModalSpec:
         title = entry.title
         content = entry.content
         can_complete = False
-        task = get_task_by_name(self.ctx, entry.ref.key)
+        task = do_get_task_by_name(turn, entry.ref.key)
         if task:
             title = task.name
             content = self._build_agenda_modal_content(task)
@@ -172,29 +177,29 @@ class SidebarBuilder:
 class SidebarActionOrchestrator:
     """Apply sidebar-triggered mutations."""
 
-    def __init__(self, ctx: ElroyContext):
+    def __init__(self, ctx: ElroyConfig, session: ElroySession):
         self.ctx = ctx
-        self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
-        self.reminder_orchestrator = build_reminder_orchestrator(ctx)
-        self.task_mutation_orchestrator = build_task_mutation_orchestrator(ctx)
+        self.session = session
 
     def delete(self, ref: SidebarEntryRef) -> None:
-        if ref.kind == "memory":
-            self._delete_memory(ref)
-            return
-        self.reminder_orchestrator.do_delete_due_item(ref.key)
+        with open_turn_context(self.ctx, self.session) as turn:
+            if ref.kind == "memory":
+                self._delete_memory(turn, ref)
+                return
+            build_reminder_orchestrator(turn).do_delete_due_item(ref.key)
 
     def complete(self, ref: SidebarEntryRef) -> None:
         if ref.kind != "agenda":
             return
-        self.task_mutation_orchestrator.complete_task(ref.key)
+        with open_turn_context(self.ctx, self.session) as turn:
+            build_task_mutation_orchestrator(turn).complete_task(ref.key)
 
-    def _delete_memory(self, ref: SidebarEntryRef) -> None:
+    def _delete_memory(self, turn, ref: SidebarEntryRef) -> None:
         if ref.source_type is None:
             return
-        source = db_get_memory_source_by_name(self.ctx, ref.source_type, ref.key)
+        source = do_db_get_memory_source_by_name(turn, ref.source_type, ref.key)
         if isinstance(source, EmbeddableSqlModel):
-            self.memory_lifecycle_orchestrator.mark_inactive(source)
+            build_memory_lifecycle_orchestrator(turn).mark_inactive(source)
 
 
 AgendaPresenter = SidebarBuilder

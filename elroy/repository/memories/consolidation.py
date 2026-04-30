@@ -8,13 +8,17 @@ from pydantic import BaseModel
 from toolz import pipe
 from toolz.curried import map, take
 
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
+from ...core.ctx import ElroyConfig
 from ...core.logging import get_logger
+from ...core.session import build_elroy_session, open_turn_context
+from ...core.turn import TurnContext
 from ...db.db_models import Memory
 from ...io.base import ElroyIO
 from ..data_models import MemoryResponse
+from ..user.session import build_user_session
 from .prompts import get_memory_consolidation_prompt
+from .queries import do_get_active_memories
+from .runtime import build_memory_runtime
 
 logger = get_logger()
 
@@ -121,16 +125,9 @@ class MemoryCluster:
         return MemoryCluster(memories=[self.memories[i] for i in closest_indices], embeddings=self.embeddings[closest_indices])
 
 
-def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: ElroyIO | None = None):
+def do_consolidate_memories(turn: TurnContext, cluster_limit: int = 3, io: ElroyIO | None = None):
     """Consolidate memories by finding clusters of similar memories and consolidating them into a single memory."""
-    from .queries import get_active_memories
-
-    clusters = pipe(
-        get_active_memories(ctx),
-        lambda x: _find_clusters(ctx, x, io),
-        take(cluster_limit),
-        list,
-    )
+    clusters = pipe(do_get_active_memories(turn), lambda x: _find_clusters(turn, x, io), take(cluster_limit), list)
 
     logger.info(f"Found {len(clusters)} memory clusters to consolidate")
 
@@ -143,11 +140,17 @@ def consolidate_memories(ctx: ElroyContext, cluster_limit: int = 3, io: ElroyIO 
 
     for cluster in items:
         assert isinstance(cluster, MemoryCluster)
-        consolidate_memory_cluster(ctx, cluster)
+        do_consolidate_memory_cluster(turn, cluster)
 
 
-def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None = None) -> list[MemoryCluster]:
+def consolidate_memories(ctx: ElroyConfig, cluster_limit: int = 3, io: ElroyIO | None = None):
+    with open_turn_context(ctx, build_elroy_session(ctx)) as turn:
+        return do_consolidate_memories(turn, cluster_limit=cluster_limit, io=io)
+
+
+def _find_clusters(turn: TurnContext, memories: list[Memory], io: ElroyIO | None = None) -> list[MemoryCluster]:
     _ = io
+    runtime = build_memory_runtime(turn)
 
     import time
 
@@ -160,7 +163,7 @@ def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None
 
     # TODO: Optimize this to batch load in single query (currently N+1)
     # Challenge: pgvector deserialization issues with some DB configurations
-    db_session = require_db_session(ctx)
+    db_session = build_user_session(turn).db
     for memory in memories:
         embedding = db_session.get_embedding(memory)
         if embedding is not None:
@@ -180,9 +183,9 @@ def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None
 
     logger.info("Calculating clusters")
     clustering = DBSCAN(
-        eps=ctx.memory_cluster_similarity_threshold,
+        eps=runtime.memory_config.memory_cluster_similarity_threshold,
         metric="cosine",
-        min_samples=ctx.min_memory_cluster_size,
+        min_samples=runtime.memory_config.min_memory_cluster_size,
     ).fit(embeddings_array)
 
     # Group memories by cluster
@@ -203,19 +206,19 @@ def _find_clusters(ctx: ElroyContext, memories: list[Memory], io: ElroyIO | None
             )
             for indices in clusters.values()
         ],
-        map(lambda x: x.get_densest_n(ctx.max_memory_cluster_size)),
+        map(lambda x: x.get_densest_n(runtime.memory_config.max_memory_cluster_size)),
         list,
         partial(sorted),
     )
 
 
-def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources: list[Memory]):
+def do_create_consolidated_memory(turn: TurnContext, name: str, text: str, sources: list[Memory]):
     from .factory import build_memory_lifecycle_orchestrator
 
-    logger.info(f"Creating consolidated memory {name} for user {ctx.user_id}")
+    logger.info(f"Creating consolidated memory {name} for user {build_user_session(turn).user_id}")
     logger.info(f"source memories are: {', '.join([m.name for m in sources])}")
 
-    memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
+    memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(turn)
     memory = memory_lifecycle_orchestrator.do_create_memory(
         name,
         text,
@@ -230,7 +233,12 @@ def create_consolidated_memory(ctx: ElroyContext, name: str, text: str, sources:
     return memory_id
 
 
-def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
+def create_consolidated_memory(ctx: ElroyConfig, name: str, text: str, sources: list[Memory]):
+    with open_turn_context(ctx, build_elroy_session(ctx)) as turn:
+        return do_create_consolidated_memory(turn, name, text, sources)
+
+
+def do_consolidate_memory_cluster(turn: TurnContext, cluster: MemoryCluster):
     """Consolidate memory cluster using fast model for efficiency."""
 
     class ConsolidationResponse(BaseModel):
@@ -240,11 +248,16 @@ def consolidate_memory_cluster(ctx: ElroyContext, cluster: MemoryCluster):
     logger.info(f"Consolidating memories {len(cluster)} memories in cluster.")
     for memory in cluster.memories:
         logger.info(f"Will consolidate: {memory.name}")
-    response = ctx.fast_llm.query_llm_with_response_format(
+    response = build_memory_runtime(turn).fast_llm.query_llm_with_response_format(
         system=get_memory_consolidation_prompt(),
         prompt=str(cluster),
         response_format=ConsolidationResponse,
     )
 
     for memory in response.memories:
-        create_consolidated_memory(ctx, memory.name, memory.text, cluster.memories)
+        do_create_consolidated_memory(turn, memory.name, memory.text, cluster.memories)
+
+
+def consolidate_memory_cluster(ctx: ElroyConfig, cluster: MemoryCluster):
+    with open_turn_context(ctx, build_elroy_session(ctx)) as turn:
+        return do_consolidate_memory_cluster(turn, cluster)

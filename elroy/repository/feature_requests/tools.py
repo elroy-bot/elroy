@@ -1,5 +1,5 @@
 from ...core.constants import tool
-from ...core.ctx import ElroyContext
+from ...core.ctx import ElroyConfig
 from ...utils.clock import utc_now
 from .queries import (
     find_best_feature_request_match,
@@ -8,10 +8,11 @@ from .queries import (
 from .queries import (
     list_feature_requests as list_feature_request_records,
 )
+from .runtime import build_feature_request_runtime
 from .store import update_feature_request, write_new_feature_request
 
 
-def _build_supporting_context(ctx: ElroyContext, title: str, description: str, rationale: str | None) -> str:
+def _build_supporting_context(user_token: str, title: str, description: str, rationale: str | None) -> str:
     lines = [
         f"- Captured at: {utc_now().isoformat()}",
         f"- Requested title: {title}",
@@ -19,7 +20,7 @@ def _build_supporting_context(ctx: ElroyContext, title: str, description: str, r
     ]
     if rationale:
         lines.append(f"- Rationale: {rationale.strip()}")
-    lines.append(f"- User token: {ctx.user_token}")
+    lines.append(f"- User token: {user_token}")
     return "\n".join(lines)
 
 
@@ -39,7 +40,7 @@ def _normalize_optional(value: str | None) -> str | None:
 
 
 @tool
-def list_feature_requests(ctx: ElroyContext) -> str:
+def list_feature_requests(ctx: ElroyConfig) -> str:
     """List the current markdown-backed feature requests.
 
     Use this before creating a new feature request when you suspect the request may
@@ -47,7 +48,7 @@ def list_feature_requests(ctx: ElroyContext) -> str:
     canonical titles, aliases, statuses, and brief summaries of existing requests.
 
     Args:
-        ctx (ElroyContext): Active Elroy context. Present for tool compatibility.
+        ctx (ElroyConfig): Active Elroy config. Present for tool compatibility.
 
     Returns:
         str: A compact text listing of all current feature requests.
@@ -67,7 +68,7 @@ def list_feature_requests(ctx: ElroyContext) -> str:
 
 @tool
 def edit_feature_request(
-    ctx: ElroyContext,
+    ctx: ElroyConfig,
     identifier: str,
     title: str | None = None,
     description: str | None = None,
@@ -81,7 +82,7 @@ def edit_feature_request(
     a duplicate request for the same product need.
 
     Args:
-        ctx (ElroyContext): Active Elroy context used to capture lightweight edit provenance.
+        ctx (ElroyConfig): Active Elroy config used to capture lightweight edit provenance.
         identifier (str): Existing request id, title, alias, or filename stem to update.
         title (str | None): Replacement canonical title.
         description (str | None): Replacement summary of the request.
@@ -99,6 +100,7 @@ def edit_feature_request(
     cleaned_description = _normalize_optional(description)
     cleaned_rationale = _normalize_optional(rationale)
     cleaned_status = _normalize_optional(status)
+    runtime = build_feature_request_runtime(ctx)
     updated_record = update_feature_request(
         record,
         title=cleaned_title,
@@ -110,7 +112,7 @@ def edit_feature_request(
             "\n".join(
                 [
                     f"- Edited at: {utc_now().isoformat()}",
-                    f"- Edited by user token: {ctx.user_token}",
+                    f"- Edited by user token: {runtime.user_token}",
                 ]
             ),
         ),
@@ -119,7 +121,7 @@ def edit_feature_request(
 
 
 @tool
-def make_feature_request(ctx: ElroyContext, title: str, description: str, rationale: str | None = None) -> str:
+def make_feature_request(ctx: ElroyConfig, title: str, description: str, rationale: str | None = None) -> str:
     """Create or merge a markdown feature request for future product work.
 
     Use this when the user asks for a net new capability, workflow, or product behavior
@@ -128,7 +130,7 @@ def make_feature_request(ctx: ElroyContext, title: str, description: str, ration
     feature request when the request appears duplicative, to avoid backlog bloat.
 
     Args:
-        ctx (ElroyContext): Active Elroy context used to capture lightweight request provenance.
+        ctx (ElroyConfig): Active Elroy config used to capture lightweight request provenance.
         title (str): Short title describing the requested feature.
         description (str): What the new feature should do.
         rationale (str | None): Optional explanation of why the feature matters.
@@ -140,7 +142,8 @@ def make_feature_request(ctx: ElroyContext, title: str, description: str, ration
     cleaned_title = title.strip()
     cleaned_description = description.strip()
     cleaned_rationale = rationale.strip() if rationale else None
-    supporting_context = _build_supporting_context(ctx, cleaned_title, cleaned_description, cleaned_rationale)
+    runtime = build_feature_request_runtime(ctx)
+    supporting_context = _build_supporting_context(runtime.user_token, cleaned_title, cleaned_description, cleaned_rationale)
 
     if match := find_best_feature_request_match(cleaned_title, cleaned_description):
         aliases = sorted({*match.record.aliases, cleaned_title} - {match.record.title})

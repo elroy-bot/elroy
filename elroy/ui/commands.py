@@ -13,8 +13,11 @@ from textual.suggester import SuggestFromList
 
 from ..cli.slash_commands import get_casted_value
 from ..core.constants import RecoverableToolError
-from ..core.ctx import ElroyContext
-from ..tools.tools_and_commands import USER_ONLY_COMMANDS, get_help
+from ..core.ctx import ElroyConfig
+from ..core.runtime import CommandRuntime
+from ..core.session import invoke_with_session
+from ..core.turn import ElroySession, TurnContext
+from ..tools.tools_and_commands import USER_ONLY_COMMANDS, do_get_help, get_help
 
 if TYPE_CHECKING:
     from .app import ElroyApp
@@ -92,21 +95,30 @@ def _result_target_for(func: Any) -> str:
     return "toast" if func.__name__ in toast_commands else "history"
 
 
-def _iter_command_functions(ctx: ElroyContext) -> list[Any]:
-    funcs = [get_help, *ctx.tool_registry.tools.values(), *USER_ONLY_COMMANDS]
+def _help_command(runtime: CommandRuntime):
+    def _help():
+        return do_get_help(runtime)
+
+    _help.__name__ = get_help.__name__
+    _help.__doc__ = get_help.__doc__
+    return _help
+
+
+def _iter_command_functions(runtime: CommandRuntime) -> list[Any]:
+    funcs = [_help_command(runtime), *runtime.tool_registry.tools.values(), *USER_ONLY_COMMANDS]
     deduped: dict[str, Any] = {}
     for func in funcs:
         deduped[func.__name__] = func
     return [deduped[name] for name in sorted(deduped)]
 
 
-def build_tool_command_specs(ctx: ElroyContext) -> list[ToolCommandSpec]:
+def build_tool_command_specs(runtime: CommandRuntime) -> list[ToolCommandSpec]:
     specs: list[ToolCommandSpec] = []
-    for func in _iter_command_functions(ctx):
+    for func in _iter_command_functions(runtime):
         params = tuple(
             CommandParameterSpec(parameter)
             for parameter in inspect.signature(func).parameters.values()
-            if parameter.annotation != ElroyContext
+            if parameter.annotation not in {ElroyConfig, TurnContext}
         )
         specs.append(
             ToolCommandSpec(
@@ -120,9 +132,9 @@ def build_tool_command_specs(ctx: ElroyContext) -> list[ToolCommandSpec]:
     return specs
 
 
-def execute_tool_command(spec: ToolCommandSpec, ctx: ElroyContext, values: dict[str, str]) -> Any:
+def execute_tool_command(spec: ToolCommandSpec, ctx: ElroyConfig, session: ElroySession, values: dict[str, str]) -> Any:
     try:
-        kwargs: dict[str, Any] = {"ctx": ctx}
+        kwargs: dict[str, Any] = {}
         for parameter in spec.parameters:
             raw_value = values.get(parameter.name)
             casted_value = get_casted_value(parameter.parameter, raw_value or "")
@@ -130,7 +142,7 @@ def execute_tool_command(spec: ToolCommandSpec, ctx: ElroyContext, values: dict[
                 raise RecoverableToolError(f"Missing required value for '{parameter.name}'")
             if casted_value is not None:
                 kwargs[parameter.name] = casted_value
-        return spec.func(**kwargs)
+        return invoke_with_session(spec.func, ctx, session, **kwargs)
     except RecoverableToolError:
         raise
     except Exception as exc:

@@ -5,7 +5,7 @@ from rich.console import Console
 
 from elroy.config.paths import get_agenda_dir
 from elroy.core.constants import RecoverableToolError
-from elroy.core.ctx import ElroyContext
+from elroy.core.ctx import ElroyConfig
 from elroy.messenger.slash_commands import invoke_slash_command
 from elroy.repository.agenda.file_storage import (
     append_agenda_update,
@@ -131,7 +131,7 @@ def test_ambiguous_partial_name_matches_raise_clear_error(agenda_dir):
         add_agenda_item_update(None, "write", "Blocked")
 
 
-def test_find_matching_agenda_item_ignores_completed_and_deleted_files(ctx: ElroyContext, agenda_dir) -> None:
+def test_find_matching_agenda_item_ignores_completed_and_deleted_files(ctx: ElroyConfig, agenda_dir) -> None:
     add_agenda_item(ctx, "Write Q2 report.", "2026-03-20")
     first_stem = next(agenda_dir.glob("*.md")).stem
     complete_agenda_item(ctx, first_stem)
@@ -142,7 +142,7 @@ def test_find_matching_agenda_item_ignores_completed_and_deleted_files(ctx: Elro
     assert matched.stem != "Write_the_Q2_report"
 
 
-def test_new_agenda_capabilities_are_registered_as_slash_commands(ctx: ElroyContext, agenda_dir, io: MockCliIO):
+def test_new_agenda_capabilities_are_registered_as_slash_commands(ctx: ElroyConfig, agenda_dir, io: MockCliIO):
     add_agenda_item(ctx, "Write the Q2 report.", "2026-03-20")
 
     for command in [
@@ -159,7 +159,7 @@ def test_new_agenda_capabilities_are_registered_as_slash_commands(ctx: ElroyCont
     assert result == "Checklist item 1 added to 'Write_the_Q2_report'."
 
 
-def test_list_agenda_items_excludes_deleted_items(ctx: ElroyContext, agenda_dir) -> None:
+def test_list_agenda_items_excludes_deleted_items(ctx: ElroyConfig, agenda_dir) -> None:
     add_agenda_item(ctx, "Write the Q2 report.", "2026-03-20")
     first_stem = next(agenda_dir.glob("*.md")).stem
     delete_agenda_item(ctx, first_stem)
@@ -169,7 +169,7 @@ def test_list_agenda_items_excludes_deleted_items(ctx: ElroyContext, agenda_dir)
     assert response.items == []
 
 
-def test_list_agenda_items_excludes_due_items(ctx: ElroyContext, agenda_dir) -> None:
+def test_list_agenda_items_excludes_due_items(ctx: ElroyConfig, agenda_dir) -> None:
     add_agenda_item(ctx, "Write the Q2 report.", "2026-03-20")
     create_due_item(
         ctx,

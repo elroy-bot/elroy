@@ -53,7 +53,7 @@ Here's a util function I've reused quite a bit[^2]:
 ```python
 def quiz_assistant_bool(
         expected_answer: bool,
-        ctx: ElroyContext,
+        ctx: ElroyConfig,
         question: str,
     ) -> None:
     question += " Your response to this question is being evaluated as part "
@@ -77,7 +77,7 @@ Here's a test of Elroy's ability to create goals based on conversation content:
 ```python
 
 @pytest.mark.flaky(reruns=3) # Important!!!
-def test_goal(ctx: ElroyContext):
+def test_goal(ctx: ElroyConfig):
 	# Should be false, we haven't discussed it
     quiz_assistant_bool(
         False,
@@ -153,7 +153,7 @@ def get_secret_test_answer() -> str:
     return "I'm sorry, the secret answer is not available. Please try once more."
 
 
-def test_infinite_tool_call_ends(ctx: ElroyContext):
+def test_infinite_tool_call_ends(ctx: ElroyConfig):
     ctx.tool_registry.register(get_secret_test_answer)
 
     # process_test_message can call tool calls in a loop

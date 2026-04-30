@@ -5,10 +5,12 @@ from toolz.curried import map
 
 from elroy.core.configs import ToolConfig
 from elroy.core.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
-from elroy.core.ctx import ElroyContext
+from elroy.core.ctx import ElroyConfig
+from elroy.core.session import open_turn_context
 from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
+from elroy.repository.context_messages.session import build_context_message_session
 from elroy.tools.registry import get_system_tool_schemas
 from tests.fixtures.custom_tools import (
     get_game_info,
@@ -29,7 +31,7 @@ def get_secret_test_answer() -> str:
     return "I'm sorry, the secret answer is not available. Please try once more."
 
 
-def test_infinite_tool_call_ends(ctx: ElroyContext):
+def test_infinite_tool_call_ends(ctx: ElroyConfig):
     ctx.debug = False
 
     ctx.tool_registry.register(get_secret_test_answer)
@@ -42,27 +44,29 @@ def test_infinite_tool_call_ends(ctx: ElroyContext):
     # Not the most direct test, as the failure case is an infinite loop. However, if the test completes, it is a success.
 
 
-def test_missing_tool_message_recovers(ctx: ElroyContext):
+def test_missing_tool_message_recovers(ctx: ElroyConfig):
     """
     Tests recovery when an assistant message is included without the corresponding subsequent tool message.
     """
 
     ctx.debug = False
 
-    build_context_refresh_orchestrator(ctx).add_context_messages(_missing_tool_message(ctx))
+    with open_turn_context(ctx) as turn:
+        build_context_refresh_orchestrator(build_context_message_session(turn)).add_context_messages(_missing_tool_message(ctx))
 
     process_test_message(ctx, "Tell me more!")
     assert True  # ie, no error is raised
 
 
-def test_missing_tool_call_recovers(ctx: ElroyContext):
+def test_missing_tool_call_recovers(ctx: ElroyConfig):
     """
     Tests recovery when a tool message is included without the corresponding assistant message with tool_calls.
     """
 
     ctx.debug = False
 
-    build_context_refresh_orchestrator(ctx).add_context_messages(_missing_tool_call(ctx))
+    with open_turn_context(ctx) as turn:
+        build_context_refresh_orchestrator(build_context_message_session(turn)).add_context_messages(_missing_tool_call(ctx))
 
     process_test_message(ctx, "Tell me more!")
     assert True  # ie, no error is raised
@@ -84,8 +88,8 @@ def test_tool_schema_does_not_have_elroy_ctx():
     assert not any("ctx" in vals for key, vals in argument_names.items())
 
 
-def test_exclude_tools(ctx: ElroyContext):
-    # Create new ElroyContext with modified tool config
+def test_exclude_tools(ctx: ElroyConfig):
+    # Create new ElroyConfig with modified tool config
     new_tool_config = ToolConfig(
         custom_tools_path=ctx.tool_config.custom_tools_path,
         exclude_tools=["get_user_preferred_name"],
@@ -94,7 +98,7 @@ def test_exclude_tools(ctx: ElroyContext):
         shell_commands=ctx.tool_config.shell_commands,
     )
 
-    new_ctx = ElroyContext(
+    new_ctx = ElroyConfig(
         database_url=ctx.database_url,
         chroma_path=ctx.chroma_path,
         model_config=ctx.model_config,
@@ -107,24 +111,24 @@ def test_exclude_tools(ctx: ElroyContext):
     assert new_ctx.tool_registry.get("get_user_preferred_name") is None
 
 
-def test_custom_tool(ctx: ElroyContext):
+def test_custom_tool(ctx: ElroyConfig):
     ctx.tool_registry.register(netflix_show_fetcher)
     response = process_test_message(ctx, "Please use your function to fetch the specified netflix show.")
     assert "Black Dove" in response
 
 
-def test_langchain_tool(ctx: ElroyContext):
+def test_langchain_tool(ctx: ElroyConfig):
     ctx.tool_registry.register(get_user_token_first_letter)
     process_test_message(ctx, "Please use your function to fetch the first letter of the user's token.")
 
 
-def test_base_model_tool(ctx: ElroyContext):
+def test_base_model_tool(ctx: ElroyConfig):
     ctx.tool_registry.register(get_game_info)
 
     process_test_message(ctx, "Please use your function to fetch the game info.")
 
 
-def _missing_tool_message(ctx: ElroyContext):
+def _missing_tool_message(ctx: ElroyConfig):
     return [
         ContextMessage(
             role=USER,
@@ -145,7 +149,7 @@ def _missing_tool_message(ctx: ElroyContext):
     ]
 
 
-def _missing_tool_call(ctx: ElroyContext) -> list[ContextMessage]:
+def _missing_tool_call(ctx: ElroyConfig) -> list[ContextMessage]:
     return [
         ContextMessage(
             role=SYSTEM,

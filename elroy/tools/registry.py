@@ -96,10 +96,11 @@ class ToolRegistry:
         )
 
     def has_non_ctx_args(self, func: Callable) -> bool:
-        from ..core.ctx import ElroyContext
+        from ..core.ctx import ElroyConfig
+        from ..core.turn import TurnContext
 
         inspect.signature(func)
-        return any(param for param in inspect.signature(func).parameters.values() if param.annotation != ElroyContext)
+        return any(param for param in inspect.signature(func).parameters.values() if param.annotation not in {ElroyConfig, TurnContext})
 
     def register(self, func: Callable, raise_on_error: bool = True) -> None:
         func_name = getattr(func, "__name__", func.__class__.__name__)

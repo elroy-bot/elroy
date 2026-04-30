@@ -2,7 +2,7 @@ from langchain_core.tools import tool as lc_tool
 from pydantic.main import BaseModel
 
 from elroy.core.constants import tool
-from elroy.core.ctx import ElroyContext
+from elroy.core.ctx import ElroyConfig
 
 
 # To add a tool, annotate with @tool. A valid docstring is required.
@@ -27,9 +27,9 @@ def get_secret_test_answer() -> str:
     return "I can't reveal that information at this time."
 
 
-# To access ElroyContext data, include it as an argument. It does not need to be annotated
+# To access ElroyConfig data, include it as an argument. It does not need to be annotated
 @lc_tool
-def get_user_token_first_letter(ctx: ElroyContext):
+def get_user_token_first_letter(ctx: ElroyConfig):
     """Returns the first letter of the user's name.
 
     Returns:

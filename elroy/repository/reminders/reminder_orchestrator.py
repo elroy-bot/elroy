@@ -2,12 +2,13 @@ from collections.abc import Callable
 from datetime import datetime
 
 from ...core.constants import RecoverableToolError
-from ...core.ctx import ElroyContext
 from ...core.logging import get_logger
+from ...core.turn import TurnContext
 from ...utils.clock import utc_now
 from ...utils.utils import is_blank
 from ..tasks.store import TaskAlreadyExistsError
-from .queries import get_active_due_item_names, get_db_due_item_by_name
+from ..user.session import build_user_session
+from .queries import do_get_active_due_item_names, do_get_db_due_item_by_name
 
 logger = get_logger()
 
@@ -20,12 +21,12 @@ class DueItemAlreadyExistsError(RecoverableToolError):
 class ReminderOrchestrator:
     def __init__(
         self,
-        ctx: ElroyContext,
+        turn: TurnContext,
         create_task_fn: Callable[..., object],
         complete_task_fn: Callable[[str, str | None], object],
         delete_task_fn: Callable[[str, str | None], object],
     ):
-        self.ctx = ctx
+        self.turn = turn
         self.create_task_fn = create_task_fn
         self.complete_task_fn = complete_task_fn
         self.delete_task_fn = delete_task_fn
@@ -53,7 +54,7 @@ class ReminderOrchestrator:
                 f"Attempted to create a due item for {trigger_time}, which is in the past. The current time is {utc_now()}"
             )
 
-        if get_db_due_item_by_name(self.ctx, name):
+        if do_get_db_due_item_by_name(self.turn, name):
             item_type = "Timed" if trigger_time else "Contextual"
             raise DueItemAlreadyExistsError(name, item_type)
 
@@ -71,12 +72,12 @@ class ReminderOrchestrator:
             raise
 
     def do_complete_due_item(self, item_name: str, closing_comment: str | None = None) -> str:
-        due_item = get_db_due_item_by_name(self.ctx, item_name)
+        due_item = do_get_db_due_item_by_name(self.turn, item_name)
         if not due_item:
-            active_names = get_active_due_item_names(self.ctx)
+            active_names = do_get_active_due_item_names(self.turn)
             raise RecoverableToolError(f"Active due item '{item_name}' not found. Active due items: {', '.join(active_names)}")
 
-        logger.info(f"Completing agenda-backed due item {item_name} for user {self.ctx.user_id}")
+        logger.info(f"Completing agenda-backed due item {item_name} for user {build_user_session(self.turn).user_id}")
         self.complete_task_fn(item_name, closing_comment)
 
         if closing_comment:
@@ -84,12 +85,12 @@ class ReminderOrchestrator:
         return f"Due item '{item_name}' has been marked as completed."
 
     def do_delete_due_item(self, item_name: str, closing_comment: str | None = None) -> str:
-        due_item = get_db_due_item_by_name(self.ctx, item_name)
+        due_item = do_get_db_due_item_by_name(self.turn, item_name)
         if not due_item:
-            active_names = get_active_due_item_names(self.ctx)
+            active_names = do_get_active_due_item_names(self.turn)
             raise RecoverableToolError(f"Active due item '{item_name}' not found. Active due items: {', '.join(active_names)}")
 
-        logger.info(f"Deleting agenda-backed due item {item_name} for user {self.ctx.user_id}")
+        logger.info(f"Deleting agenda-backed due item {item_name} for user {build_user_session(self.turn).user_id}")
         self.delete_task_fn(item_name, closing_comment)
 
         if closing_comment:

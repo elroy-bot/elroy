@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..core.runtime import CommandRuntime
 from .commands import (
     ToolCommandSpec,
     build_initial_values,
@@ -26,8 +27,8 @@ class CommandLaunchRequest:
 class CommandFlowController:
     """Owns command-spec lookup and launch/execute decision logic."""
 
-    def __init__(self, ctx):
-        self.tool_command_specs = build_tool_command_specs(ctx)
+    def __init__(self, runtime: CommandRuntime):
+        self.tool_command_specs = build_tool_command_specs(runtime)
 
     def get_tool_command_spec(self, name: str) -> ToolCommandSpec | None:
         return next((spec for spec in self.tool_command_specs if spec.name == name), None)

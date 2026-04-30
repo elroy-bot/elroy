@@ -113,7 +113,8 @@ def get_function_schema(function: Callable) -> dict:
 
     signature = inspect.signature(function)
 
-    from ..core.ctx import ElroyContext
+    from ..core.ctx import ElroyConfig
+    from ..core.turn import TurnContext
 
     properties = pipe(
         signature.parameters.items(),
@@ -127,7 +128,7 @@ def get_function_schema(function: Callable) -> dict:
                 default=_[1].default,
             )
         ),
-        remove(lambda _: _.type == ElroyContext),
+        remove(lambda _: _.type in {ElroyConfig, TurnContext}),
         map(validate_parameter),
         list,
     )
