@@ -19,8 +19,6 @@ from ..config.llm import (
     infer_chat_model_name,
 )
 from ..config.paths import get_default_config_path
-from ..db.db_manager import DbManager
-from ..db.db_session import DbSession
 from ..llm.client import LlmClient
 from .configs import (
     MemoryConfig,
@@ -29,14 +27,12 @@ from .configs import (
     ToolConfig,
     UIConfig,
 )
-from .constants import allow_unused
 from .logging import get_logger
 
 logger = get_logger()
 
 
-class ElroyContext:
-    _db: DbSession | None = None
+class ElroyConfig:
     latency_tracker: Any | None = None  # LatencyTracker, avoiding circular import
 
     def __init__(
@@ -241,7 +237,7 @@ class ElroyContext:
             lambda x: dissoc(x, *CLI_ONLY_PARAMS),
         )
 
-        invalid_params = set(params.keys()) - set(ElroyContext.__init__.__annotations__.keys())
+        invalid_params = set(params.keys()) - set(cls.__init__.__annotations__.keys())
 
         for k in invalid_params:
             if k in DEPRECATED_KEYS:
@@ -349,34 +345,6 @@ class ElroyContext:
             ),
             enable_caching=self.model_config.enable_caching,
         )
-
-    @cached_property
-    def user_id(self) -> int:
-        from ..repository.user.queries import get_user_id_if_exists
-        from ..repository.user.store import create_user_id
-
-        db_session = self._db
-        if db_session is None:
-            raise ValueError("No db session open")
-        return get_user_id_if_exists(db_session, self.runtime_config.user_token) or create_user_id(
-            db_session, self.runtime_config.user_token
-        )
-
-    @cached_property
-    def db_manager(self) -> DbManager:
-        assert self.database_url, "Database URL not set"
-        chroma_path = Path(self.chroma_path) if self.chroma_path else None
-        return DbManager(self.database_url, chroma_path=chroma_path)
-
-    @allow_unused
-    def is_db_connected(self) -> bool:
-        return bool(self._db)
-
-    def set_db_session(self, db: DbSession):
-        self._db = db
-
-    def unset_db_session(self):
-        self._db = None
 
 
 T = TypeVar("T", bound=Callable[..., Any])

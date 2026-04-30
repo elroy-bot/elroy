@@ -1,9 +1,11 @@
 import logging
 import re
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import timedelta
 from inspect import signature
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel
 from rich.console import Console, RenderableType
@@ -12,8 +14,9 @@ from toolz import pipe
 from toolz.curried import map
 
 from elroy.core.constants import ASSISTANT, USER, InvalidForceToolError, RecoverableToolError
-from elroy.core.ctx import ElroyContext
-from elroy.core.db import require_db_session
+from elroy.core.ctx import ElroyConfig
+from elroy.core.session import invoke_with_config, open_turn_context
+from elroy.core.turn import TurnContext
 from elroy.db.db_models import AgendaItem, EmbeddableSqlModel
 from elroy.io.base import ElroyIO
 from elroy.io.formatters.base import ElroyPrintable
@@ -22,6 +25,7 @@ from elroy.llm.stream_parser import SystemInfo
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
 from elroy.repository.context_messages.queries import get_context_messages
+from elroy.repository.context_messages.session import build_context_message_session
 from elroy.repository.memories.transforms import to_fast_recall_tool_call
 from elroy.repository.recall.queries import is_in_context_message
 from elroy.repository.reminders.factory import build_reminder_orchestrator
@@ -34,9 +38,23 @@ from elroy.repository.reminders.tools import (
 )
 from elroy.repository.tasks.factory import build_task_mutation_orchestrator
 from elroy.repository.user.queries import get_assistant_name, get_persona
+from elroy.repository.user.session import build_user_runtime, build_user_session
 from elroy.repository.user.tools import set_user_preferred_name
 from elroy.utils.clock import utc_now
 from elroy.utils.utils import first_or_none
+
+TEST_EMBEDDING_QUERIES: dict[str, dict[tuple[float, ...], str]] = {}
+
+
+@contextmanager
+def turn_ctx(ctx: ElroyConfig):
+    with open_turn_context(ctx) as turn:
+        yield turn
+
+
+def run_with_turn[T](ctx: ElroyConfig, fn: Callable[[TurnContext], T]) -> T:
+    with open_turn_context(ctx) as turn:
+        return fn(turn)
 
 
 class MockIO(ElroyIO):
@@ -78,7 +96,7 @@ MockCliIO = MockIO
 
 
 class MockLlmClient:
-    def __init__(self, ctx: ElroyContext) -> None:
+    def __init__(self, ctx: ElroyConfig) -> None:
         self.ctx = ctx
 
     def query_llm(self, prompt: str, system: str) -> str:
@@ -119,10 +137,7 @@ class MockLlmClient:
     def get_embedding(self, text: str, ctx: Any | None = None) -> list[float]:
         del ctx
         embedding = _hash_embedding(text)
-        if hasattr(self.ctx, "db"):
-            embedding_queries = getattr(require_db_session(self.ctx), "_test_embedding_queries", {})
-            embedding_queries[tuple(embedding)] = text
-            cast(Any, require_db_session(self.ctx))._test_embedding_queries = embedding_queries
+        TEST_EMBEDDING_QUERIES.setdefault(self.ctx.database_url, {})[tuple(embedding)] = text
         return embedding
 
 
@@ -169,41 +184,45 @@ def _text_is_affirmative(text: str) -> bool:
 
 
 def _record_context(
-    ctx: ElroyContext, user_message: str, assistant_message: str, extra_messages: list[ContextMessage] | None = None
+    ctx: ElroyConfig, user_message: str, assistant_message: str, extra_messages: list[ContextMessage] | None = None
 ) -> None:
     messages = [
         ContextMessage(role=USER, content=user_message, chat_model=None),
         *list(extra_messages or []),
         ContextMessage(role=ASSISTANT, content=assistant_message, chat_model=ctx.chat_model.name),
     ]
-    build_context_refresh_orchestrator(ctx).add_context_messages(messages)
+    with open_turn_context(ctx) as turn:
+        build_context_refresh_orchestrator(build_context_message_session(turn)).add_context_messages(messages)
     ctx.__dict__["_last_test_response"] = assistant_message
 
 
-def _invoke_tool_from_text(ctx: ElroyContext, tool_name: str, msg: str) -> str:
+def _invoke_tool_from_text(ctx: ElroyConfig, tool_name: str, msg: str) -> str:
     tool = ctx.tool_registry.get(tool_name)
     if tool is None:
         raise InvalidForceToolError(f"Requested tool {tool_name} not available.")
-    params = [p for p in signature(tool).parameters.values() if p.annotation != ElroyContext]
-    kwargs: dict[str, Any] = {"ctx": ctx} if "ctx" in signature(tool).parameters else {}
+    params = [p for p in signature(tool).parameters.values() if p.annotation not in {ElroyConfig, TurnContext}]
+    kwargs: dict[str, Any] = {}
     required_params = [p for p in params if p.default is p.empty]
     if len(required_params) == 1:
         kwargs[params[0].name] = msg
     else:
         raise RecoverableToolError(f"Mock tool invocation for {tool_name} requires explicit support")
-    result = tool(**kwargs)
+    result = invoke_with_config(tool, ctx, **kwargs)
     return str(result)
 
 
-def _assistant_name(ctx: ElroyContext) -> str:
-    persona = get_persona(ctx)
-    match = re.search(r"name is\s+([A-Za-z0-9_-]+)", persona, flags=re.IGNORECASE)
-    if match:
-        return match.group(1)
-    return get_assistant_name(ctx) or "Elroy"
+def _assistant_name(ctx: ElroyConfig) -> str:
+    with open_turn_context(ctx) as turn:
+        user_session = build_user_session(turn)
+        user_runtime = build_user_runtime(turn)
+        persona = get_persona(user_session, user_runtime)
+        match = re.search(r"name is\s+([A-Za-z0-9_-]+)", persona, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+        return get_assistant_name(user_session, user_runtime) or "Elroy"
 
 
-def _handle_custom_tool_message(ctx: ElroyContext, msg: str) -> str | None:
+def _handle_custom_tool_message(ctx: ElroyConfig, msg: str) -> str | None:
     lower_msg = msg.lower()
     if "netflix show" in lower_msg:
         tool = ctx.tool_registry.get("netflix_show_fetcher")
@@ -220,7 +239,7 @@ def _handle_custom_tool_message(ctx: ElroyContext, msg: str) -> str | None:
     return None
 
 
-def _handle_due_item_message(ctx: ElroyContext, msg: str) -> str | None:
+def _handle_due_item_message(ctx: ElroyConfig, msg: str) -> str | None:
     lower_msg = msg.lower()
 
     if "create a reminder" in lower_msg or "create a reminder for me" in lower_msg or "create a reminder called" in lower_msg:
@@ -232,8 +251,13 @@ def _handle_due_item_message(ctx: ElroyContext, msg: str) -> str | None:
         if "duplicate" in lower_msg and any(r.name == name for r in get_active_due_items(ctx)):
             return f"Due item '{name}' already exists."
         try:
-            return create_due_item(
-                ctx, name=name, text=name, trigger_time=time_match.group(1) if time_match else None, trigger_context=context_text
+            return invoke_with_config(
+                create_due_item,
+                ctx,
+                name=name,
+                text=name,
+                trigger_time=time_match.group(1) if time_match else None,
+                trigger_context=context_text,
             )
         except Exception as exc:  # duplicate reminder path
             return str(exc)
@@ -243,24 +267,24 @@ def _handle_due_item_message(ctx: ElroyContext, msg: str) -> str | None:
         if not name_match:
             return "No due item specified."
         try:
-            return delete_due_item(ctx, name_match.group(1))
+            return invoke_with_config(delete_due_item, ctx, name=name_match.group(1))
         except Exception as exc:
             return str(exc)
 
     if "rename my reminder" in lower_msg or "rename my '" in lower_msg:
         names = re.findall(r"'([^']+)'", msg)
         if len(names) >= 2:
-            return rename_due_item(ctx, names[0], names[1])
+            return invoke_with_config(rename_due_item, ctx, old_name=names[0], new_name=names[1])
 
     if "update the text of my reminder" in lower_msg or "update my '" in lower_msg:
         names = re.findall(r"'([^']+)'", msg)
         if len(names) >= 2:
-            return update_due_item_text(ctx, names[0], names[1])
+            return invoke_with_config(update_due_item_text, ctx, name=names[0], new_text=names[1])
 
     return None
 
 
-def _handle_due_items(ctx: ElroyContext, msg: str) -> tuple[str | None, list[ContextMessage]]:
+def _handle_due_items(ctx: ElroyConfig, msg: str) -> tuple[str | None, list[ContextMessage]]:
     from elroy.repository.reminders.queries import get_due_item_context_msgs, get_due_timed_items
 
     due_context = get_due_item_context_msgs(ctx)
@@ -271,12 +295,12 @@ def _handle_due_items(ctx: ElroyContext, msg: str) -> tuple[str | None, list[Con
     response = " ".join(f"Due item: {item.name} - {item.text}." for item in due_items)
     if any(keyword in msg.lower() for keyword in ["clean", "handle", "delete"]):
         for item in due_items:
-            build_reminder_orchestrator(ctx).do_delete_due_item(item.name)
+            run_with_turn(ctx, lambda turn, item_name=item.name: build_reminder_orchestrator(turn).do_delete_due_item(item_name))
         response += " Cleaned up due items."
     return response, due_context
 
 
-def _handle_memory_message(ctx: ElroyContext, msg: str) -> str | None:
+def _handle_memory_message(ctx: ElroyConfig, msg: str) -> str | None:
     if "create a memory" not in msg.lower():
         return None
     if not ctx.include_base_tools:
@@ -288,7 +312,7 @@ def _handle_memory_message(ctx: ElroyContext, msg: str) -> str | None:
     return str(create_memory(ctx, _make_memory_name(text), text))
 
 
-def _answer_from_state(ctx: ElroyContext, msg: str) -> str:
+def _answer_from_state(ctx: ElroyConfig, msg: str) -> str:
     lower_msg = msg.lower().strip()
 
     if lower_msg.startswith("/"):
@@ -300,7 +324,7 @@ def _answer_from_state(ctx: ElroyContext, msg: str) -> str:
 
     preferred_name_match = re.search(r"please call me ([A-Za-z0-9_-]+) from now on", msg, flags=re.IGNORECASE)
     if preferred_name_match:
-        return set_user_preferred_name(ctx, preferred_name_match.group(1))
+        return invoke_with_config(set_user_preferred_name, ctx, preferred_name=preferred_name_match.group(1))
 
     if response := _handle_memory_message(ctx, msg):
         return response
@@ -329,7 +353,7 @@ def _match_score(query: str, text: str) -> int:
     return len(query_tokens & text_tokens)
 
 
-def _mock_relevant_context(ctx: ElroyContext, msg: str) -> list[ContextMessage]:
+def _mock_relevant_context(ctx: ElroyConfig, msg: str) -> list[ContextMessage]:
     from elroy.repository.memories.queries import get_active_memories
 
     relevant_items: list[EmbeddableSqlModel] = []
@@ -348,7 +372,7 @@ def _mock_relevant_context(ctx: ElroyContext, msg: str) -> list[ContextMessage]:
     return to_fast_recall_tool_call(unrecalled_items) if unrecalled_items else []
 
 
-def process_test_message(ctx: ElroyContext, msg: str, force_tool: str | None = None) -> str:
+def process_test_message(ctx: ElroyConfig, msg: str, force_tool: str | None = None) -> str:
     logging.info(f"USER MESSAGE: {msg}")
     if force_tool:
         response = _invoke_tool_from_text(ctx, force_tool, msg)
@@ -365,11 +389,16 @@ def process_test_message(ctx: ElroyContext, msg: str, force_tool: str | None = N
     return response
 
 
-def vector_search_by_text(ctx: ElroyContext, query: str, table: type[EmbeddableSqlModel]) -> EmbeddableSqlModel | None:
+def vector_search_by_text(ctx: ElroyConfig, query: str, table: type[EmbeddableSqlModel]) -> EmbeddableSqlModel | None:
     if table is AgendaItem:
         candidates = get_active_due_items(ctx)
     else:
-        candidates = list(require_db_session(ctx).exec(select(table).where(table.user_id == ctx.user_id)).all())
+        candidates = run_with_turn(
+            ctx,
+            lambda turn: (
+                lambda user_session: list(user_session.db.exec(select(table).where(table.user_id == user_session.user_id)).all())
+            )(build_user_session(turn)),
+        )
     ranked = sorted(
         candidates,
         key=lambda item: _match_score(query, item.to_fact()),
@@ -378,7 +407,7 @@ def vector_search_by_text(ctx: ElroyContext, query: str, table: type[EmbeddableS
     return first_or_none([item for item in ranked if _match_score(query, item.to_fact()) > 0])
 
 
-def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str) -> None:
+def quiz_assistant_bool(expected_answer: bool, ctx: ElroyConfig, question: str) -> None:
     lower_question = question.lower()
     due_items_summary = get_active_due_items_summary(ctx).lower()
     last_response = str(getattr(ctx, "_last_test_response", "")).lower()
@@ -402,11 +431,11 @@ def quiz_assistant_bool(expected_answer: bool, ctx: ElroyContext, question: str)
     assert bool_answer == expected_answer, f"Expected {expected_answer}, got {bool_answer}. Question: {question}"
 
 
-def get_active_due_items_summary(ctx: ElroyContext) -> str:
+def get_active_due_items_summary(ctx: ElroyConfig) -> str:
     """
     Retrieve a summary of active due items for a given user.
     Args:
-        ctx (ElroyContext): The Elroy context.
+        ctx (ElroyConfig): The Elroy context.
     Returns:
         str: A formatted string summarizing the active due items.
     """
@@ -418,11 +447,14 @@ def get_active_due_items_summary(ctx: ElroyContext) -> str:
     )
 
 
-def create_due_item_in_past(ctx: ElroyContext, name: str, text: str, trigger_context: str | None = None):
-    build_task_mutation_orchestrator(ctx).create_task(
-        name,
-        text,
-        trigger_datetime=utc_now() - timedelta(minutes=5),
-        trigger_context=trigger_context,
-        allow_past_trigger=True,
+def create_due_item_in_past(ctx: ElroyConfig, name: str, text: str, trigger_context: str | None = None):
+    run_with_turn(
+        ctx,
+        lambda turn: build_task_mutation_orchestrator(turn).create_task(
+            name,
+            text,
+            trigger_datetime=utc_now() - timedelta(minutes=5),
+            trigger_context=trigger_context,
+            allow_past_trigger=True,
+        ),
     )

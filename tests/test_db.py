@@ -4,14 +4,15 @@ from re import Pattern
 
 from sqlmodel import SQLModel
 
-from elroy.core.ctx import ElroyContext
+from elroy.core.ctx import ElroyConfig
+from elroy.core.db import get_db_manager
 
 
-def test_migrations_in_sync(ctx: ElroyContext):
+def test_migrations_in_sync(ctx: ElroyConfig):
     from alembic.autogenerate import compare_metadata
     from alembic.migration import MigrationContext
 
-    db_manager = ctx.db_manager
+    db_manager = get_db_manager(ctx)
 
     # Define regex patterns for tables to ignore
     ignored_table_patterns = {

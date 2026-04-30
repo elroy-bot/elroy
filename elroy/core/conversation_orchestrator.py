@@ -1,4 +1,4 @@
-"""Conversation orchestration service for chat message processing."""
+"""Conversation orchestration for chat message processing."""
 
 import uuid
 from collections.abc import Iterator
@@ -7,37 +7,42 @@ from typing import Any, cast
 from pydantic import BaseModel
 from toolz import pipe
 
-from ...core.constants import ASSISTANT, SYSTEM, TOOL, USER
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
-from ...core.latency import LatencyTracker
-from ...core.logging import get_logger
-from ...db.db_models import FunctionCall
-from ...llm.stream_parser import AssistantInternalThought, AssistantResponse, AssistantToolResult, CodeBlock, StatusUpdate
-from ...messenger.tools import exec_function_call
-from ...repository.context_messages.data_models import ContextMessage
-from ...repository.context_messages.factory import (
+from ..db.db_models import FunctionCall
+from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, AssistantToolResult, CodeBlock, StatusUpdate
+from ..messenger.tools import exec_function_call
+from ..repository.context_messages.data_models import ContextMessage
+from ..repository.context_messages.factory import (
     build_context_message_read_store,
     build_context_refresh_orchestrator,
 )
-from ...repository.context_messages.validations import Validator
-from ...repository.memories.factory import build_memory_recall_orchestrator
-from ...repository.memories.recall_classifier import should_recall_memory
-from ...repository.reminders.queries import get_due_item_context_msgs
-from ...repository.user.queries import do_get_user_preferred_name, get_assistant_name
+from ..repository.context_messages.session import build_context_message_session
+from ..repository.context_messages.validations import Validator
+from ..repository.memories.factory import build_memory_recall_orchestrator
+from ..repository.memories.recall_classifier import should_recall_memory
+from ..repository.reminders.queries import do_get_due_item_context_msgs
+from ..repository.user.queries import do_get_user_preferred_name, get_assistant_name
+from ..repository.user.session import build_user_runtime, build_user_session
+from .constants import ASSISTANT, SYSTEM, TOOL, USER
+from .latency import LatencyTracker
+from .logging import get_logger
+from .runtime import build_conversation_runtime, build_recall_classifier_runtime
+from .turn import TurnContext
 
 logger = get_logger()
 
 
 class ConversationOrchestrator:
-    def __init__(self, ctx: ElroyContext):
-        self.ctx = ctx
-        self.context_message_read_store = build_context_message_read_store(ctx)
-        self.context_refresh_orchestrator = build_context_refresh_orchestrator(ctx)
-        self.memory_recall_orchestrator = build_memory_recall_orchestrator(ctx)
+    def __init__(self, turn: TurnContext):
+        self.turn = turn
+        self.runtime = build_conversation_runtime(turn)
+        self.context_session = build_context_message_session(turn)
+        self.context_message_read_store = build_context_message_read_store(self.context_session)
+        self.context_refresh_orchestrator = build_context_refresh_orchestrator(self.context_session)
+        self.memory_recall_orchestrator = build_memory_recall_orchestrator(turn)
+        self.user_runtime = build_user_runtime(turn)
 
     def _tracker(self) -> LatencyTracker:
-        tracker = self.ctx.latency_tracker
+        tracker = self.turn.latency_tracker
         assert isinstance(tracker, LatencyTracker)
         return tracker
 
@@ -45,7 +50,7 @@ class ConversationOrchestrator:
         with self._tracker().measure("load_context_messages"):
             context_messages: list[ContextMessage] = pipe(
                 self.context_message_read_store.get_context_messages(),
-                lambda msgs: Validator(self.ctx, msgs).validated_msgs(),
+                lambda msgs: Validator(self.turn, msgs).validated_msgs(),
                 list,
             )
             logger.debug(f"[{request_id}] Loaded {len(context_messages)} context messages")
@@ -66,14 +71,15 @@ class ConversationOrchestrator:
         context_messages: list[ContextMessage],
         new_msgs: list[ContextMessage],
     ) -> Iterator[BaseModel]:
-        assistant_name = get_assistant_name(self.ctx)
-        user_preferred_name = do_get_user_preferred_name(require_db_session(self.ctx).session, self.ctx.user_id)
+        user_session = build_user_session(self.turn)
+        assistant_name = get_assistant_name(user_session, self.user_runtime)
+        user_preferred_name = do_get_user_preferred_name(user_session.db.session, user_session.user_id)
 
-        if self.ctx.memory_config.memory_recall_classifier_enabled:
+        if self.runtime.memory_recall_classifier_enabled:
             yield StatusUpdate(content="classifying recall...")
             with self._tracker().measure("memory_recall_classification"):
                 recall_decision = should_recall_memory(
-                    ctx=self.ctx,
+                    runtime=build_recall_classifier_runtime(self.turn),
                     current_message=msg,
                     recent_messages=context_messages,
                 )
@@ -103,15 +109,15 @@ class ConversationOrchestrator:
 
     def _append_due_items(self, new_msgs: list[ContextMessage]) -> None:
         with self._tracker().measure("due_items_check"):
-            due_item_msgs = get_due_item_context_msgs(self.ctx)
+            due_item_msgs = do_get_due_item_context_msgs(self.turn)
         if due_item_msgs:
             new_msgs += due_item_msgs
 
     def _emit_internal_thoughts(self, new_msgs: list[ContextMessage]) -> Iterator[AssistantInternalThought]:
-        if not self.ctx.show_internal_thought:
+        if not self.runtime.show_internal_thought:
             return
 
-        from ...repository.data_models import RecallResponse
+        from ..repository.data_models import RecallResponse
 
         for new_msg in new_msgs[1:]:
             if not new_msg.content:
@@ -137,11 +143,11 @@ class ConversationOrchestrator:
             tool_context_messages: list[ContextMessage] = []
 
             with self._tracker().measure("llm_completion", loop=loops):
-                llm = cast(Any, self.ctx.llm)
+                llm = cast(Any, self.runtime.llm)
                 stream = llm.generate_chat_completion_message(
                     context_messages=context_messages + new_msgs,
-                    tool_schemas=self.ctx.tool_registry.get_schemas(),
-                    enable_tools=enable_tools and (not self.ctx.chat_model.inline_tool_calls) and loops <= self.ctx.max_assistant_loops,
+                    tool_schemas=self.runtime.tool_schemas,
+                    enable_tools=enable_tools and (not self.runtime.inline_tool_calls) and loops <= self.runtime.max_assistant_loops,
                     force_tool=force_tool,
                 )
                 for stream_chunk in stream.process_stream():
@@ -153,7 +159,7 @@ class ConversationOrchestrator:
                         function_calls.append(stream_chunk)
                         yield StatusUpdate(content=f"running {stream_chunk.function_name}...")
                         with self._tracker().measure("tool_execution", tool=stream_chunk.function_name):
-                            tool_call_result = exec_function_call(self.ctx, stream_chunk)
+                            tool_call_result = exec_function_call(self.turn, stream_chunk)
                             tool_context_messages.append(
                                 ContextMessage(
                                     role=TOOL,
@@ -163,7 +169,7 @@ class ConversationOrchestrator:
                                         if isinstance(tool_call_result, BaseModel) and not isinstance(tool_call_result, AssistantToolResult)
                                         else str(tool_call_result)
                                     ),
-                                    chat_model=self.ctx.chat_model.name,
+                                    chat_model=self.runtime.chat_model_name,
                                 )
                             )
                             yield tool_call_result
@@ -174,7 +180,7 @@ class ConversationOrchestrator:
                     role=ASSISTANT,
                     content=stream.get_full_text(),
                     tool_calls=(None if not function_calls else [f.to_tool_call() for f in function_calls]),
-                    chat_model=self.ctx.chat_model.name,
+                    chat_model=self.runtime.chat_model_name,
                 )
             )
 
@@ -202,7 +208,7 @@ class ConversationOrchestrator:
         assert role in {USER, ASSISTANT, SYSTEM}
 
         request_id = str(uuid.uuid4())[:8]
-        self.ctx.latency_tracker = LatencyTracker(request_id=request_id)
+        object.__setattr__(self.turn, "latency_tracker", LatencyTracker(request_id=request_id))
         logger.info(f"[{request_id}] Processing message (role={role}, length={len(msg)})")
 
         if force_tool and not enable_tools:

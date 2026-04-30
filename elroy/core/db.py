@@ -1,9 +1,10 @@
-from ..db.db_session import DbSession
-from .ctx import ElroyContext
+from pathlib import Path
+
+from ..db.db_manager import DbManager
+from .ctx import ElroyConfig
 
 
-def require_db_session(ctx: ElroyContext) -> DbSession:
-    db_session = ctx._db
-    if db_session is None:
-        raise ValueError("No db session open")
-    return db_session
+def get_db_manager(config: ElroyConfig) -> DbManager:
+    assert config.database_url, "Database URL not set"
+    chroma_path = Path(config.chroma_path) if config.chroma_path else None
+    return DbManager(config.database_url, chroma_path=chroma_path)

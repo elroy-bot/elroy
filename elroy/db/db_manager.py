@@ -61,7 +61,7 @@ class DbManager:
 
     @contextmanager
     def open_session(self) -> Generator[DbSession, Any, None]:
-        session = Session(self.engine)
+        session = Session(self.engine, expire_on_commit=False)
         try:
             yield DbSession(self.url, session, self.chroma_client)
             if session.is_active:

@@ -7,14 +7,17 @@ from toolz import pipe
 from toolz.curried import map
 
 from ...core.constants import RecoverableToolError, tool, user_only_tool
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
+from ...core.ctx import ElroyConfig
+from ...core.session import run_with_turn
+from ...core.turn import TurnContext
 from ...db.db_models import AgendaItem, Memory
 from ...utils.clock import db_time_to_local
+from ..user.session import build_user_session
 from .factory import build_memory_lifecycle_orchestrator
 from .queries import (
     db_get_memory_source_by_name,
-    db_get_source_list_for_memory,
+    do_db_get_source_list_for_memory,
+    do_get_memory_by_name,
     get_memory_by_name,
     get_relevant_memories_and_due_items,
 )
@@ -29,7 +32,7 @@ def _memory_text_content(memory: Memory) -> str:
     return read_memory_text(Path(memory.file_path))
 
 
-def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> list[tuple[str, str]]:
+def do_get_source_list_for_memory(turn: TurnContext, memory_name: str) -> list[tuple[str, str]]:
     """Get a list of the sources of a memory by its name. This can be useful for retrieving more precise information that a memory is based on.
 
     Once the source is retrieved, the content of the source can be retrieved using the get_source_content tool.
@@ -41,11 +44,10 @@ def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> list[tupl
         str: The source information for the memory, in the form {type}: {name}
     """
 
-    memory = get_memory_by_name(ctx, memory_name)
-
+    memory = do_get_memory_by_name(turn, memory_name)
     if not memory:
         raise RecoverableToolError(f"Memory '{memory_name}' not found for the current user.")
-    sources = db_get_source_list_for_memory(ctx, memory)
+    sources = do_db_get_source_list_for_memory(turn, memory)
 
     if not sources:
         return []
@@ -56,8 +58,12 @@ def get_source_list_for_memory(ctx: ElroyContext, memory_name: str) -> list[tupl
     )
 
 
+def get_source_list_for_memory(ctx: ElroyConfig, memory_name: str) -> list[tuple[str, str]]:
+    return run_with_turn(ctx, do_get_source_list_for_memory, memory_name)
+
+
 @tool
-def get_source_content_for_memory(ctx: ElroyContext, memory_name: str, index: int = 0) -> str:
+def get_source_content_for_memory(ctx: ElroyConfig, memory_name: str, index: int = 0) -> str:
     """Retrieves content of the source for a memory, by source type and name.
 
     For a given memory, there can be multiple sources.
@@ -83,8 +89,76 @@ def get_source_content_for_memory(ctx: ElroyContext, memory_name: str, index: in
     return f"# Source content for memory: {memory_name} ({index} / {len(metadata) - 1})\n\n" + src.to_fact()
 
 
+def do_print_memories(turn: TurnContext, n: int | None = None) -> Table | str:
+    user_session = build_user_session(turn)
+    memories = user_session.db.exec(
+        select(Memory)
+        .where(Memory.user_id == user_session.user_id, cast(Any, Memory.is_active))
+        .order_by(desc(Memory.created_at))
+        .limit(n or 1000)
+    ).all()
+
+    if not memories:
+        return "No memories found."
+
+    table = Table(title="Memories", show_lines=True)
+    table.add_column("Name", style="cyan")
+    table.add_column("Text", style="green")
+    table.add_column("Created", style="magenta")
+
+    for memory in reversed(memories):
+        table.add_row(
+            memory.name,
+            _memory_text_content(memory),
+            db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+    return table
+
+
+def _print_memories(ctx: ElroyConfig, n: int | None = None) -> Table | str:
+    return run_with_turn(ctx, do_print_memories, n)
+
+
+def do_update_outdated_or_incorrect_memory(turn: TurnContext, memory_name: str, update_text: str) -> str:
+    original_memory = do_get_memory_by_name(turn, memory_name)
+    if not original_memory:
+        return f"Memory '{memory_name}' not found"
+
+    original_memory.is_active = False
+    db_session = build_user_session(turn).db
+    original_memory = db_session.session.merge(original_memory)
+
+    update_time = db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
+    updated_text = f"{_memory_text_content(original_memory)}\n\nUpdate ({update_time}):\n{update_text}"
+    db_session.commit()
+    db_session.update_embedding_active(original_memory)
+
+    build_memory_lifecycle_orchestrator(turn).do_create_memory(
+        memory_name,
+        updated_text,
+        [original_memory],
+        True,
+    )
+
+    return f"Memory '{memory_name}' has been updated"
+
+
+def _update_outdated_or_incorrect_memory(ctx: ElroyConfig, memory_name: str, update_text: str) -> str:
+    return run_with_turn(ctx, do_update_outdated_or_incorrect_memory, memory_name, update_text)
+
+
+def do_create_memory(turn: TurnContext, name: str, text: str) -> str:
+    build_memory_lifecycle_orchestrator(turn).do_create_memory_from_ctx_msgs(name, text)
+    return f"New memory created: {name}"
+
+
+def _create_memory(ctx: ElroyConfig, name: str, text: str) -> str:
+    return run_with_turn(ctx, do_create_memory, name, text)
+
+
 @tool
-def examine_memories(ctx: ElroyContext, question: str) -> list[str]:
+def examine_memories(ctx: ElroyConfig, question: str) -> list[str]:
     """Search through memories for the answer to a question.
 
     This function searches summarized memories and goals. Each memory also contains source information.
@@ -122,7 +196,7 @@ def examine_memories(ctx: ElroyContext, question: str) -> list[str]:
 
 
 @tool
-def print_memory(ctx: ElroyContext, memory_name: str) -> str:
+def print_memory(ctx: ElroyConfig, memory_name: str) -> str:
     """Retrieve and return a memory by its exact name.
 
     Args:
@@ -138,43 +212,17 @@ def print_memory(ctx: ElroyContext, memory_name: str) -> str:
 
 
 @user_only_tool
-def print_memories(ctx: ElroyContext, n: int | None = None) -> Table | str:
+def print_memories(ctx: ElroyConfig, n: int | None = None) -> Table | str:
     """Print all memories.
 
     Returns:
         str: A formatted string containing all memories.
     """
-    memories = (
-        require_db_session(ctx)
-        .exec(
-            select(Memory)
-            .where(Memory.user_id == ctx.user_id, cast(Any, Memory.is_active))
-            .order_by(desc(Memory.created_at))
-            .limit(n or 1000)
-        )
-        .all()
-    )
-
-    if not memories:
-        return "No memories found."
-
-    table = Table(title="Memories", show_lines=True)
-    table.add_column("Name", style="cyan")
-    table.add_column("Text", style="green")
-    table.add_column("Created", style="magenta")
-
-    for memory in reversed(memories):
-        table.add_row(
-            memory.name,
-            _memory_text_content(memory),
-            db_time_to_local(memory.created_at).strftime("%Y-%m-%d %H:%M:%S"),
-        )
-
-    return table
+    return _print_memories(ctx, n)
 
 
 @user_only_tool
-def search_memories(ctx: ElroyContext, query: str) -> str | Table:
+def search_memories(ctx: ElroyConfig, query: str) -> str | Table:
     """Search for a memory by its text content.
 
     Args:
@@ -199,7 +247,7 @@ def search_memories(ctx: ElroyContext, query: str) -> str | Table:
 
 
 @tool
-def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, update_text: str) -> str:
+def update_outdated_or_incorrect_memory(ctx: ElroyConfig, memory_name: str, update_text: str) -> str:
     """Updates an existing memory with new information.
     In general, when new information arises, new memories should be created rather than updating.
     Reserve use of this tool for cases in which the information in a memory changes or becomes out of date.
@@ -211,33 +259,11 @@ def update_outdated_or_incorrect_memory(ctx: ElroyContext, memory_name: str, upd
     Returns:
         str: Confirmation message that the memory was updated
     """
-    original_memory = get_memory_by_name(ctx, memory_name)
-    if not original_memory:
-        return f"Memory '{memory_name}' not found"
-
-    # Mark existing memory as inactive
-    original_memory.is_active = False
-    db_session = require_db_session(ctx)
-    db_session.add(original_memory)
-
-    # Create new memory with updated text
-    update_time = db_time_to_local(original_memory.created_at).strftime("%Y-%m-%d %H:%M:%S")
-    updated_text = f"{_memory_text_content(original_memory)}\n\nUpdate ({update_time}):\n{update_text}"
-    db_session.commit()
-    db_session.update_embedding_active(original_memory)
-
-    build_memory_lifecycle_orchestrator(ctx).do_create_memory(
-        memory_name,
-        updated_text,
-        [original_memory],
-        True,
-    )
-
-    return f"Memory '{memory_name}' has been updated"
+    return _update_outdated_or_incorrect_memory(ctx, memory_name, update_text)
 
 
 @tool
-def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
+def create_memory(ctx: ElroyConfig, name: str, text: str) -> str:
     """Creates a new memory for the assistant.
 
     Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
@@ -269,14 +295,11 @@ def create_memory(ctx: ElroyContext, name: str, text: str) -> str:
     Returns:
         str: Confirmation message that the memory was created.
     """
-
-    build_memory_lifecycle_orchestrator(ctx).do_create_memory_from_ctx_msgs(name, text)
-
-    return f"New memory created: {name}"
+    return _create_memory(ctx, name, text)
 
 
 @tool
-def get_fast_recall(ctx: ElroyContext) -> str:
+def get_fast_recall(ctx: ElroyConfig) -> str:
     """No-op tool used to acknowledge synthetic recall context."""
     _ = ctx
     return "OK"

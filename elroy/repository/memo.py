@@ -1,35 +1,38 @@
 # Triage input, creating either a memory or a due item
 
-
 from pydantic import BaseModel
 from toolz import concat, juxt, pipe
 from toolz.curried import filter
 
 from ..core.constants import RecoverableToolError
-from ..core.ctx import ElroyContext
+from ..core.ctx import ElroyConfig
 from ..core.logging import get_logger
+from ..core.session import run_with_turn
+from ..core.turn import TurnContext
 from ..db.db_models import AgendaItem, EmbeddableSqlModel, Memory
 from ..utils.clock import local_now, utc_now
 from .data_models import CreateDueItemRequest, CreateMemoryRequest
+from .memo_runtime import build_memo_runtime
 from .memories.factory import build_memory_lifecycle_orchestrator
 from .memories.queries import filter_for_relevance
-from .recall.queries import get_most_relevant_due_items, get_most_relevant_memories
+from .recall.queries import do_get_most_relevant_due_items, do_get_most_relevant_memories
 from .reminders.factory import build_reminder_orchestrator
 
 logger = get_logger()
 
 
-def augment_text(ctx: ElroyContext, text: str) -> str:
+def do_augment_text(turn: TurnContext, text: str) -> str:
+    runtime = build_memo_runtime(turn)
     memories: list[EmbeddableSqlModel] = pipe(
         text,
-        ctx.llm.get_embedding,
-        lambda x: juxt(get_most_relevant_memories, get_most_relevant_due_items)(ctx, x),
+        runtime.llm.get_embedding,
+        lambda x: juxt(do_get_most_relevant_memories, do_get_most_relevant_due_items)(turn, x),
         concat,
         list,
         filter(lambda x: x is not None),
         list,
         lambda mems: filter_for_relevance(
-            ctx.fast_llm,
+            runtime.fast_llm,
             text,
             mems,
             lambda m: m.to_fact(),
@@ -39,7 +42,7 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
 
     if len(memories) > 0:
         mem_str = "\n".join([m.to_fact() for m in memories])
-        return ctx.llm.query_llm(
+        return runtime.llm.query_llm(
             system=f"""
             Your job is to augment text with contextual information recalled from memory. You will be provided with the initial text, as well as memories from storage which have been deemed to be relevant. Use this information to augment the text with enough context such that future readers can better understand the memory.
 
@@ -65,17 +68,22 @@ def augment_text(ctx: ElroyContext, text: str) -> str:
     return text
 
 
-def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:
-    def _inner(ctx: ElroyContext, text: str, attempt: int = 1, prev_attempt_error_info: str | None = None) -> list[Memory | AgendaItem]:
+def augment_text(ctx: ElroyConfig, text: str) -> str:
+    return run_with_turn(ctx, do_augment_text, text)
+
+
+def ingest_memo(ctx: ElroyConfig, text: str) -> list[Memory | AgendaItem]:
+    def _inner(turn: TurnContext, text: str, attempt: int = 1, prev_attempt_error_info: str | None = None) -> list[Memory | AgendaItem]:
         try:
+            runtime = build_memo_runtime(turn)
 
             class MemoResponse(BaseModel):
                 create_due_item_request: CreateDueItemRequest | None = None
                 create_memory_request: CreateMemoryRequest | None = None
 
-            augmented = augment_text(ctx, text)
+            augmented = do_augment_text(turn, text)
 
-            req = ctx.llm.query_llm_with_response_format(
+            req = runtime.llm.query_llm_with_response_format(
                 system=(
                     f"""Your task is to convert text into either a due item or a memory.
 
@@ -99,33 +107,33 @@ def do_ingest_memo(ctx: ElroyContext, text: str) -> list[Memory | AgendaItem]:
             )
 
             resp = []
-
-            if req.create_memory_request:
-                logger.info("Creating memory")
-                resp.append(
-                    build_memory_lifecycle_orchestrator(ctx).do_create_memory(
-                        req.create_memory_request.name,
-                        req.create_memory_request.text,
-                        [],
-                        True,
+            if req.create_memory_request or req.create_due_item_request:
+                if req.create_memory_request:
+                    logger.info("Creating memory")
+                    resp.append(
+                        build_memory_lifecycle_orchestrator(turn).do_create_memory(
+                            req.create_memory_request.name,
+                            req.create_memory_request.text,
+                            [],
+                            True,
+                        )
                     )
-                )
-            if req.create_due_item_request:
-                logger.info("Creating due item")
-                resp.append(
-                    build_reminder_orchestrator(ctx).do_create_due_item(
-                        req.create_due_item_request.name,
-                        req.create_due_item_request.text,
-                        req.create_due_item_request.trigger_datetime,
-                        req.create_due_item_request.trigger_context,
+                if req.create_due_item_request:
+                    logger.info("Creating due item")
+                    resp.append(
+                        build_reminder_orchestrator(turn).do_create_due_item(
+                            req.create_due_item_request.name,
+                            req.create_due_item_request.text,
+                            req.create_due_item_request.trigger_datetime,
+                            req.create_due_item_request.trigger_context,
+                        )
                     )
-                )
             return resp
         except RecoverableToolError as e:
             if attempt >= 3:
                 logger.warning(f"Abandoinging ingest_memo after {attempt} attempts", exc_info=True)
                 raise
             attempt += 1
-            return _inner(ctx, text, attempt, f"A previous attempt at this task failed with error: {e!s}")
+            return _inner(turn, text, attempt, f"A previous attempt at this task failed with error: {e!s}")
 
-    return _inner(ctx, text, 1, None)
+    return run_with_turn(ctx, _inner, text, 1, None)

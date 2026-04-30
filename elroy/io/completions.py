@@ -1,22 +1,25 @@
 """Helpers for building slash-command autocomplete suggestions and memory panel titles."""
 
-from ..core.ctx import ElroyContext
+from ..core.ctx import ElroyConfig
+from ..core.session import run_with_turn
+from ..core.turn import TurnContext
 from ..repository.context_messages.factory import build_context_message_read_store
+from ..repository.context_messages.session import build_context_message_session
+from ..repository.memories.queries import do_get_active_memories, get_in_context_memories_metadata
+from ..repository.reminders.queries import do_get_active_due_items
 
 
 class CompletionsBuilder:
-    def __init__(self, ctx: ElroyContext):
-        self.ctx = ctx
-        self.context_message_read_store = build_context_message_read_store(ctx)
+    def __init__(self, turn: TurnContext):
+        self.turn = turn
 
     def get_memory_panel_entries(self) -> list[tuple[str, str]]:
         """Return (display_name, type_key) pairs for the in-context memories sidebar.
 
         type_key is the raw "{MemoryType}: {name}" string used to look up the source.
         """
-        from ..repository.memories.queries import get_in_context_memories_metadata
-
-        raw = get_in_context_memories_metadata(self.context_message_read_store.get_context_messages())
+        context_message_read_store = build_context_message_read_store(build_context_message_session(self.turn))
+        raw = get_in_context_memories_metadata(context_message_read_store.get_context_messages())
         return [(t.split(": ", 1)[-1], t) for t in raw]
 
     def get_memory_panel_titles(self) -> list[str]:
@@ -31,10 +34,8 @@ class CompletionsBuilder:
         from toolz.curried import map as tmap
 
         from ..core.constants import EXIT
-        from ..repository.agenda.tools import get_active_agenda_titles
-        from ..repository.memories.queries import get_active_memories
+        from ..repository.agenda.tools import do_get_active_agenda_titles
         from ..repository.recall.queries import is_in_context
-        from ..repository.reminders.queries import get_active_due_items
         from ..tools.tools_and_commands import (
             ALL_ACTIVE_AGENDA_COMMANDS,
             ALL_ACTIVE_DUE_ITEM_COMMANDS,
@@ -45,10 +46,11 @@ class CompletionsBuilder:
             USER_ONLY_COMMANDS,
         )
 
-        context_messages = list(self.context_message_read_store.get_context_messages())
-        memories = get_active_memories(self.ctx)
-        due_items = get_active_due_items(self.ctx)
-        agenda_titles = get_active_agenda_titles(self.ctx)
+        context_message_read_store = build_context_message_read_store(build_context_message_session(self.turn))
+        context_messages = list(context_message_read_store.get_context_messages())
+        memories = do_get_active_memories(self.turn)
+        due_items = do_get_active_due_items(self.turn)
+        agenda_titles = do_get_active_agenda_titles(self.turn)
 
         in_context_memories = sorted([m.get_name() for m in memories if is_in_context(context_messages, m)])
         non_context_memories = sorted([m.get_name() for m in memories if m.get_name() not in in_context_memories])
@@ -69,13 +71,25 @@ class CompletionsBuilder:
         )
 
 
-def get_memory_panel_entries(ctx: ElroyContext) -> list[tuple[str, str]]:
-    return CompletionsBuilder(ctx).get_memory_panel_entries()
+def do_get_memory_panel_entries(turn: TurnContext) -> list[tuple[str, str]]:
+    return CompletionsBuilder(turn).get_memory_panel_entries()
 
 
-def get_memory_panel_titles(ctx: ElroyContext) -> list[str]:
-    return CompletionsBuilder(ctx).get_memory_panel_titles()
+def do_get_memory_panel_titles(turn: TurnContext) -> list[str]:
+    return CompletionsBuilder(turn).get_memory_panel_titles()
 
 
-def build_completions(ctx: ElroyContext) -> list[str]:
-    return CompletionsBuilder(ctx).build_completions()
+def do_build_completions(turn: TurnContext) -> list[str]:
+    return CompletionsBuilder(turn).build_completions()
+
+
+def get_memory_panel_entries(ctx: ElroyConfig) -> list[tuple[str, str]]:
+    return run_with_turn(ctx, do_get_memory_panel_entries)
+
+
+def get_memory_panel_titles(ctx: ElroyConfig) -> list[str]:
+    return run_with_turn(ctx, do_get_memory_panel_titles)
+
+
+def build_completions(ctx: ElroyConfig) -> list[str]:
+    return run_with_turn(ctx, do_build_completions)

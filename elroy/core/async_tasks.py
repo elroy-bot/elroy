@@ -7,9 +7,11 @@ from apscheduler.job import Job
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from ..core.ctx import ElroyContext
 from ..core.logging import get_logger
-from ..core.session import dbsession
+from ..core.runtime import build_background_task_runtime
+from ..core.session import build_elroy_session, clone_config, invoke_with_config, open_turn_context
+from ..core.turn import TurnContext
+from ..repository.user.session import build_user_session
 
 logger = get_logger()
 
@@ -49,7 +51,7 @@ def get_scheduler():
 
 def schedule_task(
     fn: Callable,
-    ctx: ElroyContext,
+    turn: TurnContext,
     *args,
     replace: bool = False,
     delay_seconds: int | None = None,
@@ -58,7 +60,7 @@ def schedule_task(
     """
     Args:
         fn: The function to run
-        ctx: The ElroyContext instance
+        turn: The execution turn
         *args: Arguments to pass to the function
         job_key: Optional job key for replacement behavior. If provided, will replace existing job with same key.
         delay_seconds: Optional delay in seconds before running the task. If not provided, runs immediately.
@@ -67,27 +69,18 @@ def schedule_task(
     Returns:
         The scheduled job or None if background threads are disabled
     """
-    if not ctx.use_background_threads:
+    ctx = turn.config
+    runtime = build_background_task_runtime(ctx)
+    if not runtime.use_background_threads:
         logger.debug("Background threads are disabled. Running function in the main thread.")
-        fn(ctx, *args, **kwargs)
+        fn(turn, *args, **kwargs)
         return None
 
     # Create a wrapper function that sets up a new database session
     @wraps(fn)
     def wrapped_fn():
-        # Create completely new connection in the new thread
-        # Use config objects directly - much cleaner than extracting individual parameters
-        new_ctx = ElroyContext(
-            database_url=ctx.database_url,
-            chroma_path=ctx.chroma_path,
-            model_config=ctx.model_config,
-            ui_config=ctx.ui_config,
-            memory_config=ctx.memory_config,
-            tool_config=ctx.tool_config,
-            runtime_config=ctx.runtime_config,
-        )
-        with dbsession(new_ctx):
-            fn(new_ctx, *args, **kwargs)
+        new_ctx = clone_config(ctx)
+        invoke_with_config(fn, new_ctx, *args, **kwargs)
 
     # Get the scheduler and add the job
     scheduler = get_scheduler()
@@ -96,7 +89,8 @@ def schedule_task(
     job_kwargs = {}
     if replace is not None:
         fn_name = getattr(fn, "__name__", "unknown")
-        job_kwargs["id"] = fn_name + "___" + str(ctx.user_id)
+        with open_turn_context(ctx, build_elroy_session(ctx)) as turn:
+            job_kwargs["id"] = fn_name + "___" + str(build_user_session(turn).user_id)
         job_kwargs["replace_existing"] = True
 
     if delay_seconds is not None:

@@ -6,7 +6,8 @@ from toolz import concatv, pipe
 from toolz.curried import map
 
 from ..core.constants import IS_ENABLED, user_only_tool
-from ..core.ctx import ElroyContext
+from ..core.ctx import ElroyConfig
+from ..core.runtime import CommandRuntime, build_command_runtime
 from ..repository.agenda.tools import (
     add_agenda_checklist_item,
     add_agenda_item,
@@ -133,15 +134,19 @@ ASSISTANT_VISIBLE_COMMANDS: set[Callable] = {
 
 
 @user_only_tool
-def get_help(ctx: ElroyContext) -> Table:
+def get_help(ctx: ElroyConfig) -> Table:
     """Prints the available system commands
 
     Returns:
         str: The available system commands
     """
 
+    return do_get_help(build_command_runtime(ctx))
+
+
+def do_get_help(runtime: CommandRuntime) -> Table:
     commands = pipe(
-        concatv(ctx.tool_registry.tools.values(), USER_ONLY_COMMANDS),
+        concatv(runtime.tool_registry.tools.values(), USER_ONLY_COMMANDS),
         map(
             lambda f: (
                 f.__name__,

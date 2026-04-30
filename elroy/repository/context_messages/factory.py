@@ -1,6 +1,4 @@
 from ...core.async_tasks import schedule_task
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
 from ..user.queries import do_get_user_preferred_name, get_assistant_name, get_persona
 from .context_refresh_orchestrator import (
     ContextRefreshConfig,
@@ -8,58 +6,62 @@ from .context_refresh_orchestrator import (
     ContextRefreshOrchestrator,
 )
 from .queries import ContextMessageReadStore
+from .runtime import build_context_refresh_runtime
+from .session import ContextMessageSession
 from .store import ContextMessageStore
 from .system_prompt_builder import SystemPromptBuilder, SystemPromptMetadataProviders
 
 
-def build_context_message_read_store(ctx: ElroyContext) -> ContextMessageReadStore:
-    return ContextMessageReadStore(require_db_session(ctx), ctx.user_id)
+def build_context_message_read_store(context_session: ContextMessageSession) -> ContextMessageReadStore:
+    return ContextMessageReadStore(context_session.db, context_session.user_id)
 
 
-def build_context_message_store(ctx: ElroyContext) -> ContextMessageStore:
-    return ContextMessageStore(build_context_message_read_store(ctx))
+def build_context_message_store(context_session: ContextMessageSession) -> ContextMessageStore:
+    return ContextMessageStore(build_context_message_read_store(context_session))
 
 
-def build_system_prompt_builder(ctx: ElroyContext) -> SystemPromptBuilder:
+def build_system_prompt_builder(context_session: ContextMessageSession) -> SystemPromptBuilder:
+    runtime = build_context_refresh_runtime(context_session)
     return SystemPromptBuilder(
-        tool_registry=ctx.tool_registry,
-        chat_model_inline_tool_calls=ctx.chat_model.inline_tool_calls,
+        tool_registry=runtime.tool_registry,
+        chat_model_inline_tool_calls=runtime.chat_model_inline_tool_calls,
         metadata_providers=SystemPromptMetadataProviders(
-            get_persona_fn=lambda: get_persona(ctx),
+            get_persona_fn=lambda: get_persona(context_session.user_session, context_session.user_runtime),
         ),
     )
 
 
-def build_context_refresh_orchestrator(ctx: ElroyContext) -> ContextRefreshOrchestrator:
+def build_context_refresh_orchestrator(context_session: ContextMessageSession) -> ContextRefreshOrchestrator:
     from ..memories.factory import (
         create_mem_from_current_context,
         formulate_memory,
         get_or_create_memory_op_tracker,
     )
+    from ..memories.tools import do_create_memory
 
-    def create_memory_from_tool(name: str, text: str) -> str:
-        from ..memories.tools import create_memory
-
-        return create_memory(ctx, name, text)
+    runtime = build_context_refresh_runtime(context_session)
 
     return ContextRefreshOrchestrator(
-        read_store=build_context_message_read_store(ctx),
-        store=build_context_message_store(ctx),
-        system_prompt_builder=build_system_prompt_builder(ctx),
-        fast_llm=ctx.fast_llm,
+        read_store=build_context_message_read_store(context_session),
+        store=build_context_message_store(context_session),
+        system_prompt_builder=build_system_prompt_builder(context_session),
+        fast_llm=runtime.fast_llm,
         config=ContextRefreshConfig(
-            chat_model_name=ctx.chat_model.name,
-            max_tokens=ctx.max_tokens,
-            context_refresh_target_tokens=ctx.context_refresh_target_tokens,
-            max_in_context_message_age=ctx.max_in_context_message_age,
-            messages_between_memory=ctx.messages_between_memory,
+            chat_model_name=runtime.chat_model_name,
+            max_tokens=runtime.max_tokens,
+            context_refresh_target_tokens=runtime.context_refresh_target_tokens,
+            max_in_context_message_age=runtime.max_in_context_message_age,
+            messages_between_memory=runtime.messages_between_memory,
         ),
         dependencies=ContextRefreshDependencies(
-            get_assistant_name_fn=lambda: get_assistant_name(ctx),
-            get_user_preferred_name_fn=lambda: do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id),
-            get_or_create_memory_op_tracker_fn=lambda: get_or_create_memory_op_tracker(ctx),
-            schedule_memory_creation_fn=lambda: schedule_task(create_mem_from_current_context, ctx),
-            formulate_memory_fn=lambda context_messages: formulate_memory(ctx, context_messages),
-            create_memory_fn=create_memory_from_tool,
+            get_assistant_name_fn=lambda: get_assistant_name(context_session.user_session, context_session.user_runtime),
+            get_user_preferred_name_fn=lambda: do_get_user_preferred_name(
+                context_session.user_session.db.session,
+                context_session.user_session.user_id,
+            ),
+            get_or_create_memory_op_tracker_fn=lambda: get_or_create_memory_op_tracker(context_session.turn),
+            schedule_memory_creation_fn=lambda: schedule_task(create_mem_from_current_context, context_session.turn),
+            formulate_memory_fn=lambda context_messages: formulate_memory(context_session.turn, context_messages),
+            create_memory_fn=lambda name, text: do_create_memory(context_session.turn, name, text),
         ),
     )

@@ -11,7 +11,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import ContentSwitcher, Label, ListItem, ListView, RichLog, Static, Tab, Tabs
 
-from ..core.services.sidebar_service import SidebarEntry
+from ..core.sidebar_models import SidebarEntry
 
 
 class StatusBar(Label):
@@ -119,10 +119,12 @@ class SidebarPanel(Vertical):
 
     def apply_selection(self, section: str, index: int | None) -> None:
         list_view = self.list_view(section)
+        if index is None:
+            list_view.index = None
+            return
+        if list_view.index == index:
+            list_view.index = None
         list_view.index = index
-        items = self._list_items(section)
-        for item_index, item in enumerate(items):
-            item.highlighted = index is not None and item_index == index
 
     def current_index(self, section: str) -> int | None:
         return self.list_view(section).index

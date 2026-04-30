@@ -178,7 +178,7 @@ class LlmClient:
         Args:
             text (str): The input text to generate an embedding for.
             model (str): The name of the embedding model to use.
-            ctx: Optional ElroyContext for latency tracking
+            ctx: Optional config or turn context for latency tracking
 
         Returns:
             List[float]: The generated embedding as a list of floats.

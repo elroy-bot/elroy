@@ -7,8 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import delete, select
 
 from elroy.core.constants import USER
-from elroy.core.ctx import ElroyContext
-from elroy.core.db import require_db_session
+from elroy.core.ctx import ElroyConfig
+from elroy.core.session import open_turn_context
+from elroy.core.turn import TurnContext
 from elroy.db.db_models import ContextMessageSet
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_message_store, build_context_refresh_orchestrator
@@ -16,19 +17,27 @@ from elroy.repository.context_messages.queries import (
     get_context_messages,
     get_or_create_context_message_set,
 )
+from elroy.repository.context_messages.session import build_context_message_session
+from elroy.repository.user.session import build_user_session
 from elroy.utils.utils import run_in_background
 
 
+def _remove_context_messages(messages: list[ContextMessage], *, turn: TurnContext) -> None:
+    build_context_message_store(build_context_message_session(turn)).remove_context_messages(messages)
+
+
+def _add_context_messages(messages: list[ContextMessage], *, turn: TurnContext) -> None:
+    build_context_refresh_orchestrator(build_context_message_session(turn)).add_context_messages(messages)
+
+
 @pytest.mark.filterwarnings("error")
-def test_rm_context_messages(george_ctx: ElroyContext):
+def test_rm_context_messages(george_ctx: ElroyConfig):
     msgs = list(get_context_messages(george_ctx))
 
     to_rm = msgs[-3:]
     for msg in to_rm:
         # Concurrent removals
-        run_in_background(
-            lambda new_ctx, messages: build_context_message_store(new_ctx).remove_context_messages(messages), george_ctx, [msg]
-        )
+        run_in_background(_remove_context_messages, george_ctx, [msg])
 
     attempts = 0
     max_attempts = 5
@@ -45,7 +54,7 @@ def test_rm_context_messages(george_ctx: ElroyContext):
 
 
 @pytest.mark.filterwarnings("error")
-def test_add_context_messages(george_ctx: ElroyContext):
+def test_add_context_messages(george_ctx: ElroyConfig):
     msgs = list(get_context_messages(george_ctx))
 
     to_add = [
@@ -58,11 +67,7 @@ def test_add_context_messages(george_ctx: ElroyContext):
     ]
     for msg in to_add:
         # Concurrent removals
-        run_in_background(
-            lambda new_ctx, messages: build_context_refresh_orchestrator(new_ctx).add_context_messages(messages),
-            george_ctx,
-            [msg],
-        )
+        run_in_background(_add_context_messages, george_ctx, [msg])
 
     attempts = 0
     max_attempts = 5
@@ -78,34 +83,37 @@ def test_add_context_messages(george_ctx: ElroyContext):
             time.sleep(1)
 
 
-def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: ElroyContext, monkeypatch: pytest.MonkeyPatch):
-    db_session = require_db_session(ctx)
-    db_session.exec(delete(ContextMessageSet).where(cast(Any, ContextMessageSet.user_id) == ctx.user_id))
-    db_session.commit()
+def test_get_or_create_context_message_set_recovers_after_failed_create(ctx: ElroyConfig, monkeypatch: pytest.MonkeyPatch):
+    with open_turn_context(ctx) as turn:
+        user_session = build_user_session(turn)
+        db_session = user_session.db
+        user_id = user_session.user_id
+        db_session.exec(delete(ContextMessageSet).where(cast(Any, ContextMessageSet.user_id) == user_id))
+        db_session.commit()
 
-    real_commit = db_session.session.commit
-    attempts = 0
+        real_commit = db_session.session.commit
+        attempts = 0
 
-    def flaky_commit():
-        nonlocal attempts
-        attempts += 1
-        if attempts == 1:
-            raise IntegrityError("insert into contextmessageset", {}, Exception("simulated create failure"))
-        return real_commit()
+        def flaky_commit():
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise IntegrityError("insert into contextmessageset", {}, Exception("simulated create failure"))
+            return real_commit()
 
-    monkeypatch.setattr(db_session.session, "commit", flaky_commit)
+        monkeypatch.setattr(db_session.session, "commit", flaky_commit)
 
-    context_message_set = get_or_create_context_message_set(db_session, ctx.user_id)
-    assert context_message_set.id is not None
-    assert list(get_context_messages(ctx)) == []
+        context_message_set = get_or_create_context_message_set(db_session, user_id)
+        assert context_message_set.id is not None
+        assert list(get_context_messages(ctx)) == []
 
-    active_contexts = list(
-        db_session.exec(
-            select(ContextMessageSet).where(
-                ContextMessageSet.user_id == ctx.user_id,
-                cast(Any, ContextMessageSet.is_active).is_(True),
-            )
-        ).all()
-    )
-    assert len(active_contexts) == 1
-    assert get_or_create_context_message_set(db_session, ctx.user_id).id == context_message_set.id
+        active_contexts = list(
+            db_session.exec(
+                select(ContextMessageSet).where(
+                    ContextMessageSet.user_id == user_id,
+                    cast(Any, ContextMessageSet.is_active).is_(True),
+                )
+            ).all()
+        )
+        assert len(active_contexts) == 1
+        assert get_or_create_context_message_set(db_session, user_id).id == context_message_set.id

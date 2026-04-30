@@ -4,7 +4,7 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter, map
 
-from elroy.core.db import require_db_session
+from elroy.core.session import open_turn_context
 from elroy.db.db_models import Memory, MemoryOperationTracker
 from elroy.repository.memories.consolidation import (
     MemoryCluster,
@@ -12,17 +12,19 @@ from elroy.repository.memories.consolidation import (
 )
 from elroy.repository.memories.factory import build_memory_lifecycle_orchestrator
 from elroy.repository.memories.queries import get_active_memories, get_memory_by_name
+from elroy.repository.user.session import build_user_session
 
 
 def test_identical_memories(ctx):
     """Test consolidation of identical memories marks one inactive"""
-    memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
-    memory1 = memory_lifecycle_orchestrator.do_create_memory_from_ctx_msgs(
-        "User's Hiking Habits", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
-    )
-    memory2 = memory_lifecycle_orchestrator.do_create_memory_from_ctx_msgs(
-        "User's Mountain Activities", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
-    )
+    with open_turn_context(ctx) as turn:
+        memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(turn)
+        memory1 = memory_lifecycle_orchestrator.do_create_memory_from_ctx_msgs(
+            "User's Hiking Habits", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
+        )
+        memory2 = memory_lifecycle_orchestrator.do_create_memory_from_ctx_msgs(
+            "User's Mountain Activities", "User mentioned they enjoy hiking in the mountains and try to go every weekend."
+        )
 
     assert memory1 and memory2
 
@@ -37,30 +39,35 @@ def test_trigger(ctx):
     ctx.use_background_threads = False
     assert ctx.memories_between_consolidation == 4
 
-    pipe(
-        [
-            "I went to the store today, January 1",
-            "I went shopping at the store on New Year' Day",
-            "Today, New Year's Day, I went to the store",
-            "I bought some items on New Year's Day",
-        ],
-        map(partial(build_memory_lifecycle_orchestrator(ctx).do_create_memory_from_ctx_msgs, "Shopping Trip")),
-        filter(lambda x: x is not None),
-        list,
-    )
+    with open_turn_context(ctx) as turn:
+        memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(turn)
+        pipe(
+            [
+                "I went to the store today, January 1",
+                "I went shopping at the store on New Year' Day",
+                "Today, New Year's Day, I went to the store",
+                "I bought some items on New Year's Day",
+            ],
+            map(partial(memory_lifecycle_orchestrator.do_create_memory_from_ctx_msgs, "Shopping Trip")),
+            filter(lambda x: x is not None),
+            list,
+        )
 
     assert len(get_active_memories(ctx)) == 1
-    assert (
-        require_db_session(ctx)
-        .exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == ctx.user_id))
-        .first()
-        .memories_since_consolidation
-        == 0
-    )
+    with open_turn_context(ctx) as turn:
+        user_session = build_user_session(turn)
+        assert (
+            user_session.db.exec(select(MemoryOperationTracker).where(MemoryOperationTracker.user_id == user_session.user_id))
+            .first()
+            .memories_since_consolidation
+            == 0
+        )
 
 
 def get_cluster(ctx, memories: list[Memory]) -> MemoryCluster:
-    return MemoryCluster(
-        memories=memories,
-        embeddings=[require_db_session(ctx).get_embedding(memory) for memory in memories],  # type: ignore
-    )
+    with open_turn_context(ctx) as turn:
+        user_session = build_user_session(turn)
+        return MemoryCluster(
+            memories=memories,
+            embeddings=[user_session.db.get_embedding(memory) for memory in memories],  # type: ignore
+        )

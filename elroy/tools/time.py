@@ -1,11 +1,11 @@
 from ..core.constants import tool
-from ..core.ctx import ElroyContext
+from ..core.ctx import ElroyConfig
 from ..utils.clock import local_now
 from ..utils.utils import datetime_to_string
 
 
 @tool
-def get_current_date(ctx: ElroyContext) -> str:
+def get_current_date(ctx: ElroyConfig) -> str:
     """Returns the current date and time.
 
     Returns:

@@ -7,13 +7,16 @@ from toolz.curried import filter
 
 from ...core.configs import MemoryConfig
 from ...core.constants import TOOL
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
+from ...core.ctx import ElroyConfig
 from ...core.logging import log_execution_time
+from ...core.session import run_with_turn
+from ...core.turn import TurnContext
 from ...db.db_models import AgendaItem, EmbeddableSqlModel, Memory
 from ...db.db_session import DbSession
 from ...repository.data_models import RecallMetadata, RecallResponse
 from ..context_messages.data_models import ContextMessage
+from ..user.session import build_user_session
+from .runtime import build_recall_runtime
 
 
 def get_recall_metadata(context_message: ContextMessage, recall_type: type[EmbeddableSqlModel] | None = None) -> list[RecallMetadata]:
@@ -68,35 +71,44 @@ class RecallReadStore:
         return [item for item in self.query_vector(AgendaItem, query) if not (item.trigger_datetime or item.trigger_context)][:2]
 
 
-def _store(ctx: ElroyContext) -> RecallReadStore:
-    return RecallReadStore(require_db_session(ctx), ctx.user_id, ctx.memory_config)
+def _store(turn: TurnContext) -> RecallReadStore:
+    user_session = build_user_session(turn)
+    return RecallReadStore(user_session.db, user_session.user_id, build_recall_runtime(turn).memory_config)
 
 
-def query_vector[T: EmbeddableSqlModel](table: type[T], ctx: ElroyContext, query: list[float]) -> Iterable[T]:
-    """
-    Perform a vector search on the specified table using the given query.
-
-    Args:
-        query (str): The search query.
-        table (EmbeddableSqlModel): The SQLModel table to search.
-
-    Returns:
-        List[Tuple[Fact, float]]: A list of tuples containing the matching Fact and its similarity score.
-    """
-    return _store(ctx).query_vector(table, query)
+def do_query_vector[T: EmbeddableSqlModel](turn: TurnContext, table: type[T], query: list[float]) -> Iterable[T]:
+    return _store(turn).query_vector(table, query)
 
 
 @log_execution_time
-def get_most_relevant_memories(ctx: ElroyContext, query: list[float]) -> list[Memory]:
-    """Get the most relevant memory for the given query."""
-    return _store(ctx).get_most_relevant_memories(query)
+def do_get_most_relevant_memories(turn: TurnContext, query: list[float]) -> list[Memory]:
+    return _store(turn).get_most_relevant_memories(query)
 
 
 @log_execution_time
-def get_most_relevant_due_items(ctx: ElroyContext, query: list[float]) -> list[AgendaItem]:
-    return _store(ctx).get_most_relevant_due_items(query)
+def do_get_most_relevant_due_items(turn: TurnContext, query: list[float]) -> list[AgendaItem]:
+    return _store(turn).get_most_relevant_due_items(query)
 
 
 @log_execution_time
-def get_most_relevant_agenda_items(ctx: ElroyContext, query: list[float]) -> list[AgendaItem]:
-    return _store(ctx).get_most_relevant_agenda_items(query)
+def do_get_most_relevant_agenda_items(turn: TurnContext, query: list[float]) -> list[AgendaItem]:
+    return _store(turn).get_most_relevant_agenda_items(query)
+
+
+def query_vector[T: EmbeddableSqlModel](table: type[T], ctx: ElroyConfig, query: list[float]) -> Iterable[T]:
+    return run_with_turn(ctx, do_query_vector, table, query)
+
+
+@log_execution_time
+def get_most_relevant_memories(ctx: ElroyConfig, query: list[float]) -> list[Memory]:
+    return run_with_turn(ctx, do_get_most_relevant_memories, query)
+
+
+@log_execution_time
+def get_most_relevant_due_items(ctx: ElroyConfig, query: list[float]) -> list[AgendaItem]:
+    return run_with_turn(ctx, do_get_most_relevant_due_items, query)
+
+
+@log_execution_time
+def get_most_relevant_agenda_items(ctx: ElroyConfig, query: list[float]) -> list[AgendaItem]:
+    return run_with_turn(ctx, do_get_most_relevant_agenda_items, query)

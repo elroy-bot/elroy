@@ -2,10 +2,11 @@
 
 from datetime import timedelta
 
-from elroy.core.ctx import ElroyContext
-from elroy.core.db import require_db_session
+from elroy.core.ctx import ElroyConfig
+from elroy.core.session import open_turn_context
 from elroy.repository.reminders.factory import build_reminder_orchestrator
 from elroy.repository.reminders.queries import get_due_item_context_msgs
+from elroy.repository.user.session import build_user_session
 from elroy.utils.clock import utc_now
 from tests.utils import (
     MockCliIO,
@@ -15,7 +16,7 @@ from tests.utils import (
 )
 
 
-def test_due_item_surfaces_in_conversation(io: MockCliIO, ctx: ElroyContext):
+def test_due_item_surfaces_in_conversation(io: MockCliIO, ctx: ElroyConfig):
     """Test that due items automatically surface in conversation."""
     create_due_item_in_past(ctx=ctx, name="medicine_reminder", text="Take your daily medicine")
 
@@ -26,7 +27,7 @@ def test_due_item_surfaces_in_conversation(io: MockCliIO, ctx: ElroyContext):
     quiz_assistant_bool(True, ctx, "Did you just inform me about a reminder that was due?")
 
 
-def test_multiple_due_items_all_surface(io: MockCliIO, ctx: ElroyContext):
+def test_multiple_due_items_all_surface(io: MockCliIO, ctx: ElroyConfig):
     """Test that multiple due items all surface in conversation."""
     create_due_item_in_past(ctx=ctx, name="reminder1", text="First due reminder")
     create_due_item_in_past(ctx=ctx, name="reminder2", text="Second due reminder")
@@ -41,7 +42,7 @@ def test_multiple_due_items_all_surface(io: MockCliIO, ctx: ElroyContext):
     assert "second due reminder" in response_text or "reminder2" in response_text, "Second due item not mentioned"
 
 
-def test_assistant_uses_delete_due_item_for_due_items(io: MockCliIO, ctx: ElroyContext):
+def test_assistant_uses_delete_due_item_for_due_items(io: MockCliIO, ctx: ElroyConfig):
     """Test that assistant uses delete_due_item when handling due items."""
     create_due_item_in_past(ctx=ctx, name="cleanup_test", text="This should be cleaned up")
 
@@ -50,15 +51,16 @@ def test_assistant_uses_delete_due_item_for_due_items(io: MockCliIO, ctx: ElroyC
     quiz_assistant_bool(False, ctx, "Do I still have an active reminder called 'cleanup_test'?")
 
 
-def test_no_due_items_no_extra_context(io: MockCliIO, ctx: ElroyContext):
+def test_no_due_items_no_extra_context(io: MockCliIO, ctx: ElroyConfig):
     """Test that when no due items are due, no extra context is added."""
     future_time = utc_now() + timedelta(days=1)
-    future_due_item = build_reminder_orchestrator(ctx).do_create_due_item(
-        name="future_reminder", text="This is for tomorrow", trigger_time=future_time
-    )
-    future_due_item.status = "completed"
-    future_due_item.is_active = False
-    require_db_session(ctx).persist(future_due_item)
+    with open_turn_context(ctx) as turn:
+        future_due_item = build_reminder_orchestrator(turn).do_create_due_item(
+            name="future_reminder", text="This is for tomorrow", trigger_time=future_time
+        )
+        future_due_item.status = "completed"
+        future_due_item.is_active = False
+        build_user_session(turn).db.persist(future_due_item)
 
     context_msgs = get_due_item_context_msgs(ctx)
     assert len(context_msgs) == 0, "Context messages generated for future due item"
@@ -69,7 +71,7 @@ def test_no_due_items_no_extra_context(io: MockCliIO, ctx: ElroyContext):
     assert "future_reminder" not in response_text, "Future due item mentioned unnecessarily"
 
 
-def test_hybrid_due_item_surfaces_when_time_due(io: MockCliIO, ctx: ElroyContext):
+def test_hybrid_due_item_surfaces_when_time_due(io: MockCliIO, ctx: ElroyConfig):
     """Test that hybrid due items surface when their time component is due."""
     create_due_item_in_past(
         ctx=ctx,

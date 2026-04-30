@@ -1,15 +1,13 @@
-import platform
-import sys
 from pathlib import Path
 
 from rich.table import Table
 from rich.text import Text
 
-from .. import __version__
-from ..config.paths import get_home_dir, get_log_file_path
+from ..config.paths import get_log_file_path
 from ..core.constants import user_only_tool
-from ..core.ctx import ElroyContext
+from ..core.ctx import ElroyConfig
 from ..core.logging import get_logger
+from ..core.runtime import ConfigReportRuntime, build_config_report_runtime, build_system_info_runtime
 
 logger = get_logger()
 
@@ -31,80 +29,76 @@ def tail_elroy_logs(lines: int = 10) -> str:
 
 
 @user_only_tool
-def print_config(ctx: ElroyContext) -> Table:
+def print_config(ctx: ElroyConfig) -> Table:
     """
     Prints the current Elroy configuration in a formatted table.
     Useful for troubleshooting and verifying the current configuration.
 
     Args:
-        ctx (ElroyContext): context obj
+        ctx (ElroyConfig): config obj
     """
-    return do_print_config(ctx, False)
+    return do_print_config(build_config_report_runtime(ctx), False)
 
 
-def do_print_config(ctx: ElroyContext, show_secrets=False) -> Table:
+def do_print_config(runtime: ConfigReportRuntime, show_secrets: bool = False) -> Table:
     """
     Prints the current Elroy configuration in a formatted table.
     Useful for troubleshooting and verifying the current configuration.
 
     Args:
-        ctx (ElroyContext): context obj
+        runtime (ConfigReportRuntime): formatted config-report runtime
     """
 
     sections = {
         "System Information": {
-            "OS": f"{platform.system()} {platform.release()}",
-            "Python Version": platform.python_version(),
-            "Python Location": sys.executable,
-            "Elroy Version": __version__,
-            "Elroy Home Dir": get_home_dir(),
-            "Config Path": ctx.config_path,
+            **build_system_info_runtime(),
+            "Config Path": runtime.config_path,
         },
         "Basic Configuration": {
-            "Debug Mode": ctx.debug,
-            "Default Assistant Name": ctx.default_assistant_name,
-            "User Token": ctx.user_token,
-            "Database URL": ctx.database_url,
+            "Debug Mode": runtime.debug,
+            "Default Assistant Name": runtime.default_assistant_name,
+            "User Token": runtime.user_token,
+            "Database URL": runtime.database_url,
         },
         "Model Configuration": {
-            "Chat Model": ctx.chat_model.name,
-            "Embedding Model": ctx.embedding_model.name,
-            "Embedding Model Size": ctx.model_config.embedding_model_size,
-            "Caching Enabled": ctx.model_config.enable_caching,
+            "Chat Model": runtime.chat_model_name,
+            "Embedding Model": runtime.embedding_model_name,
+            "Embedding Model Size": runtime.embedding_model_size,
+            "Caching Enabled": runtime.caching_enabled,
         },
         "API Configuration": {
-            "Chat API Base": ctx.chat_model.api_base or "None (May be read from env vars)",
+            "Chat API Base": runtime.chat_api_base,
             "Chat API Key": (
-                "*" * 8 if ctx.chat_model.api_key and not show_secrets else ctx.chat_model.api_key or "None (May be read from env vars)"
+                "*" * 8 if runtime.chat_api_key and not show_secrets else runtime.chat_api_key or "None (May be read from env vars)"
             ),
-            "Embeddings API Base": ctx.embedding_model.api_base or "None (May be read from env vars)",
+            "Embeddings API Base": runtime.embeddings_api_base,
             "Embeddings API Key": (
                 "*" * 8
-                if ctx.embedding_model.api_key and not show_secrets
-                else ctx.embedding_model.api_key or "None (May be read from env vars)"
+                if runtime.embeddings_api_key and not show_secrets
+                else runtime.embeddings_api_key or "None (May be read from env vars)"
             ),
         },
         "Context Management": {
-            "Max Assistant Loops": ctx.max_assistant_loops,
-            "Max tokens": ctx.max_tokens,
-            "Context Refresh Target Tokens": ctx.context_refresh_target_tokens,
-            "Max Context Age (minutes)": ctx.memory_config.max_context_age_minutes,
+            "Max Assistant Loops": runtime.max_assistant_loops,
+            "Max tokens": runtime.max_tokens,
+            "Context Refresh Target Tokens": runtime.context_refresh_target_tokens,
+            "Max Context Age (minutes)": runtime.max_context_age_minutes,
         },
         "Memory Management": {
-            "Memory Dir": str(ctx.memory_dir_path) if ctx.memory_dir_path else "None",
-            "Memory Cluster Similarity": ctx.memory_cluster_similarity_threshold,
-            "Max Memory Cluster Size": ctx.max_memory_cluster_size,
-            "Min Memory Cluster Size": ctx.min_memory_cluster_size,
-            "Memories Between Consolidation": ctx.memories_between_consolidation,
-            "L2 Memory Relevance Distance": ctx.l2_memory_relevance_distance_threshold,
+            "Memory Dir": runtime.memory_dir,
+            "Memory Cluster Similarity": runtime.memory_cluster_similarity,
+            "Max Memory Cluster Size": runtime.max_memory_cluster_size,
+            "Min Memory Cluster Size": runtime.min_memory_cluster_size,
+            "Memories Between Consolidation": runtime.memories_between_consolidation,
+            "L2 Memory Relevance Distance": runtime.l2_memory_relevance_distance,
         },
         "UI Configuration": {
-            "Show Internal Thought": ctx.show_internal_thought,
-            "System Message Color": Text(ctx.ui_config.system_message_color, style=ctx.ui_config.system_message_color),
-            "Assistant Color": Text(ctx.ui_config.assistant_color, style=ctx.ui_config.assistant_color),
-            "User Input Color": Text(ctx.ui_config.user_input_color, style=ctx.ui_config.user_input_color),
-            "Warning Color": Text(ctx.ui_config.warning_color, style=ctx.ui_config.warning_color),
-            "Internal Thought Color": Text(ctx.ui_config.internal_thought_color, style=ctx.ui_config.internal_thought_color),
+            "Show Internal Thought": runtime.show_internal_thought,
+            "System Message Color": runtime.system_message_color,
+            "Assistant Color": runtime.assistant_color,
+            "User Input Color": runtime.user_input_color,
+            "Warning Color": runtime.warning_color,
+            "Internal Thought Color": runtime.internal_thought_color,
         },
     }
 

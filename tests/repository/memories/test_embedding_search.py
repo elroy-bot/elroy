@@ -2,11 +2,12 @@ from sqlmodel import select
 from toolz import pipe
 from toolz.curried import filter
 
-from elroy.core.db import require_db_session
+from elroy.core.session import open_turn_context
 from elroy.db.db_models import AgendaItem
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.queries import get_context_messages
 from elroy.repository.recall.queries import is_in_context_message
+from elroy.repository.user.session import build_user_session
 from tests.conftest import BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME
 from tests.utils import process_test_message, vector_search_by_text
 
@@ -27,16 +28,14 @@ def test_reminder_relevance(george_ctx):
 
 
 def test_reminder_in_context(george_ctx):
-    reminder = (
-        require_db_session(george_ctx)
-        .exec(
+    with open_turn_context(george_ctx) as turn:
+        user_session = build_user_session(turn)
+        reminder = user_session.db.exec(
             select(AgendaItem).where(
-                AgendaItem.user_id == george_ctx.user_id,
+                AgendaItem.user_id == user_session.user_id,
                 AgendaItem.name == BASKETBALL_FOLLOW_THROUGH_REMINDER_NAME,
             )
-        )
-        .one_or_none()
-    )
+        ).one_or_none()
     assert reminder
 
     process_test_message(george_ctx, "I'm off to go play basketball!")

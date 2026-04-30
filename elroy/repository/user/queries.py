@@ -6,20 +6,16 @@ from ...core.constants import (
     DEFAULT_USER_NAME,
     USER_ALIAS_STRING,
 )
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
 from ...db.db_models import User
-from ...db.db_session import DbSession
+from .session import UserRuntime, UserSession
 from .store import UserPreferenceStore, do_get_or_create_user_preference
 
 
-def get_assistant_name(ctx: ElroyContext) -> str:
-    if not ctx.user_id:
-        return ctx.default_assistant_name
-    user_preference = UserPreferenceStore(require_db_session(ctx), ctx.user_id).get_or_create_user_preference()
+def get_assistant_name(user_session: UserSession, runtime: UserRuntime) -> str:
+    user_preference = UserPreferenceStore(user_session.db, user_session.user_id).get_or_create_user_preference()
     if user_preference.assistant_name:
         return user_preference.assistant_name
-    return ctx.default_assistant_name
+    return runtime.default_assistant_name
 
 
 def do_get_assistant_name(session: Session, user_id: int) -> str:
@@ -29,27 +25,18 @@ def do_get_assistant_name(session: Session, user_id: int) -> str:
     return "ASSISTANT"  # This is inconsistent if there's a config value for default_assistant_name, consider updating
 
 
-def get_persona(ctx: ElroyContext):
+def get_persona(user_session: UserSession, runtime: UserRuntime):
     """Get the persona for the user, or the default persona if the user has not set one.
 
     Returns:
         str: The text of the persona.
 
     """
-    user_preference = UserPreferenceStore(require_db_session(ctx), ctx.user_id).get_or_create_user_preference()
+    user_preference = UserPreferenceStore(user_session.db, user_session.user_id).get_or_create_user_preference()
     raw_persona = user_preference.system_persona or PERSONA
 
     user_noun = user_preference.preferred_name or "my user"
-    return raw_persona.replace(USER_ALIAS_STRING, user_noun).replace(ASSISTANT_ALIAS_STRING, get_assistant_name(ctx))
-
-
-def get_user_id_if_exists(db: DbSession, user_token: str) -> int | None:
-    user = db.exec(select(User).where(User.token == user_token)).first()
-    if user:
-        id = user.id
-        assert id
-        return id
-    return None
+    return raw_persona.replace(USER_ALIAS_STRING, user_noun).replace(ASSISTANT_ALIAS_STRING, get_assistant_name(user_session, runtime))
 
 
 def is_user_exists(session: Session, user_token: str) -> bool:

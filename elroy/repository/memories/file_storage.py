@@ -3,9 +3,9 @@
 from pathlib import Path
 from typing import Any
 
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
+from ...core.ctx import ElroyConfig
 from ...core.logging import get_logger
+from ...core.session import build_elroy_session, open_turn_context
 from ...db.db_models import Memory
 from ..file_utils import (
     read_file_text,
@@ -13,6 +13,8 @@ from ..file_utils import (
     sanitize_filename,
     update_frontmatter_fields,
 )
+from ..user.session import build_user_session
+from .runtime import build_memory_runtime
 
 logger = get_logger()
 
@@ -69,7 +71,7 @@ def write_id_to_frontmatter(path: Path, memory_id: int) -> None:
     update_frontmatter_fields(path, {"id": memory_id})
 
 
-def migrate_memories_to_files(ctx: ElroyContext) -> int:
+def migrate_memories_to_files(ctx: ElroyConfig) -> int:
     """Migrate file-backed memories from another directory into memory_dir.
 
     Handles memories whose file_path is outside the current memory_dir.
@@ -79,47 +81,49 @@ def migrate_memories_to_files(ctx: ElroyContext) -> int:
 
     from sqlmodel import select
 
-    memory_dir = ctx.memory_dir_path
-    db_session = require_db_session(ctx)
+    with open_turn_context(ctx, build_elroy_session(ctx)) as turn:
+        memory_dir = build_memory_runtime(turn).memory_dir_path
+        user_session = build_user_session(turn)
+        db_session = user_session.db
 
-    existing_paths: set[str] = {str(p) for p in memory_dir.glob("*.md")}
+        existing_paths: set[str] = {str(p) for p in memory_dir.glob("*.md")}
 
-    memories = list(
-        db_session.exec(
-            select(Memory).where(
-                Memory.user_id == ctx.user_id,
-                cast(Any, Memory.is_active),
-                Memory.file_path.is_not(None),  # type: ignore[union-attr]
-            )
-        ).all()
-    )
+        memories = list(
+            db_session.exec(
+                select(Memory).where(
+                    Memory.user_id == user_session.user_id,
+                    cast(Any, Memory.is_active),
+                    Memory.file_path.is_not(None),  # type: ignore[union-attr]
+                )
+            ).all()
+        )
 
-    count = 0
-    for memory in memories:
-        assert memory.id is not None
-        assert memory.file_path is not None
+        count = 0
+        for memory in memories:
+            assert memory.id is not None
+            assert memory.file_path is not None
 
-        # Already in the right dir — nothing to do
-        if Path(memory.file_path).parent.resolve() == memory_dir.resolve():
-            continue
+            # Already in the right dir — nothing to do
+            if Path(memory.file_path).parent.resolve() == memory_dir.resolve():
+                continue
 
-        old_path = Path(memory.file_path)
-        if not old_path.exists():
-            logger.warning(f"Memory {memory.id} file_path {old_path} missing, skipping dir migration")
-            continue
+            old_path = Path(memory.file_path)
+            if not old_path.exists():
+                logger.warning(f"Memory {memory.id} file_path {old_path} missing, skipping dir migration")
+                continue
 
-        try:
-            text = read_memory_text(old_path)
-            path = write_memory_file(memory_dir, memory, text, existing_paths)
-            existing_paths.add(str(path))
-            memory.file_path = str(path)
-            db_session.add(memory)
-            count += 1
-        except Exception as e:
-            logger.error(f"Failed to migrate memory {memory.id} to file: {e}", exc_info=True)
+            try:
+                text = read_memory_text(old_path)
+                path = write_memory_file(memory_dir, memory, text, existing_paths)
+                existing_paths.add(str(path))
+                memory.file_path = str(path)
+                db_session.add(memory)
+                count += 1
+            except Exception as e:
+                logger.error(f"Failed to migrate memory {memory.id} to file: {e}", exc_info=True)
 
-    if count:
-        db_session.commit()
-        logger.info(f"Migrated {count} memories to files in {memory_dir}")
+        if count:
+            db_session.commit()
+            logger.info(f"Migrated {count} memories to files in {memory_dir}")
 
-    return count
+        return count

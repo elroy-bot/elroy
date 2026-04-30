@@ -4,13 +4,14 @@ from typing import Any, cast
 
 from sqlmodel import select
 
-from ...core.ctx import ElroyContext
-from ...core.db import require_db_session
-from ...core.logging import get_logger
-from ...db.db_models import Memory
-from ...repository.memories.factory import build_memory_lifecycle_orchestrator
-from ...repository.memories.file_storage import read_memory_frontmatter, read_memory_text, write_id_to_frontmatter
-from ...repository.recall.factory import build_recall_indexer
+from ..db.db_models import Memory
+from ..repository.memories.factory import build_memory_lifecycle_orchestrator
+from ..repository.memories.file_storage import read_memory_frontmatter, read_memory_text, write_id_to_frontmatter
+from ..repository.memories.runtime import build_memory_runtime
+from ..repository.recall.factory import build_recall_indexer
+from ..repository.user.session import build_user_session
+from .logging import get_logger
+from .turn import TurnContext
 
 logger = get_logger()
 
@@ -24,14 +25,17 @@ class MemorySyncPlan:
 
 
 class MemoryFileSyncOrchestrator:
-    def __init__(self, ctx: ElroyContext):
-        self.ctx = ctx
-        self.db = require_db_session(ctx)
-        self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(ctx)
-        self.recall_indexer = build_recall_indexer(ctx)
+    def __init__(self, turn: TurnContext):
+        self.turn = turn
+        self.runtime = build_memory_runtime(turn)
+        self.user_session = build_user_session(turn)
+        self.db = self.user_session.db
+        self.memory_lifecycle_orchestrator = build_memory_lifecycle_orchestrator(turn)
+        self.recall_indexer = build_recall_indexer(turn)
 
     def build_plan(self) -> MemorySyncPlan:
-        disk_files = [p for p in self.ctx.memory_dir_path.glob("*.md") if p.is_file()]
+        user_id = self.user_session.user_id
+        disk_files = [p for p in self.runtime.memory_dir_path.glob("*.md") if p.is_file()]
         disk_id_to_path: dict[int, Path] = {}
         disk_path_to_fm: dict[Path, dict[str, Any]] = {}
         for path in disk_files:
@@ -46,7 +50,7 @@ class MemoryFileSyncOrchestrator:
         db_file_memories = list(
             self.db.exec(
                 select(Memory).where(
-                    Memory.user_id == self.ctx.user_id,
+                    Memory.user_id == user_id,
                     cast(Any, Memory.is_active),
                     Memory.file_path.is_not(None),  # type: ignore[union-attr]
                 )

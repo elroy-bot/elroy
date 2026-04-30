@@ -2,28 +2,30 @@
 
 from __future__ import annotations
 
-from ..core.ctx import ElroyContext
-from ..core.services.sidebar_service import (
+from ..core.ctx import ElroyConfig
+from ..core.sidebar_models import (
     DetailModalSpec,
     SidebarActionOrchestrator,
     SidebarBuilder,
     SidebarEntry,
     SidebarState,
 )
+from ..core.turn import ElroySession
 
 
 class SidebarController:
     """Coordinates sidebar reads and sidebar-triggered mutations."""
 
-    def __init__(self, ctx: ElroyContext):
+    def __init__(self, ctx: ElroyConfig, session: ElroySession):
         self.ctx = ctx
-        self.builder = SidebarBuilder(ctx)
+        self.session = session
+        self.builder = SidebarBuilder(ctx, session)
         self._actions: SidebarActionOrchestrator | None = None
 
     @property
     def actions(self) -> SidebarActionOrchestrator:
         if self._actions is None:
-            self._actions = SidebarActionOrchestrator(self.ctx)
+            self._actions = SidebarActionOrchestrator(self.ctx, self.session)
         return self._actions
 
     def build_state(self) -> SidebarState:

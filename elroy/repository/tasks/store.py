@@ -47,7 +47,7 @@ class TaskStore:
             raise RecoverableToolError(
                 f"Attempted to create a due item for {trigger_datetime}, which is in the past. The current time is {utc_now()}"
             )
-        if get_task_by_name_for_service(self.db, self.user_id, name):
+        if _get_task_by_name(self.db, self.user_id, name):
             raise TaskAlreadyExistsError(name)
 
         target_date = item_date or date.today()
@@ -75,7 +75,7 @@ class TaskStore:
         )
 
     def get_task_by_name(self, task_name: str) -> AgendaItem | None:
-        return get_task_by_name_for_service(self.db, self.user_id, task_name)
+        return _get_task_by_name(self.db, self.user_id, task_name)
 
     def get_active_tasks(self) -> list[AgendaItem]:
         return list(
@@ -109,7 +109,7 @@ class TaskStore:
         )
 
     def complete_task(self, task_name: str, closing_comment: str | None = None) -> AgendaItem:
-        task = get_task_by_name_for_service(self.db, self.user_id, task_name)
+        task = _get_task_by_name(self.db, self.user_id, task_name)
         if not task:
             raise RecoverableToolError(f"Active task '{task_name}' not found.")
         if task.status == "completed":
@@ -124,7 +124,7 @@ class TaskStore:
         return task
 
     def delete_task(self, task_name: str, closing_comment: str | None = None, *, delete_file: bool = False) -> AgendaItem:
-        task = get_task_by_name_for_service(self.db, self.user_id, task_name)
+        task = _get_task_by_name(self.db, self.user_id, task_name)
         if not task:
             raise RecoverableToolError(f"Active task '{task_name}' not found.")
 
@@ -139,10 +139,10 @@ class TaskStore:
         return task
 
     def rename_task(self, old_name: str, new_name: str) -> AgendaItem:
-        task = get_task_by_name_for_service(self.db, self.user_id, old_name)
+        task = _get_task_by_name(self.db, self.user_id, old_name)
         if not task:
             raise RecoverableToolError(f"Active task '{old_name}' not found.")
-        if get_task_by_name_for_service(self.db, self.user_id, new_name):
+        if _get_task_by_name(self.db, self.user_id, new_name):
             raise RecoverableToolError(f"Active task '{new_name}' already exists.")
 
         current_path = task_path(task)
@@ -154,7 +154,7 @@ class TaskStore:
         return self.db.persist(task)
 
     def update_task_text(self, task_name: str, new_text: str) -> AgendaItem:
-        task = get_task_by_name_for_service(self.db, self.user_id, task_name)
+        task = _get_task_by_name(self.db, self.user_id, task_name)
         if not task:
             raise RecoverableToolError(f"Active task '{task_name}' not found.")
         update_agenda_body(task_path(task), new_text)
@@ -162,7 +162,7 @@ class TaskStore:
         return self.db.persist(task)
 
 
-def get_task_by_name_for_service(db: DbSession, user_id: int, task_name: str) -> AgendaItem | None:
+def _get_task_by_name(db: DbSession, user_id: int, task_name: str) -> AgendaItem | None:
     return db.exec(
         select(AgendaItem).where(
             AgendaItem.user_id == user_id,

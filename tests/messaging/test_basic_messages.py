@@ -1,9 +1,10 @@
 import pytest
 
 from elroy.core.constants import InvalidForceToolError
-from elroy.core.db import require_db_session
+from elroy.core.session import open_turn_context
 from elroy.repository.memories.queries import get_active_memories
 from elroy.repository.user.queries import do_get_user_preferred_name
+from elroy.repository.user.session import build_user_session
 from elroy.repository.user.tools import set_user_preferred_name
 from tests.utils import process_test_message
 
@@ -26,7 +27,9 @@ def test_hello_world(ctx):
 
 def test_force_tool(ctx):
     process_test_message(ctx, "Jimmy", set_user_preferred_name.__name__)
-    assert do_get_user_preferred_name(require_db_session(ctx).session, ctx.user_id) == "Jimmy"
+    with open_turn_context(ctx) as turn:
+        user_session = build_user_session(turn)
+        assert do_get_user_preferred_name(user_session.db.session, user_session.user_id) == "Jimmy"
 
 
 def test_force_invalid_tool(ctx):
