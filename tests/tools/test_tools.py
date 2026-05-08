@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from toolz import pipe
 from toolz.curried import map
@@ -11,6 +12,7 @@ from elroy.db.db_models import ToolCall
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
 from elroy.repository.context_messages.session import build_context_message_session
+from elroy.tools.filesystem import ls, pwd, read_file
 from elroy.tools.registry import get_system_tool_schemas
 from tests.fixtures.custom_tools import (
     get_game_info,
@@ -126,6 +128,76 @@ def test_base_model_tool(ctx: ElroyConfig):
     ctx.tool_registry.register(get_game_info)
 
     process_test_message(ctx, "Please use your function to fetch the game info.")
+
+
+def test_pwd_uses_current_working_directory(monkeypatch, tmp_path: Path):
+    monkeypatch.chdir(tmp_path)
+
+    assert pwd() == str(tmp_path)
+
+
+def test_ls_recurses_with_entry_cap(monkeypatch, tmp_path: Path):
+    monkeypatch.chdir(tmp_path)
+    project_dir = tmp_path / "project"
+    nested_dir = project_dir / "nested"
+    nested_dir.mkdir(parents=True)
+    (project_dir / "a.txt").write_text("a")
+    (project_dir / "b.txt").write_text("b")
+    (nested_dir / "c.txt").write_text("c")
+    (nested_dir / "d.txt").write_text("d")
+
+    result = ls("project", max_entries=3, max_depth=2)
+
+    assert result.path == "project"
+    assert result.type == "dir"
+    assert result.recursive is True
+    assert result.truncated is True
+    assert [entry.path for entry in result.entries] == ["project/nested", "project/nested/c.txt", "project/nested/d.txt"]
+
+
+def test_ls_returns_file_metadata_for_files(monkeypatch, tmp_path: Path):
+    monkeypatch.chdir(tmp_path)
+    file_path = tmp_path / "notes.txt"
+    file_path.write_text("hello")
+
+    result = ls("notes.txt")
+
+    assert result.type == "file"
+    assert result.recursive is False
+    assert result.truncated is False
+    assert len(result.entries) == 1
+    assert result.entries[0].path == "notes.txt"
+    assert result.entries[0].size_bytes == 5
+
+
+def test_read_file_defaults_to_bounded_slice(monkeypatch, tmp_path: Path):
+    monkeypatch.chdir(tmp_path)
+    file_path = tmp_path / "sample.txt"
+    file_path.write_text("\n".join(f"line {idx}" for idx in range(1, 206)))
+
+    result = read_file("sample.txt")
+
+    assert result.path == "sample.txt"
+    assert result.start_line == 1
+    assert result.end_line == 200
+    assert result.total_lines == 205
+    assert result.truncated is True
+    assert result.content.splitlines()[0] == "1: line 1"
+    assert result.content.splitlines()[-1] == "200: line 200"
+
+
+def test_read_file_respects_requested_line_range(monkeypatch, tmp_path: Path):
+    monkeypatch.chdir(tmp_path)
+    file_path = tmp_path / "sample.txt"
+    file_path.write_text("alpha\nbeta\ngamma\ndelta")
+
+    result = read_file("sample.txt", start_line=2, end_line=3)
+
+    assert result.start_line == 2
+    assert result.end_line == 3
+    assert result.total_lines == 4
+    assert result.truncated is True
+    assert result.content == "2: beta\n3: gamma"
 
 
 def _missing_tool_message(ctx: ElroyConfig):
