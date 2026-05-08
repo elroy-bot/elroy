@@ -15,6 +15,7 @@ from elroy.core.session import open_turn_context
 from elroy.db.db_manager import DbManager
 from elroy.db.db_models import (
     AgendaItem,
+    CodexSession,
     ContextMessageSet,
     Memory,
     Message,
@@ -132,7 +133,7 @@ def db_manager(tmp_path_factory):
     db_manager.migrate()
 
     with db_manager.open_session() as db:
-        for table in [Message, AgendaItem, User, UserPreference, Memory, ContextMessageSet]:
+        for table in [Message, AgendaItem, User, UserPreference, Memory, ContextMessageSet, CodexSession]:
             db.exec(delete(table))
         db.commit()
 

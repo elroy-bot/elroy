@@ -52,6 +52,20 @@ lint:
 install:
     uv pip install -e ".[dev,docs]"
 
+# Run Elroy locally and restart on Python/config changes
+dev *ARGS:
+    #!/usr/bin/env bash
+    if ! command -v watchexec >/dev/null 2>&1; then
+        echo "ERROR: watchexec is required for just dev"
+        echo "Install it from https://github.com/watchexec/watchexec or via your package manager."
+        exit 1
+    fi
+    watchexec --restart --exts py,yml,yaml -- uv run elroy {{ARGS}}
+
+# Alias for the hot-reload dev loop
+watch *ARGS:
+    just dev {{ARGS}}
+
 # Install Claude Code skills
 install-claude-skills SKILLS_DIR="":
     #!/usr/bin/env bash

@@ -18,7 +18,8 @@ from elroy.repository.memories.tools import create_memory
 from elroy.repository.tasks.factory import build_task_mutation_orchestrator
 from elroy.repository.user.queries import get_assistant_name
 from elroy.repository.user.session import build_user_runtime, build_user_session
-from elroy.ui.app import ChatInput, DetailModal, ElroyApp
+from elroy.tools.session import DEFAULT_RESTART_RESUME_PROMPT
+from elroy.ui.app import AppRestartRequest, ChatInput, DetailModal, ElroyApp
 from elroy.ui.forms import CommandFormScreen
 from elroy.utils.clock import utc_now
 
@@ -28,6 +29,8 @@ class HarnessElroyApp(ElroyApp):
         self.query_one("#chat-input", ChatInput).focus()
         self._stop_spinner()
         self._load_sidebar_state()
+        if self.restart_resume_message:
+            self._run_stream(self.session_controller.restart_stream(self.restart_resume_message))
 
     def _refresh_sidebar_data(self) -> None:
         self._load_sidebar_state()
@@ -214,6 +217,32 @@ async def test_tui_does_not_render_synthetic_startup_user_message_on_empty_sessi
 
         history = _history_text(app)
         assert "The user has begun the conversation" not in history
+
+
+@pytest.mark.asyncio
+async def test_tui_runs_restart_prompt_on_startup(ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_restart_stream(self, prompt: str):
+        captured["prompt"] = prompt
+        yield "Restarted successfully. Ready to continue."
+
+    monkeypatch.setattr("elroy.ui.session.SessionController.restart_stream", fake_restart_stream)
+
+    app = ElroyApp(
+        ctx=ctx,
+        session=build_elroy_session(ctx),
+        formatter=rich_formatter,
+        enable_greeting=False,
+        show_internal_thought=False,
+        restart_resume_message="Restarted successfully. Ready to continue.",
+    )
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert captured["prompt"] == "Restarted successfully. Ready to continue."
+        assert "Restarted successfully. Ready to continue." in _history_text(app)
 
 
 @pytest.mark.asyncio
@@ -631,6 +660,39 @@ async def test_tui_chat_input_stays_editable_while_command_runs(
         release.set()
         await pilot.pause()
         await pilot.pause()
+
+
+@pytest.mark.asyncio
+async def test_tui_consumes_restart_request_and_exits_with_restart_result(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app.session.restart_state.request("Restarted successfully. Ready to continue.")
+        app._finalize_turn_ui_state()
+        await pilot.pause()
+
+        assert app.is_running is False
+        assert app.return_value == AppRestartRequest("Restarted successfully. Ready to continue.")
+
+
+@pytest.mark.asyncio
+async def test_tui_restart_session_command_exits_with_restart_result(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app._execute_tool_command("restart_session", {}, "palette")
+
+        for _ in range(20):
+            await pilot.pause()
+            if app.is_running is False:
+                break
+
+        assert app.is_running is False
+        assert app.return_value == AppRestartRequest(DEFAULT_RESTART_RESUME_PROMPT)
 
 
 @pytest.mark.asyncio
