@@ -56,6 +56,18 @@ They can be hidden via `--no-show-internal-thought` or `show_internal_thought: f
 
 ## Completed
 
+### Developer Experience
+- **Add self-restart tool for autonomous tool/code refresh** (Completed: 2026-05)
+  - Added assistant-visible `restart_session` support to request a graceful TUI restart
+  - Re-executes Elroy after the current response completes so updated code and tools are loaded
+  - Shows an automatic assistant resume message after restart to continue the session cleanly
+
+### Developer Experience
+- **Add Codex session dispatch tools** (Completed: 2026-05)
+  - Added assistant-visible tools to dispatch, resume, and list Codex sessions
+  - Grounded Codex runs to repositories inside the `development` workspace
+  - Persisted Codex session ids and latest change summaries for later resumption
+
 ### Performance
 - **Improve latency tracking and logging** (Completed: 2025-01)
   - Added comprehensive latency tracking module (`elroy/core/latency.py`)

@@ -1,3 +1,4 @@
+import inspect
 import traceback
 
 from pydantic import BaseModel
@@ -18,7 +19,7 @@ def _build_injected_args(turn: TurnContext, function_to_call) -> dict:
     injected_args = {}
     if "ctx" in function_to_call.__code__.co_varnames:
         injected_args["ctx"] = turn.config
-    for param in function_to_call.__signature__.parameters.values() if hasattr(function_to_call, "__signature__") else []:
+    for param in inspect.signature(function_to_call).parameters.values():
         if param.annotation == TurnContext:
             injected_args[param.name] = turn
         elif param.annotation == ElroyConfig:

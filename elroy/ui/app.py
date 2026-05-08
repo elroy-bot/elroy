@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
 import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, distribution
+from pathlib import Path
 from typing import ClassVar, Literal
+from urllib.parse import unquote, urlparse
 
 from rich.text import Text
 from textual import events, work
@@ -25,7 +30,7 @@ from ..core.logging import get_logger
 from ..core.runtime import build_command_runtime, build_ui_runtime
 from ..core.session import build_elroy_session, open_turn_context
 from ..core.sidebar_models import DetailModalSpec, SidebarEntry, SidebarState
-from ..core.turn import ElroySession
+from ..core.turn import ElroySession, RestartRequest
 from ..io.base import ElroyIO
 from ..io.formatters.rich_formatter import RichFormatter
 from ..io.prompt_history import PromptHistoryStore
@@ -47,11 +52,17 @@ from .status import StatusController
 from .widgets import ConversationPane, SidebarListView, SidebarPanel, StatusBar
 
 logger = get_logger()
+RESTART_RESUME_MESSAGE_ENV = "ELROY_RESTART_RESUME_MESSAGE"
 
 
 @dataclass(frozen=True)
 class DetailModalResult:
     action: Literal["delete", "complete"]
+
+
+@dataclass(frozen=True)
+class AppRestartRequest:
+    resume_prompt: str
 
 
 class DetailModal(ModalScreen):
@@ -351,13 +362,16 @@ class ElroyApp(App):
         formatter: RichFormatter,
         enable_greeting: bool,
         show_internal_thought: bool,
+        restart_resume_message: str | None = None,
     ):
         super().__init__()
         self.ctx = ctx
         self.session = session
+        self.session.restart_state.enable()
         self.runtime = build_ui_runtime(ctx)
         self.formatter = formatter
         self.enable_greeting = enable_greeting
+        self.restart_resume_message = restart_resume_message
         self.prompt_history = PromptHistoryStore()
         self.conversation_controller = ConversationController(formatter, self.prompt_history)
         self.io: ElroyIO = TextualIO(self, formatter, show_internal_thought)
@@ -485,18 +499,25 @@ class ElroyApp(App):
             self.call_from_thread(self._emit_error, f"Invalid command: {name}")
             return
 
+        logger.debug("Starting tool command execution: name=%s source=%s values=%s", name, source, values)
         self.call_from_thread(self._set_status_message, f"running /{spec.name}")
         try:
             result = self.session_controller.run_tool_command(spec, values)
+            logger.debug("Tool command completed: name=%s result_type=%s", name, type(result).__name__)
             if isinstance(result, Iterator):
                 self._run_stream(result)
             elif result is not None:
                 self.call_from_thread(self._display_command_result, result, spec, source)
         except RecoverableToolError as exc:
+            logger.debug("Recoverable tool error during command execution: name=%s error=%s", name, exc)
             self.call_from_thread(self._emit_error, str(exc))
+        except Exception:
+            logger.exception("Unexpected error during tool command execution: name=%s", name)
+            raise
         finally:
+            logger.debug("Scheduling post-command UI finalization: name=%s", name)
             self.call_from_thread(self._refresh_sidebar_state)
-            self.call_from_thread(self._schedule_context_refresh)
+            self.call_from_thread(self._finalize_turn_ui_state)
 
     def _display_command_result(self, result, spec: ToolCommandSpec, source: str) -> None:
         self.conversation_controller.display_command_result(self._conversation_pane(), self.notify, result, spec, source)
@@ -566,7 +587,9 @@ class ElroyApp(App):
         )
         self.call_from_thread(self._apply_sidebar_state, sidebar_state)
 
-        if bootstrap_data.should_greet:
+        if self.restart_resume_message:
+            self._run_stream(self.session_controller.restart_stream(self.restart_resume_message))
+        elif bootstrap_data.should_greet:
             self._run_stream(self.session_controller.greeting_stream())
 
     # ── streaming helpers ─────────────────────────────────────────────────────
@@ -684,7 +707,7 @@ class ElroyApp(App):
             logger.exception("Error processing chat input")
         finally:
             self.call_from_thread(self._refresh_sidebar_state)
-            self.call_from_thread(self._schedule_context_refresh)
+            self.call_from_thread(self._finalize_turn_ui_state)
 
     # ── actions ───────────────────────────────────────────────────────────────
 
@@ -739,6 +762,25 @@ class ElroyApp(App):
 
     def _schedule_context_refresh(self) -> None:
         self.set_timer(5.0, self._deferred_context_refresh)
+
+    def _finalize_turn_ui_state(self) -> None:
+        logger.debug("Finalizing turn UI state")
+        try:
+            restart_request = self.session.restart_state.consume()
+            if restart_request is not None:
+                logger.info("Pending restart request found during UI finalization")
+                self._restart_app(restart_request)
+                return
+            logger.debug("No pending restart request during UI finalization; scheduling context refresh")
+            self._schedule_context_refresh()
+        except Exception:
+            logger.exception("Failed while finalizing turn UI state")
+            raise
+
+    def _restart_app(self, restart_request: RestartRequest) -> None:
+        logger.info("Restarting Elroy app with resume_prompt=%r", restart_request.resume_prompt)
+        self.notify("Restarting Elroy...")
+        self.exit(result=AppRestartRequest(resume_prompt=restart_request.resume_prompt))
 
     # ── worker state / status ────────────────────────────────────────────────
 
@@ -972,6 +1014,7 @@ def make_app(**overrides) -> ElroyApp:
         formatter=formatter,
         enable_greeting=params.get("enable_assistant_greeting", False),
         show_internal_thought=params.get("show_internal_thought", False),
+        restart_resume_message=os.environ.get(RESTART_RESUME_MESSAGE_ENV),
     )
 
 
@@ -986,6 +1029,75 @@ def _handle_cli_command(argv: list[str]) -> bool:
     return False
 
 
+def _is_running_from_source_tree() -> bool:
+    current_file = Path(__file__).resolve()
+    return any((parent / "pyproject.toml").is_file() for parent in current_file.parents)
+
+
+def _source_tree_root() -> Path | None:
+    current_file = Path(__file__).resolve()
+    for parent in current_file.parents:
+        if (parent / "pyproject.toml").is_file():
+            return parent
+    return None
+
+
+def _editable_install_root() -> Path | None:
+    try:
+        direct_url_text = distribution("elroy").read_text("direct_url.json")
+    except PackageNotFoundError:
+        return None
+
+    if not direct_url_text:
+        return None
+
+    try:
+        direct_url = json.loads(direct_url_text)
+    except json.JSONDecodeError:
+        logger.warning("Unable to parse elroy direct_url metadata when building restart argv")
+        return None
+
+    if not direct_url.get("dir_info", {}).get("editable"):
+        return None
+
+    parsed_url = urlparse(direct_url.get("url", ""))
+    if parsed_url.scheme != "file":
+        return None
+
+    return Path(unquote(parsed_url.path))
+
+
+def _is_editable_install() -> bool:
+    return _editable_install_root() is not None
+
+
+def _should_restart_as_module() -> bool:
+    return _is_running_from_source_tree() or _is_editable_install()
+
+
+def _build_restart_argv() -> list[str]:
+    orig_argv = list(getattr(sys, "orig_argv", []))
+    if _should_restart_as_module():
+        return [sys.executable, "-m", "elroy", *sys.argv[1:]]
+
+    return orig_argv or [sys.executable, *sys.argv]
+
+
+def _build_restart_env(resume_prompt: str) -> dict[str, str]:
+    restart_env = os.environ.copy()
+    restart_env[RESTART_RESUME_MESSAGE_ENV] = resume_prompt
+    restart_root = _source_tree_root() or _editable_install_root()
+    if restart_root is None:
+        return restart_env
+
+    root_text = str(restart_root)
+    existing_pythonpath = restart_env.get("PYTHONPATH", "")
+    pythonpath_entries = [entry for entry in existing_pythonpath.split(os.pathsep) if entry]
+    if root_text not in pythonpath_entries:
+        restart_env["PYTHONPATH"] = os.pathsep.join([root_text, *pythonpath_entries])
+    return restart_env
+
+
 def main(argv: list[str] | None = None) -> None:
     from ..cli.options import get_resolved_params
     from ..core.logging import setup_file_logging
@@ -996,6 +1108,7 @@ def main(argv: list[str] | None = None) -> None:
 
     setup_file_logging()
     params = get_resolved_params()
+    restart_resume_message = os.environ.pop(RESTART_RESUME_MESSAGE_ENV, None)
     ctx = ElroyConfig.init(use_background_threads=True, **params)
     formatter = RichFormatter(
         system_message_color=params["system_message_color"],
@@ -1011,8 +1124,19 @@ def main(argv: list[str] | None = None) -> None:
             formatter=formatter,
             enable_greeting=params.get("enable_assistant_greeting", False),
             show_internal_thought=params.get("show_internal_thought", False),
+            restart_resume_message=restart_resume_message,
         )
-        app.run()
+        result = app.run()
+        if isinstance(result, AppRestartRequest):
+            restart_argv = _build_restart_argv()
+            restart_env = _build_restart_env(result.resume_prompt)
+            logger.info("App exited with restart request; re-executing process")
+            logger.debug("Restart argv=%s", restart_argv)
+            try:
+                os.execvpe(restart_argv[0], restart_argv, restart_env)
+            except Exception:
+                logger.exception("Failed to re-execute Elroy process for restart")
+                raise
 
 
 if __name__ == "__main__":

@@ -223,6 +223,36 @@ class ContextMessageSet(SQLModel, table=True):
     is_active: bool | None = Field(True, description="Whether the context is active")
 
 
+class CodexSession(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "thread_id"), {"extend_existing": True})
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+    user_id: int = Field(..., description="Elroy user for context")
+    thread_id: str = Field(..., description="Codex thread/session identifier")
+    repo_path: str = Field(..., description="Git repository root used for the Codex session")
+    latest_prompt: str = Field(sa_column=SAColumn(Text, nullable=False), description="Most recent prompt sent to Codex")
+    latest_summary: str | None = Field(default=None, sa_column=SAColumn(Text), description="Latest Elroy summary of the session")
+    latest_agent_message: str | None = Field(
+        default=None, sa_column=SAColumn(Text), description="Most recent final message returned by Codex"
+    )
+    status: str = Field(default="completed", description="Most recent Codex run status")
+    command_count: int = Field(default=0, description="Number of command executions observed in the latest run")
+    commands_json: str = Field(
+        sa_column=SAColumn(Text, nullable=False), default="[]", description="Latest command execution summary as JSON"
+    )
+    touched_paths_json: str = Field(
+        sa_column=SAColumn(Text, nullable=False), default="[]", description="Paths changed during the latest run as JSON"
+    )
+    dirty_paths_before_json: str = Field(
+        sa_column=SAColumn(Text, nullable=False), default="[]", description="Dirty repo paths before the latest run as JSON"
+    )
+    dirty_paths_after_json: str = Field(
+        sa_column=SAColumn(Text, nullable=False), default="[]", description="Dirty repo paths after the latest run as JSON"
+    )
+    session_file_path: str | None = Field(default=None, description="Path to the persisted Codex session JSONL file, if found")
+
+
 def get_mem_source_options() -> dict[str, type[MemorySource]]:
     # Note, this is brittle! Should be replaced in the future with a registration process.
     from ..repository.context_messages.transforms import ContextMessageSetWithMessages

@@ -42,6 +42,15 @@ Once installed, run `elroy` to open the interactive chat interface:
 elroy
 ```
 
+For source development with automatic restart on code changes, use:
+
+```bash
+just dev
+```
+
+This requires `watchexec` and runs Elroy from the local source tree with restart-on-change behavior for `.py`, `.yml`, and `.yaml` files.
+It uses the `elroy` console entrypoint rather than `python -m elroy.ui.app`, which avoids `runpy` module re-execution warnings from the package import layout.
+
 Elroy opens a terminal UI where you can chat, create memories, and manage reminders. Use the Textual command palette with `Ctrl+P` to discover available actions. Slash commands remain available in the chat box as a compatibility path.
 
 ## Memory and Reminder Tools

@@ -8,12 +8,16 @@ from elroy.core.configs import ToolConfig
 from elroy.core.constants import ASSISTANT, SYSTEM, TOOL, USER, tool
 from elroy.core.ctx import ElroyConfig
 from elroy.core.session import open_turn_context
-from elroy.db.db_models import ToolCall
+from elroy.core.turn import TurnContext
+from elroy.db.db_models import FunctionCall, ToolCall
+from elroy.llm.stream_parser import AssistantToolResult
+from elroy.messenger.tools import exec_function_call
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.factory import build_context_refresh_orchestrator
 from elroy.repository.context_messages.session import build_context_message_session
 from elroy.tools.filesystem import ls, pwd, read_file
 from elroy.tools.registry import get_system_tool_schemas
+from elroy.tools.session import DEFAULT_RESTART_RESUME_PROMPT, restart_session
 from tests.fixtures.custom_tools import (
     get_game_info,
     get_user_token_first_letter,
@@ -31,6 +35,19 @@ def get_secret_test_answer() -> str:
 
     """
     return "I'm sorry, the secret answer is not available. Please try once more."
+
+
+@tool
+def get_turn_user_id(turn: TurnContext) -> str:
+    """Return the current turn user id.
+
+    Args:
+        turn: Active turn context injected by Elroy.
+
+    Returns:
+        str: Current turn user id as a string.
+    """
+    return str(turn.user_id)
 
 
 def test_infinite_tool_call_ends(ctx: ElroyConfig):
@@ -128,6 +145,28 @@ def test_base_model_tool(ctx: ElroyConfig):
     ctx.tool_registry.register(get_game_info)
 
     process_test_message(ctx, "Please use your function to fetch the game info.")
+
+
+def test_exec_function_call_injects_turn_context(ctx: ElroyConfig):
+    ctx.tool_registry.register(get_turn_user_id)
+
+    with open_turn_context(ctx) as turn:
+        result = exec_function_call(turn, FunctionCall(id="abc", function_name="get_turn_user_id", arguments={}))
+
+    assert isinstance(result, AssistantToolResult)
+    assert result.content == str(turn.user_id)
+
+
+def test_restart_session_sets_pending_restart_request(ctx: ElroyConfig):
+    with open_turn_context(ctx) as turn:
+        turn.session.restart_state.enable()
+
+        result = restart_session(turn=turn)
+        pending_request = turn.session.restart_state.consume()
+
+    assert result == "Restart scheduled. Elroy will restart after this response completes."
+    assert pending_request is not None
+    assert pending_request.resume_prompt == DEFAULT_RESTART_RESUME_PROMPT
 
 
 def test_pwd_uses_current_working_directory(monkeypatch, tmp_path: Path):

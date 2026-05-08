@@ -34,6 +34,15 @@ class FileReadResult(BaseModel):
     content: str
 
 
+def _coerce_line_number(value: int | str | None, param_name: str) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise RecoverableToolError(f"{param_name} must be an integer") from exc
+
+
 def _resolve_path(path: str) -> Path:
     target = (Path.cwd() / path).resolve() if not Path(path).is_absolute() else Path(path).resolve()
     if not target.exists():
@@ -134,7 +143,11 @@ def read_file(path: str, start_line: int = 1, end_line: int | None = None) -> Fi
         start_line: One-based starting line number to read from.
         end_line: One-based ending line number to read through. Defaults to start_line + 199.
     """
-    if start_line < 1:
+    start_line_num = _coerce_line_number(start_line, "start_line")
+    end_line_num = _coerce_line_number(end_line, "end_line")
+    assert start_line_num is not None
+
+    if start_line_num < 1:
         raise RecoverableToolError("start_line must be at least 1")
 
     target = _resolve_path(path)
@@ -150,19 +163,19 @@ def read_file(path: str, start_line: int = 1, end_line: int | None = None) -> Fi
 
     lines = content.splitlines()
     total_lines = len(lines)
-    if end_line is None:
-        end_line = start_line + DEFAULT_READ_LINE_LIMIT - 1
-    if end_line < start_line:
+    if end_line_num is None:
+        end_line_num = start_line_num + DEFAULT_READ_LINE_LIMIT - 1
+    if end_line_num < start_line_num:
         raise RecoverableToolError("end_line must be greater than or equal to start_line")
 
-    start_idx = start_line - 1
-    end_idx = min(end_line, total_lines)
-    numbered_lines = [f"{line_no}: {line}" for line_no, line in enumerate(lines[start_idx:end_idx], start=start_line)]
+    start_idx = start_line_num - 1
+    end_idx = min(end_line_num, total_lines)
+    numbered_lines = [f"{line_no}: {line}" for line_no, line in enumerate(lines[start_idx:end_idx], start=start_line_num)]
     truncated = end_idx < total_lines
 
     return FileReadResult(
         path=_display_path(target),
-        start_line=start_line,
+        start_line=start_line_num,
         end_line=end_idx,
         total_lines=total_lines,
         truncated=truncated,
