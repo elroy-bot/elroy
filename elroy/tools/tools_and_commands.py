@@ -60,6 +60,7 @@ from ..repository.user.tools import (
     set_user_preferred_name,
 )
 from .developer import print_config, tail_elroy_logs
+from .filesystem import ls, pwd, read_file
 from .time import get_current_date
 
 IN_CONTEXT_MEMORY_COMMANDS: set[Callable] = {
@@ -106,6 +107,9 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     edit_feature_request,
     list_feature_requests,
     make_feature_request,
+    ls,
+    pwd,
+    read_file,
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,

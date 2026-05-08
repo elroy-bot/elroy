@@ -8,7 +8,9 @@ This document tracks planned improvements and features for Elroy.
 
 ## Future Items
 
-(Items will be added here as they are identified)
+- Add built-in filesystem read tools for agent workflows
+  - Include `pwd`, bounded recursive `ls`, and `read_file`
+  - Keep listings capped to reduce tool-call churn without flooding context
 
 ## UI / TUI Specification
 
