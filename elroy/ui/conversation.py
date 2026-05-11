@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 
 from rich.text import Text
 
-from ..llm.stream_parser import AssistantToolResult
+from ..db.db_models import FunctionCall
+from ..llm.stream_parser import AssistantInternalThought, AssistantResponse, AssistantToolResult, StreamTextProcessor, collect
 
 if TYPE_CHECKING:
     from .commands import ToolCommandSpec
@@ -15,9 +16,10 @@ if TYPE_CHECKING:
 class ConversationController:
     """Coordinates chat history rendering, streaming buffers, and prompt history."""
 
-    def __init__(self, formatter, prompt_history):
+    def __init__(self, formatter, prompt_history, show_internal_thought: bool):
         self.formatter = formatter
         self.prompt_history = prompt_history
+        self.show_internal_thought = show_internal_thought
         self._streaming_buffer = ""
         self._streaming_style = ""
         self._thought_buffer = ""
@@ -55,6 +57,23 @@ class ConversationController:
             self.write_to_history(conversation_pane, Text(self._thought_buffer, style=style))
             self._thought_buffer = ""
 
+    def _render_assistant_content(self, conversation_pane, content: str) -> None:
+        processor = StreamTextProcessor()
+        chunks = collect(iter([*processor.process(content), *processor.flush()]))
+        for chunk in chunks:
+            if isinstance(chunk, AssistantInternalThought):
+                if not self.show_internal_thought:
+                    continue
+                self.write_to_history(
+                    conversation_pane,
+                    Text(chunk.content, style=f"italic {self.formatter.internal_thought_color}"),
+                )
+            elif isinstance(chunk, AssistantResponse):
+                self.write_to_history(conversation_pane, Text(chunk.content, style=self.formatter.assistant_message_color))
+            elif isinstance(chunk, FunctionCall):
+                renderable = next(self.formatter.format(chunk))
+                self.write_to_history(conversation_pane, renderable)
+
     @staticmethod
     def _is_bootstrap_tool_call_message(message, bootstrap_tool_call_ids: set[str]) -> bool:
         return bool(
@@ -84,7 +103,8 @@ class ConversationController:
             if message.role == "user":
                 renderable = Text(f"\nYou: {message.content}", style=self.formatter.user_input_color)
             elif message.role == "assistant":
-                renderable = Text(message.content, style=self.formatter.assistant_message_color)
+                self._render_assistant_content(conversation_pane, message.content)
+                continue
             elif message.role == "tool":
                 renderable = next(self.formatter.format(AssistantToolResult(content=message.content, is_error=False)))
             else:
