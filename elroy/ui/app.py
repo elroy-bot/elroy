@@ -373,7 +373,7 @@ class ElroyApp(App):
         self.enable_greeting = enable_greeting
         self.restart_resume_message = restart_resume_message
         self.prompt_history = PromptHistoryStore()
-        self.conversation_controller = ConversationController(formatter, self.prompt_history)
+        self.conversation_controller = ConversationController(formatter, self.prompt_history, show_internal_thought)
         self.io: ElroyIO = TextualIO(self, formatter, show_internal_thought)
         self.command_flow = CommandFlowController(build_command_runtime(ctx))
         self.sidebar_controller = SidebarController(ctx, session)
