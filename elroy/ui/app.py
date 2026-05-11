@@ -256,7 +256,7 @@ class ElroyApp(App):
 
     COMMANDS = App.COMMANDS | {ToolCommandProvider}
     DARK = True  # Force dark theme regardless of terminal preference
-    SIDEBAR_SECTIONS: ClassVar[tuple[str, ...]] = ("memories", "agenda")
+    SIDEBAR_SECTIONS: ClassVar[tuple[str, ...]] = ("memories", "agenda", "improvements", "feature_requests", "codex_sessions")
     CSS = """
     Screen {
         layout: vertical;
@@ -804,7 +804,13 @@ class ElroyApp(App):
             logger.debug("Failed to refresh sidebar state", exc_info=True)
 
     def _apply_sidebar_state(self, state: SidebarState) -> None:
-        self._panel_entries = {"memories": state.memories, "agenda": state.agenda}
+        self._panel_entries = {
+            "memories": state.memories,
+            "agenda": state.agenda,
+            "improvements": state.improvements,
+            "feature_requests": state.feature_requests,
+            "codex_sessions": state.codex_sessions,
+        }
         self._chat_suggestions = state.completions
         self._render_sidebar_lists()
         if self._browse_mode and self._browse_target == "sidebar":

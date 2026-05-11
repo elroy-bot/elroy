@@ -58,6 +58,7 @@ class MemoryConfig:
     min_memory_cluster_size: int = 2
     memories_between_consolidation: int = 5
     messages_between_memory: int = 10
+    messages_between_self_reflection: int = 10
     l2_memory_relevance_distance_threshold: float = 1.4
 
     # Memory Recall Classifier

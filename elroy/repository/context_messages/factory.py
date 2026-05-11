@@ -38,6 +38,7 @@ def build_context_refresh_orchestrator(context_session: ContextMessageSession) -
         get_or_create_memory_op_tracker,
     )
     from ..memories.tools import do_create_memory
+    from ..self_reflection.factory import reflect_from_current_context
 
     runtime = build_context_refresh_runtime(context_session)
 
@@ -52,6 +53,7 @@ def build_context_refresh_orchestrator(context_session: ContextMessageSession) -
             context_refresh_target_tokens=runtime.context_refresh_target_tokens,
             max_in_context_message_age=runtime.max_in_context_message_age,
             messages_between_memory=runtime.messages_between_memory,
+            messages_between_self_reflection=runtime.messages_between_self_reflection,
         ),
         dependencies=ContextRefreshDependencies(
             get_assistant_name_fn=lambda: get_assistant_name(context_session.user_session, context_session.user_runtime),
@@ -61,6 +63,7 @@ def build_context_refresh_orchestrator(context_session: ContextMessageSession) -
             ),
             get_or_create_memory_op_tracker_fn=lambda: get_or_create_memory_op_tracker(context_session.turn),
             schedule_memory_creation_fn=lambda: schedule_task(create_mem_from_current_context, context_session.turn),
+            schedule_self_reflection_fn=lambda: schedule_task(reflect_from_current_context, context_session.turn),
             formulate_memory_fn=lambda context_messages: formulate_memory(context_session.turn, context_messages),
             create_memory_fn=lambda name, text: do_create_memory(context_session.turn, name, text),
         ),

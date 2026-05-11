@@ -61,6 +61,11 @@ They can be hidden via `--no-show-internal-thought` or `show_internal_thought: f
 
 ## Completed
 
+### Product Quality
+- **Add MVP background self-reflection loop** (Completed: 2026-05)
+  - Added a conservative background self-reflection pass triggered from post-turn context persistence
+  - Reused the markdown-backed feature request store for persistence and dedupe instead of adding new database state
+  - Kept reflection deterministic with correction-phrase heuristics and no autonomous code changes
 ### Developer Experience
 - **Add self-restart tool for autonomous tool/code refresh** (Completed: 2026-05)
   - Added assistant-visible `restart_session` support to request a graceful TUI restart

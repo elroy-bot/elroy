@@ -84,6 +84,7 @@ class ElroyConfig:
         min_memory_cluster_size: int | None = None,
         memories_between_consolidation: int | None = None,
         messages_between_memory: int | None = None,
+        messages_between_self_reflection: int | None = None,
         l2_memory_relevance_distance_threshold: float | None = None,
         memory_recall_classifier_enabled: bool | None = None,
         memory_recall_classifier_window: int | None = None,
@@ -148,6 +149,7 @@ class ElroyConfig:
                 min_memory_cluster_size=min_memory_cluster_size or 2,
                 memories_between_consolidation=memories_between_consolidation or 5,
                 messages_between_memory=messages_between_memory or 10,
+                messages_between_self_reflection=(messages_between_self_reflection if messages_between_self_reflection is not None else 10),
                 l2_memory_relevance_distance_threshold=l2_memory_relevance_distance_threshold or 1.4,
                 memory_recall_classifier_enabled=memory_recall_classifier_enabled if memory_recall_classifier_enabled is not None else True,
                 memory_recall_classifier_window=memory_recall_classifier_window or 3,
@@ -197,6 +199,7 @@ class ElroyConfig:
         self.max_memory_cluster_size = self.memory_config.max_memory_cluster_size
         self.memories_between_consolidation = self.memory_config.memories_between_consolidation
         self.messages_between_memory = self.memory_config.messages_between_memory
+        self.messages_between_self_reflection = self.memory_config.messages_between_self_reflection
         self.inline_tool_calls = self.model_config.inline_tool_calls
         self.use_background_threads = self.runtime_config.use_background_threads
         self.max_ingested_doc_lines = self.runtime_config.max_ingested_doc_lines

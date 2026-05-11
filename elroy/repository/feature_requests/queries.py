@@ -7,6 +7,7 @@ from difflib import SequenceMatcher
 from .store import FeatureRequestRecord, feature_requests_dir, load_feature_request
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
+_INACTIVE_STATUSES = {"closed", "completed", "done", "cancelled", "rejected"}
 
 
 @dataclass(frozen=True)
@@ -18,6 +19,17 @@ class FeatureRequestMatch:
 
 def list_feature_requests() -> list[FeatureRequestRecord]:
     return [load_feature_request(path) for path in sorted(feature_requests_dir().glob("*.md"))]
+
+
+def is_active_feature_request(record: FeatureRequestRecord) -> bool:
+    return record.status.strip().lower() not in _INACTIVE_STATUSES
+
+
+def list_self_reflection_feature_requests(*, active_only: bool = False) -> list[FeatureRequestRecord]:
+    records = [record for record in list_feature_requests() if record.source == "self_reflection"]
+    if active_only:
+        return [record for record in records if is_active_feature_request(record)]
+    return records
 
 
 def get_feature_request(identifier: str) -> FeatureRequestRecord | None:

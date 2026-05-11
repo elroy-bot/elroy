@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from elroy.repository.feature_requests.queries import list_feature_requests
+from elroy.repository.feature_requests.queries import list_feature_requests, list_self_reflection_feature_requests
+from elroy.repository.feature_requests.store import load_feature_request
 from elroy.repository.feature_requests.tools import (
     edit_feature_request,
     make_feature_request,
@@ -27,6 +28,7 @@ def test_make_feature_request_creates_markdown_file(ctx, monkeypatch, tmp_path):
     assert len(files) == 1
     content = files[0].read_text(encoding="utf-8")
     assert "title: Add calendar sync" in content
+    assert "source: user_request" in content
     assert "## Summary" in content
     assert "## Why It Matters" in content
     assert "## Supporting Context" in content
@@ -99,3 +101,34 @@ def test_edit_feature_request_updates_existing_request(ctx, monkeypatch, tmp_pat
     assert records[0].summary == "Allow Elroy reminders to sync with external calendars."
     assert records[0].rationale == "This would reduce duplicated reminder management."
     assert records[0].status == "planned"
+
+
+def test_load_feature_request_infers_legacy_self_reflection_source(tmp_path, monkeypatch):
+    monkeypatch.setenv("ELROY_HOME", str(tmp_path))
+    path = Path(tmp_path) / "feature-requests" / "legacy-reflection.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        """---
+id: legacy-reflection
+title: Improve correction handling
+status: open
+created_at: 2026-05-12T00:00:00+00:00
+updated_at: 2026-05-12T00:00:00+00:00
+aliases: []
+---
+
+## Summary
+Handle direct corrections better.
+
+## Supporting Context
+- Reflected at: 2026-05-12T00:00:00+00:00
+- Trigger phrase: that's wrong
+- Recent user feedback: That's wrong. You missed the deadline.
+""",
+        encoding="utf-8",
+    )
+
+    record = load_feature_request(path)
+
+    assert record.source == "self_reflection"
+    assert list_self_reflection_feature_requests(active_only=True) == [record]
