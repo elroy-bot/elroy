@@ -72,11 +72,13 @@ def test_resume_and_list_codex_sessions(ctx, monkeypatch, tmp_path: Path):
     monkeypatch.setattr("elroy.repository.codex_sessions.tools._development_root", lambda: development_root)
     real_run = subprocess.run
     call_count = {"codex": 0}
+    resume_cwd: dict[str, str | None] = {"value": None}
 
     def fake_run(args, *, cwd=None, check=True, capture_output=True, text=True):
         if args[:2] == ["codex", "exec"]:
             call_count["codex"] += 1
             if "resume" in args:
+                resume_cwd["value"] = cwd
                 (repo_root / "notes.txt").write_text("after resume\n", encoding="utf-8")
                 stdout = "\n".join(
                     [
@@ -102,6 +104,7 @@ def test_resume_and_list_codex_sessions(ctx, monkeypatch, tmp_path: Path):
         listed = list_codex_sessions(turn=turn, repo_path="sample", limit=5)
 
     assert call_count["codex"] == 2
+    assert resume_cwd["value"] == str(repo_root)
     assert resumed.final_message == "resume complete"
     assert listed.sessions[0].session_id == "thread-123"
     assert listed.sessions[0].final_message == "resume complete"

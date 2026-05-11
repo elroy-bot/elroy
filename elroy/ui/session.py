@@ -70,7 +70,14 @@ class SessionController:
     def restart_stream(self, prompt: str) -> Iterator:
         from ..messenger.messenger import process_message
 
-        return process_message(role=USER, ctx=self.ctx, session=self.session, msg=prompt, enable_tools=False)
+        return process_message(
+            role=USER,
+            ctx=self.ctx,
+            session=self.session,
+            msg=prompt,
+            enable_tools=False,
+            persist_input_message=False,
+        )
 
     def chat_stream(self, text: str) -> Iterator:
         from ..messenger.messenger import process_message
