@@ -234,7 +234,7 @@ def _run_codex(prompt: str, repo_root: Path, *, session_id: str | None = None, m
         args[3:3] = ["-m", model]
 
     try:
-        result = _run_subprocess(args)
+        result = _run_subprocess(args, cwd=repo_root)
     except subprocess.CalledProcessError as exc:
         stderr = (exc.stderr or "").strip() or (exc.stdout or "").strip() or str(exc)
         raise RecoverableToolError(f"Codex run failed: {stderr}") from exc

@@ -21,6 +21,7 @@ from elroy.repository.user.session import build_user_runtime, build_user_session
 from elroy.tools.session import DEFAULT_RESTART_RESUME_PROMPT
 from elroy.ui.app import AppRestartRequest, ChatInput, DetailModal, ElroyApp
 from elroy.ui.forms import CommandFormScreen
+from elroy.ui.session import SessionController
 from elroy.utils.clock import utc_now
 
 
@@ -243,6 +244,21 @@ async def test_tui_runs_restart_prompt_on_startup(ctx: ElroyConfig, rich_formatt
 
         assert captured["prompt"] == "Restarted successfully. Ready to continue."
         assert "Restarted successfully. Ready to continue." in _history_text(app)
+
+
+def test_restart_stream_uses_non_persisted_input(ctx: ElroyConfig, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_process_message(**kwargs):
+        captured.update(kwargs)
+        yield "done"
+
+    monkeypatch.setattr("elroy.messenger.messenger.process_message", fake_process_message)
+
+    stream = SessionController(ctx, build_elroy_session(ctx)).restart_stream("Restarted successfully. Ready to continue.")
+    assert list(stream) == ["done"]
+    assert captured["msg"] == "Restarted successfully. Ready to continue."
+    assert captured["persist_input_message"] is False
 
 
 @pytest.mark.asyncio

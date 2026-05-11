@@ -16,6 +16,7 @@ def process_message(
     msg: str,
     enable_tools: bool = True,
     force_tool: str | None = None,
+    persist_input_message: bool = True,
 ) -> Iterator[BaseModel]:
     with open_turn_context(ctx, session) as turn:
         yield from ConversationOrchestrator(turn).process_message(
@@ -23,4 +24,5 @@ def process_message(
             msg=msg,
             enable_tools=enable_tools,
             force_tool=force_tool,
+            persist_input_message=persist_input_message,
         )

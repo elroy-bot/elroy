@@ -136,6 +136,7 @@ class ConversationOrchestrator:
         new_msgs: list[ContextMessage],
         enable_tools: bool,
         force_tool: str | None,
+        persist_input_message: bool,
     ) -> Iterator[BaseModel]:
         loops = 0
         while True:
@@ -188,14 +189,19 @@ class ConversationOrchestrator:
             if force_tool:
                 assert tool_context_messages, "force_tool set, but no tool messages generated"
                 with self._tracker().measure("persist_context_messages", count=len(new_msgs)):
-                    self.context_refresh_orchestrator.add_context_messages(new_msgs)
+                    self.context_refresh_orchestrator.add_context_messages(self._messages_to_persist(new_msgs, persist_input_message))
                 return
             if tool_context_messages:
                 loops += 1
                 continue
             with self._tracker().measure("persist_context_messages", count=len(new_msgs)):
-                self.context_refresh_orchestrator.add_context_messages(new_msgs)
+                self.context_refresh_orchestrator.add_context_messages(self._messages_to_persist(new_msgs, persist_input_message))
             return
+
+    def _messages_to_persist(self, new_msgs: list[ContextMessage], persist_input_message: bool) -> list[ContextMessage]:
+        if persist_input_message:
+            return new_msgs
+        return new_msgs[1:]
 
     def process_message(
         self,
@@ -204,6 +210,7 @@ class ConversationOrchestrator:
         msg: str,
         enable_tools: bool = True,
         force_tool: str | None = None,
+        persist_input_message: bool = True,
     ) -> Iterator[BaseModel]:
         assert role in {USER, ASSISTANT, SYSTEM}
 
@@ -223,6 +230,6 @@ class ConversationOrchestrator:
         yield from self._emit_internal_thoughts(new_msgs)
 
         yield StatusUpdate(content="thinking...")
-        yield from self._run_llm_loop(context_messages, new_msgs, enable_tools, force_tool)
+        yield from self._run_llm_loop(context_messages, new_msgs, enable_tools, force_tool, persist_input_message)
 
         self._tracker().log_summary()
