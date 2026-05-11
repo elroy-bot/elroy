@@ -386,6 +386,9 @@ class ElroyApp(App):
         self._spinner_handle = None
         self._bg_status_handle = None
         self._chat_suggestions: list[str] = []
+        self._context_poll_handle = None
+        self._rendered_context_message_ids: set[int] = set()
+        self._context_poll_ready = False
 
     @property
     def _browse_mode(self) -> bool:
@@ -580,17 +583,22 @@ class ElroyApp(App):
     def _start_session(self) -> None:
         bootstrap_data = self.session_controller.load_bootstrap_data(self.enable_greeting)
         sidebar_state = self.sidebar_controller.build_state()
+        before_ids = {message.id for message in bootstrap_data.context_messages if message.id is not None}
         self.call_from_thread(
             self._render_existing_context_messages,
             bootstrap_data.context_messages,
             bootstrap_data.bootstrap_tool_call_ids,
         )
+        self.call_from_thread(self._mark_context_messages_rendered, bootstrap_data.context_messages)
         self.call_from_thread(self._apply_sidebar_state, sidebar_state)
 
         if self.restart_resume_message:
             self._run_stream(self.session_controller.restart_stream(self.restart_resume_message))
+            self.call_from_thread(self._mark_messages_rendered_after_bootstrap_stream, before_ids)
         elif bootstrap_data.should_greet:
             self._run_stream(self.session_controller.greeting_stream())
+            self.call_from_thread(self._mark_messages_rendered_after_bootstrap_stream, before_ids)
+        self.call_from_thread(self._start_context_polling)
 
     # ── streaming helpers ─────────────────────────────────────────────────────
 
@@ -634,6 +642,53 @@ class ElroyApp(App):
             context_messages,
             bootstrap_tool_call_ids,
         )
+
+    def _mark_context_messages_rendered(self, context_messages: list) -> None:
+        self._rendered_context_message_ids.update(message.id for message in context_messages if message.id is not None)
+
+    def _render_new_context_messages(self, unseen_messages: list) -> None:
+        self.conversation_controller.render_existing_context_messages(
+            self._conversation_pane(),
+            unseen_messages,
+            set(),
+        )
+        self._mark_context_messages_rendered(unseen_messages)
+
+    def _start_context_polling(self) -> None:
+        if self._context_poll_handle is None:
+            self._context_poll_handle = self.set_interval(1.0, self._kick_context_update_poll)
+        self._context_poll_ready = True
+
+    def _mark_messages_rendered_after_bootstrap_stream(self, before_ids: set[int]) -> None:
+        self._mark_trailing_context_messages_rendered(before_ids=before_ids)
+
+    def _mark_messages_rendered_after_chat_turn(self, text: str, before_ids: set[int]) -> None:
+        self._mark_trailing_context_messages_rendered(before_ids=before_ids, anchor_role="user", anchor_content=text)
+
+    def _mark_trailing_context_messages_rendered(
+        self,
+        *,
+        before_ids: set[int],
+        anchor_role: str | None = None,
+        anchor_content: str | None = None,
+    ) -> None:
+        context_messages = self.session_controller.load_context_messages()
+        new_messages = [message for message in context_messages if message.id is not None and message.id not in before_ids]
+        if not new_messages:
+            return
+        start_index = 0
+        if anchor_role is not None:
+            start_index = next(
+                (
+                    index
+                    for index in range(len(new_messages) - 1, -1, -1)
+                    if new_messages[index].role == anchor_role and new_messages[index].content == anchor_content
+                ),
+                -1,
+            )
+            if start_index < 0:
+                return
+        self._mark_context_messages_rendered(new_messages[start_index:])
 
     # ── input handling ────────────────────────────────────────────────────────
 
@@ -700,8 +755,10 @@ class ElroyApp(App):
     @work(thread=True, group="chat-stream", exclusive=True, exit_on_error=False)
     def _process_chat_message(self, text: str) -> None:
         self.call_from_thread(self._set_status_message, "thinking...")
+        before_ids = {message.id for message in self.session_controller.load_context_messages() if message.id is not None}
         try:
             self._run_stream(self.session_controller.chat_stream(text))
+            self.call_from_thread(self._mark_messages_rendered_after_chat_turn, text, before_ids)
         except Exception as exc:
             self.call_from_thread(self._emit_error, str(exc))
             logger.exception("Error processing chat input")
@@ -762,6 +819,30 @@ class ElroyApp(App):
 
     def _schedule_context_refresh(self) -> None:
         self.set_timer(5.0, self._deferred_context_refresh)
+
+    def _kick_context_update_poll(self) -> None:
+        if not self._context_poll_ready:
+            return
+        self._poll_context_updates()
+
+    @work(thread=True, group="background-context-poll", exclusive=True, exit_on_error=False)
+    def _poll_context_updates(self) -> None:
+        try:
+            context_messages = self.session_controller.load_context_messages()
+            unseen_indices = [
+                index for index, message in enumerate(context_messages) if message.id not in self._rendered_context_message_ids
+            ]
+            if not unseen_indices:
+                return
+            first_unseen = unseen_indices[0]
+            if any(message.id in self._rendered_context_message_ids for message in context_messages[first_unseen + 1 :]):
+                self.call_from_thread(self._mark_context_messages_rendered, context_messages)
+                return
+            unseen_messages = [message for message in context_messages[first_unseen:] if message.id is not None]
+            if unseen_messages:
+                self.call_from_thread(self._render_new_context_messages, unseen_messages)
+        except Exception:
+            logger.debug("Background context update poll failed", exc_info=True)
 
     def _finalize_turn_ui_state(self) -> None:
         logger.debug("Finalizing turn UI state")

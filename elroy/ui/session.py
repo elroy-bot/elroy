@@ -62,6 +62,15 @@ class SessionController:
             should_greet=should_greet,
         )
 
+    def load_context_messages(self) -> list:
+        from ..repository.context_messages.factory import build_context_message_read_store
+        from ..repository.context_messages.session import build_context_message_session
+        from ..repository.context_messages.validations import Validator
+
+        with open_turn_context(self.ctx, self.session) as turn:
+            context_session = build_context_message_session(turn)
+            return list(Validator(turn, build_context_message_read_store(context_session).get_context_messages()).validated_msgs())
+
     def greeting_stream(self) -> Iterator:
         from ..messenger.messenger import process_message
 
