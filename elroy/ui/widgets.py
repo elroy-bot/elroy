@@ -60,7 +60,7 @@ class SidebarListView(ListView):
 class SidebarPanel(Vertical):
     """Encapsulates the sidebar tabs and list views."""
 
-    SECTIONS = ("memories", "agenda")
+    SECTIONS = ("memories", "agenda", "improvements", "feature_requests", "codex_sessions")
 
     class SectionChanged(Message):
         def __init__(self, section: str) -> None:
@@ -83,12 +83,18 @@ class SidebarPanel(Vertical):
         yield Tabs(
             Tab("Memories", id="memories-tab"),
             Tab("Agenda", id="agenda-tab"),
+            Tab("Improvements", id="improvements-tab"),
+            Tab("Feature Requests", id="feature_requests-tab"),
+            Tab("Codex Sessions", id="codex_sessions-tab"),
             active="memories-tab",
             id="sidebar-tabs",
         )
         with ContentSwitcher(initial="memories-list", id="sidebar-switcher"):
             yield SidebarListView("memories", id="memories-list", classes="panel-list")
             yield SidebarListView("agenda", id="agenda-list", classes="panel-list")
+            yield SidebarListView("improvements", id="improvements-list", classes="panel-list")
+            yield SidebarListView("feature_requests", id="feature_requests-list", classes="panel-list")
+            yield SidebarListView("codex_sessions", id="codex_sessions-list", classes="panel-list")
 
     @property
     def current_section(self) -> str:

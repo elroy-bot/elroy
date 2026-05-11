@@ -5,7 +5,7 @@ from elroy.ui.status import StatusController, WorkerTransition
 
 
 def test_browse_state_clamps_and_cycles_targets() -> None:
-    state = BrowseState(("memories", "agenda"))
+    state = BrowseState(("memories", "agenda", "improvements"))
 
     assert state.is_browsing is False
     assert state.target == "sidebar"
@@ -27,7 +27,7 @@ def test_browse_state_clamps_and_cycles_targets() -> None:
 
 
 def test_browse_state_maps_keys_to_actions() -> None:
-    state = BrowseState(("memories", "agenda"))
+    state = BrowseState(("memories", "agenda", "improvements"))
     state.focus_sidebar()
 
     assert state.browse_action_for_key("j", "memories", 0) == BrowseAction(kind="move", delta=1)
@@ -35,6 +35,7 @@ def test_browse_state_maps_keys_to_actions() -> None:
     assert state.browse_action_for_key("tab", "memories", 0) == BrowseAction(kind="cycle")
     assert state.browse_action_for_key("m", "agenda", 1) == BrowseAction(kind="switch_section", section="memories")
     assert state.browse_action_for_key("g", "memories", 1) == BrowseAction(kind="switch_section", section="agenda")
+    assert state.browse_action_for_key("r", "agenda", 1) == BrowseAction(kind="switch_section", section="improvements")
     assert state.browse_action_for_key("enter", "agenda", 2) == BrowseAction(kind="open", section="agenda")
     assert state.browse_action_for_key("i", "agenda", 2) == BrowseAction(kind="focus_chat")
     assert state.browse_action_for_key("x", "agenda", 2) is None
@@ -44,7 +45,7 @@ def test_browse_state_maps_keys_to_actions() -> None:
 
 
 def test_browse_state_maps_global_app_keys_to_actions() -> None:
-    state = BrowseState(("memories", "agenda"))
+    state = BrowseState(("memories", "agenda", "improvements"))
 
     assert state.app_action_for_key("ctrl+d") == AppKeyAction(kind="quit")
     assert state.app_action_for_key("ctrl+c") == AppKeyAction(kind="cancel_stream")
@@ -57,7 +58,7 @@ def test_browse_state_maps_global_app_keys_to_actions() -> None:
 
 
 def test_browse_state_computes_focus_targets() -> None:
-    state = BrowseState(("memories", "agenda"))
+    state = BrowseState(("memories", "agenda", "improvements"))
 
     assert state.focus_target() == "chat"
     assert state.recovery_focus_target(chat_has_focus=False, history_has_focus=False, sidebar_has_focus=False) == "chat"

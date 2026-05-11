@@ -9,6 +9,13 @@ BrowseTarget = Literal["sidebar", "history"]
 BrowseActionKind = Literal["move", "cycle", "switch_section", "open", "focus_chat"]
 AppKeyActionKind = Literal["quit", "cancel_stream", "focus_memories", "focus_agenda", "toggle_browse"]
 FocusTarget = Literal["chat", "sidebar", "history"]
+SIDEBAR_SECTION_KEYS = {
+    "m": "memories",
+    "g": "agenda",
+    "r": "improvements",
+    "f": "feature_requests",
+    "s": "codex_sessions",
+}
 
 
 @dataclass(frozen=True)
@@ -72,10 +79,8 @@ class BrowseState:
             return BrowseAction(kind="move", delta=-1)
         if key == "tab":
             return BrowseAction(kind="cycle")
-        if key == "m":
-            return BrowseAction(kind="switch_section", section="memories")
-        if key == "g":
-            return BrowseAction(kind="switch_section", section="agenda")
+        if key in SIDEBAR_SECTION_KEYS:
+            return BrowseAction(kind="switch_section", section=SIDEBAR_SECTION_KEYS[key])
         if key == "enter" and self.target == "sidebar" and current_index is not None:
             return BrowseAction(kind="open", section=current_section)
         if key in {"escape", "i", "a"}:

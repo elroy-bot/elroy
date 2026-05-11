@@ -1,4 +1,5 @@
 from datetime import timedelta
+from pathlib import Path
 from threading import Event
 
 import pytest
@@ -13,8 +14,11 @@ from elroy.core.session import build_elroy_session, invoke_with_config, open_tur
 from elroy.core.sidebar_models import SidebarBuilder, SidebarEntry, SidebarEntryRef, SidebarState
 from elroy.db.db_models import AgendaItem
 from elroy.io.formatters.rich_formatter import RichFormatter
+from elroy.repository.codex_sessions.store import CodexSessionStore, CodexSessionUpdate
 from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.tools import add_memory_to_current_context
+from elroy.repository.feature_requests.queries import list_feature_requests
+from elroy.repository.feature_requests.store import write_new_feature_request
 from elroy.repository.memories.tools import create_memory
 from elroy.repository.tasks.factory import build_task_mutation_orchestrator
 from elroy.repository.user.queries import get_assistant_name
@@ -39,7 +43,13 @@ class HarnessElroyApp(ElroyApp):
 
     def _load_sidebar_state(self) -> None:
         state = SidebarBuilder(self.ctx, self.session).build_sidebar_state()
-        self._panel_entries = {"memories": state.memories, "agenda": state.agenda}
+        self._panel_entries = {
+            "memories": state.memories,
+            "agenda": state.agenda,
+            "improvements": state.improvements,
+            "feature_requests": state.feature_requests,
+            "codex_sessions": state.codex_sessions,
+        }
         self._chat_suggestions = state.completions
         self._render_sidebar_lists()
 
@@ -88,6 +98,29 @@ def _status_text(app: ElroyApp) -> str:
 
 def _binding_description(app: ElroyApp, key: str) -> str:
     return app.active_bindings[key].binding.description
+
+
+def _store_codex_session(ctx: ElroyConfig) -> None:
+    repo_root = Path.cwd().resolve()
+    with open_turn_context(ctx) as turn:
+        CodexSessionStore(turn.db, turn.user_id).upsert(
+            "thread-12345678",
+            CodexSessionUpdate(
+                repo_path=repo_root,
+                worktree_path=repo_root / ".elroy-codex-worktrees" / "sample",
+                session_branch="elroy-codex-thread-12345678",
+                target_branch="agent",
+                prompt="Inspect the TUI gap",
+                summary="Codex found the sidebar was only rendering improvements.",
+                agent_message="Patched the sidebar to expose more sections.",
+                status="completed",
+                commands=[],
+                touched_paths=["elroy/ui/app.py"],
+                dirty_paths_before=[],
+                dirty_paths_after=[],
+                session_file_path=str(repo_root / ".codex" / "sessions" / "thread-12345678.jsonl"),
+            ),
+        )
 
 
 @pytest.mark.asyncio
@@ -472,6 +505,131 @@ async def test_tui_open_agenda_select_item_and_mark_complete(ctx: ElroyConfig, r
 
 
 @pytest.mark.asyncio
+async def test_tui_improvements_section_shows_self_reflection_items_and_can_close(
+    ctx: ElroyConfig,
+    rich_formatter: RichFormatter,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("ELROY_HOME", str(tmp_path))
+    write_new_feature_request(
+        title="Improve correction handling",
+        summary="Recover more directly after user corrections.",
+        rationale="Reflection found a correction handling gap.",
+        supporting_context="- Reflected at: 2026-05-12T00:00:00+00:00",
+        source="self_reflection",
+    )
+    write_new_feature_request(
+        title="General export feature",
+        summary="Export notes to markdown.",
+        rationale=None,
+        supporting_context=None,
+        source="user_request",
+    )
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app._switch_sidebar_section("improvements", focus_sidebar=True)
+        await pilot.pause()
+
+        assert app.query_one("#sidebar-tabs", Tabs).active == "improvements-tab"
+        assert _sidebar_titles(app) == ["Improve correction handling (open)"]
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert isinstance(app.screen, DetailModal)
+        assert _label_text(app.screen.query_one("#memory-detail-title", Label)) == "Improve correction handling"
+        footer = app.screen.query_one("#memory-detail-footer", Label)
+        assert _label_text(footer) == "C: complete  |  Escape/Enter/Q: close"
+
+        log = app.screen.query_one("#memory-detail-log", RichLog)
+        rendered = "\n".join(strip.text for strip in log.lines)
+        assert "Status: open" in rendered
+        assert "Source: Self-reflection" in rendered
+        assert "Recover more directly after user corrections." in rendered
+
+        await pilot.press("c")
+        await pilot.pause()
+
+        records = list_feature_requests()
+        assert len(records) == 2
+        improvement = next(record for record in records if record.title == "Improve correction handling")
+        assert improvement.status == "closed"
+        assert _sidebar_titles(app) == []
+
+
+@pytest.mark.asyncio
+async def test_tui_feature_requests_section_shows_general_requests(
+    ctx: ElroyConfig,
+    rich_formatter: RichFormatter,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("ELROY_HOME", str(tmp_path))
+    write_new_feature_request(
+        title="Improve correction handling",
+        summary="Recover more directly after user corrections.",
+        rationale="Reflection found a correction handling gap.",
+        supporting_context="- Reflected at: 2026-05-12T00:00:00+00:00",
+        source="self_reflection",
+    )
+    write_new_feature_request(
+        title="General export feature",
+        summary="Export notes to markdown.",
+        rationale="Users want portable notes.",
+        supporting_context=None,
+        source="user_request",
+    )
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app._switch_sidebar_section("feature_requests", focus_sidebar=True)
+        await pilot.pause()
+
+        assert app.query_one("#sidebar-tabs", Tabs).active == "feature_requests-tab"
+        assert sorted(_sidebar_titles(app)) == ["General export feature (open)", "Improve correction handling (open)"]
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert isinstance(app.screen, DetailModal)
+        rendered = "\n".join(strip.text for strip in app.screen.query_one("#memory-detail-log", RichLog).lines)
+        assert "Status: open" in rendered
+        assert "Source: User Request" in rendered
+        assert "Export notes to markdown." in rendered
+
+
+@pytest.mark.asyncio
+async def test_tui_codex_sessions_section_shows_recent_sessions(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    _store_codex_session(ctx)
+
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app._switch_sidebar_section("codex_sessions", focus_sidebar=True)
+        await pilot.pause()
+
+        assert app.query_one("#sidebar-tabs", Tabs).active == "codex_sessions-tab"
+        assert _sidebar_titles(app) == [f"{Path.cwd().resolve().name} (completed) thread-12345678"]
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert isinstance(app.screen, DetailModal)
+        rendered = "\n".join(strip.text for strip in app.screen.query_one("#memory-detail-log", RichLog).lines)
+        assert "Status: completed" in rendered
+        assert "Summary:" in rendered
+        assert "Codex found the sidebar was only rendering improvements." in rendered
+        assert "Latest Agent Message:" in rendered
+
+
+@pytest.mark.asyncio
 async def test_tui_due_item_modal_confirms_delete(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     with open_turn_context(ctx) as turn:
         build_task_mutation_orchestrator(turn).create_task(
@@ -847,6 +1005,9 @@ async def test_tui_streaming_draft_survives_sidebar_and_status_updates(
                     )
                 ],
                 agenda=[SidebarEntry(title="Call mom", ref=SidebarEntryRef(kind="agenda", key="Call mom"), content="Call mom tonight")],
+                improvements=[],
+                feature_requests=[],
+                codex_sessions=[],
                 completions=["Trip note"],
             )
         )

@@ -17,6 +17,7 @@ class FeatureRequestRecord:
     request_id: str
     title: str
     status: str
+    source: str
     created_at: str
     updated_at: str
     aliases: tuple[str, ...]
@@ -30,6 +31,7 @@ class FeatureRequestFrontmatter:
     request_id: str
     title: str
     status: str
+    source: str
     created_at: str | datetime
     updated_at: str | datetime
     aliases: list[str]
@@ -60,6 +62,23 @@ def _body(summary: str, rationale: str | None, supporting_context: str | None) -
     return "\n".join(sections).strip() + "\n"
 
 
+def infer_feature_request_source(source: str | None, supporting_context: str | None) -> str:
+    if source:
+        normalized = source.strip().lower()
+        if normalized:
+            return normalized
+
+    context = supporting_context or ""
+    reflection_markers = (
+        "- Reflected at:",
+        "- Trigger phrase:",
+        "- Recent user feedback:",
+    )
+    if all(marker in context for marker in reflection_markers):
+        return "self_reflection"
+    return "user_request"
+
+
 def build_feature_request_content(
     frontmatter: FeatureRequestFrontmatter,
     summary: str,
@@ -70,6 +89,7 @@ def build_feature_request_content(
         "id": frontmatter.request_id,
         "title": frontmatter.title,
         "status": frontmatter.status,
+        "source": frontmatter.source,
         "created_at": _stringify_timestamp(frontmatter.created_at),
         "updated_at": _stringify_timestamp(frontmatter.updated_at),
         "aliases": frontmatter.aliases,
@@ -99,6 +119,7 @@ def write_new_feature_request(
     summary: str,
     rationale: str | None,
     supporting_context: str | None,
+    source: str = "user_request",
 ) -> FeatureRequestRecord:
     now = utc_now().isoformat()
     request_id = slugify_feature_request_title(title)
@@ -109,6 +130,7 @@ def write_new_feature_request(
                 request_id=request_id,
                 title=title,
                 status="open",
+                source=source,
                 created_at=now,
                 updated_at=now,
                 aliases=[],
@@ -134,6 +156,7 @@ def load_feature_request(path: Path) -> FeatureRequestRecord:
         request_id=str(frontmatter.get("id") or path.stem),
         title=str(frontmatter.get("title") or path.stem),
         status=str(frontmatter.get("status") or "open"),
+        source=infer_feature_request_source(frontmatter.get("source"), supporting_context),
         created_at=str(frontmatter.get("created_at") or ""),
         updated_at=str(frontmatter.get("updated_at") or ""),
         aliases=aliases,
@@ -187,6 +210,7 @@ def update_feature_request(
                 request_id=record.request_id,
                 title=updated_title,
                 status=updated_status,
+                source=record.source,
                 created_at=record.created_at or updated_at,
                 updated_at=updated_at,
                 aliases=updated_aliases,

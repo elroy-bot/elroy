@@ -16,6 +16,7 @@ class ContextRefreshRuntime:
     context_refresh_target_tokens: int
     max_in_context_message_age: timedelta
     messages_between_memory: int
+    messages_between_self_reflection: int
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ def build_context_refresh_runtime(context_session: ContextMessageSession) -> Con
         context_refresh_target_tokens=config.context_refresh_target_tokens,
         max_in_context_message_age=config.max_in_context_message_age,
         messages_between_memory=config.messages_between_memory,
+        messages_between_self_reflection=config.messages_between_self_reflection,
     )
 
 

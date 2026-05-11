@@ -34,6 +34,7 @@ class ContextRefreshConfig:
     context_refresh_target_tokens: int
     max_in_context_message_age: Any
     messages_between_memory: int
+    messages_between_self_reflection: int
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,7 @@ class ContextRefreshDependencies:
     get_user_preferred_name_fn: Callable[[], str | None]
     get_or_create_memory_op_tracker_fn: Callable[[], Any]
     schedule_memory_creation_fn: Callable[[], None]
+    schedule_self_reflection_fn: Callable[[], None]
     formulate_memory_fn: Callable[[list[ContextMessage]], tuple[str, str]]
     create_memory_fn: Callable[[str, str], Any]
 
@@ -84,6 +86,9 @@ class ContextRefreshOrchestrator:
 
             if tracker.messages_since_memory >= self.config.messages_between_memory:
                 self.dependencies.schedule_memory_creation_fn()
+
+            if self.config.messages_between_self_reflection > 0:
+                self.dependencies.schedule_self_reflection_fn()
 
     def get_refreshed_system_message(self) -> ContextMessage:
         return self.system_prompt_builder.build()
