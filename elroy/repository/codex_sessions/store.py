@@ -12,6 +12,9 @@ from ...utils.clock import utc_now
 @dataclass(frozen=True)
 class CodexSessionUpdate:
     repo_path: Path
+    worktree_path: Path | None
+    session_branch: str | None
+    target_branch: str | None
     prompt: str
     summary: str
     agent_message: str
@@ -46,6 +49,9 @@ class CodexSessionStore:
                 user_id=self.user_id,
                 thread_id=thread_id,
                 repo_path=str(update.repo_path),
+                worktree_path=str(update.worktree_path) if update.worktree_path else None,
+                session_branch=update.session_branch,
+                target_branch=update.target_branch,
                 latest_prompt=update.prompt,
                 latest_summary=update.summary,
                 latest_agent_message=update.agent_message,
@@ -60,6 +66,9 @@ class CodexSessionStore:
             return self.db.persist(record)
 
         record.repo_path = str(update.repo_path)
+        record.worktree_path = str(update.worktree_path) if update.worktree_path else None
+        record.session_branch = update.session_branch
+        record.target_branch = update.target_branch
         record.latest_prompt = update.prompt
         record.latest_summary = update.summary
         record.latest_agent_message = update.agent_message

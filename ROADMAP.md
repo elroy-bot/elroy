@@ -4,7 +4,12 @@ This document tracks planned improvements and features for Elroy.
 
 ## Current Priorities
 
-(No active priorities at this time)
+- **Build async Codex agent workflow on an `agent` branch**
+  - Run Codex coding sessions asynchronously so Elroy remains available for chat while work is in progress
+  - Isolate each coding session in its own branch/worktree before integrating results
+  - Merge successful session output into a long-lived `agent` branch instead of `main`
+  - Treat `agent` as the primary branch Elroy should run on for agent-driven improvements
+  - Trigger an assistant response automatically when a background Codex session completes
 
 ## Future Items
 

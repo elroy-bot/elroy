@@ -13,6 +13,7 @@ from elroy.core.session import build_elroy_session, invoke_with_config, open_tur
 from elroy.core.sidebar_models import SidebarBuilder, SidebarEntry, SidebarEntryRef, SidebarState
 from elroy.db.db_models import AgendaItem
 from elroy.io.formatters.rich_formatter import RichFormatter
+from elroy.repository.context_messages.data_models import ContextMessage
 from elroy.repository.context_messages.tools import add_memory_to_current_context
 from elroy.repository.memories.tools import create_memory
 from elroy.repository.tasks.factory import build_task_mutation_orchestrator
@@ -259,6 +260,44 @@ def test_restart_stream_uses_non_persisted_input(ctx: ElroyConfig, monkeypatch: 
     assert list(stream) == ["done"]
     assert captured["msg"] == "Restarted successfully. Ready to continue."
     assert captured["persist_input_message"] is False
+
+
+def test_mark_messages_rendered_after_chat_turn_skips_earlier_background_messages(
+    ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = _make_app(ctx, rich_formatter)
+    background_message = ContextMessage(id=11, role="assistant", content="background update", chat_model=None)
+    user_message = ContextMessage(id=12, role="user", content="hello", chat_model=None)
+    assistant_message = ContextMessage(id=13, role="assistant", content="foreground reply", chat_model=None)
+
+    monkeypatch.setattr(
+        app.session_controller,
+        "load_context_messages",
+        lambda: [background_message, user_message, assistant_message],
+    )
+
+    app._mark_messages_rendered_after_chat_turn("hello", before_ids=set())
+
+    assert 11 not in app._rendered_context_message_ids
+    assert 12 in app._rendered_context_message_ids
+    assert 13 in app._rendered_context_message_ids
+
+
+def test_mark_messages_rendered_after_bootstrap_stream_marks_new_messages(
+    ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = _make_app(ctx, rich_formatter)
+    assistant_message = ContextMessage(id=22, role="assistant", content="welcome back", chat_model=None)
+
+    monkeypatch.setattr(
+        app.session_controller,
+        "load_context_messages",
+        lambda: [assistant_message],
+    )
+
+    app._mark_messages_rendered_after_bootstrap_stream(before_ids=set())
+
+    assert app._rendered_context_message_ids == {22}
 
 
 @pytest.mark.asyncio

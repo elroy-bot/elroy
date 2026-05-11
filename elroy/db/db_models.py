@@ -231,6 +231,9 @@ class CodexSession(SQLModel, table=True):
     user_id: int = Field(..., description="Elroy user for context")
     thread_id: str = Field(..., description="Codex thread/session identifier")
     repo_path: str = Field(..., description="Git repository root used for the Codex session")
+    worktree_path: str | None = Field(default=None, description="Git worktree path used for isolated Codex execution")
+    session_branch: str | None = Field(default=None, description="Per-session branch used for isolated Codex execution")
+    target_branch: str | None = Field(default=None, description="Long-lived integration branch for agent changes")
     latest_prompt: str = Field(sa_column=SAColumn(Text, nullable=False), description="Most recent prompt sent to Codex")
     latest_summary: str | None = Field(default=None, sa_column=SAColumn(Text), description="Latest Elroy summary of the session")
     latest_agent_message: str | None = Field(
