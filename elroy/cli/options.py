@@ -10,7 +10,7 @@ from toolz import assoc, merge, pipe
 from toolz.curried import map, valfilter
 
 from ..config.llm import DEFAULTS_CONFIG
-from ..config.paths import get_default_sqlite_url
+from ..config.paths import get_default_config_path, get_default_sqlite_url
 from ..core.constants import CLAUDE_3_5_SONNET
 
 logger = get_logger()
@@ -42,10 +42,7 @@ def resolve_model_alias(alias: str) -> str | None:
 def load_config_file_params(config_path: str | None = None) -> dict:
     # Looks for user specified config path, then merges with default values packaged with the lib
 
-    user_config_path = config_path or os.environ.get(get_env_var_name("config_path"))
-
-    if not user_config_path:
-        return {}
+    user_config_path = config_path or os.environ.get(get_env_var_name("config_path")) or str(get_default_config_path())
     if user_config_path and not Path(user_config_path).is_absolute():
         logger.info("Resolving relative user config path")
         # convert to absolute path if not already, relative to working dir
