@@ -811,6 +811,26 @@ async def test_tui_chat_input_stays_editable_while_chat_stream_runs(
 
 
 @pytest.mark.asyncio
+async def test_tui_ctrl_c_clears_chat_input_when_chat_is_active(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        await pilot.press("d", "r", "a", "f", "t")
+        await pilot.pause()
+
+        assert input_widget.has_focus
+        assert input_widget.value == "draft"
+
+        await pilot.press("ctrl+c")
+        await pilot.pause()
+
+        assert input_widget.value == ""
+        assert input_widget.has_focus
+
+
+@pytest.mark.asyncio
 async def test_tui_cancel_stream_preserves_draft_text(
     ctx: ElroyConfig, rich_formatter: RichFormatter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
