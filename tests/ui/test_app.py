@@ -441,6 +441,35 @@ async def test_tui_focus_agenda_enters_sidebar_and_supports_arrow_navigation(ctx
 
 
 @pytest.mark.asyncio
+async def test_tui_sidebar_left_right_switches_active_tabs(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app._switch_sidebar_section("improvements", focus_sidebar=True)
+        await pilot.pause()
+
+        assert app.query_one("#sidebar-tabs", Tabs).active == "improvements-tab"
+        assert _current_list_view(app).has_focus
+
+        await pilot.press("right")
+        await pilot.pause()
+
+        assert app.query_one("#sidebar-tabs", Tabs).active == "feature_requests-tab"
+        assert _current_list_view(app).has_focus
+
+        await pilot.press("right")
+        await pilot.pause()
+
+        assert app.query_one("#sidebar-tabs", Tabs).active == "codex_sessions-tab"
+
+        await pilot.press("left")
+        await pilot.pause()
+
+        assert app.query_one("#sidebar-tabs", Tabs).active == "feature_requests-tab"
+
+
+@pytest.mark.asyncio
 async def test_tui_agenda_modal_marks_item_complete(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     with open_turn_context(ctx) as turn:
         build_task_mutation_orchestrator(turn).create_task("Job search", "Job search\nReach out to three contacts.")
