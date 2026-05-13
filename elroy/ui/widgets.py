@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.message import Message
 from textual.reactive import reactive
-from textual.widgets import ContentSwitcher, Label, ListItem, ListView, RichLog, Static, Tab, Tabs
+from textual.widgets import ContentSwitcher, Label, ListItem, ListView, RichLog, Tab, Tabs
 
 from ..core.sidebar_models import SidebarEntry
 
@@ -24,20 +23,13 @@ class StatusBar(Label):
 
 
 class ConversationPane(Vertical):
-    """Encapsulates conversation history and streaming output."""
+    """Encapsulates conversation history."""
 
     def compose(self) -> ComposeResult:
         yield RichLog(id="history-log", wrap=True, highlight=False, markup=False)
-        yield Static("", id="streaming-output")
 
     def write_history(self, renderable) -> None:
         self.query_one("#history-log", RichLog).write(renderable)
-
-    def set_streaming_text(self, text: str, style: str) -> None:
-        self.query_one("#streaming-output", Static).update(Text(text, style=style))
-
-    def clear_streaming(self) -> None:
-        self.query_one("#streaming-output", Static).update("")
 
     def focus_history(self) -> None:
         self.query_one("#history-log", RichLog).focus()
