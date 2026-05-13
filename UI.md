@@ -35,7 +35,7 @@ When the input is focused:
 | `Enter` | Submit the current prompt. |
 | `Up` | Load the previous prompt from input history. |
 | `Down` | Move forward through input history; eventually restore an empty prompt. |
-| `Tab` | Accept slash-command completion. It should not move focus to another widget. |
+| `Tab` | Accept an input completion when one is available. It should not move focus to another widget. |
 
 Notes:
 

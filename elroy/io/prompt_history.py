@@ -18,14 +18,21 @@ class PromptHistoryStore:
         try:
             if self.path.exists():
                 lines = self.path.read_text().splitlines()
-                return [line[1:] for line in reversed(lines) if line.startswith("+")]
+                return [text for line in reversed(lines) if line.startswith("+") and self._is_recallable(text := line[1:])]
         except Exception:
             logger.warning("Failed to load prompt history from %s", self.path, exc_info=True)
         return []
 
     def append(self, text: str) -> None:
+        if not self._is_recallable(text):
+            return
         try:
             with self.path.open("a") as file_obj:
                 file_obj.write(f"+{text}\n")
         except Exception:
             logger.warning("Failed to append prompt history to %s", self.path, exc_info=True)
+
+    @staticmethod
+    def _is_recallable(text: str) -> bool:
+        stripped = text.strip()
+        return bool(stripped) and not stripped.startswith("/")

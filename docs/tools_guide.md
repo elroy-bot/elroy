@@ -1,6 +1,6 @@
 # Tools Guide
 
-Elroy provides a set of tools that can be used by typing a forward slash (/) followed by the command name. These tools are organized into the following categories:
+Elroy provides a set of tools that can be launched from the command palette. These tools are organized into the following categories:
 
 ## Memory Management
 

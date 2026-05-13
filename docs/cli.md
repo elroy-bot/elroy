@@ -11,35 +11,11 @@ elroy
 
 This opens a full-screen terminal application where you can chat with the assistant, create memories, and manage agenda or due items.
 
-## Slash Commands
+## Command Palette
 
-Inside the chat interface, Elroy supports slash commands for quick actions:
+Use the Textual command palette to run built-in tools and actions from the TUI.
 
-<div align="center">
-  <img src="../images/slash_commands.gif" alt="Slash Commands demonstration" style="max-width: 100%; margin: 20px 0;">
-</div>
-
-```bash
-# Create a memory
-/create_memory This is important information I want to save
-
-# Create a due item
-/create_due_item Learn how to use Elroy effectively
-
-# List memories
-/print_memories
-
-# Search memories
-/search_memories project notes
-
-# Show configuration
-/print_config
-
-# See all available commands
-/help
-```
-
-For a full list of available tools and slash commands, see the [Tools Guide](tools_guide.md).
+For a full list of available tools, see the [Tools Guide](tools_guide.md).
 
 ## Keyboard Shortcuts
 
@@ -63,7 +39,7 @@ ELROY_CONFIG_PATH=~/my-elroy-config.yaml elroy
 
 ## Document Ingestion
 
-To ingest documents into Elroy's memory, use the `/ingest_doc` slash command inside the chat interface, or configure background ingestion via the config file:
+To ingest documents into Elroy's memory, use the command palette inside the chat interface or configure background ingestion via the config file:
 
 ```yaml
 # ~/.elroy/elroy.conf.yaml
