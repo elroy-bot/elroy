@@ -77,6 +77,11 @@ class BrowseState:
             return BrowseAction(kind="move", delta=1)
         if key in {"k", "up"}:
             return BrowseAction(kind="move", delta=-1)
+        if key in {"left", "right"} and self.target == "sidebar":
+            return BrowseAction(
+                kind="switch_section",
+                section=self._adjacent_section(current_section, delta=-1 if key == "left" else 1),
+            )
         if key == "tab":
             return BrowseAction(kind="cycle")
         if key in SIDEBAR_SECTION_KEYS:
@@ -132,6 +137,13 @@ class BrowseState:
         next_index = max(0, min(current_index + delta, entry_count - 1))
         self.panel_indices[section] = next_index
         return next_index
+
+    def _adjacent_section(self, current_section: str, delta: int) -> str:
+        try:
+            index = self.sections.index(current_section)
+        except ValueError:
+            index = 0
+        return self.sections[(index + delta) % len(self.sections)]
 
 
 @dataclass

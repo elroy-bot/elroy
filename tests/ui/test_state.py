@@ -32,6 +32,8 @@ def test_browse_state_maps_keys_to_actions() -> None:
 
     assert state.browse_action_for_key("j", "memories", 0) == BrowseAction(kind="move", delta=1)
     assert state.browse_action_for_key("k", "memories", 0) == BrowseAction(kind="move", delta=-1)
+    assert state.browse_action_for_key("left", "memories", 0) == BrowseAction(kind="switch_section", section="improvements")
+    assert state.browse_action_for_key("right", "memories", 0) == BrowseAction(kind="switch_section", section="agenda")
     assert state.browse_action_for_key("tab", "memories", 0) == BrowseAction(kind="cycle")
     assert state.browse_action_for_key("m", "agenda", 1) == BrowseAction(kind="switch_section", section="memories")
     assert state.browse_action_for_key("g", "memories", 1) == BrowseAction(kind="switch_section", section="agenda")
@@ -42,6 +44,7 @@ def test_browse_state_maps_keys_to_actions() -> None:
 
     state.focus_history()
     assert state.browse_action_for_key("enter", "agenda", 2) is None
+    assert state.browse_action_for_key("left", "agenda", 2) is None
 
 
 def test_browse_state_maps_global_app_keys_to_actions() -> None:
