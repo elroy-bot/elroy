@@ -730,6 +730,13 @@ class ElroyApp(App):
         if self.screen is not self.screen_stack[0]:
             return
 
+        if event.key == "ctrl+c" and input_widget.has_focus and input_widget.value:
+            input_widget.value = ""
+            self._resize_chat_input()
+            event.prevent_default()
+            event.stop()
+            return
+
         app_action = self.browse_controller.app_action_for_key(event.key)
         if app_action is not None:
             self._perform_app_key_action(app_action)
