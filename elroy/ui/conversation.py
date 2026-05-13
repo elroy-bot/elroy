@@ -31,7 +31,8 @@ class ConversationController:
 
     def remember_prompt(self, text: str) -> None:
         self.prompt_history.append(text)
-        self._input_history.insert(0, text)
+        if text.strip() and not text.strip().startswith("/"):
+            self._input_history.insert(0, text)
 
     def write_to_history(self, conversation_pane, renderable) -> None:
         conversation_pane.write_history(renderable)
@@ -126,7 +127,7 @@ class ConversationController:
             return
 
         prefix = input_widget.value
-        if not prefix:
+        if not prefix or prefix.startswith("/"):
             return
 
         match = next(

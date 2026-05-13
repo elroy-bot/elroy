@@ -66,25 +66,9 @@ elroy
 ELROY_CHAT_MODEL=gemini/gemini-2.0-flash elroy
 ```
 
-## Slash Commands
+## Command Palette
 
-![Slash Commands](images/slash_commands.gif)
-
-Elroy's TUI supports slash commands for quick actions. Some examples (run `/help` to see the full list):
-
-```bash
-# Create a memory
-/create_memory This is important information I want to save
-
-# Create a due item
-/create_due_item Learn how to use Elroy effectively
-
-# Search memories
-/search_memories project notes
-
-# Show configuration
-/print_config
-```
+Elroy's TUI supports built-in tools and actions through the command palette.
 
 ## Supported Models
 

@@ -21,8 +21,7 @@ from elroy.repository.feature_requests.queries import list_feature_requests
 from elroy.repository.feature_requests.store import write_new_feature_request
 from elroy.repository.memories.tools import create_memory
 from elroy.repository.tasks.factory import build_task_mutation_orchestrator
-from elroy.repository.user.queries import get_assistant_name
-from elroy.repository.user.session import build_user_runtime, build_user_session
+from elroy.repository.user.session import build_user_session
 from elroy.tools.session import DEFAULT_RESTART_RESUME_PROMPT
 from elroy.ui.app import AppRestartRequest, ChatInput, DetailModal, ElroyApp
 from elroy.ui.forms import CommandFormScreen
@@ -724,8 +723,15 @@ async def test_tui_status_bar_does_not_duplicate_command_palette_hint(ctx: Elroy
 
 
 @pytest.mark.asyncio
-async def test_tui_slash_command_with_missing_args_opens_modal_form(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+async def test_tui_slash_prefixed_input_is_treated_as_plain_chat(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_process_chat_message(text: str) -> None:
+        captured["text"] = text
+
     app = _make_app(ctx, rich_formatter)
+    app._process_chat_message = fake_process_chat_message  # type: ignore[method-assign]
+
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -734,20 +740,19 @@ async def test_tui_slash_command_with_missing_args_opens_modal_form(ctx: ElroyCo
         app._submit_chat_input()
         await pilot.pause()
 
-        assert isinstance(app.screen, CommandFormScreen)
-        field = app.screen.query_one("#input-assistant_name", Input)
-        field.value = "Jarvis"
-        await pilot.press("enter")
-        await pilot.pause()
-        await pilot.pause()
-
-        with open_turn_context(ctx) as turn:
-            assert get_assistant_name(build_user_session(turn), build_user_runtime(turn)) == "Jarvis"
+        assert captured["text"] == "/set_assistant_name"
+        assert app.screen is app.screen_stack[0]
 
 
 @pytest.mark.asyncio
 async def test_tui_enter_submits_chat_input(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_process_chat_message(text: str) -> None:
+        captured["text"] = text
+
     app = _make_app(ctx, rich_formatter)
+    app._process_chat_message = fake_process_chat_message  # type: ignore[method-assign]
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -757,8 +762,7 @@ async def test_tui_enter_submits_chat_input(ctx: ElroyConfig, rich_formatter: Ri
         await pilot.pause()
         await pilot.pause()
 
-        with open_turn_context(ctx) as turn:
-            assert get_assistant_name(build_user_session(turn), build_user_runtime(turn)) == "Jarvis"
+        assert captured["text"] == "/set_assistant_name Jarvis"
         assert input_widget.value == ""
 
 

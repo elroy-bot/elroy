@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -481,20 +480,6 @@ class ElroyApp(App):
             return
         self._execute_tool_command(name, values, source)
 
-    def _handle_slash_command(self, text: str) -> bool:
-        request, invalid_name = self.command_flow.resolve_slash_command(text)
-        if request is None and invalid_name is None:
-            return True
-        if invalid_name is not None:
-            self._emit_error(f"Invalid command: {invalid_name}. Open the command palette or use /help for available commands.")
-            return True
-        assert request is not None
-        if request.execute_immediately:
-            self._execute_tool_command(request.spec.name, request.initial_values, request.source)
-        else:
-            self.launch_tool_command(request.spec.name, initial_values=request.initial_values, source=request.source)
-        return True
-
     @work(thread=True, group="command-action", exclusive=True, exit_on_error=False)
     def _execute_tool_command(self, name: str, values: dict[str, str], source: str) -> None:
         spec = self.get_tool_command_spec(name)
@@ -503,7 +488,7 @@ class ElroyApp(App):
             return
 
         logger.debug("Starting tool command execution: name=%s source=%s values=%s", name, source, values)
-        self.call_from_thread(self._set_status_message, f"running /{spec.name}")
+        self.call_from_thread(self._set_status_message, f"running {spec.name}")
         try:
             result = self.session_controller.run_tool_command(spec, values)
             logger.debug("Tool command completed: name=%s result_type=%s", name, type(result).__name__)
@@ -709,18 +694,12 @@ class ElroyApp(App):
 
         self._remember_prompt(text)
         self._history_index = -1
-
         if text.lower() in (EXIT, f"/{EXIT}"):
             self.exit()
             return
 
         self._write_to_history(Text(f"\nYou: {text}", style=self.formatter.user_input_color))
-        if text.startswith("/") and not text.lower().startswith("/ask"):
-            self._handle_slash_command(text)
-            return
-
-        msg = re.sub(r"^/ask\s*", "", text).strip() if text.lower().startswith("/ask") else text
-        self._process_chat_message(msg)
+        self._process_chat_message(text)
 
     def _submit_blocked(self) -> bool:
         return self.status_controller.is_submit_blocked()

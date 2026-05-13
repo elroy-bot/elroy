@@ -51,16 +51,15 @@ just dev
 This requires `watchexec` and runs Elroy from the local source tree with restart-on-change behavior for `.py`, `.yml`, and `.yaml` files.
 It uses the `elroy` console entrypoint rather than `python -m elroy.ui.app`, which avoids `runpy` module re-execution warnings from the package import layout.
 
-Elroy opens a terminal UI where you can chat, create memories, and manage reminders. Use the Textual command palette with `Ctrl+P` to discover available actions. Slash commands remain available in the chat box as a compatibility path.
+Elroy opens a terminal UI where you can chat, create memories, and manage reminders. Use the Textual command palette with `Ctrl+P` to discover available actions.
 
 ## Memory and Reminder Tools
-![Slash commands](images/slash_commands.gif)
 
 Elroy's tools allow it to create and manage memories and reminders. In the background, redundant memories are consolidated.
 
 As reminders or memories become relevant to the conversation, they are recalled into context. A `Relevant Context` panel makes all information being surfaced to the assistant available to the user.
 
-All commands available to the assistant are also available to the user through the Textual command palette, and are still accepted as `/` slash commands in the chat interface.
+All commands available to the assistant are also available to the user through the Textual command palette.
 
 For a guide of what tools are available and what they do, see: [tools guide](docs/tools_guide.md).
 
