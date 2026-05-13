@@ -20,8 +20,6 @@ class ConversationController:
         self.formatter = formatter
         self.prompt_history = prompt_history
         self.show_internal_thought = show_internal_thought
-        self._streaming_buffer = ""
-        self._streaming_style = ""
         self._thought_buffer = ""
         self._input_history = self.prompt_history.load()
 
@@ -38,16 +36,10 @@ class ConversationController:
         conversation_pane.write_history(renderable)
 
     def append_streaming_token(self, conversation_pane, token: str, style: str) -> None:
-        self._streaming_buffer += token
-        self._streaming_style = style
-        conversation_pane.set_streaming_text(self._streaming_buffer, style)
+        self.write_to_history(conversation_pane, Text(token, style=style))
 
     def flush_streaming_buffer(self, conversation_pane) -> None:
-        if self._streaming_buffer:
-            self.write_to_history(conversation_pane, Text(self._streaming_buffer, style=self._streaming_style))
-            self._streaming_buffer = ""
-            self._streaming_style = ""
-        conversation_pane.clear_streaming()
+        _ = conversation_pane
 
     def append_thought_token(self, token: str) -> None:
         self._thought_buffer += token

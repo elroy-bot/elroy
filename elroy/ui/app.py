@@ -35,7 +35,6 @@ from ..io.formatters.rich_formatter import RichFormatter
 from ..io.prompt_history import PromptHistoryStore
 from ..repository.user.queries import get_assistant_name
 from ..repository.user.session import build_user_runtime, build_user_session
-from .browse import BrowseController
 from .command_flow import CommandFlowController
 from .commands import (
     ToolCommandProvider,
@@ -46,7 +45,6 @@ from .forms import CommandFormScreen
 from .output import TextualIO
 from .session import SessionController
 from .sidebar import SidebarController
-from .state import AppKeyAction, BrowseAction, BrowseState
 from .status import StatusController
 from .widgets import ConversationPane, SidebarListView, SidebarPanel, StatusBar
 
@@ -290,12 +288,6 @@ class ElroyApp(App):
         scrollbar-color-active: $primary-lighten-2;
     }
 
-    #streaming-output {
-        height: auto;
-        min-height: 0;
-        padding: 0 1;
-    }
-
     #memory-panel {
         width: 36;
         height: 1fr;
@@ -377,8 +369,9 @@ class ElroyApp(App):
         self.command_flow = CommandFlowController(build_command_runtime(ctx))
         self.sidebar_controller = SidebarController(ctx, session)
         self.session_controller = SessionController(ctx, session)
-        self.browse_controller = BrowseController(BrowseState(self.SIDEBAR_SECTIONS))
         self._panel_entries: dict[str, list[SidebarEntry]] = {buffer_name: [] for buffer_name in self.SIDEBAR_SECTIONS}
+        self._sidebar_indices: dict[str, int | None] = dict.fromkeys(self.SIDEBAR_SECTIONS)
+        self._last_non_chat_target: Literal["sidebar", "history"] = "sidebar"
         self._history_index = -1
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
         self.status_controller = StatusController(self._spinner_chars)
@@ -391,15 +384,13 @@ class ElroyApp(App):
 
     @property
     def _browse_mode(self) -> bool:
-        return self.browse_controller.is_browsing
+        return not self._chat_input().has_focus
 
     @property
     def _browse_target(self) -> str:
-        return self.browse_controller.target
-
-    @property
-    def _panel_indices(self) -> dict[str, int | None]:
-        return self.browse_controller.panel_indices
+        if self._conversation_pane().history_has_focus():
+            return "history"
+        return "sidebar"
 
     @property
     def _active_worker_groups(self) -> set[str]:
@@ -513,21 +504,22 @@ class ElroyApp(App):
     # ── memory panel ─────────────────────────────────────────────────────────
 
     def on_sidebar_panel_entry_selected(self, message: SidebarPanel.EntrySelected) -> None:
-        self.browse_controller.remember_selection(message.section, message.index)
-        self.browse_controller.focus_sidebar()
+        self._remember_sidebar_selection(message.section, message.index)
+        self._last_non_chat_target = "sidebar"
         self._open_panel_entry(message.section, message.index)
-        self._render_browse_state()
+        self._render_focus_state()
 
     def on_sidebar_panel_entry_highlighted(self, message: SidebarPanel.EntryHighlighted) -> None:
-        self.browse_controller.remember_selection(message.section, message.index)
-        self.browse_controller.focus_sidebar()
-        self._render_browse_state()
+        self._remember_sidebar_selection(message.section, message.index)
+        self._last_non_chat_target = "sidebar"
+        self._render_focus_state()
 
     def on_sidebar_panel_section_changed(self, message: SidebarPanel.SectionChanged) -> None:
         self._apply_sidebar_selection(message.section)
-        if self._browse_mode and self._browse_target == "sidebar":
+        if self._sidebar_has_focus():
             self._sidebar_panel().focus_current_list()
-        self._render_browse_state()
+        self._last_non_chat_target = "sidebar"
+        self._render_focus_state()
 
     def on_chat_input_submit_requested(self, _: ChatInput.SubmitRequested) -> None:
         self._submit_chat_input()
@@ -709,34 +701,15 @@ class ElroyApp(App):
         if self.screen is not self.screen_stack[0]:
             return
 
-        if event.key == "ctrl+c" and input_widget.has_focus and input_widget.value:
-            input_widget.value = ""
-            self._resize_chat_input()
-            event.prevent_default()
-            event.stop()
+        if self._handle_global_key(event, input_widget):
             return
-
-        app_action = self.browse_controller.app_action_for_key(event.key)
-        if app_action is not None:
-            self._perform_app_key_action(app_action)
-            event.prevent_default()
-            event.stop()
+        if self._recover_focus_if_needed():
+            self._consume_key(event)
             return
-        if self._browse_mode:
-            handled = self._handle_browse_key(event.key)
-            if handled:
-                event.prevent_default()
-                event.stop()
-                return
-        current_sidebar = self._current_sidebar_list()
-        recovery_target = self.browse_controller.recovery_focus_target(
-            chat_has_focus=input_widget.has_focus,
-            history_has_focus=self._conversation_pane().history_has_focus(),
-            sidebar_has_focus=current_sidebar.has_focus,
-        )
-        if recovery_target is not None:
-            self._focus_target(recovery_target)
-            event.prevent_default()
+        if input_widget.has_focus:
+            return
+        if self._handle_non_chat_key(event):
+            return
 
     @work(thread=True, group="chat-stream", exclusive=True, exit_on_error=False)
     def _process_chat_message(self, text: str) -> None:
@@ -762,10 +735,13 @@ class ElroyApp(App):
                 build_user_session(turn).db.rollback()
 
     def action_toggle_browse(self) -> None:
-        if self._browse_mode:
-            self._focus_chat_input()
+        if self._chat_input().has_focus:
+            if self._last_non_chat_target == "history":
+                self._focus_history()
+            else:
+                self._focus_sidebar()
             return
-        self._switch_sidebar_section(self.current_sidebar_section, focus_sidebar=True)
+        self._focus_chat_input()
 
     def action_toggle_memory(self) -> None:
         self.action_focus_memories()
@@ -799,7 +775,7 @@ class ElroyApp(App):
         }
         self._chat_suggestions = state.completions
         self._render_sidebar_lists()
-        if self._browse_mode and self._browse_target == "sidebar":
+        if self._sidebar_has_focus():
             self.call_after_refresh(self._apply_sidebar_selection, self.current_sidebar_section)
 
     @work(thread=True, group="deferred-context-refresh", exclusive=True, exit_on_error=False)
@@ -903,112 +879,66 @@ class ElroyApp(App):
         self.notify(message, severity="error")
         self._write_to_history(Text(f"Error: {message}", style=self.formatter.warning_color))
 
-    # ── focus / browse helpers ───────────────────────────────────────────────
-
-    def _handle_browse_key(self, key: str) -> bool:
-        action = self.browse_controller.browse_action_for_key(key, self.current_sidebar_section, self._current_sidebar_list().index)
-        if action is None:
-            return False
-        self._perform_browse_action(action)
-        return True
-
-    def _perform_browse_action(self, action: BrowseAction) -> None:
-        history_log = self.query_one("#history-log", RichLog)
-        if action.kind == "move":
-            if self._browse_target == "history":
-                if action.delta > 0:
-                    history_log.scroll_down(animate=False, immediate=True)
-                else:
-                    history_log.scroll_up(animate=False, immediate=True)
-            else:
-                self._move_sidebar_selection(action.delta)
-            return
-        if action.kind == "cycle":
-            self._cycle_browse_target()
-            return
-        if action.kind == "switch_section" and action.section is not None:
-            self._switch_sidebar_section(action.section)
-            return
-        if action.kind == "open":
-            index = self._current_sidebar_list().index
-            if index is not None:
-                self._open_panel_entry(self.current_sidebar_section, index)
-            return
-        if action.kind == "focus_chat":
-            self._focus_chat_input()
-
-    def _perform_app_key_action(self, action: AppKeyAction) -> None:
-        if action.kind == "quit":
-            self.exit()
-            return
-        if action.kind == "cancel_stream":
-            self.action_cancel_stream()
-            return
-        if action.kind == "focus_memories":
-            self.action_focus_memories()
-            return
-        if action.kind == "focus_agenda":
-            self.action_focus_agenda()
-            return
-        if action.kind == "toggle_browse":
-            self.action_toggle_browse()
+    # ── focus / navigation helpers ──────────────────────────────────────────
 
     @property
     def current_sidebar_section(self) -> str:
         return self._sidebar_panel().current_section
 
     def _focus_chat_input(self) -> None:
-        self.browse_controller.focus_chat(self._chat_input())
-        self._render_browse_state()
+        self._chat_input().focus()
+        self._render_focus_state()
 
     def _resize_chat_input(self) -> None:
         self._chat_input().resize_to_content()
 
-    def _focus_browse_target(self) -> None:
-        if not self._browse_mode:
-            self.browse_controller.focus_sidebar()
-        self._focus_target(self.browse_controller.state.focus_target())
-        self._render_browse_state()
+    def _focus_sidebar(self) -> None:
+        self._sidebar_panel().focus_current_list()
+        self._apply_sidebar_selection(self.current_sidebar_section)
+        self._last_non_chat_target = "sidebar"
+        self._render_focus_state()
 
-    def _focus_target(self, target: str) -> None:
-        self.browse_controller.focus_target(
-            target,
-            self._chat_input(),
-            self._conversation_pane(),
-            self._sidebar_panel(),
-            self.current_sidebar_section,
-            self._panel_entries[self.current_sidebar_section],
-        )
-        self._render_browse_state()
+    def _focus_history(self) -> None:
+        self._conversation_pane().focus_history()
+        self._last_non_chat_target = "history"
+        self._render_focus_state()
 
-    def _cycle_browse_target(self) -> None:
-        self.browse_controller.cycle_target(
-            self._chat_input(),
-            self._conversation_pane(),
-            self._sidebar_panel(),
-            self.current_sidebar_section,
-            self._panel_entries[self.current_sidebar_section],
-        )
-        self._render_browse_state()
+    def _cycle_non_chat_focus(self) -> None:
+        if self._history_has_focus():
+            self._focus_sidebar()
+            return
+        self._focus_history()
 
     def _render_sidebar_lists(self) -> None:
         selected_indices = {section: self._resolved_sidebar_index(section) for section in self.SIDEBAR_SECTIONS}
         self._sidebar_panel().render_entries(self._panel_entries, selected_indices)
-        self._render_browse_state()
+        self._render_focus_state()
 
     def _resolved_sidebar_index(self, section: str) -> int | None:
-        return self.browse_controller.resolved_sidebar_index(section, self._panel_entries[section])
+        entries = self._panel_entries[section]
+        if not entries:
+            self._sidebar_indices[section] = None
+            return None
+        saved_index = self._sidebar_indices[section]
+        if saved_index is None:
+            saved_index = 0
+        saved_index = max(0, min(saved_index, len(entries) - 1))
+        self._sidebar_indices[section] = saved_index
+        return saved_index
 
     def _apply_sidebar_selection(self, section: str) -> None:
-        self.browse_controller.apply_sidebar_selection(self._sidebar_panel(), section, self._panel_entries[section])
-
-    def _move_sidebar_selection(self, delta: int) -> None:
-        section = self.current_sidebar_section
-        self.browse_controller.move_sidebar_selection(self._sidebar_panel(), section, self._panel_entries[section], delta)
+        self._sidebar_panel().apply_selection(section, self._resolved_sidebar_index(section))
 
     def _switch_sidebar_section(self, section: str, focus_sidebar: bool = False) -> None:
-        self.browse_controller.switch_sidebar_section(self._sidebar_panel(), section, self._panel_entries, focus_sidebar)
-        self._render_browse_state()
+        if section not in self._panel_entries:
+            return
+        self._sidebar_panel().switch_section(section)
+        self._apply_sidebar_selection(section)
+        if focus_sidebar or self._sidebar_has_focus():
+            self._sidebar_panel().focus_current_list()
+            self._last_non_chat_target = "sidebar"
+            self._sidebar_panel().call_after_refresh(self._apply_sidebar_selection, section)
+        self._render_focus_state()
 
     def _open_panel_entry(self, section: str, index: int) -> None:
         entries = self._panel_entries[section]
@@ -1039,8 +969,112 @@ class ElroyApp(App):
     def _accept_input_completion(self) -> None:
         self.conversation_controller.accept_input_completion(self._chat_input(), self._chat_suggestions)
 
-    def _render_browse_state(self) -> None:
-        self.browse_controller.render_browse_state(self._conversation_pane(), self._sidebar_panel(), self.current_sidebar_section)
+    def _remember_sidebar_selection(self, section: str, index: int | None) -> None:
+        self._sidebar_indices[section] = index
+
+    def _consume_key(self, event: events.Key) -> None:
+        event.prevent_default()
+        event.stop()
+
+    def _handle_global_key(self, event: events.Key, input_widget: ChatInput) -> bool:
+        if event.key == "ctrl+c" and input_widget.has_focus and input_widget.value:
+            input_widget.value = ""
+            self._resize_chat_input()
+            self._consume_key(event)
+            return True
+
+        actions = {
+            "ctrl+d": self.exit,
+            "ctrl+c": self.action_cancel_stream,
+            "ctrl+m": self.action_focus_memories,
+            "ctrl+a": self.action_focus_agenda,
+        }
+        action = actions.get(event.key)
+        if action is None:
+            return False
+        action()
+        self._consume_key(event)
+        return True
+
+    def _handle_non_chat_key(self, event: events.Key) -> bool:
+        if event.key in {"escape", "i", "a"}:
+            self._focus_chat_input()
+            self._consume_key(event)
+            return True
+        if event.key in {"tab", "shift+tab"}:
+            self._cycle_non_chat_focus()
+            self._consume_key(event)
+            return True
+        if self._handle_sidebar_switch_key(event.key):
+            self._consume_key(event)
+            return True
+        if self._handle_history_navigation_key(event.key):
+            self._consume_key(event)
+            return True
+        if self._handle_sidebar_navigation_key(event.key):
+            self._consume_key(event)
+            return True
+        return False
+
+    def _handle_sidebar_switch_key(self, key: str) -> bool:
+        section_keys = {
+            "m": "memories",
+            "g": "agenda",
+            "r": "improvements",
+            "f": "feature_requests",
+            "s": "codex_sessions",
+        }
+        if key in section_keys:
+            self._switch_sidebar_section(section_keys[key], focus_sidebar=True)
+            return True
+        if self._sidebar_has_focus() and key in {"left", "right"}:
+            self._switch_sidebar_section(self._adjacent_sidebar_section(-1 if key == "left" else 1), focus_sidebar=True)
+            return True
+        return False
+
+    def _handle_history_navigation_key(self, key: str) -> bool:
+        if not self._history_has_focus() or key not in {"j", "k", "up", "down"}:
+            return False
+        history_log = self.query_one("#history-log", RichLog)
+        if key in {"j", "down"}:
+            history_log.action_scroll_down()
+        else:
+            history_log.action_scroll_up()
+        return True
+
+    def _handle_sidebar_navigation_key(self, key: str) -> bool:
+        if not self._sidebar_has_focus() or key not in {"j", "k"}:
+            return False
+        list_view = self._current_sidebar_list()
+        if key == "j":
+            list_view.action_cursor_down()
+        else:
+            list_view.action_cursor_up()
+        return True
+
+    def _history_has_focus(self) -> bool:
+        return self._conversation_pane().history_has_focus()
+
+    def _sidebar_has_focus(self) -> bool:
+        return any(list_view.has_focus for list_view in self._sidebar_panel().sidebar_lists())
+
+    def _recover_focus_if_needed(self) -> bool:
+        if self._chat_input().has_focus or self._history_has_focus() or self._sidebar_has_focus():
+            return False
+        self._focus_chat_input()
+        return True
+
+    def _adjacent_sidebar_section(self, delta: int) -> str:
+        try:
+            index = self.SIDEBAR_SECTIONS.index(self.current_sidebar_section)
+        except ValueError:
+            index = 0
+        return self.SIDEBAR_SECTIONS[(index + delta) % len(self.SIDEBAR_SECTIONS)]
+
+    def _render_focus_state(self) -> None:
+        self._conversation_pane().set_history_active(self._history_has_focus())
+        active_sidebar_section = self.current_sidebar_section if self._sidebar_has_focus() else None
+        self._sidebar_panel().set_browse_active(active_sidebar_section)
         self._render_status_bar()
 
     def _render_status_bar(self) -> None:
