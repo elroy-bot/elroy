@@ -20,6 +20,10 @@ class ConversationController:
         self.formatter = formatter
         self.prompt_history = prompt_history
         self.show_internal_thought = show_internal_thought
+        self._history_renderables: list[object] = []
+        self._streaming_buffer = ""
+        self._streaming_rendered_len = 0
+        self._streaming_style = ""
         self._thought_buffer = ""
         self._input_history = self.prompt_history.load()
 
@@ -33,13 +37,25 @@ class ConversationController:
             self._input_history.insert(0, text)
 
     def write_to_history(self, conversation_pane, renderable) -> None:
+        self._history_renderables.append(renderable)
         conversation_pane.write_history(renderable)
 
     def append_streaming_token(self, conversation_pane, token: str, style: str) -> None:
-        self.write_to_history(conversation_pane, Text(token, style=style))
+        self._streaming_buffer += token
+        self._streaming_style = style
+        if self._should_render_streaming_update(token):
+            conversation_pane.update_streaming(Text(self._streaming_buffer, style=style))
+            self._streaming_rendered_len = len(self._streaming_buffer)
 
     def flush_streaming_buffer(self, conversation_pane) -> None:
-        _ = conversation_pane
+        if self._streaming_buffer:
+            if self._streaming_rendered_len != len(self._streaming_buffer):
+                conversation_pane.update_streaming(Text(self._streaming_buffer, style=self._streaming_style))
+            self._history_renderables.append(Text(self._streaming_buffer, style=self._streaming_style))
+            conversation_pane.finalize_streaming()
+            self._streaming_buffer = ""
+            self._streaming_rendered_len = 0
+            self._streaming_style = ""
 
     def append_thought_token(self, token: str) -> None:
         self._thought_buffer += token
@@ -127,3 +143,8 @@ class ConversationController:
         )
         if match:
             input_widget.value = match
+
+    def _should_render_streaming_update(self, token: str) -> bool:
+        if token.endswith((" ", "\n", ".", ",", ":", ";", "!", "?")):
+            return True
+        return len(self._streaming_buffer) - self._streaming_rendered_len >= 12
