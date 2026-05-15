@@ -230,6 +230,82 @@ async def test_tui_chat_input_grows_for_wrapped_text(ctx: ElroyConfig, rich_form
 
 
 @pytest.mark.asyncio
+async def test_tui_chat_input_up_down_cycle_prompt_history(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    app.conversation_controller._input_history = ["latest prompt", "older prompt"]
+    app._history_index = -1
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        assert input_widget.has_focus
+
+        await pilot.press("up")
+        await pilot.pause()
+        assert input_widget.value == "latest prompt"
+
+        await pilot.press("up")
+        await pilot.pause()
+        assert input_widget.value == "older prompt"
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert input_widget.value == "latest prompt"
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert input_widget.value == ""
+
+
+@pytest.mark.asyncio
+async def test_tui_chat_input_cursor_actions_use_prompt_history(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    app.conversation_controller._input_history = ["latest prompt", "older prompt"]
+    app._history_index = -1
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        input_widget = app.query_one("#chat-input", ChatInput)
+        input_widget.action_cursor_up()
+        await pilot.pause()
+        assert input_widget.value == "latest prompt"
+
+        input_widget.action_cursor_down()
+        await pilot.pause()
+        assert input_widget.value == ""
+
+
+@pytest.mark.asyncio
+async def test_tui_mouse_scroll_on_chat_input_scrolls_history_log(ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
+    app = _make_app(ctx, rich_formatter)
+    async with app.run_test(size=(60, 10)) as pilot:
+        await pilot.pause()
+
+        for index in range(30):
+            app._write_to_history(Text(f"line {index}", style=rich_formatter.assistant_message_color))
+        await pilot.pause()
+
+        history_log = app.query_one("#history-log", RichLog)
+        input_widget = app.query_one("#chat-input", ChatInput)
+        assert input_widget.has_focus
+        assert history_log.max_scroll_y > 0
+
+        start_scroll = history_log.scroll_y
+        input_widget._on_mouse_scroll_up(events.MouseScrollUp(input_widget, 0, 0, 0, -1, 0, False, False, False))
+        await pilot.pause()
+
+        assert history_log.scroll_y < start_scroll
+
+        scrolled_up = history_log.scroll_y
+        input_widget._on_mouse_scroll_down(events.MouseScrollDown(input_widget, 0, 0, 0, 1, 0, False, False, False))
+        await pilot.pause()
+
+        assert history_log.scroll_y > scrolled_up
+
+
+@pytest.mark.asyncio
 async def test_tui_renders_existing_context_messages_on_startup(george_ctx: ElroyConfig, rich_formatter: RichFormatter) -> None:
     app = _make_app(george_ctx, rich_formatter)
     async with app.run_test() as pilot:

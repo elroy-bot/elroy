@@ -163,6 +163,11 @@ class ChatInput(TextArea):
     class HistoryNextRequested(Message):
         pass
 
+    class ConversationScrollRequested(Message):
+        def __init__(self, delta: int) -> None:
+            super().__init__()
+            self.delta = delta
+
     class CompletionRequested(Message):
         pass
 
@@ -217,6 +222,14 @@ class ChatInput(TextArea):
             self.move_cursor(result.end_location)
         event.stop()
 
+    def _on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
+        self.post_message(self.ConversationScrollRequested(delta=-1))
+        event.stop()
+
+    def _on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
+        self.post_message(self.ConversationScrollRequested(delta=1))
+        event.stop()
+
     def action_paste(self) -> None:
         clipboard = self._normalize_paste_text(self.app.clipboard)
         start, end = self.selection
@@ -230,6 +243,14 @@ class ChatInput(TextArea):
         self.post_message(self.HistoryPreviousRequested())
 
     def action_history_next(self) -> None:
+        self.post_message(self.HistoryNextRequested())
+
+    def action_cursor_up(self, select: bool = False) -> None:
+        _ = select
+        self.post_message(self.HistoryPreviousRequested())
+
+    def action_cursor_down(self, select: bool = False) -> None:
+        _ = select
         self.post_message(self.HistoryNextRequested())
 
     def action_complete_input(self) -> None:
@@ -539,6 +560,13 @@ class ElroyApp(App):
             self._history_index = -1
             input_widget.value = ""
 
+    def on_chat_input_conversation_scroll_requested(self, message: ChatInput.ConversationScrollRequested) -> None:
+        history_log = self.query_one("#history-log", RichLog)
+        if message.delta > 0:
+            history_log.action_scroll_down()
+        else:
+            history_log.action_scroll_up()
+
     def on_chat_input_completion_requested(self, _: ChatInput.CompletionRequested) -> None:
         self._accept_input_completion()
 
@@ -710,6 +738,18 @@ class ElroyApp(App):
             return
         if self._handle_non_chat_key(event):
             return
+
+    def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
+        if self.screen is not self.screen_stack[0] or not self._chat_input().has_focus:
+            return
+        self._scroll_history_log(-1)
+        event.stop()
+
+    def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
+        if self.screen is not self.screen_stack[0] or not self._chat_input().has_focus:
+            return
+        self._scroll_history_log(1)
+        event.stop()
 
     @work(thread=True, group="chat-stream", exclusive=True, exit_on_error=False)
     def _process_chat_message(self, text: str) -> None:
@@ -1035,11 +1075,7 @@ class ElroyApp(App):
     def _handle_history_navigation_key(self, key: str) -> bool:
         if not self._history_has_focus() or key not in {"j", "k", "up", "down"}:
             return False
-        history_log = self.query_one("#history-log", RichLog)
-        if key in {"j", "down"}:
-            history_log.action_scroll_down()
-        else:
-            history_log.action_scroll_up()
+        self._scroll_history_log(1 if key in {"j", "down"} else -1)
         return True
 
     def _handle_sidebar_navigation_key(self, key: str) -> bool:
@@ -1054,6 +1090,13 @@ class ElroyApp(App):
 
     def _history_has_focus(self) -> bool:
         return self._conversation_pane().history_has_focus()
+
+    def _scroll_history_log(self, delta: int) -> None:
+        history_log = self.query_one("#history-log", RichLog)
+        if delta > 0:
+            history_log.action_scroll_down()
+        else:
+            history_log.action_scroll_up()
 
     def _sidebar_has_focus(self) -> bool:
         return any(list_view.has_focus for list_view in self._sidebar_panel().sidebar_lists())
