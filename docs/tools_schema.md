@@ -146,17 +146,17 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "complete_due_item",
-      "description": "Marks a due item as completed.",
+      "description": "Mark a due item as completed.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "The name of the due item to mark complete"
+            "description": "Name of the due item to complete."
           },
           "closing_comment": {
             "type": "string",
-            "description": "Optional comment on why the item was completed"
+            "description": "Optional note explaining why it was completed."
           }
         },
         "required": [
@@ -169,25 +169,25 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "create_due_item",
-      "description": "Creates a due item that can be triggered by time and/or context.",
+      "description": "Create a due item that can be triggered by time and/or context.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "Name of the due item (must be unique)"
+            "description": "Name of the due item. Must be unique."
           },
           "text": {
             "type": "string",
-            "description": "The item text to display when triggered"
+            "description": "The item text to display when triggered."
           },
           "trigger_time": {
             "type": "string",
-            "description": "When the item should trigger in format \"YYYY-MM-DD HH:MM\" (e.g., \"2024-12-25 09:00\"). If provided, creates a timed due item."
+            "description": "Trigger time in ``YYYY-MM-DD HH:MM`` format."
           },
           "trigger_context": {
             "type": "string",
-            "description": "Description of the context/situation when this item should be triggered."
+            "description": "Description of the triggering context or situation."
           }
         },
         "required": [
@@ -266,21 +266,52 @@ BETTER:
     "type": "function",
     "function": {
       "name": "delete_due_item",
-      "description": "Permanently deletes a due item.",
+      "description": "Delete a due item permanently.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "The name of the due item to delete"
+            "description": "Name of the due item to delete."
           },
           "closing_comment": {
             "type": "string",
-            "description": "Optional comment on why the item was deleted"
+            "description": "Optional note explaining why it was deleted."
           }
         },
         "required": [
           "name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dispatch_codex_session",
+      "description": "Run a Codex coding session against a repository inside the development workspace.
+
+Use this when you want Codex to work in another repository or to perform a bounded coding task
+in the current repo. Elroy will capture the Codex session id, summarize repository changes, and
+remember the session for later resumption.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Instructions to send to Codex."
+          },
+          "repo_path": {
+            "type": "string",
+            "description": "Repository path relative to the development directory, or an absolute path inside it."
+          },
+          "model": {
+            "type": "string",
+            "description": "Optional Codex model override."
+          }
+        },
+        "required": [
+          "prompt"
         ]
       }
     }
@@ -336,6 +367,45 @@ BETTER:
   {
     "type": "function",
     "function": {
+      "name": "edit_feature_request",
+      "description": "Edit an existing markdown feature request.
+
+Use this when a feature request already exists and needs a better title,
+refined summary, updated rationale, or status change. Prefer this over creating
+a duplicate request for the same product need.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "Existing request id, title, alias, or filename stem to update."
+          },
+          "title": {
+            "type": "string",
+            "description": "Replacement canonical title."
+          },
+          "description": {
+            "type": "string",
+            "description": "Replacement summary of the request."
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Replacement rationale for why it matters."
+          },
+          "status": {
+            "type": "string",
+            "description": "Replacement status value such as `open` or `closed`."
+          }
+        },
+        "required": [
+          "identifier"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "examine_memories",
       "description": "Search through memories for the answer to a question.
 
@@ -361,30 +431,6 @@ If a retrieved memory is relevant but lacks detail to answer the question, use t
     "function": {
       "name": "get_current_date",
       "description": "Returns the current date and time."
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "get_document_excerpt",
-      "description": "Gets text of document excerpt by address and chunk index (0-indexed). Use get_source_doc_metadata to get available chunk indices.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "address": {
-            "type": "string",
-            "description": "The address/path of the document"
-          },
-          "chunk_index": {
-            "type": "integer",
-            "description": "The 0-based index of the chunk to retrieve"
-          }
-        },
-        "required": [
-          "address",
-          "chunk_index"
-        ]
-      }
     }
   },
   {
@@ -422,32 +468,6 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
-      "name": "get_source_doc_metadata",
-      "description": "Gets metadata about a source document including extraction time and available chunks.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "address": {
-            "type": "string",
-            "description": "The address/path of the document"
-          }
-        },
-        "required": [
-          "address"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "get_source_documents",
-      "description": "Gets the list of ingested source documents."
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "get_user_full_name",
       "description": "Returns the user's full name."
     }
@@ -479,14 +499,112 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
+      "name": "list_codex_sessions",
+      "description": "List recently recorded Codex sessions and their latest change summaries.
+
+Use this to discover resumable Codex sessions, inspect which repository each session targeted,
+and review the latest summary before deciding whether to resume one. Session listings include
+the isolated worktree and branch metadata so concurrent runs can be distinguished safely.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "repo_path": {
+            "type": "string",
+            "description": "Optional repository path filter relative to the development directory."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of sessions to return."
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_feature_requests",
+      "description": "List the current markdown-backed feature requests.
+
+Use this before creating a new feature request when you suspect the request may
+already exist. This helps avoid duplicate backlog entries by surfacing the
+canonical titles, aliases, statuses, and brief summaries of existing requests."
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ls",
+      "description": "List a file or directory, with bounded recursive expansion for directories.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "File or directory path to inspect. Relative paths are resolved from the current working directory."
+          },
+          "recursive": {
+            "type": "boolean",
+            "description": "Whether to recursively expand directories."
+          },
+          "max_entries": {
+            "type": "integer",
+            "description": "Maximum number of entries to include in the listing."
+          },
+          "max_depth": {
+            "type": "integer",
+            "description": "Maximum directory depth to recurse into when recursive is true."
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "make_feature_request",
+      "description": "Create or merge a markdown feature request for future product work.
+
+Use this when the user asks for a net new capability, workflow, or product behavior
+that Elroy does not currently support. First consider calling `list_feature_requests`
+to inspect the existing backlog. This tool will also try to merge into an existing
+feature request when the request appears duplicative, to avoid backlog bloat.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Short title describing the requested feature."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the new feature should do."
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Optional explanation of why the feature matters."
+          }
+        },
+        "required": [
+          "title",
+          "description"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "print_due_item",
-      "description": "Prints the due item with the given name.",
+      "description": "Print the details for a due item by name.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "Name of the due item to retrieve"
+            "description": "Name of the due item to retrieve."
           }
         },
         "required": [
@@ -517,18 +635,52 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
+      "name": "pwd",
+      "description": "Return the current working directory for filesystem tool calls."
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "read_file",
+      "description": "Read a text file, optionally constrained to a line range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "File path to read. Relative paths are resolved from the current working directory."
+          },
+          "start_line": {
+            "type": "integer",
+            "description": "One-based starting line number to read from."
+          },
+          "end_line": {
+            "type": "integer",
+            "description": "One-based ending line number to read through. Defaults to start_line + 199."
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "rename_due_item",
-      "description": "Renames an existing due item.",
+      "description": "Rename an existing due item.",
       "parameters": {
         "type": "object",
         "properties": {
           "old_name": {
             "type": "string",
-            "description": "The current name of the item"
+            "description": "Current due item name."
           },
           "new_name": {
             "type": "string",
-            "description": "The new name for the item"
+            "description": "Replacement due item name."
           }
         },
         "required": [
@@ -541,18 +693,48 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
-      "name": "search_documents",
-      "description": "Search through document excerpts using semantic similarity.",
+      "name": "restart_session",
+      "description": "Restart the active Elroy session after the current response completes.",
       "parameters": {
         "type": "object",
         "properties": {
-          "query": {
+          "resume_message": {
             "type": "string",
-            "description": "The search query string"
+            "description": "Hidden prompt injected after restart to trigger the assistant's first reply"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "resume_codex_session",
+      "description": "Resume a previously recorded Codex session with a follow-up prompt.
+
+Use this after `dispatch_codex_session` when you want Codex to continue earlier work while
+preserving its own session context. Elroy resumes the same Codex thread id and returns an
+updated repository-change summary.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "description": "Existing Codex thread/session id returned by Elroy."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Follow-up prompt to send to the existing Codex session."
+          },
+          "model": {
+            "type": "string",
+            "description": "Optional Codex model override."
           }
         },
         "required": [
-          "query"
+          "session_id",
+          "prompt"
         ]
       }
     }
@@ -611,17 +793,17 @@ Guidance for usage:
     "type": "function",
     "function": {
       "name": "update_due_item_text",
-      "description": "Updates the text of an existing due item.",
+      "description": "Update the text of an existing due item.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "Name of the item to update"
+            "description": "Name of the due item to update."
           },
           "new_text": {
             "type": "string",
-            "description": "The new item text"
+            "description": "Replacement text for the due item."
           }
         },
         "required": [
