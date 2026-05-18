@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-18
+
+### Added
+- Async Claude Code (Codex) agent sessions: Elroy can now launch and manage Claude Code coding sessions as background agents, with results surfaced back in the TUI. Use the new tools to create and track sessions from within a conversation
+- File reading tool: Elroy can now read files from the local filesystem as part of tool use, enabling richer context for coding and research tasks
+- Feature request flow: Users can now submit feature requests directly from the TUI; these are tracked and surfaced to Elroy for prioritization
+- Self-reflection improvement items are now surfaced in the TUI sidebar, giving visibility into what Elroy is tracking about its own behavior
+
+### Improved
+- The TUI sidebar now supports keyboard navigation between tabs using arrow keys
+- Ctrl-C now clears the chat input buffer rather than exiting, making it easier to cancel a partially typed message
+- Multi-line paste support for the chat input
+- Long messages now wrap correctly in the input area
+- Context from previous sessions loads more reliably when starting a new chat
+- Internal thought rendering has been fixed to display correctly in the conversation view
+
+### Changed
+- Slash commands have been removed from the TUI. Actions previously available as slash commands are now handled through Elroy's tool system or the sidebar UI directly
+- The user ID layer has been removed from the internal context model, simplifying session and repository logic throughout the codebase
+
+### Infrastructure
+- Documentation is now self-hosted
+
 ## [0.4.0] - 2026-04-03
 
 ### Added
