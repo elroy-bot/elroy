@@ -289,7 +289,7 @@ BETTER:
     "type": "function",
     "function": {
       "name": "dispatch_codex_session",
-      "description": "Run a Codex coding session against a repository inside the development workspace.
+      "description": "Run a Codex coding session against a repository inside the Elroy development workspace.
 
 Use this when you want Codex to work in another repository or to perform a bounded coding task
 in the current repo. Elroy will capture the Codex session id, summarize repository changes, and
@@ -303,7 +303,7 @@ remember the session for later resumption.",
           },
           "repo_path": {
             "type": "string",
-            "description": "Repository path relative to the development directory, or an absolute path inside it."
+            "description": "Repository path relative to the workspace containing this Elroy checkout, or an absolute path inside it."
           },
           "model": {
             "type": "string",
@@ -510,7 +510,7 @@ the isolated worktree and branch metadata so concurrent runs can be distinguishe
         "properties": {
           "repo_path": {
             "type": "string",
-            "description": "Optional repository path filter relative to the development directory."
+            "description": "Optional repository path filter relative to the workspace containing this Elroy checkout."
           },
           "limit": {
             "type": "integer",

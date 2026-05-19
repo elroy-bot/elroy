@@ -9,6 +9,7 @@ from elroy.core.constants import RecoverableToolError
 from elroy.core.session import open_turn_context
 from elroy.db.db_models import CodexSession
 from elroy.llm.stream_parser import AssistantResponse
+from elroy.repository.codex_sessions import tools as codex_tools
 from elroy.repository.codex_sessions.tools import (
     dispatch_codex_session,
     list_codex_sessions,
@@ -16,6 +17,14 @@ from elroy.repository.codex_sessions.tools import (
 )
 
 REAL_POPEN = subprocess.Popen
+
+
+def _write_fake_elroy_source_tree(source_root: Path) -> Path:
+    module_file = source_root / "elroy" / "repository" / "codex_sessions" / "tools.py"
+    module_file.parent.mkdir(parents=True, exist_ok=True)
+    module_file.write_text("", encoding="utf-8")
+    (source_root / "pyproject.toml").write_text("[project]\nname = 'elroy'\n", encoding="utf-8")
+    return module_file
 
 
 def _init_repo(repo_root: Path) -> None:
@@ -26,6 +35,26 @@ def _init_repo(repo_root: Path) -> None:
     (repo_root / "notes.txt").write_text("before\n", encoding="utf-8")
     subprocess.run(["git", "add", "notes.txt"], cwd=repo_root, check=True, capture_output=True, text=True)
     subprocess.run(["git", "commit", "-m", "init"], cwd=repo_root, check=True, capture_output=True, text=True)
+
+
+def test_resolve_repo_path_uses_running_elroy_checkout_parent(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    home_development_repo = home / "development" / "sample"
+    _init_repo(home_development_repo)
+
+    workspace_root = tmp_path / "Workspaces"
+    repo_root = workspace_root / "sample"
+    _init_repo(repo_root)
+    module_file = _write_fake_elroy_source_tree(workspace_root / "elroy")
+
+    cwd = tmp_path / "outside-workspace"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(codex_tools, "__file__", str(module_file))
+
+    assert codex_tools._development_root() == workspace_root.resolve()
+    assert codex_tools._resolve_repo_path("sample") == repo_root.resolve()
 
 
 class _ImmediateThread:

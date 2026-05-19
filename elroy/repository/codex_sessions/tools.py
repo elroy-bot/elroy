@@ -112,16 +112,19 @@ def _run_subprocess(
     )
 
 
-def _development_root() -> Path:
-    cwd = Path.cwd().resolve()
-    if "development" in cwd.parts:
-        idx = cwd.parts.index("development")
-        return Path(*cwd.parts[: idx + 1])
+def _running_elroy_root() -> Path | None:
+    current_file = Path(__file__).resolve()
+    for parent in current_file.parents:
+        if (parent / "pyproject.toml").is_file() and (parent / "elroy").is_dir():
+            return parent
+    return None
 
-    candidate = Path.home() / "development"
-    if candidate.exists():
-        return candidate.resolve()
-    return cwd
+
+def _development_root() -> Path:
+    elroy_root = _running_elroy_root()
+    if elroy_root is not None:
+        return elroy_root.parent.resolve()
+    return Path.cwd().resolve()
 
 
 def _ensure_within_root(target: Path, root: Path) -> Path:
@@ -643,7 +646,7 @@ def _prepare_codex_async_run(
 
 @tool
 def dispatch_codex_session(prompt: str, turn: TurnContext, repo_path: str | None = None, model: str | None = None) -> CodexSessionResult:
-    """Run a Codex coding session against a repository inside the development workspace.
+    """Run a Codex coding session against a repository inside the Elroy development workspace.
 
     Use this when you want Codex to work in another repository or to perform a bounded coding task
     in the current repo. Elroy will capture the Codex session id, summarize repository changes, and
@@ -652,7 +655,7 @@ def dispatch_codex_session(prompt: str, turn: TurnContext, repo_path: str | None
     Args:
         prompt: Instructions to send to Codex.
         turn: Active turn context for persistence.
-        repo_path: Repository path relative to the development directory, or an absolute path inside it.
+        repo_path: Repository path relative to the workspace containing this Elroy checkout, or an absolute path inside it.
         model: Optional Codex model override.
     """
     source_repo_root = _resolve_repo_path(repo_path)
@@ -723,7 +726,7 @@ def list_codex_sessions(
 
     Args:
         turn: Active turn context for persistence.
-        repo_path: Optional repository path filter relative to the development directory.
+        repo_path: Optional repository path filter relative to the workspace containing this Elroy checkout.
         limit: Maximum number of sessions to return.
     """
     if limit < 1:
