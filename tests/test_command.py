@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -8,6 +9,7 @@ import pytest
 
 from elroy import __version__
 from elroy.core.ctx import ElroyConfig
+from elroy.ui import app as app_module
 from elroy.ui.app import RESTART_RESUME_MESSAGE_ENV, AppRestartRequest, main
 
 from .utils import process_test_message
@@ -122,6 +124,40 @@ def test_main_reexecs_process_with_restart_pythonpath_from_source_root(monkeypat
     restart_env = exec_call["env"]
     assert isinstance(restart_env, dict)
     assert restart_env["PYTHONPATH"] == f"/tmp/elroy-src{os.pathsep}/tmp/already-there"
+
+
+def test_restart_env_prefers_agent_worktree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "development" / "elroy"
+    repo_root.mkdir(parents=True)
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_root, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_root, check=True, capture_output=True, text=True)
+    (repo_root / "pyproject.toml").write_text("[project]\nname = 'elroy'\n", encoding="utf-8")
+    (repo_root / "elroy").mkdir()
+    (repo_root / "elroy" / "__init__.py").write_text("", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo_root, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo_root, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "branch", "agent"], cwd=repo_root, check=True, capture_output=True, text=True)
+
+    monkeypatch.setattr(app_module, "_source_tree_root", lambda: repo_root)
+    monkeypatch.setattr(app_module, "_editable_install_root", lambda: None)
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+
+    restart_env = app_module._build_restart_env("resume")
+
+    pythonpath_entries = restart_env["PYTHONPATH"].split(os.pathsep)
+    agent_root = Path(pythonpath_entries[0])
+    assert agent_root.parent.parent.name == ".elroy-codex-worktrees"
+    assert agent_root.name == "agent"
+    assert agent_root.is_dir()
+    assert (agent_root / "pyproject.toml").is_file()
+    current_branch = subprocess.run(
+        ["git", "-C", str(agent_root), "branch", "--show-current"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert current_branch == "agent"
 
 
 def test_main_reexecs_process_with_installed_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import subprocess
 import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -50,6 +52,8 @@ from .widgets import ConversationPane, SidebarListView, SidebarPanel, StatusBar
 
 logger = get_logger()
 RESTART_RESUME_MESSAGE_ENV = "ELROY_RESTART_RESUME_MESSAGE"
+AGENT_BRANCH = "agent"
+CODEX_WORKTREE_ROOT_DIRNAME = ".elroy-codex-worktrees"
 
 
 @dataclass(frozen=True)
@@ -1184,6 +1188,90 @@ def _is_running_from_source_tree() -> bool:
     return any((parent / "pyproject.toml").is_file() for parent in current_file.parents)
 
 
+def _run_git(repo_root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(repo_root), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _git_repo_root(path: Path) -> Path | None:
+    result = _run_git(path, ["rev-parse", "--show-toplevel"])
+    if result.returncode != 0:
+        return None
+    return Path(result.stdout.strip()).resolve()
+
+
+def _git_branch_exists(repo_root: Path, branch_name: str) -> bool:
+    result = _run_git(repo_root, ["show-ref", "--verify", f"refs/heads/{branch_name}"])
+    return result.returncode == 0
+
+
+def _current_git_branch(repo_root: Path) -> str | None:
+    result = _run_git(repo_root, ["branch", "--show-current"])
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _repo_slug(repo_root: Path) -> str:
+    digest = hashlib.sha1(str(repo_root).encode("utf-8")).hexdigest()[:10]
+    return f"{repo_root.name}-{digest}"
+
+
+def _development_root_for_repo(repo_root: Path) -> Path:
+    for parent in repo_root.resolve().parents:
+        if parent.name == CODEX_WORKTREE_ROOT_DIRNAME:
+            return parent.parent
+    return repo_root.parent
+
+
+def _default_agent_worktree_path(repo_root: Path) -> Path:
+    return _development_root_for_repo(repo_root) / CODEX_WORKTREE_ROOT_DIRNAME / _repo_slug(repo_root) / AGENT_BRANCH
+
+
+def _worktree_path_for_branch(repo_root: Path, branch_name: str) -> Path | None:
+    result = _run_git(repo_root, ["worktree", "list", "--porcelain"])
+    if result.returncode != 0:
+        return None
+
+    current_worktree: Path | None = None
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            current_worktree = Path(line.removeprefix("worktree ")).resolve()
+            continue
+        if line == f"branch refs/heads/{branch_name}" and current_worktree is not None:
+            return current_worktree
+    return None
+
+
+def _ensure_agent_worktree(repo_root: Path) -> Path | None:
+    existing_worktree = _worktree_path_for_branch(repo_root, AGENT_BRANCH)
+    if existing_worktree is not None:
+        return existing_worktree
+
+    agent_worktree = _default_agent_worktree_path(repo_root)
+    agent_worktree.parent.mkdir(parents=True, exist_ok=True)
+    result = _run_git(repo_root, ["worktree", "add", str(agent_worktree), AGENT_BRANCH])
+    if result.returncode != 0:
+        logger.warning("Unable to create agent worktree for restart: %s", (result.stderr or result.stdout).strip())
+        return None
+    return agent_worktree
+
+
+def _agent_restart_root(source_root: Path) -> Path | None:
+    repo_root = _git_repo_root(source_root)
+    if repo_root is None:
+        return None
+    if _current_git_branch(repo_root) == AGENT_BRANCH:
+        return repo_root
+    if not _git_branch_exists(repo_root, AGENT_BRANCH):
+        return None
+    return _ensure_agent_worktree(repo_root)
+
+
 def _source_tree_root() -> Path | None:
     current_file = Path(__file__).resolve()
     for parent in current_file.parents:
@@ -1236,7 +1324,10 @@ def _build_restart_argv() -> list[str]:
 def _build_restart_env(resume_prompt: str) -> dict[str, str]:
     restart_env = os.environ.copy()
     restart_env[RESTART_RESUME_MESSAGE_ENV] = resume_prompt
-    restart_root = _source_tree_root() or _editable_install_root()
+    source_root = _source_tree_root() or _editable_install_root()
+    restart_root = None
+    if source_root is not None:
+        restart_root = _agent_restart_root(source_root) or source_root
     if restart_root is None:
         return restart_env
 

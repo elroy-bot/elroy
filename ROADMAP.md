@@ -67,6 +67,11 @@ They can be hidden via `--no-show-internal-thought` or `show_internal_thought: f
   - Reused the markdown-backed feature request store for persistence and dedupe instead of adding new database state
   - Kept reflection deterministic with correction-phrase heuristics and no autonomous code changes
 ### Developer Experience
+- **Clarify agent-branch self-improvement route** (Completed: 2026-05-19)
+  - Restart now prefers the local `agent` worktree when Elroy is running from a source or editable checkout
+  - Keeps `upstream/main`, fork `origin/main`, runtime `agent`, and per-session `elroy-codex-*` branches distinct in docs
+
+### Developer Experience
 - **Add self-restart tool for autonomous tool/code refresh** (Completed: 2026-05)
   - Added assistant-visible `restart_session` support to request a graceful TUI restart
   - Re-executes Elroy after the current response completes so updated code and tools are loaded

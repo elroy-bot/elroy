@@ -120,10 +120,17 @@ def _running_elroy_root() -> Path | None:
     return None
 
 
+def _development_root_for_elroy_root(elroy_root: Path) -> Path:
+    for parent in elroy_root.resolve().parents:
+        if parent.name == WORKTREE_ROOT_DIRNAME:
+            return parent.parent.resolve()
+    return elroy_root.parent.resolve()
+
+
 def _development_root() -> Path:
     elroy_root = _running_elroy_root()
     if elroy_root is not None:
-        return elroy_root.parent.resolve()
+        return _development_root_for_elroy_root(elroy_root)
     return Path.cwd().resolve()
 
 

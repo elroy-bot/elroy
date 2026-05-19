@@ -136,7 +136,15 @@ For detailed usage and examples, see [claude-skills/README.md](claude-skills/REA
 
 ## Branches
 
-`main` comes with backwards compatibility and automatic database migrations.
+Elroy's self-improvement workflow keeps four refs separate:
+
+- `upstream/main` is the source project branch.
+- `origin/main` is the fork branch used when preparing contributions back upstream.
+- `agent` is the long-lived local runtime branch for agent-driven changes.
+- `elroy-codex-*` branches are short-lived per-session development branches.
+
+Codex sessions run in isolated worktrees on `elroy-codex-*` branches, then successful results merge into `agent`.
+When Elroy restarts from a source checkout and a local `agent` branch exists, it reloads from the `agent` worktree so newly merged agent code is active after restart.
 
 `stable` is sync'd with the latest release branch.
 

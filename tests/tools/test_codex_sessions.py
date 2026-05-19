@@ -57,6 +57,21 @@ def test_resolve_repo_path_uses_running_elroy_checkout_parent(monkeypatch: pytes
     assert codex_tools._resolve_repo_path("sample") == repo_root.resolve()
 
 
+def test_resolve_repo_path_uses_workspace_parent_when_running_from_agent_worktree(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    workspace_root = tmp_path / "Workspaces"
+    repo_root = workspace_root / "sample"
+    _init_repo(repo_root)
+    module_file = _write_fake_elroy_source_tree(workspace_root / ".elroy-codex-worktrees" / "elroy-1234567890" / "agent")
+
+    monkeypatch.setattr(codex_tools, "__file__", str(module_file))
+
+    assert codex_tools._development_root() == workspace_root.resolve()
+    assert codex_tools._resolve_repo_path("sample") == repo_root.resolve()
+
+
 class _ImmediateThread:
     def __init__(self, *, target, kwargs=None, daemon=None, name=None):
         self._target = target
