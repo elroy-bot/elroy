@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from importlib.metadata import PackageNotFoundError, distribution
-from pathlib import Path
 from typing import ClassVar, Literal
-from urllib.parse import unquote, urlparse
 
 from rich.text import Text
 from textual import events, work
@@ -35,6 +31,7 @@ from ..io.formatters.rich_formatter import RichFormatter
 from ..io.prompt_history import PromptHistoryStore
 from ..repository.user.queries import get_assistant_name
 from ..repository.user.session import build_user_runtime, build_user_session
+from ..utils.git import editable_install_root, is_running_from_source_tree, source_tree_root
 from .command_flow import CommandFlowController
 from .commands import (
     ToolCommandProvider,
@@ -392,7 +389,7 @@ class ElroyApp(App):
         self.session_controller = SessionController(ctx, session)
         self._panel_entries: dict[str, list[SidebarEntry]] = {buffer_name: [] for buffer_name in self.SIDEBAR_SECTIONS}
         self._sidebar_indices: dict[str, int | None] = dict.fromkeys(self.SIDEBAR_SECTIONS)
-        self._last_non_chat_target: Literal["sidebar", "history"] = "sidebar"
+        self._last_non_chat_target = "sidebar"
         self._history_index = -1
         self._spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
         self.status_controller = StatusController(self._spinner_chars)
@@ -768,7 +765,7 @@ class ElroyApp(App):
     # ── actions ───────────────────────────────────────────────────────────────
 
     def action_cancel_stream(self) -> None:
-        if "chat-stream" in self._active_worker_groups:
+        if "chat-stream" in self.status_controller.active_groups:
             self.workers.cancel_group(self, "chat-stream")
             self._flush_streaming_buffer()
             with open_turn_context(self.ctx, self.session) as turn:
@@ -1179,50 +1176,12 @@ def _handle_cli_command(argv: list[str]) -> bool:
     return False
 
 
-def _is_running_from_source_tree() -> bool:
-    current_file = Path(__file__).resolve()
-    return any((parent / "pyproject.toml").is_file() for parent in current_file.parents)
-
-
-def _source_tree_root() -> Path | None:
-    current_file = Path(__file__).resolve()
-    for parent in current_file.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return None
-
-
-def _editable_install_root() -> Path | None:
-    try:
-        direct_url_text = distribution("elroy").read_text("direct_url.json")
-    except PackageNotFoundError:
-        return None
-
-    if not direct_url_text:
-        return None
-
-    try:
-        direct_url = json.loads(direct_url_text)
-    except json.JSONDecodeError:
-        logger.warning("Unable to parse elroy direct_url metadata when building restart argv")
-        return None
-
-    if not direct_url.get("dir_info", {}).get("editable"):
-        return None
-
-    parsed_url = urlparse(direct_url.get("url", ""))
-    if parsed_url.scheme != "file":
-        return None
-
-    return Path(unquote(parsed_url.path))
-
-
 def _is_editable_install() -> bool:
-    return _editable_install_root() is not None
+    return editable_install_root() is not None
 
 
 def _should_restart_as_module() -> bool:
-    return _is_running_from_source_tree() or _is_editable_install()
+    return is_running_from_source_tree() or _is_editable_install()
 
 
 def _build_restart_argv() -> list[str]:
@@ -1236,7 +1195,7 @@ def _build_restart_argv() -> list[str]:
 def _build_restart_env(resume_prompt: str) -> dict[str, str]:
     restart_env = os.environ.copy()
     restart_env[RESTART_RESUME_MESSAGE_ENV] = resume_prompt
-    restart_root = _source_tree_root() or _editable_install_root()
+    restart_root = source_tree_root() or editable_install_root()
     if restart_root is None:
         return restart_env
 

@@ -34,6 +34,15 @@ def clone_config(config: ElroyConfig) -> ElroyConfig:
 def init_elroy_session(config: ElroyConfig, io: ElroyIO | None, check_db_migration: bool, should_onboard_interactive: bool):
     _ = (io, should_onboard_interactive)
     from ..repository.user.store import UserStore
+    from ..utils.git import AGENT_BRANCH, editable_install_root, get_current_branch, source_tree_root
+
+    repo_root = source_tree_root() or editable_install_root()
+    if repo_root:
+        current_branch = get_current_branch(repo_root)
+        if current_branch and current_branch != AGENT_BRANCH:
+            raise RuntimeError(
+                f"Elroy must be running on the '{AGENT_BRANCH}' branch when running from source or editable install. Current branch: {current_branch}"
+            )
 
     db_manager = get_db_manager(config)
     if check_db_migration:

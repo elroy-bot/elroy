@@ -76,10 +76,27 @@ class _FakePopen:
         self.stderr = io.StringIO(stderr_text)
         self.returncode = returncode
 
-    def communicate(self):
+    def communicate(self, input=None, timeout=None):
+        del input, timeout
         assert self.stdout is not None
         assert self.stderr is not None
         return self.stdout.read(), self.stderr.read()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def kill(self):
+        pass
+
+    def poll(self):
+        return self.returncode
+
+    def wait(self, timeout=None):
+        del timeout
+        return self.returncode
 
 
 def test_dispatch_codex_session_runs_in_background_and_persists_completion(ctx, monkeypatch, tmp_path: Path):
@@ -89,6 +106,8 @@ def test_dispatch_codex_session_runs_in_background_and_persists_completion(ctx, 
 
     monkeypatch.setattr("elroy.repository.codex_sessions.tools._development_root", lambda: development_root)
     monkeypatch.setattr("elroy.repository.codex_sessions.tools.threading.Thread", _ImmediateThread)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.source_tree_root", lambda: repo_root)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.get_current_branch", lambda _: "agent")
 
     real_run = subprocess.run
 
@@ -139,6 +158,9 @@ def test_dispatch_codex_session_runs_in_background_and_persists_completion(ctx, 
     assert records[0].status == "completed"
     assert records[0].latest_agent_message == "updated notes"
     assert records[0].worktree_path is not None
+    assert "Removed session worktree" in (records[0].latest_summary or "")
+    assert "Removed session branch" in (records[0].latest_summary or "")
+    assert not Path(records[0].worktree_path).exists()
     assert records[0].session_branch is not None
     assert records[0].target_branch == "agent"
     agent_head = subprocess.run(
@@ -157,6 +179,8 @@ def test_resume_and_list_codex_sessions_runs_async(ctx, monkeypatch, tmp_path: P
 
     monkeypatch.setattr("elroy.repository.codex_sessions.tools._development_root", lambda: development_root)
     monkeypatch.setattr("elroy.repository.codex_sessions.tools.threading.Thread", _ImmediateThread)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.source_tree_root", lambda: repo_root)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.get_current_branch", lambda _: "agent")
     real_run = subprocess.run
     popen_calls: list[tuple[list[str], str | None]] = []
 
@@ -208,6 +232,8 @@ def test_resume_and_list_codex_sessions_runs_async(ctx, monkeypatch, tmp_path: P
     assert listed.sessions[0].final_message == "resume complete"
     assert listed.sessions[0].repo_path == str(repo_root)
     assert listed.sessions[0].status == "completed"
+    assert "Removed session worktree" in listed.sessions[0].summary
+    assert "Removed session branch" in listed.sessions[0].summary
     agent_head = subprocess.run(
         ["git", "-C", str(repo_root), "show", "agent:notes.txt"],
         check=True,
@@ -224,6 +250,8 @@ def test_resume_running_session_is_rejected(ctx, monkeypatch, tmp_path: Path):
 
     monkeypatch.setattr("elroy.repository.codex_sessions.tools._development_root", lambda: development_root)
     monkeypatch.setattr("elroy.repository.codex_sessions.tools.threading.Thread", _ImmediateThread)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.source_tree_root", lambda: repo_root)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.get_current_branch", lambda _: "agent")
 
     def fake_popen(args, **kwargs):
         if args[0] != "codex":
@@ -272,6 +300,8 @@ def test_dispatch_allows_multiple_isolated_sessions_for_same_repo(ctx, monkeypat
 
     monkeypatch.setattr("elroy.repository.codex_sessions.tools.threading.Thread", _DeferredThread)
     monkeypatch.setattr("elroy.repository.codex_sessions.tools.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.source_tree_root", lambda: repo_root)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.get_current_branch", lambda _: "agent")
 
     with open_turn_context(ctx) as turn:
         first = dispatch_codex_session("first prompt", turn=turn, repo_path="sample")
@@ -299,3 +329,51 @@ def test_dispatch_allows_multiple_isolated_sessions_for_same_repo(ctx, monkeypat
     assert listed_by_id["thread-2"].session_branch == second.session_branch
     assert listed_by_id["thread-2"].target_branch == "agent"
     assert listed_by_id["thread-2"].status == "running"
+
+
+def test_validate_agent_improvement_env_rejections(ctx, monkeypatch, tmp_path: Path):
+    development_root = tmp_path / "development"
+    elroy_repo = development_root / "elroy"
+    other_repo = development_root / "other"
+    _init_repo(elroy_repo)
+    _init_repo(other_repo)
+
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools._development_root", lambda: development_root)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.source_tree_root", lambda: elroy_repo)
+
+    real_subprocess_run = subprocess.run
+
+    def fake_run(args, *, cwd=None, check=True, capture_output=True, text=True):
+        return real_subprocess_run(args, cwd=cwd, check=check, capture_output=capture_output, text=text)
+
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.subprocess.run", fake_run)
+
+    with open_turn_context(ctx) as turn:
+        # Fails because it's the wrong repo
+        with pytest.raises(RecoverableToolError, match="limited to Elroy's own repository"):
+            dispatch_codex_session("prompt", turn=turn, repo_path="other")
+
+        # Fails because it's the wrong branch
+        monkeypatch.setattr("elroy.repository.codex_sessions.tools.get_current_branch", lambda _: "main")
+        with pytest.raises(RecoverableToolError, match="must be running on the 'agent' branch"):
+            dispatch_codex_session("prompt", turn=turn, repo_path="elroy")
+
+        # Succeeds when both match
+        monkeypatch.setattr("elroy.repository.codex_sessions.tools.get_current_branch", lambda _: "agent")
+        monkeypatch.setattr("elroy.repository.codex_sessions.tools.threading.Thread", _ImmediateThread)
+
+        def fake_popen(args, **kwargs):
+            if args[0] == "git":
+                return _FakePopen(args, stdout_text=str(elroy_repo))
+            return _FakePopen(args, stdout_text='{"type":"thread.started","thread_id":"thread-1"}')
+
+        monkeypatch.setattr("elroy.repository.codex_sessions.tools.subprocess.Popen", fake_popen)
+
+        # We also need to mock process_message for the background thread that will complete immediately
+        def fake_process_message(**kwargs):
+            yield AssistantResponse(content="ok")
+
+        monkeypatch.setattr("elroy.repository.codex_sessions.tools.process_message", fake_process_message)
+
+        result = dispatch_codex_session("prompt", turn=turn, repo_path="elroy")
+        assert result.status == "running"
