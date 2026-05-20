@@ -1,5 +1,6 @@
 import hashlib
 import json
+import shutil
 import subprocess
 import threading
 import uuid
@@ -12,12 +13,12 @@ from ...core.constants import RecoverableToolError, tool
 from ...core.session import clone_config, invoke_with_config
 from ...core.turn import TurnContext
 from ...messenger.messenger import process_message
+from ...utils.git import AGENT_BRANCH, get_current_branch, source_tree_root
 from .store import CodexSessionStore, CodexSessionUpdate
 
 CODEX_SESSION_SEARCH_ROOT = Path.home() / ".codex" / "sessions"
 DEFAULT_CODEX_SESSION_LIMIT = 5
 MAX_COMMAND_OUTPUT_CHARS = 400
-AGENT_BRANCH = "agent"
 WORKTREE_ROOT_DIRNAME = ".elroy-codex-worktrees"
 _repo_locks_guard = threading.Lock()
 _repo_locks: dict[str, threading.Lock] = {}
@@ -207,7 +208,11 @@ def _ensure_existing_session_workspace(repo_root: Path, session_branch: str, wor
     lock = _repo_lock(repo_root)
     with lock:
         _ensure_clean_parent(worktree_path)
-        _run_subprocess(["git", "-C", str(repo_root), "worktree", "add", str(worktree_path), session_branch])
+        if _git_branch_exists(repo_root, session_branch):
+            _run_subprocess(["git", "-C", str(repo_root), "worktree", "add", str(worktree_path), session_branch])
+        else:
+            # Branch was cleaned up after a prior merge; recreate from agent so Codex can resume its session
+            _run_subprocess(["git", "-C", str(repo_root), "worktree", "add", "-b", session_branch, str(worktree_path), target_branch])
     return target_branch, agent_worktree
 
 
@@ -480,6 +485,27 @@ def _commit_session_worktree_if_needed(worktree_root: Path, session_branch: str)
     return f"Committed unmerged worktree changes on {session_branch} before integration."
 
 
+def _cleanup_session_worktree(
+    source_repo_root: Path,
+    worktree_root: Path,
+    session_branch: str,
+) -> str | None:
+    notes = []
+    lock = _repo_lock(source_repo_root)
+    with lock:
+        if worktree_root.exists():
+            shutil.rmtree(worktree_root, ignore_errors=True)
+        _run_subprocess(["git", "-C", str(source_repo_root), "worktree", "prune"], check=False)
+        if not worktree_root.exists():
+            notes.append(f"Removed session worktree {worktree_root}.")
+        try:
+            _run_subprocess(["git", "-C", str(source_repo_root), "branch", "-D", session_branch])
+            notes.append(f"Removed session branch {session_branch}.")
+        except subprocess.CalledProcessError:
+            pass
+    return " ".join(notes) if notes else None
+
+
 def _store_result(turn: TurnContext, prompt: str, result: CodexSessionResult) -> None:
     CodexSessionStore(turn.db, turn.user_id).upsert(
         result.session_id,
@@ -561,7 +587,15 @@ def _complete_codex_session_in_background(
                 workspace.session_branch,
                 workspace.target_branch,
             )
-            notes = [note for note in (commit_note, merge_note) if note]
+            cleanup_note = None
+            if merge_status == "completed":
+                cleanup_note = _cleanup_session_worktree(
+                    workspace.source_repo_root,
+                    workspace.worktree_root,
+                    workspace.session_branch,
+                )
+
+            notes = [note for note in (commit_note, merge_note, cleanup_note) if note]
             result.status = merge_status
             if notes:
                 result.summary = "\n".join([result.summary, *notes])
@@ -641,6 +675,21 @@ def _prepare_codex_async_run(
     return running_result, background_thread
 
 
+def _validate_agent_improvement_env(target_repo_root: Path) -> None:
+    elroy_repo_root = source_tree_root()
+
+    if not elroy_repo_root or target_repo_root.resolve() != elroy_repo_root.resolve():
+        raise RecoverableToolError(
+            f"Codex sessions are limited to Elroy's own repository ({elroy_repo_root}). Attempted to work on {target_repo_root}."
+        )
+
+    current_branch = get_current_branch(elroy_repo_root)
+    if current_branch != AGENT_BRANCH:
+        raise RecoverableToolError(
+            f"Elroy must be running on the '{AGENT_BRANCH}' branch to dispatch Codex sessions. Current branch: {current_branch}"
+        )
+
+
 @tool
 def dispatch_codex_session(prompt: str, turn: TurnContext, repo_path: str | None = None, model: str | None = None) -> CodexSessionResult:
     """Run a Codex coding session against a repository inside the development workspace.
@@ -656,6 +705,7 @@ def dispatch_codex_session(prompt: str, turn: TurnContext, repo_path: str | None
         model: Optional Codex model override.
     """
     source_repo_root = _resolve_repo_path(repo_path)
+    _validate_agent_improvement_env(source_repo_root)
     result, background_thread = _prepare_codex_async_run(prompt, source_repo_root, turn, model=model)
     _store_result(turn, prompt, result)
     background_thread.start()
@@ -684,6 +734,8 @@ def resume_codex_session(session_id: str, prompt: str, turn: TurnContext, model:
         raise RecoverableToolError(f"Codex session '{session_id}' is still running.")
 
     source_repo_root = Path(record.repo_path)
+    _validate_agent_improvement_env(source_repo_root)
+
     if not record.session_branch or not record.worktree_path:
         raise RecoverableToolError(f"Codex session '{session_id}' is missing branch/worktree metadata and cannot be resumed.")
     target_branch, agent_worktree = _ensure_existing_session_workspace(
@@ -730,6 +782,9 @@ def list_codex_sessions(
         raise RecoverableToolError("limit must be at least 1")
 
     repo_root = _resolve_repo_path(repo_path) if repo_path else None
+    if repo_root:
+        _validate_agent_improvement_env(repo_root)
+
     records = CodexSessionStore(turn.db, turn.user_id).list_recent(repo_path=repo_root, limit=limit)
     return CodexSessionListResult(
         sessions=[
