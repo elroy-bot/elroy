@@ -13,7 +13,7 @@ from ...core.constants import RecoverableToolError, tool
 from ...core.session import clone_config, invoke_with_config
 from ...core.turn import TurnContext
 from ...messenger.messenger import process_message
-from ...utils.git import AGENT_BRANCH, get_current_branch, source_tree_root
+from ...utils.git import AGENT_BRANCH, source_tree_root
 from .store import CodexSessionStore, CodexSessionUpdate
 
 CODEX_SESSION_SEARCH_ROOT = Path.home() / ".codex" / "sessions"
@@ -684,12 +684,6 @@ def _validate_agent_improvement_env(target_repo_root: Path) -> None:
     if not elroy_repo_root or target_repo_root.resolve() != elroy_repo_root.resolve():
         raise RecoverableToolError(
             f"Codex sessions are limited to Elroy's own repository ({elroy_repo_root}). Attempted to work on {target_repo_root}."
-        )
-
-    current_branch = get_current_branch(elroy_repo_root)
-    if current_branch != AGENT_BRANCH:
-        raise RecoverableToolError(
-            f"Elroy must be running on the '{AGENT_BRANCH}' branch to dispatch Codex sessions. Current branch: {current_branch}"
         )
 
 
