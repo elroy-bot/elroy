@@ -6,6 +6,7 @@ import os
 import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import ClassVar, Literal
 
 from rich.text import Text
@@ -1176,8 +1177,16 @@ def _handle_cli_command(argv: list[str]) -> bool:
     return False
 
 
+def _source_tree_root() -> Path | None:
+    return source_tree_root()
+
+
+def _editable_install_root() -> Path | None:
+    return editable_install_root()
+
+
 def _is_editable_install() -> bool:
-    return editable_install_root() is not None
+    return _editable_install_root() is not None
 
 
 def _should_restart_as_module() -> bool:
@@ -1195,7 +1204,7 @@ def _build_restart_argv() -> list[str]:
 def _build_restart_env(resume_prompt: str) -> dict[str, str]:
     restart_env = os.environ.copy()
     restart_env[RESTART_RESUME_MESSAGE_ENV] = resume_prompt
-    restart_root = source_tree_root() or editable_install_root()
+    restart_root = _source_tree_root() or _editable_install_root()
     if restart_root is None:
         return restart_env
 
