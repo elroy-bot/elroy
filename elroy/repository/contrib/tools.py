@@ -12,8 +12,8 @@ dist/
 build/
 """
 
-_EXAMPLE_TOOL_CONTENT = '''\
-"""Example contrib tool. Delete this file or replace with your own tools."""
+_EXAMPLE_TOOLS_CONTENT = '''\
+"""Example contrib tools. Delete or replace with your own @tool functions."""
 from elroy.core.constants import tool
 from elroy.core.turn import TurnContext
 
@@ -29,18 +29,53 @@ def example_contrib_tool(message: str, turn: TurnContext) -> str:
     return f"contrib echo: {message}"
 '''
 
+_EXAMPLE_PLUGIN_CONTENT = '''\
+"""Example plugin with a custom sidebar panel.
+
+Delete this file or replace it with your own plugin. The ELROY_PLUGIN variable
+tells Elroy to add a tab to the sidebar using the widget returned by widget_factory.
+Textual imports must be inside widget_factory so this file can be loaded in
+non-UI contexts (e.g. background workers) without pulling in Textual.
+"""
+from elroy.plugins.plugin import ElroyPlugin
+
+
+def _make_widget():
+    """Return a Textual widget for the sidebar panel."""
+    from textual.app import ComposeResult
+    from textual.widget import Widget
+    from textual.widgets import Label
+
+    class ExamplePanel(Widget):
+        """Replace with your custom panel logic."""
+
+        def compose(self) -> ComposeResult:
+            yield Label("Hello from example plugin!\\nReplace this widget with your own.")
+
+    return ExamplePanel()
+
+
+ELROY_PLUGIN = ElroyPlugin(
+    name="example_plugin",
+    tab_label="Example",
+    widget_factory=_make_widget,
+)
+'''
+
 
 @tool
 def create_contrib_repo(path: str) -> str:
-    """Create a new contrib tools repository that Elroy can load custom tools from.
+    """Create a new contrib plugin repository that Elroy can load tools and UI panels from.
 
-    Sets up a minimal git repository at the given path with a tools.py stub and a
-    .gitignore. After creation, point elroy's `contrib_tools_path` config option at
-    this directory to have Elroy automatically load any @tool-decorated functions.
+    Sets up a minimal git repository at the given path with stub files for both
+    tool functions and a sidebar UI plugin. After creation, point elroy's
+    ``contrib_tools_path`` config option at this directory so Elroy loads everything
+    on startup.
 
-    The tools.py file in the repo is auto-loaded; add additional .py files there and
-    Elroy will pick them up on restart. Each tool must be a plain Python function
-    decorated with @tool and imported from elroy.core.constants.
+    Each ``.py`` file (except those starting with ``_``) is scanned for:
+    - Functions decorated with ``@tool`` → registered as assistant tools.
+    - A module-level ``ELROY_PLUGIN`` variable (``ElroyPlugin`` instance) → adds a
+      tab to the TUI sidebar with the widget returned by ``widget_factory``.
 
     Args:
         path: Filesystem path where the contrib repo should be created (will be created if absent).
@@ -57,22 +92,24 @@ def create_contrib_repo(path: str) -> str:
         raise RecoverableToolError(f"git init failed: {exc.stderr.strip()}") from exc
 
     (target / ".gitignore").write_text(_GITIGNORE_CONTENT)
-    tools_file = target / "tools.py"
-    tools_file.write_text(_EXAMPLE_TOOL_CONTENT)
+    (target / "tools.py").write_text(_EXAMPLE_TOOLS_CONTENT)
+    (target / "plugin.py").write_text(_EXAMPLE_PLUGIN_CONTENT)
 
     subprocess.run(["git", "-C", str(target), "add", "."], check=True, capture_output=True, text=True)
     subprocess.run(
-        ["git", "-C", str(target), "commit", "-m", "Initial contrib tools repo"],
+        ["git", "-C", str(target), "commit", "-m", "Initial contrib plugin repo"],
         check=True,
         capture_output=True,
         text=True,
     )
 
     return (
-        f"Contrib tools repo created at {target}.\n\n"
+        f"Contrib plugin repo created at {target}.\n\n"
+        f"Contents:\n"
+        f"  tools.py   — add @tool-decorated functions here (loaded as assistant tools)\n"
+        f"  plugin.py  — define ELROY_PLUGIN here to add a sidebar tab with a custom Textual widget\n\n"
         f"Next steps:\n"
-        f"1. Edit {tools_file} to add your @tool-decorated functions.\n"
+        f"1. Edit the stub files or ask me to dispatch a Codex session targeting {target}.\n"
         f"2. Set `contrib_tools_path: {target}` in your elroy config file.\n"
-        f"3. Restart Elroy — it will auto-load all @tool functions from files in that directory.\n\n"
-        f"You can also ask me to dispatch a Codex session targeting {target} to have the AI write tools there directly."
+        f"3. Restart Elroy — tools and the plugin panel will be loaded automatically."
     )
