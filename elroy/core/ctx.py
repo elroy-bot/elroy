@@ -56,6 +56,7 @@ class ElroyConfig:
         internal_thought_color: str | None = None,
         user_token: str | None = None,
         custom_tools_path: list[str] | None = None,
+        contrib_tools_path: str | None = None,
         # API Configuration
         openai_api_key: str | None = None,
         openai_api_base: str | None = None,
@@ -165,6 +166,7 @@ class ElroyConfig:
                 include_base_tools=include_base_tools if include_base_tools is not None else True,
                 shell_commands=shell_commands if shell_commands is not None else True,
                 allowed_shell_command_prefixes=allowed_shell_command_prefixes or [],
+                contrib_tools_path=contrib_tools_path,
             )
 
         if runtime_config is not None:
@@ -254,9 +256,13 @@ class ElroyConfig:
     def tool_registry(self) -> ToolRegistry:
         from ..tools.registry import ToolRegistry
 
+        all_custom_paths = list(self.tool_config.custom_tools_path)
+        if self.tool_config.contrib_tools_path:
+            all_custom_paths.append(self.tool_config.contrib_tools_path)
+
         registry = ToolRegistry(
             self.tool_config.include_base_tools,
-            self.tool_config.custom_tools_path,
+            all_custom_paths,
             exclude_tools=self.tool_config.exclude_tools,
             shell_commands=self.tool_config.shell_commands,
             allowed_shell_command_prefixes=self.allowed_shell_command_prefixes,

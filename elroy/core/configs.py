@@ -78,6 +78,7 @@ class ToolConfig:
     allowed_shell_command_prefixes: list[str]
     include_base_tools: bool = True
     shell_commands: bool = True
+    contrib_tools_path: str | None = None
 
 
 @dataclass

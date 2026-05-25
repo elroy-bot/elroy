@@ -30,6 +30,7 @@ from ..repository.context_messages.tools import (
     refresh_system_instructions,
     reset_messages,
 )
+from ..repository.contrib.tools import create_contrib_repo
 from ..repository.feature_requests.tools import (
     edit_feature_request,
     list_feature_requests,
@@ -120,6 +121,7 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     list_codex_sessions,
     resume_codex_session,
     restart_session,
+    create_contrib_repo,
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,

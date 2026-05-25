@@ -13,7 +13,7 @@ from ...core.constants import RecoverableToolError, tool
 from ...core.session import clone_config, invoke_with_config
 from ...core.turn import TurnContext
 from ...messenger.messenger import process_message
-from ...utils.git import AGENT_BRANCH, source_tree_root
+from ...utils.git import AGENT_BRANCH
 from .store import CodexSessionStore, CodexSessionUpdate
 
 CODEX_SESSION_SEARCH_ROOT = Path.home() / ".codex" / "sessions"
@@ -678,15 +678,6 @@ def _prepare_codex_async_run(
     return running_result, background_thread
 
 
-def _validate_agent_improvement_env(target_repo_root: Path) -> None:
-    elroy_repo_root = source_tree_root()
-
-    if not elroy_repo_root or target_repo_root.resolve() != elroy_repo_root.resolve():
-        raise RecoverableToolError(
-            f"Codex sessions are limited to Elroy's own repository ({elroy_repo_root}). Attempted to work on {target_repo_root}."
-        )
-
-
 @tool
 def dispatch_codex_session(prompt: str, turn: TurnContext, repo_path: str | None = None, model: str | None = None) -> CodexSessionResult:
     """Run a Codex coding session against a repository inside the Elroy development workspace.
@@ -702,7 +693,6 @@ def dispatch_codex_session(prompt: str, turn: TurnContext, repo_path: str | None
         model: Optional Codex model override.
     """
     source_repo_root = _resolve_repo_path(repo_path)
-    _validate_agent_improvement_env(source_repo_root)
     result, background_thread = _prepare_codex_async_run(prompt, source_repo_root, turn, model=model)
     _store_result(turn, prompt, result)
     background_thread.start()
@@ -731,7 +721,6 @@ def resume_codex_session(session_id: str, prompt: str, turn: TurnContext, model:
         raise RecoverableToolError(f"Codex session '{session_id}' is still running.")
 
     source_repo_root = Path(record.repo_path)
-    _validate_agent_improvement_env(source_repo_root)
 
     if not record.session_branch or not record.worktree_path:
         raise RecoverableToolError(f"Codex session '{session_id}' is missing branch/worktree metadata and cannot be resumed.")
@@ -779,9 +768,6 @@ def list_codex_sessions(
         raise RecoverableToolError("limit must be at least 1")
 
     repo_root = _resolve_repo_path(repo_path) if repo_path else None
-    if repo_root:
-        _validate_agent_improvement_env(repo_root)
-
     records = CodexSessionStore(turn.db, turn.user_id).list_recent(repo_path=repo_root, limit=limit)
     return CodexSessionListResult(
         sessions=[
