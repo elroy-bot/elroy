@@ -448,9 +448,12 @@ class ElroyApp(App):
     # ── layout ───────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
+        from ..plugins.registry import PluginRegistry
+
+        plugins = PluginRegistry.from_path(self.ctx.tool_config.contrib_tools_path).plugins
         with Horizontal(id="conversation-container"):
             yield ConversationPane(id="left-panel")
-            yield SidebarPanel(id="memory-panel")
+            yield SidebarPanel(plugins=plugins, id="memory-panel")
         yield ChatInput(placeholder="> ", id="chat-input")
         yield StatusBar("", id="status-bar")
         yield Footer()

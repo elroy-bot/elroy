@@ -15,6 +15,7 @@ from textual.strip import Strip
 from textual.widgets import ContentSwitcher, Label, ListItem, ListView, RichLog, Tab, Tabs
 
 from ..core.sidebar_models import SidebarEntry
+from ..plugins.plugin import ElroyPlugin
 
 
 class StatusBar(Label):
@@ -139,13 +140,19 @@ class SidebarPanel(Vertical):
             self.section = section
             self.index = index
 
+    def __init__(self, plugins: list[ElroyPlugin] | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._plugins: list[ElroyPlugin] = [p for p in (plugins or []) if p.tab_label and p.widget_factory]
+
     def compose(self) -> ComposeResult:
+        plugin_tabs = [Tab(p.tab_label or p.name, id=self._plugin_tab_id(p)) for p in self._plugins]
         yield Tabs(
             Tab("Memories", id="memories-tab"),
             Tab("Agenda", id="agenda-tab"),
             Tab("Improvements", id="improvements-tab"),
             Tab("Feature Requests", id="feature_requests-tab"),
             Tab("Codex Sessions", id="codex_sessions-tab"),
+            *plugin_tabs,
             active="memories-tab",
             id="sidebar-tabs",
         )
@@ -155,6 +162,10 @@ class SidebarPanel(Vertical):
             yield SidebarListView("improvements", id="improvements-list", classes="panel-list")
             yield SidebarListView("feature_requests", id="feature_requests-list", classes="panel-list")
             yield SidebarListView("codex_sessions", id="codex_sessions-list", classes="panel-list")
+            for plugin in self._plugins:
+                widget = plugin.widget_factory()  # type: ignore[misc]
+                widget.id = self._plugin_panel_id(plugin)
+                yield widget
 
     @property
     def current_section(self) -> str:
@@ -212,11 +223,16 @@ class SidebarPanel(Vertical):
             self.list_view(section).set_class(active_section == section, "active")
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
-        section = self.section_for_tab_id(event.tab.id or "")
-        if section is None:
-            return
-        self.query_one("#sidebar-switcher", ContentSwitcher).current = self._list_id(section)
-        self.post_message(self.SectionChanged(section))
+        tab_id = event.tab.id or ""
+        section = self.section_for_tab_id(tab_id)
+        switcher = self.query_one("#sidebar-switcher", ContentSwitcher)
+        if section is not None:
+            switcher.current = self._list_id(section)
+            self.post_message(self.SectionChanged(section))
+        else:
+            plugin = self._plugin_for_tab_id(tab_id)
+            if plugin is not None:
+                switcher.current = self._plugin_panel_id(plugin)
         event.stop()
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
@@ -236,6 +252,18 @@ class SidebarPanel(Vertical):
 
     def _list_id(self, section: str) -> str:
         return f"{section}-list"
+
+    def _plugin_tab_id(self, plugin: ElroyPlugin) -> str:
+        return f"plugin-{plugin.name}-tab"
+
+    def _plugin_panel_id(self, plugin: ElroyPlugin) -> str:
+        return f"plugin-{plugin.name}-panel"
+
+    def _plugin_for_tab_id(self, tab_id: str) -> ElroyPlugin | None:
+        for plugin in self._plugins:
+            if self._plugin_tab_id(plugin) == tab_id:
+                return plugin
+        return None
 
     def _list_items(self, section: str) -> list[ListItem]:
         return [child for child in self.list_view(section).children if isinstance(child, ListItem)]
