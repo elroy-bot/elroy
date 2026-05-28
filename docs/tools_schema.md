@@ -168,6 +168,25 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
   {
     "type": "function",
     "function": {
+      "name": "create_contrib_repo",
+      "description": "Create a new contrib plugin repository that Elroy can load tools and UI panels from.\n\nSets up a minimal git repository at the given path with stub files for both\ntool functions and a sidebar UI plugin. After creation, point elroy's\n``contrib_tools_path`` config option at this directory so Elroy loads everything\non startup.\n\nEach ``.py`` file (except those starting with ``_``) is scanned for:\n- Functions decorated with ``@tool`` \u2192 registered as assistant tools.\n- A module-level ``ELROY_PLUGIN`` variable (``ElroyPlugin`` instance) \u2192 adds a\n  tab to the TUI sidebar with the widget returned by ``widget_factory``.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Filesystem path where the contrib repo should be created (will be created if absent)."
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "create_due_item",
       "description": "Create a due item that can be triggered by time and/or context.",
       "parameters": {
@@ -201,29 +220,7 @@ Elroy tool calls are orchestrated via the `litellm` package. Tool schemas are li
     "type": "function",
     "function": {
       "name": "create_memory",
-      "description": "Creates a new memory for the assistant.
-
-Examples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:
-
-BAD:
-- [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.
-
-BETTER:
-- [User Name]'s project on building a treehouse: More specific, and describes a single topic.
-- [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.
-
-BAD:
-- [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.
-
-BETTER:
-- [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.
-
-BAD:
-- [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.
-
-BETTER:
-- [User Name]'s preferred name: Describes a specific topic.
-- [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.",
+      "description": "Creates a new memory for the assistant.\n\nExamples of good and bad memory titles are below. Note that in the BETTER examples, some titles have been split into two:\n\nBAD:\n- [User Name]'s project progress and personal goals: 'Personal goals' is too vague, and the title describes two different topics.\n\nBETTER:\n- [User Name]'s project on building a treehouse: More specific, and describes a single topic.\n- [User Name]'s goal to be more thoughtful in conversation: Describes a specific goal.\n\nBAD:\n- [User Name]'s weekend plans: 'Weekend plans' is too vague, and dates must be referenced in ISO 8601 format.\n\nBETTER:\n- [User Name]'s plan to attend a concert on 2022-02-11: More specific, and includes a specific date.\n\nBAD:\n- [User Name]'s preferred name and well being: Two different topics, and 'well being' is too vague.\n\nBETTER:\n- [User Name]'s preferred name: Describes a specific topic.\n- [User Name]'s feeling of rejuvenation after rest: Describes a specific topic.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -288,37 +285,6 @@ BETTER:
   {
     "type": "function",
     "function": {
-      "name": "dispatch_codex_session",
-      "description": "Run a Codex coding session against a repository inside the Elroy development workspace.
-
-Use this when you want Codex to work in another repository or to perform a bounded coding task
-in the current repo. Elroy will capture the Codex session id, summarize repository changes, and
-remember the session for later resumption.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "prompt": {
-            "type": "string",
-            "description": "Instructions to send to Codex."
-          },
-          "repo_path": {
-            "type": "string",
-            "description": "Repository path relative to the workspace containing this Elroy checkout, or an absolute path inside it."
-          },
-          "model": {
-            "type": "string",
-            "description": "Optional Codex model override."
-          }
-        },
-        "required": [
-          "prompt"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "drop_memory_from_current_context",
       "description": "Drops the memory with the given name from current context. Does NOT delete the memory.",
       "parameters": {
@@ -367,12 +333,31 @@ remember the session for later resumption.",
   {
     "type": "function",
     "function": {
+      "name": "edit_contrib_with_codex",
+      "description": "Run a Codex edit session directly in the Elroy-home contrib plugin directory.\n\nUse this for assistant self-improvements that should be loaded through the plugin system instead\nof changing core Elroy source code. Elroy ensures the contrib directory exists as a git repo,\nruns Codex directly in that directory, records the session, and commits completed changes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Plugin/tool edit request for Codex."
+          },
+          "model": {
+            "type": "string",
+            "description": "Optional Codex model override."
+          }
+        },
+        "required": [
+          "prompt"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "edit_feature_request",
-      "description": "Edit an existing markdown feature request.
-
-Use this when a feature request already exists and needs a better title,
-refined summary, updated rationale, or status change. Prefer this over creating
-a duplicate request for the same product need.",
+      "description": "Edit an existing markdown feature request.\n\nUse this when a feature request already exists and needs a better title,\nrefined summary, updated rationale, or status change. Prefer this over creating\na duplicate request for the same product need.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -407,11 +392,7 @@ a duplicate request for the same product need.",
     "type": "function",
     "function": {
       "name": "examine_memories",
-      "description": "Search through memories for the answer to a question.
-
-This function searches summarized memories and goals. Each memory also contains source information.
-
-If a retrieved memory is relevant but lacks detail to answer the question, use the get_source_content_for_memory tool. This can be useful in cases where broad information about a topic is provided, but more exact recollection is necessary.",
+      "description": "Search through memories for the answer to a question.\n\nThis function searches summarized memories and goals. Each memory also contains source information.\n\nIf a retrieved memory is relevant but lacks detail to answer the question, use the get_source_content_for_memory tool. This can be useful in cases where broad information about a topic is provided, but more exact recollection is necessary.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -422,6 +403,29 @@ If a retrieved memory is relevant but lacks detail to answer the question, use t
         },
         "required": [
           "question"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "fetch_page",
+      "description": "Fetch a web page and return its readable text content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL to fetch."
+          },
+          "max_chars": {
+            "type": "integer",
+            "description": "Maximum number of characters to return (default 8000)."
+          }
+        },
+        "required": [
+          "url"
         ]
       }
     }
@@ -444,9 +448,7 @@ If a retrieved memory is relevant but lacks detail to answer the question, use t
     "type": "function",
     "function": {
       "name": "get_source_content_for_memory",
-      "description": "Retrieves content of the source for a memory, by source type and name.
-
-For a given memory, there can be multiple sources.",
+      "description": "Retrieves content of the source for a memory, by source type and name.\n\nFor a given memory, there can be multiple sources.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -482,6 +484,33 @@ For a given memory, there can be multiple sources.",
   {
     "type": "function",
     "function": {
+      "name": "inspect_elroy_with_codex",
+      "description": "Run a read-only Codex inspection session against the running Elroy source tree and optional logs.\n\nUse this when you want a separate Codex session to investigate bugs, inspect code paths, or review\nrecent logs without making edits.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Inspection question or task for Codex."
+          },
+          "include_logs": {
+            "type": "boolean",
+            "description": "Whether to include the Elroy log path and recent log excerpt in the Codex prompt."
+          },
+          "model": {
+            "type": "string",
+            "description": "Optional Codex model override."
+          }
+        },
+        "required": [
+          "prompt"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "list_agenda_items",
       "description": "List agenda items for a given date (defaults to today).",
       "parameters": {
@@ -500,17 +529,13 @@ For a given memory, there can be multiple sources.",
     "type": "function",
     "function": {
       "name": "list_codex_sessions",
-      "description": "List recently recorded Codex sessions and their latest change summaries.
-
-Use this to discover resumable Codex sessions, inspect which repository each session targeted,
-and review the latest summary before deciding whether to resume one. Session listings include
-the isolated worktree and branch metadata so concurrent runs can be distinguished safely.",
+      "description": "List recently recorded Codex sessions and their latest summaries.",
       "parameters": {
         "type": "object",
         "properties": {
-          "repo_path": {
+          "scope": {
             "type": "string",
-            "description": "Optional repository path filter relative to the workspace containing this Elroy checkout."
+            "description": "Optional filter. Use \"contrib\" for plugin-directory sessions or \"elroy\" for running-code inspection sessions."
           },
           "limit": {
             "type": "integer",
@@ -525,11 +550,7 @@ the isolated worktree and branch metadata so concurrent runs can be distinguishe
     "type": "function",
     "function": {
       "name": "list_feature_requests",
-      "description": "List the current markdown-backed feature requests.
-
-Use this before creating a new feature request when you suspect the request may
-already exist. This helps avoid duplicate backlog entries by surfacing the
-canonical titles, aliases, statuses, and brief summaries of existing requests."
+      "description": "List the current markdown-backed feature requests.\n\nUse this before creating a new feature request when you suspect the request may\nalready exist. This helps avoid duplicate backlog entries by surfacing the\ncanonical titles, aliases, statuses, and brief summaries of existing requests."
     }
   },
   {
@@ -565,12 +586,7 @@ canonical titles, aliases, statuses, and brief summaries of existing requests."
     "type": "function",
     "function": {
       "name": "make_feature_request",
-      "description": "Create or merge a markdown feature request for future product work.
-
-Use this when the user asks for a net new capability, workflow, or product behavior
-that Elroy does not currently support. First consider calling `list_feature_requests`
-to inspect the existing backlog. This tool will also try to merge into an existing
-feature request when the request appears duplicative, to avoid backlog bloat.",
+      "description": "Create or merge a markdown feature request for future product work.\n\nUse this when the user asks for a net new capability, workflow, or product behavior\nthat Elroy does not currently support. First consider calling `list_feature_requests`\nto inspect the existing backlog. This tool will also try to merge into an existing\nfeature request when the request appears duplicative, to avoid backlog bloat.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -710,44 +726,8 @@ feature request when the request appears duplicative, to avoid backlog bloat.",
   {
     "type": "function",
     "function": {
-      "name": "resume_codex_session",
-      "description": "Resume a previously recorded Codex session with a follow-up prompt.
-
-Use this after `dispatch_codex_session` when you want Codex to continue earlier work while
-preserving its own session context. Elroy resumes the same Codex thread id and returns an
-updated repository-change summary.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "session_id": {
-            "type": "string",
-            "description": "Existing Codex thread/session id returned by Elroy."
-          },
-          "prompt": {
-            "type": "string",
-            "description": "Follow-up prompt to send to the existing Codex session."
-          },
-          "model": {
-            "type": "string",
-            "description": "Optional Codex model override."
-          }
-        },
-        "required": [
-          "session_id",
-          "prompt"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "set_user_full_name",
-      "description": "Sets the user's full name.
-
-Guidance for usage:
-- Should predominantly be used relatively in the user journey. However, ensure to not be pushy in getting personal information early.
-- For existing users, this should be used relatively rarely.",
+      "description": "Sets the user's full name.\n\nGuidance for usage:\n- Should predominantly be used relatively in the user journey. However, ensure to not be pushy in getting personal information early.\n- For existing users, this should be used relatively rarely.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -817,9 +797,7 @@ Guidance for usage:
     "type": "function",
     "function": {
       "name": "update_outdated_or_incorrect_memory",
-      "description": "Updates an existing memory with new information.
-In general, when new information arises, new memories should be created rather than updating.
-Reserve use of this tool for cases in which the information in a memory changes or becomes out of date.",
+      "description": "Updates an existing memory with new information.\nIn general, when new information arises, new memories should be created rather than updating.\nReserve use of this tool for cases in which the information in a memory changes or becomes out of date.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -835,6 +813,29 @@ Reserve use of this tool for cases in which the information in a memory changes 
         "required": [
           "memory_name",
           "update_text"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "web_search",
+      "description": "Search the web using DuckDuckGo and return a list of results.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query string."
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of results to return (default 5, max 20)."
+          }
+        },
+        "required": [
+          "query"
         ]
       }
     }

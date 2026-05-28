@@ -51,11 +51,11 @@ Both decorators are supported and will work identically.
 
 ## Contrib Tools And Plugins
 
-Elroy also creates and loads an assistant-editable contrib directory at `~/.elroy/contrib` by default. Set `contrib_tools_path` or `ELROY_CONTRIB_TOOLS_PATH` to override it.
+Elroy also creates and loads an assistant-editable contrib directory at `~/.elroy/contrib` by default. Set `contrib_tools_path` or `ELROY_CONTRIB_TOOLS_PATH` to override the load path.
 
 Every `.py` file in that directory, except files whose names start with `_`, is scanned for:
 
 - `@tool` functions, which become assistant tools after restart.
 - A module-level `ELROY_PLUGIN = ElroyPlugin(...)`, which can add a custom sidebar tab in the TUI.
 
-Use `/create_contrib_repo` to scaffold a standalone contrib repo, or ask the assistant to dispatch a Codex session with `repo_path="contrib"` to edit the default home contrib repo. Core Elroy can run from any source branch; generated self-improvements should go into contrib unless you explicitly want to change the application itself.
+Use `/create_contrib_repo` to scaffold a standalone contrib repo, or ask the assistant to use `edit_contrib_with_codex` for the default home contrib repo. The contrib directory is a git repo initialized and managed by Elroy's agent tooling. Use `inspect_elroy_with_codex` when Codex should inspect the running Elroy code or logs without editing files.

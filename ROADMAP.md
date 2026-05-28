@@ -6,8 +6,8 @@ This document tracks planned improvements and features for Elroy.
 
 - **Build async Codex agent workflow for app and contrib changes**
   - Run Codex coding sessions asynchronously so Elroy remains available for chat while work is in progress
-  - Isolate each coding session in its own branch/worktree before integrating results
-  - Merge successful session output into a long-lived `agent` branch for the target repo
+  - Split Codex usage into running-code/log inspection and contrib plugin edits
+  - Run plugin edits directly in the Elroy-home contrib git repo
   - Allow Elroy itself to run from any source branch
   - Direct assistant-editable self-improvements to the home contrib plugin repo by default
   - Trigger an assistant response automatically when a background Codex session completes
@@ -75,9 +75,9 @@ They can be hidden via `--no-show-internal-thought` or `show_internal_thought: f
 
 ### Developer Experience
 - **Add Codex session dispatch tools** (Completed: 2026-05)
-  - Added assistant-visible tools to dispatch, resume, and list Codex sessions
-  - Grounded Codex runs to repositories inside the `development` workspace
-  - Persisted Codex session ids and latest change summaries for later resumption
+  - Added assistant-visible tools to inspect Elroy with Codex, edit the contrib repo with Codex, and list Codex sessions
+  - Grounded self-improvement edits to the Elroy-home contrib plugin repository
+  - Persisted Codex session ids and latest change summaries
 
 ### Performance
 - **Improve latency tracking and logging** (Completed: 2025-01)
