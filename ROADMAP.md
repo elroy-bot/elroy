@@ -4,11 +4,12 @@ This document tracks planned improvements and features for Elroy.
 
 ## Current Priorities
 
-- **Build async Codex agent workflow on an `agent` branch**
+- **Build async Codex agent workflow for app and contrib changes**
   - Run Codex coding sessions asynchronously so Elroy remains available for chat while work is in progress
   - Isolate each coding session in its own branch/worktree before integrating results
-  - Merge successful session output into a long-lived `agent` branch instead of `main`
-  - Treat `agent` as the primary branch Elroy should run on for agent-driven improvements
+  - Merge successful session output into a long-lived `agent` branch for the target repo
+  - Allow Elroy itself to run from any source branch
+  - Direct assistant-editable self-improvements to the home contrib plugin repo by default
   - Trigger an assistant response automatically when a background Codex session completes
 
 ## Future Items

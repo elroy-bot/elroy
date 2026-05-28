@@ -53,6 +53,12 @@ It uses the `elroy` console entrypoint rather than `python -m elroy.ui.app`, whi
 
 Elroy opens a terminal UI where you can chat, create memories, and manage reminders. Use the Textual command palette with `Ctrl+P` to discover available actions.
 
+## Contrib Plugins
+
+Elroy creates `~/.elroy/contrib` as the default assistant-editable plugin directory. Python files in that directory can define `@tool` functions for assistant tools and `ELROY_PLUGIN = ElroyPlugin(...)` for custom sidebar tabs.
+
+For self-improvements that should not modify core Elroy, ask the assistant to work in `repo_path="contrib"`. Elroy can run from any source branch; Codex-backed contrib changes are isolated in session worktrees and merged into the contrib repo's `agent` branch.
+
 ## Memory and Reminder Tools
 
 Elroy's tools allow it to create and manage memories and reminders. In the background, redundant memories are consolidated.

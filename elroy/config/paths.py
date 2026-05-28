@@ -25,6 +25,12 @@ def get_default_config_path() -> Path:
     return get_home_dir() / "elroy.conf.yaml"
 
 
+def get_contrib_dir() -> Path:
+    contrib_dir = get_home_dir() / "contrib"
+    contrib_dir.mkdir(parents=True, exist_ok=True)
+    return contrib_dir
+
+
 def get_cache_dir() -> Path:
     cache_dir = get_home_dir() / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 
+from ...config.paths import get_contrib_dir
 from ...core.constants import RecoverableToolError, tool
 
 _GITIGNORE_CONTENT = """\
@@ -63,6 +64,66 @@ ELROY_PLUGIN = ElroyPlugin(
 '''
 
 
+def _run_git(args: list[str], target: Path) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(["git", "-C", str(target), *args], check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip() or (exc.stdout or "").strip() or str(exc)
+        raise RecoverableToolError(f"git {' '.join(args)} failed in {target}: {stderr}") from exc
+
+
+def _has_git_repo(target: Path) -> bool:
+    return (target / ".git").exists()
+
+
+def _has_commits(target: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(target), "rev-parse", "--verify", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _write_default_contrib_files(target: Path) -> None:
+    files = {
+        ".gitignore": _GITIGNORE_CONTENT,
+        "README.md": (
+            "# Elroy Contrib\n\n"
+            "Elroy loads this directory at startup. Add `@tool` functions in Python files to expose assistant tools, "
+            "or define an `ELROY_PLUGIN` value with `ElroyPlugin` to add a sidebar plugin.\n"
+        ),
+    }
+    for relative_path, content in files.items():
+        path = target / relative_path
+        if not path.exists():
+            path.write_text(content, encoding="utf-8")
+
+
+def ensure_contrib_repo(path: str | Path | None = None) -> Path:
+    """Ensure the assistant-editable contrib directory exists as a git repo."""
+    target = Path(path).expanduser().resolve() if path is not None else get_contrib_dir().resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    _write_default_contrib_files(target)
+
+    if not _has_git_repo(target):
+        try:
+            subprocess.run(["git", "init", str(target)], check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as exc:
+            stderr = (exc.stderr or "").strip() or (exc.stdout or "").strip() or str(exc)
+            raise RecoverableToolError(f"git init failed for {target}: {stderr}") from exc
+
+    _run_git(["config", "user.email", "elroy-contrib@example.local"], target)
+    _run_git(["config", "user.name", "Elroy Contrib"], target)
+
+    if not _has_commits(target):
+        _run_git(["add", "."], target)
+        _run_git(["commit", "-m", "Initial Elroy contrib repo"], target)
+
+    return target
+
+
 @tool
 def create_contrib_repo(path: str) -> str:
     """Create a new contrib plugin repository that Elroy can load tools and UI panels from.
@@ -95,13 +156,10 @@ def create_contrib_repo(path: str) -> str:
     (target / "tools.py").write_text(_EXAMPLE_TOOLS_CONTENT)
     (target / "plugin.py").write_text(_EXAMPLE_PLUGIN_CONTENT)
 
-    subprocess.run(["git", "-C", str(target), "add", "."], check=True, capture_output=True, text=True)
-    subprocess.run(
-        ["git", "-C", str(target), "commit", "-m", "Initial contrib plugin repo"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    _run_git(["config", "user.email", "elroy-contrib@example.local"], target)
+    _run_git(["config", "user.name", "Elroy Contrib"], target)
+    _run_git(["add", "."], target)
+    _run_git(["commit", "-m", "Initial contrib plugin repo"], target)
 
     return (
         f"Contrib plugin repo created at {target}.\n\n"
