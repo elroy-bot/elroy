@@ -27,6 +27,8 @@ dependencies = [
     "apscheduler==3.11.0",
     "chromadb==1.4.1",
     "textual==8.0.2",
+    "ddgs==9.14.4",
+    "beautifulsoup4==4.14.3",
 ]
 
 [project.optional-dependencies]

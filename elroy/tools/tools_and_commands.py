@@ -20,9 +20,9 @@ from ..repository.agenda.tools import (
     list_agenda_items_cmd,
 )
 from ..repository.codex_sessions.tools import (
-    dispatch_codex_session,
+    edit_contrib_with_codex,
+    inspect_elroy_with_codex,
     list_codex_sessions,
-    resume_codex_session,
 )
 from ..repository.context_messages.tools import (
     add_memory_to_current_context,
@@ -69,6 +69,7 @@ from .developer import print_config, tail_elroy_logs
 from .filesystem import ls, pwd, read_file
 from .session import restart_session
 from .time import get_current_date
+from .web import fetch_page, web_search
 
 IN_CONTEXT_MEMORY_COMMANDS: set[Callable] = {
     drop_memory_from_current_context,
@@ -117,11 +118,13 @@ NON_ARG_PREFILL_COMMANDS: set[Callable] = {
     ls,
     pwd,
     read_file,
-    dispatch_codex_session,
+    inspect_elroy_with_codex,
+    edit_contrib_with_codex,
     list_codex_sessions,
-    resume_codex_session,
     restart_session,
     create_contrib_repo,
+    web_search,
+    fetch_page,
 }
 USER_ONLY_COMMANDS = {
     tail_elroy_logs,

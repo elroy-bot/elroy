@@ -225,7 +225,7 @@ class SidebarBuilder:
             f"Repo: {record.repo_path}",
         ]
         if record.worktree_path:
-            lines.append(f"Worktree: {record.worktree_path}")
+            lines.append(f"Workspace: {record.worktree_path}")
         if record.session_branch:
             lines.append(f"Session Branch: {record.session_branch}")
         if record.target_branch:

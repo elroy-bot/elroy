@@ -1,28 +1,25 @@
 import hashlib
 import json
-import shutil
 import subprocess
 import threading
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel
 
+from ...config.paths import get_log_file_path
 from ...core.constants import RecoverableToolError, tool
 from ...core.session import clone_config, invoke_with_config
 from ...core.turn import TurnContext
 from ...messenger.messenger import process_message
 from ...repository.contrib.tools import ensure_contrib_repo
-from ...utils.git import AGENT_BRANCH
 from .store import CodexSessionStore, CodexSessionUpdate
 
 CODEX_SESSION_SEARCH_ROOT = Path.home() / ".codex" / "sessions"
 DEFAULT_CODEX_SESSION_LIMIT = 5
 MAX_COMMAND_OUTPUT_CHARS = 400
-WORKTREE_ROOT_DIRNAME = ".elroy-codex-worktrees"
-_repo_locks_guard = threading.Lock()
-_repo_locks: dict[str, threading.Lock] = {}
+MAX_LOG_EXCERPT_CHARS = 6000
 
 
 class CodexCommandSummary(BaseModel):
@@ -72,31 +69,20 @@ class RepoSnapshot(BaseModel):
 
 
 @dataclass(frozen=True)
-class SessionWorkspace:
-    source_repo_root: Path
-    worktree_root: Path
-    session_branch: str
-    target_branch: str
-    agent_worktree: Path
-
-
-@dataclass(frozen=True)
-class ResultBuildContext:
+class CodexRunContext:
     source_repo_root: Path
     worktree_root: Path
     before: RepoSnapshot
-    session_branch: str | None = None
-    target_branch: str | None = None
 
 
-def _repo_lock(repo_root: Path) -> threading.Lock:
-    key = str(repo_root.resolve())
-    with _repo_locks_guard:
-        lock = _repo_locks.get(key)
-        if lock is None:
-            lock = threading.Lock()
-            _repo_locks[key] = lock
-        return lock
+@dataclass(frozen=True)
+class CodexBackgroundRun:
+    config: Any
+    prompt: str
+    context: CodexRunContext
+    process: subprocess.Popen[str]
+    initial_stdout: str
+    commit_changes: bool
 
 
 def _run_subprocess(
@@ -120,107 +106,6 @@ def _running_elroy_root() -> Path | None:
         if (parent / "pyproject.toml").is_file() and (parent / "elroy").is_dir():
             return parent
     return None
-
-
-def _development_root() -> Path:
-    elroy_root = _running_elroy_root()
-    if elroy_root is not None:
-        return elroy_root.parent.resolve()
-    return Path.cwd().resolve()
-
-
-def _ensure_within_root(target: Path, root: Path) -> Path:
-    try:
-        target.relative_to(root)
-    except ValueError as exc:
-        raise RecoverableToolError(f"Path {target} is outside the development root {root}.") from exc
-    return target
-
-
-def _resolve_repo_path(repo_path: str | None) -> Path:
-    if repo_path and repo_path.strip() in {"contrib", "elroy-contrib"}:
-        return ensure_contrib_repo()
-
-    development_root = _development_root().resolve()
-    if repo_path is None or not repo_path.strip():
-        candidate = Path.cwd().resolve()
-    else:
-        raw_path = Path(repo_path).expanduser()
-        candidate = (development_root / raw_path).resolve() if not raw_path.is_absolute() else raw_path.resolve()
-    _ensure_within_root(candidate, development_root)
-
-    try:
-        result = _run_subprocess(["git", "-C", str(candidate), "rev-parse", "--show-toplevel"])
-    except subprocess.CalledProcessError as exc:
-        stderr = (exc.stderr or "").strip() or (exc.stdout or "").strip() or str(exc)
-        raise RecoverableToolError(f"Path {candidate} is not inside a Git repository: {stderr}") from exc
-
-    repo_root = Path(result.stdout.strip()).resolve()
-    return _ensure_within_root(repo_root, development_root)
-
-
-def _repo_slug(repo_root: Path) -> str:
-    digest = hashlib.sha1(str(repo_root).encode("utf-8")).hexdigest()[:10]
-    return f"{repo_root.name}-{digest}"
-
-
-def _worktree_root(repo_root: Path) -> Path:
-    return _development_root().resolve() / WORKTREE_ROOT_DIRNAME / _repo_slug(repo_root)
-
-
-def _agent_worktree_path(repo_root: Path) -> Path:
-    return _worktree_root(repo_root) / AGENT_BRANCH
-
-
-def _session_worktree_path(repo_root: Path, session_branch: str) -> Path:
-    return _worktree_root(repo_root) / "sessions" / session_branch
-
-
-def _git_branch_exists(repo_root: Path, branch_name: str) -> bool:
-    result = _run_subprocess(["git", "-C", str(repo_root), "show-ref", "--verify", f"refs/heads/{branch_name}"], check=False)
-    return result.returncode == 0
-
-
-def _ensure_clean_parent(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-
-def _ensure_agent_branch_workspace(repo_root: Path) -> tuple[str, Path]:
-    agent_worktree = _agent_worktree_path(repo_root)
-    lock = _repo_lock(repo_root)
-    with lock:
-        if not _git_branch_exists(repo_root, AGENT_BRANCH):
-            _run_subprocess(["git", "-C", str(repo_root), "branch", AGENT_BRANCH, "HEAD"])
-        if not agent_worktree.exists():
-            _ensure_clean_parent(agent_worktree)
-            _run_subprocess(["git", "-C", str(repo_root), "worktree", "add", str(agent_worktree), AGENT_BRANCH])
-    return AGENT_BRANCH, agent_worktree
-
-
-def _create_session_workspace(repo_root: Path) -> tuple[str, Path, str, Path]:
-    target_branch, agent_worktree = _ensure_agent_branch_workspace(repo_root)
-    session_branch = f"elroy-codex-{uuid.uuid4().hex[:12]}"
-    session_worktree = _session_worktree_path(repo_root, session_branch)
-    lock = _repo_lock(repo_root)
-    with lock:
-        _ensure_clean_parent(session_worktree)
-        _run_subprocess(["git", "-C", str(repo_root), "worktree", "add", "-b", session_branch, str(session_worktree), target_branch])
-    return session_branch, session_worktree, target_branch, agent_worktree
-
-
-def _ensure_existing_session_workspace(repo_root: Path, session_branch: str, worktree_path: Path) -> tuple[str, Path]:
-    target_branch, agent_worktree = _ensure_agent_branch_workspace(repo_root)
-    if worktree_path.exists():
-        return target_branch, agent_worktree
-    lock = _repo_lock(repo_root)
-    with lock:
-        _ensure_clean_parent(worktree_path)
-        if _git_branch_exists(repo_root, session_branch):
-            _run_subprocess(["git", "-C", str(repo_root), "worktree", "add", str(worktree_path), session_branch])
-        else:
-            # Branch was cleaned up after a prior merge; recreate from agent so Codex can resume its session
-            _run_subprocess(["git", "-C", str(repo_root), "worktree", "add", "-b", session_branch, str(worktree_path), target_branch])
-    return target_branch, agent_worktree
 
 
 def _parse_status_lines(output: str) -> dict[str, str]:
@@ -274,34 +159,6 @@ def _touched_paths(before: RepoSnapshot, after: RepoSnapshot) -> list[str]:
         if before.fingerprint_by_path.get(rel_path) != after.fingerprint_by_path.get(rel_path):
             touched.append(rel_path)
     return touched
-
-
-def _build_summary(
-    session_id: str,
-    workspace: ResultBuildContext,
-    touched_paths: list[str],
-    dirty_before: list[str],
-    dirty_after: list[str],
-    final_message: str,
-    merge_note: str | None = None,
-) -> str:
-    lines = [f"Codex session {session_id} ran in isolated worktree {workspace.worktree_root} for source repo {workspace.source_repo_root}."]
-    if workspace.session_branch:
-        lines.append(f"Session branch: {workspace.session_branch}")
-    if workspace.target_branch:
-        lines.append(f"Target agent branch: {workspace.target_branch}")
-    if touched_paths:
-        lines.append("Paths changed during this run: " + ", ".join(touched_paths[:10]))
-    else:
-        lines.append("No repository changes were detected during this run.")
-    if dirty_before:
-        lines.append("Repo was already dirty before run: " + ", ".join(dirty_before[:10]))
-    if dirty_after:
-        lines.append("Dirty paths after run: " + ", ".join(dirty_after[:10]))
-    if merge_note:
-        lines.append(merge_note)
-    lines.append("Final message: " + final_message.strip())
-    return "\n".join(lines)
 
 
 def _session_file_path(thread_id: str) -> str | None:
@@ -359,75 +216,91 @@ def _parse_thread_started(stdout: str) -> str | None:
     return None
 
 
-def _build_codex_args(prompt: str, repo_root: Path, *, session_id: str | None = None, model: str | None = None) -> list[str]:
-    if session_id:
-        args = ["codex", "exec", "resume", "--json", "--dangerously-bypass-approvals-and-sandbox", session_id, prompt]
-    else:
-        args = ["codex", "exec", "--json", "--dangerously-bypass-approvals-and-sandbox", "-C", str(repo_root), prompt]
+def _build_codex_args(prompt: str, repo_root: Path, *, model: str | None = None) -> list[str]:
+    args = ["codex", "exec", "--json", "--dangerously-bypass-approvals-and-sandbox", "-C", str(repo_root), prompt]
     if model:
         args[3:3] = ["-m", model]
     return args
 
 
+def _build_summary(
+    session_id: str,
+    context: CodexRunContext,
+    touched_paths: list[str],
+    dirty_before: list[str],
+    dirty_after: list[str],
+    final_message: str,
+    note: str | None = None,
+) -> str:
+    lines = [f"Codex session {session_id} ran directly in {context.worktree_root} for source repo {context.source_repo_root}."]
+    if touched_paths:
+        lines.append("Paths changed during this run: " + ", ".join(touched_paths[:10]))
+    else:
+        lines.append("No repository changes were detected during this run.")
+    if dirty_before:
+        lines.append("Repo was already dirty before run: " + ", ".join(dirty_before[:10]))
+    if dirty_after:
+        lines.append("Dirty paths after run: " + ", ".join(dirty_after[:10]))
+    if note:
+        lines.append(note)
+    lines.append("Final message: " + final_message.strip())
+    return "\n".join(lines)
+
+
 def _build_running_result(
     session_id: str,
-    workspace: SessionWorkspace,
+    source_repo_root: Path,
+    worktree_root: Path,
     before: RepoSnapshot,
+    purpose: str,
 ) -> CodexSessionResult:
     dirty_before = sorted(before.status_by_path)
     return CodexSessionResult(
         session_id=session_id,
-        repo_path=str(workspace.source_repo_root),
-        worktree_path=str(workspace.worktree_root),
-        session_branch=workspace.session_branch,
-        target_branch=workspace.target_branch,
+        repo_path=str(source_repo_root),
+        worktree_path=str(worktree_root),
+        session_branch=None,
+        target_branch=None,
         status="running",
         final_message="",
-        summary=(
-            f"Codex session {session_id} is running asynchronously in isolated worktree {workspace.worktree_root} "
-            f"on branch {workspace.session_branch}, targeting {workspace.target_branch} "
-            f"for source repo {workspace.source_repo_root}."
-        ),
+        summary=f"Codex {purpose} session {session_id} is running asynchronously in {worktree_root}.",
         touched_paths=[],
         dirty_paths_before=dirty_before,
         dirty_paths_after=dirty_before,
         commands=[],
         session_file_path=None,
-        resume_command=f"codex resume {session_id} -C {workspace.worktree_root}",
+        resume_command=f"codex resume {session_id} -C {worktree_root}",
         running_in_background=True,
     )
 
 
 def _build_failed_result(
-    session_id: str,
-    context: ResultBuildContext,
-    stderr: str,
+    session_id: str, source_repo_root: Path, worktree_root: Path, before: RepoSnapshot, stderr: str
 ) -> CodexSessionResult:
-    dirty_before = sorted(context.before.status_by_path)
+    dirty_before = sorted(before.status_by_path)
     message = stderr.strip() or "Codex run failed."
     return CodexSessionResult(
         session_id=session_id,
-        repo_path=str(context.source_repo_root),
-        worktree_path=str(context.worktree_root),
-        session_branch=context.session_branch,
-        target_branch=context.target_branch,
+        repo_path=str(source_repo_root),
+        worktree_path=str(worktree_root),
+        session_branch=None,
+        target_branch=None,
         status="failed",
         final_message=message,
-        summary=f"Codex session {session_id} failed in isolated worktree {context.worktree_root}: {message}",
+        summary=f"Codex session {session_id} failed in {worktree_root}: {message}",
         touched_paths=[],
         dirty_paths_before=dirty_before,
         dirty_paths_after=dirty_before,
         commands=[],
         session_file_path=None,
-        resume_command=f"codex resume {session_id} -C {context.worktree_root}",
+        resume_command=f"codex resume {session_id} -C {worktree_root}",
     )
 
 
 def _build_result_from_stdout(
     stdout: str,
-    context: ResultBuildContext,
-    merge_note: str | None = None,
-    status: str = "completed",
+    context: CodexRunContext,
+    note: str | None = None,
 ) -> CodexSessionResult:
     resolved_session_id, final_message, commands = _parse_codex_exec_output(stdout)
     after = _snapshot_repo(context.worktree_root)
@@ -441,15 +314,15 @@ def _build_result_from_stdout(
         dirty_before,
         dirty_after,
         final_message,
-        merge_note=merge_note,
+        note=note,
     )
     return CodexSessionResult(
         session_id=resolved_session_id,
         repo_path=str(context.source_repo_root),
         worktree_path=str(context.worktree_root),
-        session_branch=context.session_branch,
-        target_branch=context.target_branch,
-        status=status,
+        session_branch=None,
+        target_branch=None,
+        status="completed",
         final_message=final_message,
         summary=summary,
         touched_paths=touched_paths,
@@ -461,56 +334,17 @@ def _build_result_from_stdout(
     )
 
 
-def _merge_session_branch_into_agent(
-    source_repo_root: Path,
-    agent_worktree: Path,
-    session_branch: str,
-    target_branch: str,
-) -> tuple[str, str]:
-    lock = _repo_lock(source_repo_root)
-    with lock:
-        try:
-            _run_subprocess(["git", "-C", str(agent_worktree), "status", "--porcelain=v1"], check=False)
-            _run_subprocess(["git", "-C", str(agent_worktree), "merge", "--no-ff", "--no-edit", session_branch])
-        except subprocess.CalledProcessError as exc:
-            _run_subprocess(["git", "-C", str(agent_worktree), "merge", "--abort"], check=False)
-            stderr = (exc.stderr or "").strip() or (exc.stdout or "").strip() or str(exc)
-            return "merge_failed", f"Merge into {target_branch} failed: {stderr}"
-    return "completed", f"Merged session branch {session_branch} into {target_branch}."
-
-
 def _worktree_has_uncommitted_changes(worktree_root: Path) -> bool:
     result = _run_subprocess(["git", "-C", str(worktree_root), "status", "--porcelain=v1", "-uall"], check=False)
     return bool(result.stdout.strip())
 
 
-def _commit_session_worktree_if_needed(worktree_root: Path, session_branch: str) -> str | None:
+def _commit_worktree_if_needed(worktree_root: Path, session_id: str) -> str | None:
     if not _worktree_has_uncommitted_changes(worktree_root):
         return None
     _run_subprocess(["git", "-C", str(worktree_root), "add", "-A"])
-    _run_subprocess(["git", "-C", str(worktree_root), "commit", "-m", f"Elroy Codex session updates ({session_branch})"])
-    return f"Committed unmerged worktree changes on {session_branch} before integration."
-
-
-def _cleanup_session_worktree(
-    source_repo_root: Path,
-    worktree_root: Path,
-    session_branch: str,
-) -> str | None:
-    notes = []
-    lock = _repo_lock(source_repo_root)
-    with lock:
-        if worktree_root.exists():
-            shutil.rmtree(worktree_root, ignore_errors=True)
-        _run_subprocess(["git", "-C", str(source_repo_root), "worktree", "prune"], check=False)
-        if not worktree_root.exists():
-            notes.append(f"Removed session worktree {worktree_root}.")
-        try:
-            _run_subprocess(["git", "-C", str(source_repo_root), "branch", "-D", session_branch])
-            notes.append(f"Removed session branch {session_branch}.")
-        except subprocess.CalledProcessError:
-            pass
-    return " ".join(notes) if notes else None
+    _run_subprocess(["git", "-C", str(worktree_root), "commit", "-m", f"Elroy Codex contrib update ({session_id})"])
+    return f"Committed contrib changes for Codex session {session_id}."
 
 
 def _store_result(turn: TurnContext, prompt: str, result: CodexSessionResult) -> None:
@@ -540,8 +374,6 @@ def _completion_followup_prompt(result: CodexSessionResult) -> str:
         f"Session: {result.session_id}\n"
         f"Repository: {result.repo_path}\n"
         f"Worktree: {result.worktree_path or 'n/a'}\n"
-        f"Session branch: {result.session_branch or 'n/a'}\n"
-        f"Target branch: {result.target_branch or 'n/a'}\n"
         f"Status: {result.status}\n"
         f"Summary:\n{result.summary}\n\n"
         "Respond to the user about the outcome and decide whether any follow-up action is needed."
@@ -562,84 +394,55 @@ def _persist_background_codex_result(prompt: str, result_json: str, turn: TurnCo
     )
 
 
-def _complete_codex_session_in_background(
-    *,
-    config,
-    prompt: str,
-    workspace: SessionWorkspace,
-    before: RepoSnapshot,
-    process: subprocess.Popen[str],
-    initial_stdout: str,
-) -> None:
-    stdout_tail, stderr_text = process.communicate()
-    stdout = initial_stdout + (stdout_tail or "")
-    result_context = ResultBuildContext(
-        source_repo_root=workspace.source_repo_root,
-        worktree_root=workspace.worktree_root,
-        before=before,
-        session_branch=workspace.session_branch,
-        target_branch=workspace.target_branch,
-    )
+def _complete_codex_session_in_background(run: CodexBackgroundRun) -> None:
+    stdout_tail, stderr_text = run.process.communicate()
+    stdout = run.initial_stdout + (stdout_tail or "")
+    context = run.context
 
     try:
-        if process.returncode not in {0, None}:
+        if run.process.returncode not in {0, None}:
             session_id = _parse_thread_started(stdout) or "unknown"
-            result = _build_failed_result(session_id, result_context, stderr_text or stdout)
-        else:
-            result = _build_result_from_stdout(stdout, result_context)
-            commit_note = _commit_session_worktree_if_needed(workspace.worktree_root, workspace.session_branch)
-            merge_status, merge_note = _merge_session_branch_into_agent(
-                workspace.source_repo_root,
-                workspace.agent_worktree,
-                workspace.session_branch,
-                workspace.target_branch,
+            result = _build_failed_result(
+                session_id,
+                context.source_repo_root,
+                context.worktree_root,
+                context.before,
+                stderr_text or stdout,
             )
-            cleanup_note = None
-            if merge_status == "completed":
-                cleanup_note = _cleanup_session_worktree(
-                    workspace.source_repo_root,
-                    workspace.worktree_root,
-                    workspace.session_branch,
-                )
-
-            notes = [note for note in (commit_note, merge_note, cleanup_note) if note]
-            result.status = merge_status
-            if notes:
-                result.summary = "\n".join([result.summary, *notes])
+        else:
+            result = _build_result_from_stdout(stdout, context)
+            if run.commit_changes:
+                commit_note = _commit_worktree_if_needed(context.worktree_root, result.session_id)
+                if commit_note:
+                    clean_after_commit = _snapshot_repo(context.worktree_root)
+                    result.dirty_paths_after = sorted(clean_after_commit.status_by_path)
+                    result.summary = "\n".join([result.summary, commit_note])
     except Exception as exc:
         session_id = _parse_thread_started(stdout) or "unknown"
-        result = _build_failed_result(session_id, result_context, str(exc))
+        result = _build_failed_result(session_id, context.source_repo_root, context.worktree_root, context.before, str(exc))
 
-    new_ctx = clone_config(config)
-    invoke_with_config(_persist_background_codex_result, new_ctx, prompt, result.model_dump_json())
+    new_ctx = clone_config(run.config)
+    invoke_with_config(_persist_background_codex_result, new_ctx, run.prompt, result.model_dump_json())
 
 
 def _prepare_codex_async_run(
     prompt: str,
     source_repo_root: Path,
+    worktree_root: Path,
     turn: TurnContext,
     *,
-    workspace: SessionWorkspace | None = None,
-    session_id: str | None = None,
+    purpose: str,
+    commit_changes: bool,
     model: str | None = None,
 ) -> tuple[CodexSessionResult, threading.Thread]:
-    if workspace is None:
-        session_branch, worktree_root, target_branch, agent_worktree = _create_session_workspace(source_repo_root)
-        workspace = SessionWorkspace(
-            source_repo_root=source_repo_root,
-            worktree_root=worktree_root,
-            session_branch=session_branch,
-            target_branch=target_branch,
-            agent_worktree=agent_worktree,
-        )
-
-    before = _snapshot_repo(workspace.worktree_root)
-    args = _build_codex_args(prompt, workspace.worktree_root, session_id=session_id, model=model)
+    before = _snapshot_repo(worktree_root)
+    context = CodexRunContext(source_repo_root=source_repo_root, worktree_root=worktree_root, before=before)
+    args = _build_codex_args(prompt, worktree_root, model=model)
 
     try:
         process = subprocess.Popen(
             args,
-            cwd=str(workspace.worktree_root),
+            cwd=str(worktree_root),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -664,17 +467,18 @@ def _prepare_codex_async_run(
         if resolved_session_id:
             break
 
-    running_result = _build_running_result(resolved_session_id, workspace, before)
-
+    running_result = _build_running_result(resolved_session_id, source_repo_root, worktree_root, before, purpose)
     background_thread = threading.Thread(
         target=_complete_codex_session_in_background,
         kwargs={
-            "config": turn.config,
-            "prompt": prompt,
-            "workspace": workspace,
-            "before": before,
-            "process": process,
-            "initial_stdout": "".join(initial_stdout_lines),
+            "run": CodexBackgroundRun(
+                config=turn.config,
+                prompt=prompt,
+                context=context,
+                process=process,
+                initial_stdout="".join(initial_stdout_lines),
+                commit_changes=commit_changes,
+            ),
         },
         daemon=True,
         name=f"codex-session-{resolved_session_id}",
@@ -682,72 +486,68 @@ def _prepare_codex_async_run(
     return running_result, background_thread
 
 
-@tool
-def dispatch_codex_session(prompt: str, turn: TurnContext, repo_path: str | None = None, model: str | None = None) -> CodexSessionResult:
-    """Run a Codex coding session against a repository inside the Elroy development workspace.
+def _tail_log_excerpt(max_chars: int = MAX_LOG_EXCERPT_CHARS) -> str:
+    log_path = get_log_file_path()
+    if not log_path.exists():
+        return ""
+    try:
+        return log_path.read_text(encoding="utf-8")[-max_chars:]
+    except UnicodeDecodeError:
+        return ""
 
-    Use this when you want Codex to work in another repository, edit the default contrib plugin repo
-    with ``repo_path="contrib"``, or perform a bounded coding task in the current repo. Elroy will
-    capture the Codex session id, summarize repository changes, and remember the session for later
-    resumption.
+
+def _build_inspection_prompt(prompt: str, include_logs: bool) -> str:
+    log_path = get_log_file_path()
+    log_excerpt = _tail_log_excerpt() if include_logs else ""
+    log_section = f"\n\nElroy log path: {log_path}\nRecent log excerpt:\n{log_excerpt}" if include_logs else ""
+    return (
+        "Inspect the running Elroy codebase and logs. Do not edit files. Report concrete findings, risks, and suggested next steps.\n\n"
+        f"Inspection request:\n{prompt}"
+        f"{log_section}"
+    )
+
+
+def _build_contrib_edit_prompt(prompt: str, contrib_repo: Path) -> str:
+    return (
+        "Edit only the Elroy contrib plugin directory for this task. Do not modify core Elroy source code. "
+        "Contrib Python files may define @tool functions and/or ELROY_PLUGIN = ElroyPlugin(...) sidebar plugins. "
+        "Keep changes small and directly related to the request.\n\n"
+        f"Contrib directory: {contrib_repo}\n\n"
+        f"Edit request:\n{prompt}"
+    )
+
+
+def _repo_filter_for_scope(scope: str | None) -> Path | None:
+    if scope is None:
+        return None
+    if scope == "contrib":
+        return ensure_contrib_repo()
+    if scope == "elroy":
+        return _running_elroy_root() or Path.cwd().resolve()
+    raise RecoverableToolError("scope must be 'contrib', 'elroy', or omitted")
+
+
+@tool
+def inspect_elroy_with_codex(prompt: str, turn: TurnContext, include_logs: bool = True, model: str | None = None) -> CodexSessionResult:
+    """Run a read-only Codex inspection session against the running Elroy source tree and optional logs.
+
+    Use this when you want a separate Codex session to investigate bugs, inspect code paths, or review
+    recent logs without making edits.
 
     Args:
-        prompt: Instructions to send to Codex.
+        prompt: Inspection question or task for Codex.
         turn: Active turn context for persistence.
-        repo_path: Repository path relative to the workspace containing this Elroy checkout, an absolute path inside it,
-            or "contrib" for the default assistant-editable contrib repo.
+        include_logs: Whether to include the Elroy log path and recent log excerpt in the Codex prompt.
         model: Optional Codex model override.
     """
-    source_repo_root = _resolve_repo_path(repo_path)
-    result, background_thread = _prepare_codex_async_run(prompt, source_repo_root, turn, model=model)
-    _store_result(turn, prompt, result)
-    background_thread.start()
-    return result
-
-
-@tool
-def resume_codex_session(session_id: str, prompt: str, turn: TurnContext, model: str | None = None) -> CodexSessionResult:
-    """Resume a previously recorded Codex session with a follow-up prompt.
-
-    Use this after `dispatch_codex_session` when you want Codex to continue earlier work while
-    preserving its own session context. Elroy resumes the same Codex thread id and returns an
-    updated repository-change summary.
-
-    Args:
-        session_id: Existing Codex thread/session id returned by Elroy.
-        prompt: Follow-up prompt to send to the existing Codex session.
-        turn: Active turn context for persistence.
-        model: Optional Codex model override.
-    """
-    store = CodexSessionStore(turn.db, turn.user_id)
-    record = store.get_by_thread_id(session_id)
-    if record is None:
-        raise RecoverableToolError(f"Unknown Codex session '{session_id}'. Use list_codex_sessions to inspect available sessions.")
-    if record.status == "running":
-        raise RecoverableToolError(f"Codex session '{session_id}' is still running.")
-
-    source_repo_root = Path(record.repo_path)
-
-    if not record.session_branch or not record.worktree_path:
-        raise RecoverableToolError(f"Codex session '{session_id}' is missing branch/worktree metadata and cannot be resumed.")
-    target_branch, agent_worktree = _ensure_existing_session_workspace(
-        source_repo_root,
-        record.session_branch,
-        Path(record.worktree_path),
-    )
-    workspace = SessionWorkspace(
-        source_repo_root=source_repo_root,
-        worktree_root=Path(record.worktree_path),
-        session_branch=record.session_branch,
-        target_branch=target_branch,
-        agent_worktree=agent_worktree,
-    )
+    source_repo_root = _running_elroy_root() or Path.cwd().resolve()
     result, background_thread = _prepare_codex_async_run(
-        prompt,
+        _build_inspection_prompt(prompt, include_logs),
+        source_repo_root,
         source_repo_root,
         turn,
-        workspace=workspace,
-        session_id=session_id,
+        purpose="inspection",
+        commit_changes=False,
         model=model,
     )
     _store_result(turn, prompt, result)
@@ -756,24 +556,46 @@ def resume_codex_session(session_id: str, prompt: str, turn: TurnContext, model:
 
 
 @tool
-def list_codex_sessions(
-    turn: TurnContext, repo_path: str | None = None, limit: int = DEFAULT_CODEX_SESSION_LIMIT
-) -> CodexSessionListResult:
-    """List recently recorded Codex sessions and their latest change summaries.
+def edit_contrib_with_codex(prompt: str, turn: TurnContext, model: str | None = None) -> CodexSessionResult:
+    """Run a Codex edit session directly in the Elroy-home contrib plugin directory.
 
-    Use this to discover resumable Codex sessions, inspect which repository each session targeted,
-    and review the latest summary before deciding whether to resume one. Session listings include
-    the isolated worktree and branch metadata so concurrent runs can be distinguished safely.
+    Use this for assistant self-improvements that should be loaded through the plugin system instead
+    of changing core Elroy source code. Elroy ensures the contrib directory exists as a git repo,
+    runs Codex directly in that directory, records the session, and commits completed changes.
+
+    Args:
+        prompt: Plugin/tool edit request for Codex.
+        turn: Active turn context for persistence.
+        model: Optional Codex model override.
+    """
+    contrib_repo = ensure_contrib_repo()
+    result, background_thread = _prepare_codex_async_run(
+        _build_contrib_edit_prompt(prompt, contrib_repo),
+        contrib_repo,
+        contrib_repo,
+        turn,
+        purpose="contrib edit",
+        commit_changes=True,
+        model=model,
+    )
+    _store_result(turn, prompt, result)
+    background_thread.start()
+    return result
+
+
+@tool
+def list_codex_sessions(turn: TurnContext, scope: str | None = None, limit: int = DEFAULT_CODEX_SESSION_LIMIT) -> CodexSessionListResult:
+    """List recently recorded Codex sessions and their latest summaries.
 
     Args:
         turn: Active turn context for persistence.
-        repo_path: Optional repository path filter relative to the workspace containing this Elroy checkout.
+        scope: Optional filter. Use "contrib" for plugin-directory sessions or "elroy" for running-code inspection sessions.
         limit: Maximum number of sessions to return.
     """
     if limit < 1:
         raise RecoverableToolError("limit must be at least 1")
 
-    repo_root = _resolve_repo_path(repo_path) if repo_path else None
+    repo_root = _repo_filter_for_scope(scope)
     records = CodexSessionStore(turn.db, turn.user_id).list_recent(repo_path=repo_root, limit=limit)
     return CodexSessionListResult(
         sessions=[

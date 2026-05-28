@@ -57,7 +57,7 @@ Elroy opens a terminal UI where you can chat, create memories, and manage remind
 
 Elroy creates `~/.elroy/contrib` as the default assistant-editable plugin directory. Python files in that directory can define `@tool` functions for assistant tools and `ELROY_PLUGIN = ElroyPlugin(...)` for custom sidebar tabs.
 
-For self-improvements that should not modify core Elroy, ask the assistant to work in `repo_path="contrib"`. Elroy can run from any source branch; Codex-backed contrib changes are isolated in session worktrees and merged into the contrib repo's `agent` branch.
+For self-improvements that should not modify core Elroy, ask the assistant to use `edit_contrib_with_codex`. Elroy can run from any source branch; Codex-backed contrib changes run directly in the home contrib repo, which Elroy initializes and manages as git.
 
 ## Memory and Reminder Tools
 

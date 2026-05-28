@@ -3,6 +3,7 @@ from pathlib import Path
 
 from ...config.paths import get_contrib_dir
 from ...core.constants import RecoverableToolError, tool
+from ...utils.git import AGENT_BRANCH
 
 _GITIGNORE_CONTENT = """\
 __pycache__/
@@ -86,6 +87,34 @@ def _has_commits(target: Path) -> bool:
     return result.returncode == 0
 
 
+def _branch_exists(target: Path, branch_name: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(target), "show-ref", "--verify", f"refs/heads/{branch_name}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _current_branch(target: Path) -> str | None:
+    result = subprocess.run(
+        ["git", "-C", str(target), "branch", "--show-current"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    branch = result.stdout.strip()
+    return branch or None
+
+
+def _ensure_agent_branch_checked_out(target: Path) -> None:
+    if not _branch_exists(target, AGENT_BRANCH):
+        _run_git(["branch", AGENT_BRANCH, "HEAD"], target)
+    if _current_branch(target) != AGENT_BRANCH:
+        _run_git(["checkout", AGENT_BRANCH], target)
+
+
 def _write_default_contrib_files(target: Path) -> None:
     files = {
         ".gitignore": _GITIGNORE_CONTENT,
@@ -105,9 +134,9 @@ def ensure_contrib_repo(path: str | Path | None = None) -> Path:
     """Ensure the assistant-editable contrib directory exists as a git repo."""
     target = Path(path).expanduser().resolve() if path is not None else get_contrib_dir().resolve()
     target.mkdir(parents=True, exist_ok=True)
-    _write_default_contrib_files(target)
 
     if not _has_git_repo(target):
+        _write_default_contrib_files(target)
         try:
             subprocess.run(["git", "init", str(target)], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as exc:
@@ -118,8 +147,11 @@ def ensure_contrib_repo(path: str | Path | None = None) -> Path:
     _run_git(["config", "user.name", "Elroy Contrib"], target)
 
     if not _has_commits(target):
+        _write_default_contrib_files(target)
         _run_git(["add", "."], target)
         _run_git(["commit", "-m", "Initial Elroy contrib repo"], target)
+
+    _ensure_agent_branch_checked_out(target)
 
     return target
 
@@ -160,6 +192,7 @@ def create_contrib_repo(path: str) -> str:
     _run_git(["config", "user.name", "Elroy Contrib"], target)
     _run_git(["add", "."], target)
     _run_git(["commit", "-m", "Initial contrib plugin repo"], target)
+    _ensure_agent_branch_checked_out(target)
 
     return (
         f"Contrib plugin repo created at {target}.\n\n"
@@ -167,7 +200,7 @@ def create_contrib_repo(path: str) -> str:
         f"  tools.py   — add @tool-decorated functions here (loaded as assistant tools)\n"
         f"  plugin.py  — define ELROY_PLUGIN here to add a sidebar tab with a custom Textual widget\n\n"
         f"Next steps:\n"
-        f"1. Edit the stub files or ask me to dispatch a Codex session targeting {target}.\n"
+        f"1. Edit the stub files or ask me to use edit_contrib_with_codex for the default contrib repo.\n"
         f"2. Set `contrib_tools_path: {target}` in your elroy config file.\n"
         f"3. Restart Elroy — tools and the plugin panel will be loaded automatically."
     )
