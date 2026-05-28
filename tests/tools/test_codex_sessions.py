@@ -411,3 +411,79 @@ def test_e2e_self_improvement_dispatch_from_main_branch(ctx, monkeypatch, tmp_pa
         text=True,
     ).stdout
     assert agent_file == "improved\n"
+
+
+def test_e2e_contrib_self_improvement_targets_home_contrib_repo(ctx, monkeypatch, tmp_path: Path):
+    """
+    End-to-end test for directing assistant-editable improvements into the home contrib repo.
+
+    Verifies that the contrib alias creates a git-backed ~/.elroy/contrib repo, runs Codex in
+    an isolated worktree, and merges the resulting plugin/tool code onto the contrib agent branch.
+    """
+    development_root = tmp_path / "development"
+    development_root.mkdir()
+    home_dir = tmp_path / "elroy-home"
+
+    monkeypatch.setenv("ELROY_HOME", str(home_dir))
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools._development_root", lambda: development_root)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.threading.Thread", _ImmediateThread)
+
+    def fake_popen(args, **kwargs):
+        if args[0] != "codex":
+            return REAL_POPEN(args, **kwargs)
+        worktree_root = Path(kwargs["cwd"])
+        (worktree_root / "tools.py").write_text(
+            """\
+from elroy.core.constants import tool
+
+@tool
+def generated_contrib_tool() -> str:
+    \"\"\"Return a generated contrib value.
+
+    Returns:
+        A generated value.
+    \"\"\"
+    return "generated"
+""",
+            encoding="utf-8",
+        )
+        stdout = "\n".join(
+            [
+                '{"type":"thread.started","thread_id":"thread-contrib-001"}',
+                '{"type":"item.completed","item":{"id":"i1","type":"agent_message","text":"contrib improvement done"}}',
+            ]
+        )
+        return _FakePopen(args, cwd=kwargs.get("cwd"), stdout_text=stdout)
+
+    def fake_process_message(**kwargs):
+        assert kwargs["persist_input_message"] is False
+        yield AssistantResponse(content="Contrib improvement complete.")
+
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("elroy.repository.codex_sessions.tools.process_message", fake_process_message)
+
+    with open_turn_context(ctx) as turn:
+        result = dispatch_codex_session("add generated contrib tool", turn=turn, repo_path="contrib")
+
+    contrib_repo = home_dir / "contrib"
+    with open_turn_context(ctx) as turn:
+        records = turn.db.exec(select(CodexSession).where(CodexSession.thread_id == "thread-contrib-001")).all()
+
+    assert result.session_id == "thread-contrib-001"
+    assert result.repo_path == str(contrib_repo)
+    assert result.target_branch == "agent"
+    assert (contrib_repo / ".git").is_dir()
+
+    assert len(records) == 1
+    record = records[0]
+    assert record.repo_path == str(contrib_repo)
+    assert record.status == "completed"
+    assert record.latest_agent_message == "contrib improvement done"
+
+    agent_tools = subprocess.run(
+        ["git", "-C", str(contrib_repo), "show", "agent:tools.py"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "generated_contrib_tool" in agent_tools

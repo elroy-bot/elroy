@@ -18,7 +18,7 @@ from ..config.llm import (
     get_embedding_model,
     infer_chat_model_name,
 )
-from ..config.paths import get_default_config_path
+from ..config.paths import get_contrib_dir, get_default_config_path
 from ..llm.client import LlmClient
 from .configs import (
     MemoryConfig,
@@ -166,7 +166,7 @@ class ElroyConfig:
                 include_base_tools=include_base_tools if include_base_tools is not None else True,
                 shell_commands=shell_commands if shell_commands is not None else True,
                 allowed_shell_command_prefixes=allowed_shell_command_prefixes or [],
-                contrib_tools_path=contrib_tools_path,
+                contrib_tools_path=contrib_tools_path or str(get_contrib_dir()),
             )
 
         if runtime_config is not None:

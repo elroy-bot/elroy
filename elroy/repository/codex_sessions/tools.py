@@ -13,6 +13,7 @@ from ...core.constants import RecoverableToolError, tool
 from ...core.session import clone_config, invoke_with_config
 from ...core.turn import TurnContext
 from ...messenger.messenger import process_message
+from ...repository.contrib.tools import ensure_contrib_repo
 from ...utils.git import AGENT_BRANCH
 from .store import CodexSessionStore, CodexSessionUpdate
 
@@ -137,6 +138,9 @@ def _ensure_within_root(target: Path, root: Path) -> Path:
 
 
 def _resolve_repo_path(repo_path: str | None) -> Path:
+    if repo_path and repo_path.strip() in {"contrib", "elroy-contrib"}:
+        return ensure_contrib_repo()
+
     development_root = _development_root().resolve()
     if repo_path is None or not repo_path.strip():
         candidate = Path.cwd().resolve()
@@ -682,14 +686,16 @@ def _prepare_codex_async_run(
 def dispatch_codex_session(prompt: str, turn: TurnContext, repo_path: str | None = None, model: str | None = None) -> CodexSessionResult:
     """Run a Codex coding session against a repository inside the Elroy development workspace.
 
-    Use this when you want Codex to work in another repository or to perform a bounded coding task
-    in the current repo. Elroy will capture the Codex session id, summarize repository changes, and
-    remember the session for later resumption.
+    Use this when you want Codex to work in another repository, edit the default contrib plugin repo
+    with ``repo_path="contrib"``, or perform a bounded coding task in the current repo. Elroy will
+    capture the Codex session id, summarize repository changes, and remember the session for later
+    resumption.
 
     Args:
         prompt: Instructions to send to Codex.
         turn: Active turn context for persistence.
-        repo_path: Repository path relative to the workspace containing this Elroy checkout, or an absolute path inside it.
+        repo_path: Repository path relative to the workspace containing this Elroy checkout, an absolute path inside it,
+            or "contrib" for the default assistant-editable contrib repo.
         model: Optional Codex model override.
     """
     source_repo_root = _resolve_repo_path(repo_path)

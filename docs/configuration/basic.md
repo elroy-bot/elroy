@@ -11,6 +11,7 @@ These settings control the core behavior of Elroy. All options can be set via en
 | `debug` | `ELROY_DEBUG` | `false` | Enable fail-fast error handling and verbose logging output |
 | `user_token` | `ELROY_USER_TOKEN` | `DEFAULT` | User token to use for Elroy |
 | `custom_tools_path` | `ELROY_CUSTOM_TOOLS_PATH` | - | Path to custom functions to load |
+| `contrib_tools_path` | `ELROY_CONTRIB_TOOLS_PATH` | `~/.elroy/contrib` | Assistant-editable contrib directory for custom tools and sidebar plugins |
 | `database_url` | `ELROY_DATABASE_URL` | SQLite at `~/.elroy/elroy.db` | Valid SQLite URL for the database |
 | `inline_tool_calls` | `ELROY_INLINE_TOOL_CALLS` | `false` | Whether to enable inline tool calls (better for some open source models) |
 | `reflect` | `ELROY_REFLECT` | `false` | If true, the assistant will reflect on memories it recalls. Slower but richer responses. |
@@ -25,4 +26,5 @@ debug: false
 user_token: DEFAULT
 chat_model: claude-sonnet-4-5-20250929
 reflect: false
+contrib_tools_path: ~/.elroy/contrib
 ```
