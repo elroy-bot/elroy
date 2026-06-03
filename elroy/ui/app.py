@@ -1169,12 +1169,85 @@ def make_app(**overrides) -> ElroyApp:
     )
 
 
+def _parse_flag(argv: list[str], flag: str) -> str | None:
+    for i, arg in enumerate(argv):
+        if arg == flag and i + 1 < len(argv):
+            return argv[i + 1]
+    return None
+
+
+def _has_flag(argv: list[str], flag: str) -> bool:
+    return flag in argv
+
+
 def _handle_cli_command(argv: list[str]) -> bool:
+    import json
+
     if not argv:
         return False
 
     if argv[0] in {"version", "--version", "-V"}:
         print(__version__)
+        return True
+
+    if argv[0] == "list-tools":
+        from ..tools.registry import ToolRegistry
+
+        contrib_path = _parse_flag(argv[1:], "--contrib-tools-path")
+        include_base = not _has_flag(argv[1:], "--no-base-tools")
+        registry = ToolRegistry(
+            include_base_tools=include_base,
+            custom_paths=[contrib_path] if contrib_path else [],
+        )
+        registry.register_all()
+        print(json.dumps(sorted(registry.tools.keys())))
+        return True
+
+    if argv[0] == "list-plugins":
+        from ..plugins.registry import PluginRegistry
+
+        contrib_path = _parse_flag(argv[1:], "--contrib-tools-path")
+        registry = PluginRegistry.from_path(contrib_path)
+        print(json.dumps([{"name": p.name, "tab_label": p.tab_label} for p in registry.plugins]))
+        return True
+
+    if argv[0] == "list-codex-sessions":
+        from sqlmodel import desc, select
+
+        from ..config.paths import get_default_sqlite_url
+        from ..db.db_manager import DbManager
+        from ..db.db_models import CodexSession
+        from ..repository.user.store import UserStore
+
+        database_url = _parse_flag(argv[1:], "--database-url") or get_default_sqlite_url()
+        user_token = _parse_flag(argv[1:], "--user-token")
+        status_filter = _parse_flag(argv[1:], "--status")
+
+        db_manager = DbManager(database_url)
+        with db_manager.open_session() as db:
+            user_id: int | None = None
+            if user_token:
+                user_id = UserStore(db).get_user_id_if_exists(user_token)
+
+            stmt = select(CodexSession)
+            if user_id is not None:
+                stmt = stmt.where(CodexSession.user_id == user_id)
+            if status_filter:
+                stmt = stmt.where(CodexSession.status == status_filter)
+            stmt = stmt.order_by(desc(CodexSession.updated_at)).limit(20)
+            records = list(db.exec(stmt).all())
+
+        sessions = [
+            {
+                "session_id": r.thread_id,
+                "status": r.status,
+                "repo_path": r.repo_path,
+                "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+                "summary": r.latest_summary,
+            }
+            for r in records
+        ]
+        print(json.dumps(sessions))
         return True
 
     return False
